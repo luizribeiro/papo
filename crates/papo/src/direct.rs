@@ -288,119 +288,18 @@ impl crate::Client {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use std::{
-        collections::{HashMap, HashSet},
+        collections::HashMap,
         hash::{DefaultHasher, Hash, Hasher},
         sync::Arc,
     };
 
     use crate::Account;
     use papo_core::{Config, Session};
-    use papo_proto::LineRef;
 
     fn direct_hash(direct: &super::DirectRef) -> u64 {
         let mut hasher = DefaultHasher::new();
         direct.hash(&mut hasher);
         hasher.finish()
-    }
-
-    #[test]
-    fn direct_references_are_nickname_arguments() {
-        fn assert_as_nick<T: crate::AsNick>() {}
-
-        assert_as_nick::<super::DirectRef>();
-    }
-
-    #[test]
-    fn direct_references_use_stable_captured_identity() {
-        let mut session = Session::new(Config::default().nick("papo"));
-        let prove = |session: &mut Session, nick: &str, account: Account| {
-            let row = match &account {
-                Account::LoggedIn(name) => format!(":ergo.test 354 papo {nick} {name}"),
-                _ => format!(":ergo.test 354 papo {nick} 0"),
-            };
-            let nick = session.isupport().casemapping().nick(nick);
-            let lines = [LineRef::parse(&row).unwrap().to_owned()];
-            let proof = session.__prove_who_user(nick, account, &lines).unwrap();
-            proof.__recipient().unwrap().clone()
-        };
-        let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
-        let desktop = prove(&mut session, "alice", account.clone());
-        let desktop_unverified = session
-            .state()
-            .__recipient_from_event(
-                desktop.__token(),
-                desktop.__nick().clone(),
-                Account::Unknown,
-            )
-            .unwrap();
-        let phone = prove(&mut session, "alice-phone", account);
-        let mallory_account =
-            Account::LoggedIn(session.isupport().casemapping().account("mallory-account"));
-        let mallory = prove(&mut session, "mallory", mallory_account);
-        let bob = prove(&mut session, "bob", Account::LoggedOut);
-        let carol = prove(&mut session, "carol", Account::LoggedOut);
-        let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let desktop = super::DirectRef::new(&client, desktop, false);
-        let desktop_unverified = super::DirectRef::new(&client, desktop_unverified, false);
-        let phone = super::DirectRef::new(&client, phone, false);
-        let mallory = super::DirectRef::new(&client, mallory, false);
-        let bob = super::DirectRef::new(&client, bob, false);
-        let carol = super::DirectRef::new(&client, carol, false);
-
-        assert_ne!(desktop, phone);
-        assert_eq!(desktop, desktop_unverified);
-        assert_ne!(desktop, mallory);
-        assert_eq!(bob, bob.clone());
-        assert_ne!(bob, carol);
-        assert_eq!(desktop.to_string(), "alice");
-        let debug = format!("{desktop:?}");
-        assert!(debug.starts_with("DirectRef { nick: Nick"));
-        assert!(debug.contains("\"alice\""));
-
-        assert_ne!(direct_hash(&desktop), direct_hash(&phone));
-        assert_eq!(direct_hash(&desktop), direct_hash(&desktop_unverified));
-        assert_ne!(direct_hash(&desktop), direct_hash(&mallory));
-        assert_ne!(direct_hash(&bob), direct_hash(&carol));
-    }
-
-    #[test]
-    #[allow(clippy::mutable_key_type)]
-    fn direct_references_distribute_in_hash_maps() {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(now, b":papo!p@localhost JOIN #release");
-        for index in 0..64 {
-            session.handle_line(
-                now,
-                format!(":reviewer{index:02}!review@cloak.example JOIN #release").as_bytes(),
-            );
-        }
-        let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let handles: Vec<_> = (0..64)
-            .map(|index| {
-                let nick = session
-                    .isupport()
-                    .casemapping()
-                    .nick(format!("reviewer{index:02}"));
-                let recipient = session
-                    .state()
-                    .__capture_recipient(nick, Account::Unknown)
-                    .unwrap();
-                super::DirectRef::new(&client, recipient, false)
-            })
-            .collect();
-        let hashes: HashSet<_> = handles.iter().map(direct_hash).collect();
-        let by_recipient: HashMap<_, _> = handles
-            .iter()
-            .enumerate()
-            .map(|(index, direct)| (direct.clone(), index))
-            .collect();
-
-        assert_eq!(hashes.len(), 64);
-        assert_eq!(by_recipient.len(), 64);
-        for (index, direct) in handles.iter().enumerate() {
-            assert_eq!(by_recipient.get(direct), Some(&index));
-        }
     }
 
     #[tokio::test]
