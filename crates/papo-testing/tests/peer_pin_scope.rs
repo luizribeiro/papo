@@ -28,18 +28,18 @@ async fn equal_account_pins_do_not_merge_nickname_threads() {
     ] {
         join(&mut events, &mut wire, line).await;
     }
-    let desktop = client.direct("alice").await.unwrap();
-    let phone = client.direct("alice-phone").await.unwrap();
+    let desktop = client.query("alice").unwrap();
+    let phone = client.query("alice-phone").unwrap();
 
     assert_ne!(desktop, phone);
     assert_ne!(desktop.nick().key(), phone.nick().key());
-    assert_ne!(desktop.peer_key(), phone.peer_key());
+    assert_ne!(desktop.key(), phone.key());
     assert_mismatch(
-        desktop.peer_key(),
-        phone.peer_key(),
+        &desktop.key(),
+        &phone.key(),
         papo::PeerKeyMismatch::DifferentAccount,
     );
-    assert!(desktop.peer_key().is_verified());
+    assert!(desktop.key().is_verified());
 }
 
 #[tokio::test]
@@ -85,7 +85,7 @@ async fn only_the_tls_authenticated_server_name_scopes_durable_pins() {
             ":alice!~alice@cloak.example JOIN #review alice-account :Alice",
         )
         .await;
-        client.direct("alice").await.unwrap().peer_key().clone()
+        client.query("alice").unwrap().key()
     }
 
     let first = pin("ircs://verified.example", None, Some("OneName"), None).await;

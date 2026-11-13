@@ -69,8 +69,8 @@ async fn bouncer_drop_preserves_account_pin_proved_by_a_new_line() {
         ":alice!alice-old@cloak.example JOIN #review alice-account :Alice",
     )
     .await;
-    let direct = client.direct("alice").await.unwrap();
-    let stored = direct.peer_key().clone();
+    let alice = client.query("alice").unwrap();
+    let stored = alice.key();
     assert!(stored.is_verified());
 
     wire.server("BOUNCER NETWORK 1 state=disconnected").await;
@@ -79,7 +79,7 @@ async fn bouncer_drop_preserves_account_pin_proved_by_a_new_line() {
         Event::BouncerNetworkChanged(_)
     ) {}
     assert!(matches!(
-        client.privmsg(&direct, "release approved").await,
+        client.privmsg(&alice, "release approved").await,
         Err(Error::TargetGone)
     ));
     wire.server("BOUNCER NETWORK 1 state=connected;error").await;

@@ -1,4 +1,4 @@
-//! Highest-layer coverage for blocking direct opens with stored peer pins.
+//! Highest-layer coverage for blocking opens with stored peer keys.
 
 mod support {
     pub mod direct;
@@ -13,7 +13,7 @@ use support::{
 };
 
 #[tokio::test]
-async fn pinned_direct_open_blocks_identity_changes() {
+async fn open_with_stored_key_blocks_identity_changes() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://verified.example", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -33,8 +33,8 @@ async fn pinned_direct_open_blocks_identity_changes() {
         ":alice!~alice@cloak.example JOIN #review alice-account :Alice",
     )
     .await;
-    let stored = client.direct("alice").await.unwrap().peer_key().clone();
-    assert!(client.direct_pinned("alice", &stored).await.is_ok());
+    let stored = client.query("alice").unwrap().key();
+    assert!(client.open(&stored).await.is_ok());
 
     wire.server(":alice!~alice@cloak.example ACCOUNT replacement-account")
         .await;
@@ -42,8 +42,8 @@ async fn pinned_direct_open_blocks_identity_changes() {
         events.next().await.map(|(event, _)| event),
         Some(Event::AccountChanged(_))
     ));
-    let error = client.direct_pinned("alice", &stored).await.unwrap_err();
-    let Error::PeerPinMismatch(mismatch) = error else {
+    let error = client.open(&stored).await.unwrap_err();
+    let Error::NotSamePerson(mismatch) = error else {
         panic!("unexpected error: {error}");
     };
     assert_eq!(mismatch.reason(), PeerKeyMismatch::DifferentAccount);
@@ -52,23 +52,19 @@ async fn pinned_direct_open_blocks_identity_changes() {
         PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
     ));
 
-    let accepted = client.direct("alice").await.unwrap();
+    let accepted = client.query("alice").unwrap();
     assert!(matches!(
-        mismatch.current_key().check(accepted.peer_key()),
+        mismatch.current_key().check(&accepted.key()),
         PeerKeyCheck::Match
     ));
 
-    let replacement = accepted.peer_key().clone();
+    let replacement = accepted.key();
     wire.server(":alice!~alice@cloak.example ACCOUNT *").await;
     assert!(matches!(
         events.next().await.map(|(event, _)| event),
         Some(Event::AccountChanged(_))
     ));
-    let Error::PeerPinMismatch(unverified) = client
-        .direct_pinned("alice", &replacement)
-        .await
-        .unwrap_err()
-    else {
+    let Error::NotSamePerson(unverified) = client.open(&replacement).await.unwrap_err() else {
         panic!("expected a pin mismatch");
     };
     assert_eq!(unverified.reason(), PeerKeyMismatch::CannotVerify);
@@ -102,15 +98,15 @@ async fn bouncer_upstream_drop_rejects_continuity_pin_and_live_target() {
         ":alice!alice-old@cloak.example JOIN #review",
     )
     .await;
-    let direct = client.direct("alice").await.unwrap();
-    let stored = direct.peer_key().clone();
+    let alice = client.query("alice").unwrap();
+    let stored = alice.key();
     assert!(!stored.is_verified());
 
     wire.server(":BouncerServ!BouncerServ@BouncerServ NOTICE papo :disconnected from ergo")
         .await;
     while !matches!(next_active_event(&mut events).await, Event::Notice(_)) {}
     assert!(matches!(
-        client.privmsg(&direct, "release approved").await,
+        client.privmsg(&alice, "release approved").await,
         Err(Error::TargetGone)
     ));
 
@@ -132,9 +128,7 @@ async fn bouncer_upstream_drop_rejects_continuity_pin_and_live_target() {
         Event::ChannelSynced(_)
     ) {}
 
-    let Error::PeerPinMismatch(mismatch) =
-        client.direct_pinned("alice", &stored).await.unwrap_err()
-    else {
+    let Error::NotSamePerson(mismatch) = client.open(&stored).await.unwrap_err() else {
         panic!("expected the continuity pin to be rejected");
     };
     assert_eq!(mismatch.reason(), PeerKeyMismatch::CannotVerify);

@@ -74,7 +74,7 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
     ] {
         join(&mut events, &mut wire, line).await;
     }
-    let alice = client.direct("alice").await.unwrap().peer_key().clone();
+    let alice = client.query("alice").unwrap().key();
 
     let archived_alice =
         history_page(&client, &mut wire, 0, "alice", ";account=alice-account").await;

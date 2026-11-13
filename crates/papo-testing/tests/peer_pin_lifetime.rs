@@ -40,8 +40,8 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
         ":bob!~bob@users.example JOIN #review * :Bob",
     )
     .await;
-    let alice_pin = client.direct("alice").await.unwrap().peer_key().clone();
-    let bob_pin = client.direct("bob").await.unwrap().peer_key().clone();
+    let alice_pin = client.query("alice").unwrap().key();
+    let bob_pin = client.query("bob").unwrap().key();
     assert!(alice_pin.is_verified());
     assert!(!bob_pin.is_verified());
     assert_eq!(bob_pin.as_verified_str(), None);
@@ -61,10 +61,10 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
         join(&mut events, &mut wire, line).await;
     }
 
-    assert_match(&alice_pin, client.direct("alice").await.unwrap().peer_key());
+    assert_match(&alice_pin, &client.query("alice").unwrap().key());
     assert_mismatch(
         &bob_pin,
-        client.direct("bob").await.unwrap().peer_key(),
+        &client.query("bob").unwrap().key(),
         papo::PeerKeyMismatch::CannotVerify,
     );
 }
@@ -86,10 +86,10 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
         join(&mut events, &mut wire, line).await;
     }
 
-    let alice_pin = client.direct("alice").await.unwrap().peer_key().clone();
-    let bob = client.direct("bob").await.unwrap();
+    let alice_pin = client.query("alice").unwrap().key();
+    let bob = client.query("bob").unwrap();
     let bob_thread = bob.nick().key().to_owned();
-    let bob_pin = bob.peer_key().clone();
+    let bob_pin = bob.key();
     wire.server(":bob!~bob@users.example NICK robert").await;
     let Event::NickChanged(changed) = next_active_event(&mut events).await else {
         panic!("expected nickname change");
@@ -97,11 +97,11 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
     assert_eq!(changed.actor.nick(), "robert");
     assert_eq!(changed.old, "bob");
     assert_eq!(changed.new, "robert");
-    let renamed = client.direct("robert").await.unwrap();
+    let renamed = client.query("robert").unwrap();
     assert_ne!(renamed.nick().key(), bob_thread);
     assert_mismatch(
         &bob_pin,
-        renamed.peer_key(),
+        &renamed.key(),
         papo::PeerKeyMismatch::CannotVerify,
     );
 
@@ -119,7 +119,7 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
     .await;
     assert_mismatch(
         &bob_pin,
-        client.direct("robert").await.unwrap().peer_key(),
+        &client.query("robert").unwrap().key(),
         papo::PeerKeyMismatch::CannotVerify,
     );
 
@@ -128,11 +128,11 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
         next_active_event(&mut events).await,
         Event::AccountChanged(_)
     ));
-    let logged_out = client.direct("alice").await.unwrap();
-    assert!(!logged_out.peer_key().is_verified());
+    let logged_out = client.query("alice").unwrap();
+    assert!(!logged_out.key().is_verified());
     assert_mismatch(
         &alice_pin,
-        logged_out.peer_key(),
+        &logged_out.key(),
         papo::PeerKeyMismatch::CannotVerify,
     );
 }

@@ -28,7 +28,7 @@ async fn private_message_notice_and_tagmsg_expose_the_sender_pin() {
     ] {
         join(&mut events, &mut wire, line).await;
     }
-    let expected = client.direct("alice").await.unwrap().peer_key().clone();
+    let expected = client.query("alice").unwrap().key();
 
     for line in [
         "@account=alice-account :alice!~alice@cloak.example PRIVMSG papo :release ready",

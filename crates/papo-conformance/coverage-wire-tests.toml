@@ -40,7 +40,7 @@
 "direct_queue::queued_direct_line_is_rechecked_after_a_nickname_takeover" = [
   "security.dm-direct.write-time-recheck",
 ]
-"peer_pin_open::pinned_direct_open_blocks_identity_changes" = [
+"peer_pin_open::open_with_stored_key_blocks_identity_changes" = [
   "security.dm-direct.peer-pin-mismatch",
 ]
 "peer_pin_open::bouncer_upstream_drop_rejects_continuity_pin_and_live_target" = [
