@@ -316,7 +316,13 @@ impl UserHandle {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         self.proof()
-            .and_then(|proof| state.core.__resolve_proven(proof).ok())
+            .and_then(|proof| {
+                state.core.__resolve_proven(proof).ok().or_else(|| {
+                    proof
+                        .__recipient()
+                        .and_then(|recipient| state.core.__last_recipient_nick(recipient))
+                })
+            })
             .unwrap_or_else(|| self.0.nick.clone())
     }
 
@@ -1246,5 +1252,34 @@ mod tests {
                 crate::PeerKeyCheck::Upgrade(_)
             ));
         }
+    }
+
+    #[test]
+    fn departed_handle_keeps_its_last_known_nick() {
+        let mut session = secure_session(&[
+            ":papo!p@localhost JOIN #review * :Papo",
+            ":alice!~alice@cloak.example JOIN #review * :Alice",
+        ]);
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let alice = client.query("alice").unwrap();
+
+        replay(
+            &client,
+            &mut session,
+            &[":alice!~alice@cloak.example NICK alicia"],
+        );
+        assert_eq!(alice.nick(), "alicia");
+        replay(
+            &client,
+            &mut session,
+            &[
+                ":alicia!~alice@cloak.example QUIT :Client exited",
+                ":alicia!~mallory@visitor.example JOIN #review * :Mallory",
+            ],
+        );
+        assert_eq!(alice.nick(), "alicia");
+        assert_eq!(alice.to_string(), "alicia");
+        assert!(format!("{alice:?}").contains("\"alicia\""));
+        assert_ne!(alice, client.query("alicia").unwrap());
     }
 }
