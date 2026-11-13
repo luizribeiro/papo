@@ -277,6 +277,11 @@ impl UserHandle {
                 .core
                 .__prove_event_user(token, nick.clone(), account.clone())
                 .ok()
+                .or_else(|| {
+                    (!historical && nick == *snapshot.nick())
+                        .then(|| capture_proof(&snapshot, &nick, &account))
+                        .flatten()
+                })
         });
         Self::from_parts_kind(nick, account, proof, state, historical)
     }
@@ -518,6 +523,18 @@ impl Hash for ChannelHandle {
     }
 }
 
+fn capture_proof(
+    state: &crate::State,
+    nick: &crate::Nick,
+    account: &crate::Account,
+) -> Option<papo_core::Proven> {
+    let recipient = state.capture_recipient(nick, account.clone())?;
+    state
+        .core
+        .__prove_event_user(recipient.__token(), nick.clone(), account.clone())
+        .ok()
+}
+
 impl crate::Client {
     /// Opens the current nickname holder only when it matches a saved peer key.
     pub fn open(&self, key: &crate::PeerKey) -> crate::RequestFuture<UserHandle> {
@@ -556,14 +573,7 @@ impl crate::Client {
         let account = state
             .user_local(&nick)
             .map_or(crate::Account::Unknown, |user| user.account().clone());
-        let proof = state
-            .capture_recipient(&nick, account.clone())
-            .and_then(|recipient| {
-                state
-                    .core
-                    .__prove_event_user(recipient.__token(), nick.clone(), account.clone())
-                    .ok()
-            });
+        let proof = capture_proof(&state, &nick, &account);
         Ok(UserHandle::new(self, nick, account, proof))
     }
 

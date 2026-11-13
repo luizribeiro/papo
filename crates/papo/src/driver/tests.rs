@@ -7732,7 +7732,7 @@ async fn rejected_monitor_entry_does_not_fail_direct_request() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn direct_to_own_line_needs_no_shared_channel_or_monitor() {
+async fn own_line_sender_needs_no_shared_channel_or_monitor() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
@@ -7743,13 +7743,11 @@ async fn direct_to_own_line_needs_no_shared_channel_or_monitor() {
     .await;
     let message = next_message(&mut events).await;
 
-    let direct = within(client.direct_to(&message)).await.unwrap();
-    assert_eq!(direct.nick(), "papo-driver");
-    assert!(
-        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
-            .await
-            .is_err()
-    );
+    assert_eq!(message.actor.nick(), "papo-driver");
+    within(client.privmsg(&message.actor, "release note copy"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG papo-driver :release note copy\r\n").await;
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
