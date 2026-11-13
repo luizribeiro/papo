@@ -283,36 +283,6 @@ impl crate::Client {
             Ok(DirectRef::watched(&client, recipient, handle, watch))
         })
     }
-
-    /// Opens a guarded direct-message handle only when the current identity matches `stored`.
-    ///
-    /// An upgraded pin is accepted and available from the returned handle. On a mismatch, the
-    /// error contains the exhaustive reason and current pin so the application can ask the user
-    /// before opening a fresh handle with [`Self::direct`].
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::Error::PeerPinMismatch`] without returning a handle when the stored pin
-    /// does not authorize the current peer. It otherwise returns the errors documented by
-    /// [`Self::direct`].
-    pub fn direct_pinned(
-        &self,
-        nick: impl crate::AsNick,
-        stored: &crate::PeerKey,
-    ) -> crate::RequestFuture<DirectRef> {
-        let client = self.clone();
-        let nick = crate::AsNick::__parts(&nick).into_owned();
-        let stored = stored.clone();
-        crate::RequestFuture::new(async move {
-            let current = client.direct_parts(nick).await?;
-            match stored.check(current.peer_key()) {
-                crate::PeerKeyCheck::Match | crate::PeerKeyCheck::Upgrade(_) => Ok(current),
-                crate::PeerKeyCheck::Mismatch(reason) => Err(crate::Error::PeerPinMismatch(
-                    crate::PeerPinMismatch::new(reason, current.peer_key().clone()),
-                )),
-            }
-        })
-    }
 }
 
 #[cfg(all(test, not(browser)))]

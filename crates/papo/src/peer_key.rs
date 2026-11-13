@@ -146,13 +146,6 @@ pub enum PeerKeyMismatch {
     CannotVerify,
 }
 
-/// A stored peer key that did not authorize opening the current identity.
-#[derive(Clone, Debug)]
-pub struct PeerPinMismatch {
-    reason: PeerKeyMismatch,
-    current: Box<PeerKey>,
-}
-
 /// A stored peer key that does not authorize the current nickname holder.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NotSamePerson {
@@ -161,27 +154,6 @@ pub struct NotSamePerson {
 }
 
 impl NotSamePerson {
-    pub(crate) fn new(reason: PeerKeyMismatch, current: PeerKey) -> Self {
-        Self {
-            reason,
-            current: Box::new(current),
-        }
-    }
-
-    /// Returns why the current identity could not be accepted.
-    #[must_use]
-    pub const fn reason(&self) -> PeerKeyMismatch {
-        self.reason
-    }
-
-    /// Returns the current key for an explicit user-approved replacement.
-    #[must_use]
-    pub const fn current_key(&self) -> &PeerKey {
-        &self.current
-    }
-}
-
-impl PeerPinMismatch {
     pub(crate) fn new(reason: PeerKeyMismatch, current: PeerKey) -> Self {
         Self {
             reason,
@@ -405,17 +377,6 @@ impl fmt::Display for InvalidPeerKey {
     }
 }
 
-impl fmt::Display for PeerPinMismatch {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.reason {
-            PeerKeyMismatch::DifferentAccount => formatter.write_str("the peer account changed"),
-            PeerKeyMismatch::CannotVerify => {
-                formatter.write_str("the current peer identity cannot be verified")
-            }
-        }
-    }
-}
-
 impl fmt::Display for NotSamePerson {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("the current nickname holder is not the saved person")
@@ -425,5 +386,3 @@ impl fmt::Display for NotSamePerson {
 impl std::error::Error for InvalidPeerKey {}
 
 impl std::error::Error for NotSamePerson {}
-
-impl std::error::Error for PeerPinMismatch {}

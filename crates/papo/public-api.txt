@@ -1527,7 +1527,6 @@ pub papo::Error::ForeignReference(papo::ForeignReference)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::NotSamePerson(papo::NotSamePerson)
-pub papo::Error::PeerPinMismatch(papo::PeerPinMismatch)
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StateLimit(papo::StateLimit)
 pub papo::Error::TargetGone
@@ -2303,7 +2302,6 @@ pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFut
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
 pub fn papo::Client::direct(&self, impl papo::AsNick) -> papo::RequestFuture<papo::DirectRef>
-pub fn papo::Client::direct_pinned(&self, impl papo::AsNick, &papo::PeerKey) -> papo::RequestFuture<papo::DirectRef>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<papo_proto::time::ServerTime>>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
@@ -3074,24 +3072,6 @@ impl core::marker::Unpin for papo::PeerKey
 impl core::marker::UnsafeUnpin for papo::PeerKey
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKey
 impl core::panic::unwind_safe::UnwindSafe for papo::PeerKey
-pub struct papo::PeerPinMismatch
-impl papo::PeerPinMismatch
-pub const fn papo::PeerPinMismatch::current_key(&self) -> &papo::PeerKey
-pub const fn papo::PeerPinMismatch::reason(&self) -> papo::PeerKeyMismatch
-impl core::clone::Clone for papo::PeerPinMismatch
-pub fn papo::PeerPinMismatch::clone(&self) -> Self
-impl core::error::Error for papo::PeerPinMismatch
-impl core::fmt::Debug for papo::PeerPinMismatch
-pub fn papo::PeerPinMismatch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::PeerPinMismatch
-pub fn papo::PeerPinMismatch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo::PeerPinMismatch
-impl core::marker::Send for papo::PeerPinMismatch
-impl core::marker::Sync for papo::PeerPinMismatch
-impl core::marker::Unpin for papo::PeerPinMismatch
-impl core::marker::UnsafeUnpin for papo::PeerPinMismatch
-impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerPinMismatch
-impl core::panic::unwind_safe::UnwindSafe for papo::PeerPinMismatch
 pub struct papo::PrivateKey(_)
 impl papo::PrivateKey
 pub fn papo::PrivateKey::new(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self

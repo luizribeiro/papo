@@ -63,6 +63,8 @@ finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported i
 
 `DirectSource` and `Client::direct_to` are removed; send to a received event's `UserHandle` sender instead.
 
+`Client::direct_pinned`, `PeerPinMismatch`, and `Error::PeerPinMismatch` are removed; `Client::open` returns `Error::NotSamePerson` with the same reason and current key.
+
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.
@@ -129,8 +131,8 @@ proof at the final wire write; recipient guards can no longer be assembled by do
 `PeerKey` pins an identity to a nickname-addressed direct thread. Account pins use a readable,
 versioned persisted form scoped by a TLS-authenticated server, or by the complete authenticated
 bouncer and TLS-upstream scope. Continuity pins are unverified and connection-local. Applications
-compare pins with `PeerKey::check`, and `Client::direct_pinned` blocks opening a handle on a typed
-mismatch. Private message, notice, TAGMSG, rename, and history events expose applicable pins.
+compare pins with `PeerKey::check`, and `Client::open` refuses a typed mismatch with
+`Error::NotSamePerson`. Private message, notice, TAGMSG, rename, and history events expose applicable pins.
 An upstream bouncer disconnect now ends Continuity pins and live direct targets for that network,
 including stable builds that only observe soju's notice or self-JOIN resync.
 Browser `wss://` connections produce hostname-scoped Account pins; browser `ws://` remains

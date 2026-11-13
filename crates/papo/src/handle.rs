@@ -549,6 +549,16 @@ fn capture_proof(
 
 impl crate::Client {
     /// Opens the current nickname holder only when it matches a saved peer key.
+    ///
+    /// An upgraded key is accepted; read it back with [`UserHandle::key`] to persist the upgrade.
+    /// A holder papo cannot already prove is proven with one `WHO nick %na` first.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::Error::NotSamePerson`], with the reason and the current key, when the saved
+    /// key does not authorize the current holder; the application can ask its user before opening
+    /// that current key. Otherwise returns the invalid-input, server, timeout, disconnect, or
+    /// [`crate::Error::TargetGone`] errors of the identity proof.
     pub fn open(&self, key: &crate::PeerKey) -> crate::RequestFuture<UserHandle> {
         let client = self.clone();
         let stored = key.clone();

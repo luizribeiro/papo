@@ -495,9 +495,6 @@ pub enum Error {
     /// The intended user left, changed nickname, or no longer holds a private reply nickname.
     #[error("the target user is no longer present")]
     TargetGone,
-    /// The current peer identity does not match the stored pin.
-    #[error(transparent)]
-    PeerPinMismatch(crate::PeerPinMismatch),
     /// The current nickname holder does not match a saved peer key.
     #[error(transparent)]
     NotSamePerson(crate::NotSamePerson),
