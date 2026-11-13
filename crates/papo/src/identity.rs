@@ -251,4 +251,64 @@ mod tests {
         within(server.shutdown()).await.unwrap();
         assert!(within(driver).await.unwrap().is_err());
     }
+
+    async fn next_command(
+        commands: &mut tokio::sync::mpsc::Receiver<crate::driver::Command>,
+    ) -> crate::driver::Command {
+        tokio::time::timeout(std::time::Duration::from_millis(50), commands.recv())
+            .await
+            .expect("driver did not receive a command")
+            .expect("driver command channel closed")
+    }
+
+    fn unproven_alice(session: &Session) -> (crate::UserHandle, Account) {
+        let mapping = session.isupport().casemapping();
+        let account = Account::LoggedIn(mapping.account("alice-account"));
+        let handle =
+            crate::UserHandle::from_parts(mapping.nick("alice"), account.clone(), None, None);
+        (handle, account)
+    }
+
+    #[tokio::test]
+    async fn unproven_recipient_send_requires_the_same_verified_account() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
+        );
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let (alice, account) = unproven_alice(&session);
+        let resolving = tokio::spawn({
+            let client = client.clone();
+            async move { client.privmsg(alice, "release approved").await }
+        });
+
+        let crate::driver::Command::Request {
+            message, result, ..
+        } = next_command(&mut commands).await
+        else {
+            panic!("expected WHO request")
+        };
+        assert_eq!(message.params(), ["alice", "%na"]);
+        let response = response_with(&[":ergo.test 354 papo alice alice-account"]);
+        result.send(Ok(response)).unwrap();
+        let crate::driver::Command::ProveUser {
+            nick,
+            account: actual,
+            lines,
+            result,
+        } = next_command(&mut commands).await
+        else {
+            panic!("expected user proof")
+        };
+        assert_eq!(actual, account);
+        let proof = session.__prove_who_user(nick, actual, &lines).unwrap();
+        result.send(Ok(proof)).unwrap();
+        assert!(matches!(
+            next_command(&mut commands).await,
+            crate::driver::Command::SendPerson { .. }
+        ));
+        resolving.abort();
+    }
 }
