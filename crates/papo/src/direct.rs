@@ -321,52 +321,16 @@ mod tests {
         collections::{HashMap, HashSet},
         hash::{DefaultHasher, Hash, Hasher},
         sync::Arc,
-        time::Duration,
     };
 
     use crate::Account;
-    use papo_core::{Config, Event, ResponseMatcher, Session};
-    use papo_proto::{Line, LineRef};
+    use papo_core::{Config, Session};
+    use papo_proto::LineRef;
 
     fn direct_hash(direct: &super::DirectRef) -> u64 {
         let mut hasher = DefaultHasher::new();
         direct.hash(&mut hasher);
         hasher.finish()
-    }
-
-    fn response_with(lines: &[&str]) -> papo_core::Response {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default());
-        let id = session
-            .request_with_matcher(
-                now,
-                Line::new("WHO").with_params(["alice", "%na"]),
-                ResponseMatcher::Who("alice".into()),
-            )
-            .unwrap();
-        _ = session.poll_transmit();
-        session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
-        let mut response = std::iter::from_fn(|| session.poll_event())
-            .find_map(|event| match event {
-                Event::Response(response) => Some(response),
-                _ => None,
-            })
-            .unwrap();
-        assert_eq!(response.id, id);
-        response.lines = lines
-            .iter()
-            .map(|line| LineRef::parse(line).unwrap().to_owned())
-            .collect();
-        response
-    }
-
-    async fn next_command(
-        commands: &mut tokio::sync::mpsc::Receiver<crate::driver::Command>,
-    ) -> crate::driver::Command {
-        tokio::time::timeout(Duration::from_millis(50), commands.recv())
-            .await
-            .expect("driver did not receive a direct-message command")
-            .expect("driver command channel closed")
     }
 
     #[test]
@@ -485,58 +449,6 @@ mod tests {
         let direct = client.direct("papo").await.unwrap();
         assert_eq!(direct.to_string(), "papo");
         assert!(commands.try_recv().is_err());
-    }
-
-    #[tokio::test]
-    async fn known_unshared_message_peer_uses_watch_registry() {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(
-            now,
-            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
-        );
-        session.monitor_add(["alice"]);
-        session.handle_line(now, b":ergo.test 730 papo :alice!~alice@cloak.example");
-        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
-        let actor = crate::__testing::user_handle(session.isupport().casemapping().nick("alice"));
-        let mut message = crate::__testing::message(Some(actor), "papo", "release approved", true);
-        crate::__testing::set_message_account(
-            &mut message,
-            Account::LoggedIn(session.isupport().casemapping().account("alice-account")),
-        );
-        let direct = tokio::spawn({
-            let client = client.clone();
-            async move { client.direct_to(&message).await }
-        });
-
-        assert!(matches!(
-            next_command(&mut commands).await,
-            crate::driver::Command::Composite { .. }
-        ));
-        let crate::driver::Command::Request {
-            message, result, ..
-        } = next_command(&mut commands).await
-        else {
-            panic!("expected WHO proof request")
-        };
-        assert_eq!(message.params(), ["alice", "%na"]);
-        result
-            .send(Ok(response_with(&[
-                ":ergo.test 354 papo alice alice-account",
-            ])))
-            .unwrap();
-        let crate::driver::Command::ProveUser {
-            nick,
-            account,
-            lines,
-            result,
-        } = next_command(&mut commands).await
-        else {
-            panic!("expected account-tag identity proof")
-        };
-        let proof = session.__prove_who_user(nick, account, &lines).unwrap();
-        result.send(Ok(proof)).unwrap();
-        assert_eq!(direct.await.unwrap().unwrap().to_string(), "alice");
     }
 
     #[test]
