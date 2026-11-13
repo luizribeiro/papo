@@ -30,7 +30,7 @@ async fn queued_direct_line_is_rechecked_after_a_nickname_takeover() {
             papo::Event::Joined(_)
         ));
     }
-    let direct = client.direct("alice").await.unwrap();
+    let alice = client.query("alice").unwrap();
     client
         .send_raw(papo::Line::new("PING").param("fence"))
         .await
@@ -39,8 +39,8 @@ async fn queued_direct_line_is_rechecked_after_a_nickname_takeover() {
 
     let queued = tokio::spawn({
         let client = client.clone();
-        let direct = direct.clone();
-        async move { client.privmsg(direct, "classified").await }
+        let alice = alice.clone();
+        async move { client.privmsg(alice, "classified").await }
     });
     tokio::task::yield_now().await;
     wire.server(":alice!~alice@cloak.example QUIT :Client Quit")

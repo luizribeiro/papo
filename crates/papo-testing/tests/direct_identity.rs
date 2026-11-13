@@ -1,4 +1,4 @@
-//! Highest-layer direct recipient identity regressions.
+//! Highest-layer direct-message recipient identity regressions.
 
 mod support {
     pub mod direct;
@@ -14,15 +14,15 @@ use papo::Reconnect;
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
-fn direct_hash(direct: &papo::DirectRef) -> u64 {
+fn handle_hash(user: &papo::UserHandle) -> u64 {
     let mut hasher = DefaultHasher::new();
-    direct.hash(&mut hasher);
+    user.hash(&mut hasher);
     hasher.finish()
 }
 
 #[tokio::test]
 #[allow(clippy::mutable_key_type)]
-async fn learning_an_account_keeps_direct_ref_identity() {
+async fn learning_an_account_keeps_user_handle_identity() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -40,7 +40,7 @@ async fn learning_an_account_keeps_direct_ref_identity() {
             papo::Event::Joined(_)
         ));
     }
-    let before_account = client.direct("alice").await.unwrap();
+    let before_account = client.query("alice").unwrap();
 
     wire.server(":alice!~alice@cloak.example ACCOUNT alice-account")
         .await;
@@ -48,10 +48,10 @@ async fn learning_an_account_keeps_direct_ref_identity() {
         next_active_event(&mut events).await,
         papo::Event::AccountChanged(_)
     ));
-    let after_account = client.direct("alice").await.unwrap();
+    let after_account = client.query("alice").unwrap();
 
     assert_eq!(before_account, after_account);
-    assert_eq!(direct_hash(&before_account), direct_hash(&after_account));
+    assert_eq!(handle_hash(&before_account), handle_hash(&after_account));
     let by_recipient = HashMap::from([
         (before_account.clone(), "unknown"),
         (after_account.clone(), "logged in"),
@@ -62,7 +62,7 @@ async fn learning_an_account_keeps_direct_ref_identity() {
 }
 
 #[tokio::test]
-async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
+async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -81,17 +81,17 @@ async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
             papo::Event::Joined(_)
         ));
     }
-    let direct = client.direct("alice").await.unwrap();
+    let alice = client.query("alice").unwrap();
 
     wire.server(":alice!~alice@cloak.example NICK alicia").await;
     assert!(matches!(
         next_active_event(&mut events).await,
         papo::Event::NickChanged(_)
     ));
-    let renamed = client.direct("alicia").await.unwrap();
-    assert_eq!(direct, renamed);
-    assert_eq!(direct_hash(&direct), direct_hash(&renamed));
-    client.privmsg(&direct, "release approved").await.unwrap();
+    let renamed = client.query("alicia").unwrap();
+    assert_eq!(alice, renamed);
+    assert_eq!(handle_hash(&alice), handle_hash(&renamed));
+    client.privmsg(&alice, "release approved").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alicia :release approved");
 
     wire.server(":alicia!~alice@cloak.example QUIT :Client Quit")
@@ -106,10 +106,10 @@ async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
         next_active_event(&mut events).await,
         papo::Event::NickChanged(_)
     ));
-    let replacement = client.direct("alicia").await.unwrap();
-    assert_ne!(direct, replacement);
+    let replacement = client.query("alicia").unwrap();
+    assert_ne!(alice, replacement);
     assert!(matches!(
-        client.notice(&direct, "classified").await,
+        client.notice(&alice, "classified").await,
         Err(papo::Error::TargetGone)
     ));
     assert!(
@@ -120,7 +120,7 @@ async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
 }
 
 #[tokio::test]
-async fn direct_refs_identify_users_not_accounts() {
+async fn user_handles_identify_users_not_accounts() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -142,23 +142,23 @@ async fn direct_refs_identify_users_not_accounts() {
             papo::Event::Joined(_)
         ));
     }
-    let desktop = client.direct("alice").await.unwrap();
-    let phone = client.direct("alice-phone").await.unwrap();
-    let mallory = client.direct("mallory").await.unwrap();
-    let bob = client.direct("bob").await.unwrap();
-    let carol = client.direct("carol").await.unwrap();
+    let desktop = client.query("alice").unwrap();
+    let phone = client.query("alice-phone").unwrap();
+    let mallory = client.query("mallory").unwrap();
+    let bob = client.query("bob").unwrap();
+    let carol = client.query("carol").unwrap();
     assert_ne!(desktop, phone);
     assert_ne!(desktop, mallory);
     assert_eq!(bob, bob.clone());
     assert_ne!(bob, carol);
     assert_eq!(desktop.to_string(), "alice");
     let debug = format!("{desktop:?}");
-    assert!(debug.starts_with("DirectRef { nick: Nick"));
+    assert!(debug.starts_with("UserHandle { nick: Nick"));
     assert!(debug.contains("\"alice\""));
 
-    assert_ne!(direct_hash(&desktop), direct_hash(&phone));
-    assert_ne!(direct_hash(&desktop), direct_hash(&mallory));
-    assert_ne!(direct_hash(&bob), direct_hash(&carol));
+    assert_ne!(handle_hash(&desktop), handle_hash(&phone));
+    assert_ne!(handle_hash(&desktop), handle_hash(&mallory));
+    assert_ne!(handle_hash(&bob), handle_hash(&carol));
     client.privmsg(&desktop, "desktop review").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :desktop review");
 }
