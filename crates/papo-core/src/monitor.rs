@@ -17,6 +17,7 @@ pub(super) struct Monitor {
     presence: HashMap<NickKey, Presence>,
     casemapping: Names,
     server_limit: Option<usize>,
+    restored: Option<Support>,
     unsupported_warned: bool,
 }
 
@@ -103,6 +104,7 @@ impl Monitor {
         self.pending.clear();
         self.tracked.clear();
         self.server_limit = None;
+        self.restored = None;
     }
 
     pub(super) fn identity_departed(&mut self, nick: &str, isupport: &Isupport) {
@@ -146,7 +148,9 @@ impl Monitor {
         self.pending.clear();
         self.tracked.clear();
         self.server_limit = None;
-        let limit = match support(isupport) {
+        let support = support(isupport);
+        self.restored = Some(support);
+        let limit = match support {
             Ok(limit) => limit,
             Err(reason) => {
                 if !self.desired.is_empty() {
@@ -168,6 +172,16 @@ impl Monitor {
                     .map(|nick| self.casemapping.nick(nick))
                     .collect(),
             });
+        }
+    }
+
+    pub(super) fn handle_isupport(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
+        if self
+            .restored
+            .is_some_and(|restored| restored != support(isupport))
+        {
+            self.update_casemapping(isupport.casemapping());
+            self.restore(isupport, outbox);
         }
     }
 

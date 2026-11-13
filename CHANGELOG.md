@@ -56,6 +56,9 @@ User state lookups now return a typed `ForeignReference` error and preserve hand
 
 `UserHandle::watch` is now the sole public owner of server-side `MONITOR` entries; its synchronous `Watch` lease reports whether the server accepted the entry.
 
+Watches and monitored nicknames now reach the server when `MONITOR` is first advertised after the connection
+finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported instead.
+
 `Error::MonitorFull` is removed: opening a direct reference or watching a user never fails for a full `MONITOR` list; `Watch::is_live` reports it instead.
 
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.

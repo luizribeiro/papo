@@ -5792,6 +5792,8 @@ impl Session {
             self.isupport.handle_message(message, &mut self.outbox) == Handled::Yes;
         if isupport_handled {
             self.remember_casemapping();
+            self.monitor
+                .handle_isupport(self.isupport.value(), &mut self.outbox);
         }
         if let Some(signal) = self.upstream_identity_signal(message) {
             self.end_upstream_session(signal);
