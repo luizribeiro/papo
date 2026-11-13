@@ -334,29 +334,6 @@ mod tests {
         hasher.finish()
     }
 
-    struct UnprovenTarget {
-        nick: crate::Nick,
-        account: Account,
-    }
-
-    impl crate::target::sealed::Sealed for UnprovenTarget {}
-
-    impl crate::Target for UnprovenTarget {
-        fn __parts(&self) -> crate::target::sealed::Parts<'_> {
-            crate::target::sealed::Parts {
-                text: std::borrow::Cow::Owned(self.nick.to_string()),
-                origin: self.nick.origin(),
-                channel: None,
-                user: Some(crate::UserHandle::from_parts(
-                    self.nick.clone(),
-                    self.account.clone(),
-                    None,
-                    None,
-                )),
-            }
-        }
-    }
-
     fn response_with(lines: &[&str]) -> papo_core::Response {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default());
@@ -682,35 +659,6 @@ mod tests {
             client.resolve(crate::target::Role::Nick("test nick"), parts),
             Err(crate::Error::TargetGone)
         ));
-    }
-
-    #[tokio::test]
-    async fn unproven_current_account_requires_who_proof() {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(
-            now,
-            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
-        );
-        session.handle_line(now, b":papo!~papo@localhost JOIN #review");
-        session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
-        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
-        let nick = session.isupport().casemapping().nick("alice");
-        let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
-        let resolving = tokio::spawn({
-            let target = UnprovenTarget {
-                nick,
-                account: account.clone(),
-            };
-            async move { client.privmsg(target, "release approved").await }
-        });
-
-        let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await
-        else {
-            panic!("expected WHO request")
-        };
-        assert_eq!(message.params(), ["alice", "%na"]);
-        resolving.abort();
     }
 
     #[test]

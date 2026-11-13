@@ -311,4 +311,28 @@ mod tests {
         ));
         resolving.abort();
     }
+
+    #[tokio::test]
+    async fn unproven_current_account_requires_who_proof() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported".as_slice(),
+            b":papo!~papo@localhost JOIN #review",
+            b":alice!~alice@cloak.example JOIN #review",
+        ] {
+            session.handle_line(now, line);
+        }
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let (alice, _) = unproven_alice(&session);
+        let resolving =
+            tokio::spawn(async move { client.privmsg(alice, "release approved").await });
+
+        let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await
+        else {
+            panic!("expected WHO request")
+        };
+        assert_eq!(message.params(), ["alice", "%na"]);
+        resolving.abort();
+    }
 }
