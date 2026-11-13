@@ -62,6 +62,24 @@ impl NickRegain {
         };
     }
 
+    pub(super) fn handle_isupport(
+        &mut self,
+        now: Instant,
+        config: &Config,
+        isupport: &Isupport,
+        monitor: &Monitor,
+        outbox: &mut Outbox,
+    ) {
+        let switch = match self.watch {
+            Watch::Inactive => false,
+            Watch::Monitor { .. } => isupport.monitor().is_none(),
+            Watch::Ison { .. } => isupport.monitor().is_some(),
+        };
+        if switch {
+            self.start(now, config, isupport, monitor, outbox);
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn handle_message(
         &mut self,

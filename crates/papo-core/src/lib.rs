@@ -5794,6 +5794,13 @@ impl Session {
             self.remember_casemapping();
             self.monitor
                 .handle_isupport(self.isupport.value(), &mut self.outbox);
+            self.nick_regain.handle_isupport(
+                now,
+                &self.config,
+                self.isupport.value(),
+                &self.monitor,
+                &mut self.outbox,
+            );
         }
         if let Some(signal) = self.upstream_identity_signal(message) {
             self.end_upstream_session(signal);

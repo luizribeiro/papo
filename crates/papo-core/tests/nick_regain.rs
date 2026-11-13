@@ -251,3 +251,39 @@ fn ison_replies_drive_bounded_polling_and_reclaim() {
         .event(|event| matches!(event, Event::NickChanged { new, .. } if new == "papo"))
         .no_client();
 }
+
+#[test]
+fn regain_polls_with_ison_when_monitor_is_withdrawn() {
+    registered_after_collision(ison_config(), true)
+        .client("MONITOR + papo")
+        .server(":ergo.test 005 papo_ -MONITOR :are supported by this server")
+        .no_client()
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .server(":ergo.test 303 papo_ :")
+        .client("NICK papo")
+        .ignore_rest();
+}
+
+#[test]
+fn regain_watches_with_monitor_when_it_is_advertised_late() {
+    registered_after_collision(ison_config(), false)
+        .server(":irc.solanum.example 005 papo_ MONITOR=100 :are supported by this server")
+        .client("MONITOR + papo")
+        .advance(Duration::from_secs(60))
+        .no_client()
+        .server(":irc.solanum.example 731 papo_ :papo")
+        .client("NICK papo")
+        .ignore_rest();
+}
+
+#[test]
+fn a_changed_monitor_limit_leaves_the_regain_watch_alone() {
+    registered_after_collision(ison_config(), true)
+        .client("MONITOR + papo")
+        .server(":ergo.test 005 papo_ MONITOR=50 :are supported by this server")
+        .no_client()
+        .advance(Duration::from_secs(60))
+        .no_client()
+        .ignore_rest();
+}
