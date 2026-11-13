@@ -812,8 +812,7 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
     let message = next_message(&mut events).await;
     within(client.reply(&message, "approved")).await.unwrap();
     client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
-    let direct = within(client.direct_to(&message)).await.unwrap();
-    let sent = within(client.privmsg(&direct, "review queued"))
+    let sent = within(client.privmsg(&message.actor, "review queued"))
         .await
         .unwrap();
     client_line(&mut server, b"PRIVMSG alice :review queued\r\n").await;
@@ -1101,7 +1100,7 @@ async fn channel_core_line_retains_the_actor_identity() {
     .await;
     while !matches!(next_active_event(&mut events).await, Event::NickChanged(_)) {}
     assert!(matches!(
-        within(client.direct_to(&tag)).await,
+        within(client.privmsg(&tag.actor, "classified")).await,
         Err(Error::TargetGone)
     ));
 
@@ -7689,7 +7688,7 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
             joined += 1;
         }
     }
-    let private = within(client.direct("alice")).await.unwrap();
+    let private = client.query("alice").unwrap();
     within(client.privmsg(private, "deployment details"))
         .await
         .unwrap();
@@ -7700,7 +7699,7 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn rejected_monitor_entry_does_not_fail_direct_request() {
+async fn rejected_monitor_entry_does_not_fail_a_watched_send() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -7712,20 +7711,24 @@ async fn rejected_monitor_entry_does_not_fail_direct_request() {
         Some(Event::Connected(_))
     ));
 
-    let direct = tokio::spawn(async move { client.direct("alice").await });
+    let alice = client.query("alice").unwrap();
+    let watch = alice.watch();
     client_line(&mut server, b"MONITOR + alice\r\n").await;
     server_line(
         &mut server,
         b":solanum.example 734 papo-driver 1 alice :Monitor list is full\r\n",
     )
     .await;
+    let sent = tokio::spawn(async move { client.privmsg(&alice, "release approved").await });
     client_line(&mut server, b"WHO alice %na\r\n").await;
     server_line(
         &mut server,
         b":solanum.example 354 papo-driver alice alice-account\r\n:solanum.example 315 papo-driver alice :End of WHO list\r\n",
     )
     .await;
-    assert!(within(direct).await.unwrap().is_ok());
+    client_line(&mut server, b"PRIVMSG alice :release approved\r\n").await;
+    assert!(within(sent).await.unwrap().is_ok());
+    assert!(!watch.is_live());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -7754,7 +7757,7 @@ async fn own_line_sender_needs_no_shared_channel_or_monitor() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn direct_to_refuses_a_proven_actor_from_another_client() {
+async fn event_sender_from_another_client_is_refused() {
     let mut source_config = config();
     source_config.origin = crate::Origin::__new(73);
     let (mut source_server, _source_client, mut source_events, source_driver) =
@@ -7792,21 +7795,15 @@ async fn direct_to_refuses_a_proven_actor_from_another_client() {
         ));
     }
 
-    match within(destination_client.direct_to(&source_message)).await {
-        Err(Error::TargetGone) => {}
-        Ok(direct) => {
-            within(destination_client.privmsg(&direct, "source credentials"))
-                .await
-                .unwrap();
-            client_line(
-                &mut destination_server,
-                b"PRIVMSG alice :source credentials\r\n",
-            )
-            .await;
-            panic!("a foreign event addressed the destination client's Alice");
-        }
-        Err(error) => panic!("unexpected foreign-event error: {error}"),
-    }
+    assert!(matches!(
+        within(destination_client.privmsg(&source_message.actor, "source credentials")).await,
+        Err(Error::ForeignReference(_))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), destination_server.read_u8())
+            .await
+            .is_err()
+    );
 
     within(source_server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -7821,7 +7818,7 @@ async fn direct_to_refuses_a_proven_actor_from_another_client() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn direct_to_unshared_sender_watches_and_proves_by_who() {
+async fn event_handle_skips_who() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -7839,26 +7836,13 @@ async fn direct_to_unshared_sender_watches_and_proves_by_who() {
     )
     .await;
     let message = next_message(&mut events).await;
-    let direct_client = client.clone();
-    let direct = tokio::spawn(async move { direct_client.direct_to(&message).await });
-    client_line(&mut server, b"MONITOR + alice\r\n").await;
-    server_line(
-        &mut server,
-        b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
-    )
-    .await;
-    client_line(&mut server, b"WHO alice %na\r\n").await;
-    server_line(
-        &mut server,
-        b":ergo.test 354 papo-driver alice 0\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
-    )
-    .await;
-    let direct = within(direct).await.unwrap().unwrap();
-    within(client.privmsg(&direct, "review accepted"))
+    within(client.privmsg(&message.actor, "review accepted"))
         .await
         .unwrap();
     client_line(&mut server, b"PRIVMSG alice :review accepted\r\n").await;
-    drop(direct);
+    let watch = message.actor.watch();
+    client_line(&mut server, b"MONITOR + alice\r\n").await;
+    drop(watch);
     client_line(&mut server, b"MONITOR - alice\r\n").await;
 
     within(server.shutdown()).await.unwrap();
@@ -8035,7 +8019,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     let _ = (next_event(&mut events).await, next_event(&mut events).await);
-    let helper = within(client.direct("helper")).await.unwrap();
+    let helper = client.query("helper").unwrap();
 
     let sender = client.clone();
     let sent = tokio::spawn(async move {
@@ -9257,7 +9241,7 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
         "second notice delivery"
     );
 
-    let own = within(client.direct("papo-driver")).await.unwrap();
+    let own = client.query("papo-driver").unwrap();
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg(own, "remember this").await });
     client_line(
