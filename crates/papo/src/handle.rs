@@ -321,30 +321,42 @@ impl UserHandle {
     }
 
     /// Captures the current saved key for this direct conversation.
+    ///
+    /// While the person is present, the key carries the proof papo currently holds for them. After
+    /// they leave, it keeps only the account this handle observed, never facts about the
+    /// nickname's next holder.
     #[must_use]
     pub fn key(&self) -> crate::PeerKey {
-        let nick = self.nick();
         let Some(state) = self.0.state.as_ref() else {
-            return crate::PeerKey::unverified(None, &nick);
+            return crate::PeerKey::unverified(None, &self.0.nick);
         };
         let state = state
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let account = if self.0.account == crate::Account::Unknown {
-            state
-                .user_local(&nick)
-                .map_or(&self.0.account, crate::User::account)
-        } else {
-            &self.0.account
+        let scope = state.peer_scope();
+        let current = self
+            .proof()
+            .and_then(|proof| state.core.__resolve_proven(proof).ok());
+        let key = match &current {
+            Some(nick) => {
+                let account = state
+                    .user_local(nick)
+                    .map(crate::User::account)
+                    .filter(|account| **account != crate::Account::Unknown)
+                    .unwrap_or(&self.0.account);
+                crate::PeerKey::live(
+                    scope.as_ref(),
+                    nick,
+                    account,
+                    state.peer_account_id(nick, account),
+                    state.peer_token(nick),
+                )
+            }
+            None => crate::PeerKey::historical(scope.as_ref(), &self.0.nick, &self.0.account),
         };
-        crate::PeerKey::live(
-            state.peer_scope().as_ref(),
-            &nick,
-            account,
-            state.peer_account_id(&nick, account),
-            state.peer_token(&nick),
-        )
-        .unwrap_or_else(|| crate::PeerKey::unverified(state.peer_scope().as_ref(), &nick))
+        key.unwrap_or_else(|| {
+            crate::PeerKey::unverified(scope.as_ref(), current.as_ref().unwrap_or(&self.0.nick))
+        })
     }
 
     /// Acquires a synchronous lease requesting server-side presence tracking.
@@ -1089,5 +1101,80 @@ mod tests {
             Err(crate::Error::ForeignReference(_))
         ));
         assert!(commands.try_recv().is_err());
+    }
+
+    fn secure_session(lines: &[&str]) -> Session {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_connected_with(
+            now,
+            papo_core::Connection {
+                host: "irc.example".into(),
+                security: papo_core::sts::ConnectionSecurity::Secure,
+                authenticated_server_name: Some("irc.example".into()),
+            },
+        );
+        session.handle_line(
+            now,
+            b":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
+        );
+        for line in lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        session
+    }
+
+    fn replay(client: &crate::Client, session: &mut Session, lines: &[&str]) {
+        let now = crate::rt::now_mono();
+        for line in lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        *client.state.write().unwrap() =
+            std::sync::Arc::new(crate::State::from_session(session, true));
+    }
+
+    #[test]
+    fn user_key_does_not_depend_on_account_proof_timing() {
+        let mut session = secure_session(&[
+            ":papo!p@localhost JOIN #review * :Papo",
+            ":alice!~alice@cloak.example JOIN #review",
+        ]);
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let before = client.query("alice").unwrap();
+        let continuity = before.key();
+        assert!(!continuity.is_verified());
+
+        replay(
+            &client,
+            &mut session,
+            &["@account=alice-account :alice!~alice@cloak.example PRIVMSG papo :proof"],
+        );
+        let upgraded = before.key();
+        assert!(upgraded.is_verified());
+        assert!(matches!(
+            continuity.check(&upgraded),
+            crate::PeerKeyCheck::Upgrade(key) if key.to_string() == upgraded.to_string()
+        ));
+        assert!(matches!(
+            upgraded.check(&client.query("alice").unwrap().key()),
+            crate::PeerKeyCheck::Match
+        ));
+
+        replay(
+            &client,
+            &mut session,
+            &[
+                ":alice!~alice@cloak.example QUIT :Client exited",
+                ":alice!~other@new.example JOIN #review mallory-account :Replacement",
+            ],
+        );
+        assert!(matches!(
+            continuity.check(&client.query("alice").unwrap().key()),
+            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::CannotVerify)
+        ));
+        assert!(
+            !before.key().is_verified(),
+            "a departed handle must not adopt the new holder's account"
+        );
     }
 }

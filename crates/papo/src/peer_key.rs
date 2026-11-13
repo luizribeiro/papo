@@ -238,7 +238,6 @@ impl PeerKey {
         Some(Self::new(thread, proof))
     }
 
-    #[allow(dead_code)]
     pub(crate) fn historical(
         scope: Option<&PeerScope>,
         nick: &crate::Nick,
