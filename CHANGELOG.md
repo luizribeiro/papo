@@ -59,6 +59,9 @@ User state lookups now return a typed `ForeignReference` error and preserve hand
 Watches and monitored nicknames now reach the server when `MONITOR` is first advertised after the connection
 finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported instead.
 
+`Isupport::monitor` now reads `MONITOR=0` as `LimitValue::Limited(0)`, a list that accepts no
+targets, instead of `LimitValue::Unlimited`; a bare `MONITOR` still means no limit.
+
 `Error::MonitorFull` is removed: opening a direct reference or watching a user never fails for a full `MONITOR` list; `Watch::is_live` reports it instead.
 
 `DirectSource` and `Client::direct_to` are removed; send to a received event's `UserHandle` sender instead.

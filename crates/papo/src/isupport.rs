@@ -209,6 +209,9 @@ impl Isupport {
     }
 
     /// Returns the monitor-list limit.
+    ///
+    /// A bare `MONITOR` means no limit. `MONITOR=0` is `Limited(0)`: the server offers the
+    /// command but accepts no targets.
     #[must_use]
     pub fn monitor(&self) -> Option<LimitValue> {
         self.inner.monitor()

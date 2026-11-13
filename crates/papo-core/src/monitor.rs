@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
+use papo_proto::{Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
 use crate::{Authorship, Event, Feature, Handled, Names, Outbox, Unsupported, UnsupportedReason};
 
@@ -652,10 +652,8 @@ impl Monitor {
 }
 
 fn support(isupport: &Isupport) -> Support {
-    if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {
-        return Err(UnsupportedReason::LimitZero);
-    }
     match isupport.monitor() {
+        Some(LimitValue::Limited(0)) => Err(UnsupportedReason::LimitZero),
         Some(LimitValue::Limited(limit)) => Ok(limit),
         Some(LimitValue::Unlimited) => Ok(usize::MAX),
         None => Err(UnsupportedReason::NotOffered),

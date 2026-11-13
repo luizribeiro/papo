@@ -492,3 +492,20 @@ fn assert_limits(actual: &[Limit<'_>], expected: &[(&str, Option<usize>)]) {
         );
     }
 }
+
+#[test]
+fn monitor_limit_follows_the_advertised_value() {
+    let cases = [
+        (None, None),
+        (Some("MONITOR"), Some(LimitValue::Unlimited)),
+        (Some("MONITOR="), Some(LimitValue::Unlimited)),
+        (Some("MONITOR=0"), Some(LimitValue::Limited(0))),
+        (Some("MONITOR=100"), Some(LimitValue::Limited(100))),
+        (Some("MONITOR=many"), None),
+    ];
+    for (token, expected) in cases {
+        let mut support = Isupport::default();
+        support.apply_tokens(["CASEMAPPING=ascii"].into_iter().chain(token));
+        assert_eq!(support.monitor(), expected, "{token:?}");
+    }
+}

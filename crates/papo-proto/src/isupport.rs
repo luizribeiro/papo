@@ -386,7 +386,7 @@ impl Isupport {
     /// Returns the legacy shared target limit.
     #[must_use]
     pub fn maxtargets(&self) -> Option<LimitValue> {
-        optional_limit(self.get("MAXTARGETS"), false)
+        optional_limit(self.get("MAXTARGETS"), None)
     }
 
     /// Returns the variable-mode limit, where `None` means unlimited.
@@ -483,15 +483,18 @@ impl Isupport {
     }
 
     /// Returns the monitor-list limit.
+    ///
+    /// A bare `MONITOR` means no limit. `MONITOR=0` is `Limited(0)`: the server offers the
+    /// command but accepts no targets.
     #[must_use]
     pub fn monitor(&self) -> Option<LimitValue> {
-        optional_limit(self.get("MONITOR"), true)
+        optional_limit(self.get("MONITOR"), Some(LimitValue::Limited(0)))
     }
 
     /// Returns the history request limit.
     #[must_use]
     pub fn chathistory(&self) -> Option<LimitValue> {
-        optional_limit(self.get("CHATHISTORY"), true)
+        optional_limit(self.get("CHATHISTORY"), Some(LimitValue::Unlimited))
     }
 
     /// Returns supported message-reference types in preference order.
@@ -671,11 +674,11 @@ fn positive(value: &str) -> Option<usize> {
     value.parse().ok().filter(|value| *value > 0)
 }
 
-fn optional_limit(value: Advertised<'_>, zero_is_unlimited: bool) -> Option<LimitValue> {
+fn optional_limit(value: Advertised<'_>, zero: Option<LimitValue>) -> Option<LimitValue> {
     match value {
         Advertised::Absent => None,
         Advertised::Bare | Advertised::Value("") => Some(LimitValue::Unlimited),
-        Advertised::Value("0") if zero_is_unlimited => Some(LimitValue::Unlimited),
+        Advertised::Value("0") => zero,
         Advertised::Value(value) => positive(value).map(LimitValue::Limited),
     }
 }
