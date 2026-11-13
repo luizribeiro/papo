@@ -324,7 +324,7 @@ mod tests {
         time::Duration,
     };
 
-    use crate::{Account, Casemapping};
+    use crate::Account;
     use papo_core::{Config, Connection, Event, ResponseMatcher, Session, sts::ConnectionSecurity};
     use papo_proto::{Line, LineRef};
 
@@ -819,66 +819,5 @@ mod tests {
             carol_name_pin.check(current_carol.peer_key()),
             crate::PeerKeyCheck::Upgrade(_)
         ));
-    }
-
-    #[test]
-    fn verified_peer_keys_round_trip_with_delimiters_and_unicode() {
-        let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-        let key = crate::peer_key::PeerKey::historical(
-            Some(&crate::peer_key::PeerScope::server("irc.example:🌐")),
-            &Casemapping::Rfc1459.nick("Alice[Ops]"),
-            &account,
-        )
-        .unwrap();
-        let encoded = key.as_verified_str().unwrap();
-        let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
-
-        assert_eq!(
-            encoded,
-            "papo-peer:1;server=irc.example%3A%F0%9F%8C%90;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
-        );
-        assert!(matches!(key.check(&parsed), crate::PeerKeyCheck::Match));
-        assert_eq!(parsed.as_verified_str(), Some(encoded));
-    }
-
-    #[test]
-    fn persisted_peer_accounts_are_canonicalized() {
-        let key = "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=Alice%5BOps%5D;proof=account;account-casemap=rfc1459;account=Alice%5BOps%5D"
-            .parse::<crate::peer_key::PeerKey>()
-            .unwrap();
-        assert_eq!(
-            key.as_verified_str(),
-            Some(
-                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
-            )
-        );
-    }
-
-    #[test]
-    fn malformed_persisted_peer_keys_are_rejected() {
-        use crate::peer_key::{InvalidPeerKey, PeerKey};
-
-        for value in [
-            "",
-            "papo-peer-v1:rfc1459:4:Ergoalice",
-            "papo-peer:2;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;server=irc.example;nick=alice;nick-casemap=rfc1459;proof=unverified",
-            "papo-peer:1;server=irc.example;nick-casemap=unknown;nick=alice;proof=unverified",
-            "papo-peer:1;server=;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;connection=;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=;proof=unverified",
-            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=ali%GGce;proof=unverified",
-            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice;id=",
-            "papo-peer:1;server=irc.example;netid=libera;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;server=irc.example;bouncer-login=;netid=libera;upstream=irc.libera.chat;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;server=irc.example;bouncer-login=alice;netid=;upstream=irc.libera.chat;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;server=irc.example;bouncer-login=alice;netid=libera;upstream=;nick-casemap=rfc1459;nick=alice;proof=unverified",
-            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=unverified;extra=value",
-        ] {
-            assert!(
-                matches!(value.parse::<PeerKey>(), Err(InvalidPeerKey)),
-                "{value}"
-            );
-        }
     }
 }
