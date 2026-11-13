@@ -1237,7 +1237,7 @@ impl Client {
             Some(&self.state),
             channel_guard,
         );
-        let receipt = state.sent_receipt(&conversation, wire_target.clone(), target.guard.as_ref());
+        let receipt = state.sent_receipt(&conversation, wire_target.clone());
         if !state.is_connected() {
             let text = if action {
                 Ctcp::action(text).ok_or(InvalidInput::InvalidCtcp)?

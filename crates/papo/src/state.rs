@@ -272,7 +272,6 @@ impl State {
         &self,
         conversation: &crate::Conversation,
         address: String,
-        guard: Option<&papo_core::TargetGuard>,
     ) -> crate::message_ref::Receipt {
         let actor = crate::Source::User(crate::UserHandle::from_parts(
             self.nick().clone(),
@@ -280,24 +279,13 @@ impl State {
             None,
             None,
         ));
-        let mut receipt = crate::message_ref::Receipt::new(
+        crate::message_ref::Receipt::new(
             actor,
             crate::Authorship::Own,
             conversation,
             self.reply_token(conversation),
             address,
-        );
-        match guard {
-            Some(papo_core::TargetGuard::Recipient(recipient)) => {
-                receipt = receipt.with_recipient(Some(recipient));
-            }
-            Some(papo_core::TargetGuard::Proven(proof)) => {
-                receipt = receipt.with_recipient(proof.__recipient());
-            }
-            Some(papo_core::TargetGuard::ProvenAt(_, _) | papo_core::TargetGuard::Channel(_))
-            | None => {}
-        }
-        receipt
+        )
     }
 
     /// Returns builders and checks once the server's name rules are known.

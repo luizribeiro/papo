@@ -9047,9 +9047,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
 
     let conversation = crate::Conversation::Channel(client.channel("#papo").unwrap());
     let mut sent = crate::Sent {
-        receipt: client
-            .state()
-            .sent_receipt(&conversation, "#papo".into(), None),
+        receipt: client.state().sent_receipt(&conversation, "#papo".into()),
         conversation,
         status: None,
         outcome: crate::SentOutcome::Confirmed {

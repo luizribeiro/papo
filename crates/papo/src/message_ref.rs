@@ -19,7 +19,6 @@ struct ReceiptIdentity {
     token: Option<papo_core::ReplyToken>,
     actor_token: Option<papo_core::ReplyToken>,
     recipient: Option<crate::UserHandle>,
-    recipient_guard: Option<RecipientGuard>,
     channel: Option<crate::ChannelHandle>,
     msgids: Vec<MessageId>,
     channel_context: Option<crate::ChannelHandle>,
@@ -52,7 +51,6 @@ impl Receipt {
                 token,
                 actor_token: token,
                 recipient,
-                recipient_guard: None,
                 channel: match conversation {
                     Conversation::Channel(channel) => Some(channel.clone()),
                     Conversation::Private(_) => None,
@@ -81,7 +79,6 @@ impl Receipt {
                 token,
                 actor_token: token,
                 recipient: None,
-                recipient_guard: None,
                 channel: None,
                 msgids: Vec::new(),
                 channel_context: None,
@@ -109,11 +106,6 @@ impl Receipt {
             recipient: self.identity.recipient.clone(),
             channel: self.identity.channel.clone(),
         }
-    }
-
-    pub(crate) fn with_recipient(mut self, recipient: Option<&papo_core::RecipientGuard>) -> Self {
-        self.identity.recipient_guard = recipient.map(RecipientGuard::from_core);
-        self
     }
 
     pub(crate) fn set_actor_token(&mut self, token: Option<papo_core::ReplyToken>) {
@@ -204,17 +196,6 @@ pub(crate) struct RecipientGuard {
     pub(crate) account: Account,
     pub(crate) receipt: Option<papo_core::ReplyToken>,
     pub(crate) validated: Option<Box<papo_core::RecipientGuard>>,
-}
-
-impl RecipientGuard {
-    pub(crate) fn from_core(guard: &papo_core::RecipientGuard) -> Self {
-        Self {
-            nick: guard.__nick().clone(),
-            account: guard.__account().clone(),
-            receipt: Some(guard.__token()),
-            validated: Some(Box::new(guard.clone())),
-        }
-    }
 }
 
 /// An IRC return address with optional server message identifiers.
