@@ -218,6 +218,19 @@ fn rejects_literal_zero_feature_limits() {
 }
 
 #[test]
+fn reads_a_malformed_monitor_limit_as_not_offered() {
+    let malformed = session_with(
+        Config::default(),
+        "",
+        ":irc.unreal.example 005 papo MONITOR=unlimited :are supported by this server",
+    );
+    assert_eq!(
+        malformed.supports(Feature::Monitor),
+        Err(papo_core::UnsupportedReason::NotOffered)
+    );
+}
+
+#[test]
 fn distinguishes_client_disabled_and_server_absent_features() {
     let features = [
         Feature::Replies,

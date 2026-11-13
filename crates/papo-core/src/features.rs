@@ -1,5 +1,3 @@
-use papo_proto::Advertised;
-
 use crate::{RequestError, Session, cap};
 
 macro_rules! feature_table {
@@ -268,11 +266,7 @@ impl Session {
         }
         let support = self.isupport.value();
         match feature {
-            Feature::Monitor => match support.get("MONITOR") {
-                Advertised::Absent => return Err(UnsupportedReason::NotOffered),
-                Advertised::Value("0") => return Err(UnsupportedReason::LimitZero),
-                Advertised::Bare | Advertised::Value(_) => return Ok(()),
-            },
+            Feature::Monitor => return crate::monitor::support(support).map(|_| ()),
             Feature::BotMode => {
                 return support
                     .bot_mode()

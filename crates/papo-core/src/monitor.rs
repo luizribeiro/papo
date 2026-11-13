@@ -63,10 +63,7 @@ impl Monitor {
     }
 
     pub(super) fn limit(&self, isupport: &Isupport) -> Option<usize> {
-        let advertised = match isupport.monitor()? {
-            LimitValue::Limited(limit) => limit,
-            LimitValue::Unlimited => usize::MAX,
-        };
+        let advertised = support(isupport).ok()?;
         Some(self.server_limit.unwrap_or(advertised).min(advertised))
     }
 
@@ -245,8 +242,8 @@ impl Monitor {
         self.pending.retain(|nick| effective.contains(nick));
         self.tracked.retain(|nick| effective.contains(nick));
         self.presence.retain(|nick, _| effective.contains(nick));
-        if registered && isupport.monitor().is_some() {
-            self.rebalance(&old, mapping, self.limit(isupport).unwrap_or(0), outbox);
+        if let Some(limit) = self.limit(isupport).filter(|_| registered) {
+            self.rebalance(&old, mapping, limit, outbox);
         }
         true
     }
@@ -287,16 +284,8 @@ impl Monitor {
     {
         let mapping = self.names(isupport);
         self.update_casemapping(mapping.casemapping());
-        let support = isupport.monitor();
-        let advertised_limit = match support {
-            Some(LimitValue::Limited(limit)) => limit,
-            Some(LimitValue::Unlimited) => usize::MAX,
-            None => 0,
-        };
-        let limit = self
-            .server_limit
-            .unwrap_or(advertised_limit)
-            .min(advertised_limit);
+        let supported_limit = self.limit(isupport);
+        let limit = supported_limit.unwrap_or(0);
         let mut added = Vec::new();
         let mut unavailable = Vec::new();
         let mut full = Vec::new();
@@ -312,7 +301,7 @@ impl Monitor {
             }
             if registered && self.reserved_len() + added.len() < limit {
                 added.push(nick.clone());
-            } else if registered && support.is_some() {
+            } else if registered && supported_limit.is_some() {
                 unavailable.push(nick.clone());
             }
             self.desired.push(nick);
@@ -372,8 +361,8 @@ impl Monitor {
                 }
             }
         }
-        if registered && isupport.monitor().is_some() {
-            self.rebalance(&old, mapping, self.limit(isupport).unwrap_or(0), outbox);
+        if let Some(limit) = self.limit(isupport).filter(|_| registered) {
+            self.rebalance(&old, mapping, limit, outbox);
         }
     }
 
@@ -651,7 +640,7 @@ impl Monitor {
     }
 }
 
-fn support(isupport: &Isupport) -> Support {
+pub(crate) fn support(isupport: &Isupport) -> Support {
     match isupport.monitor() {
         Some(LimitValue::Limited(0)) => Err(UnsupportedReason::LimitZero),
         Some(LimitValue::Limited(limit)) => Ok(limit),

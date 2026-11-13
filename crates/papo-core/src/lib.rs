@@ -5132,7 +5132,7 @@ impl Session {
     pub fn monitor_clear(&mut self) {
         let before = self.state.change_generation();
         let supported =
-            self.welcome_state.is_connected() && self.isupport.value().monitor().is_some();
+            self.welcome_state.is_connected() && monitor::support(self.isupport.value()).is_ok();
         self.monitor.clear(supported, &mut self.outbox);
         self.sync_monitored_state();
         if before != self.state.change_generation() {
