@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Account, Authorship, Conversation, Message, MessageId, Nick, Sent, Source,
+    Account, Authorship, Conversation, Message, MessageId, Sent, Source,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -17,7 +17,6 @@ struct ReceiptIdentity {
     actor: Source,
     actor_account: Account,
     token: Option<papo_core::ReplyToken>,
-    actor_token: Option<papo_core::ReplyToken>,
     recipient: Option<crate::UserHandle>,
     channel: Option<crate::ChannelHandle>,
     msgids: Vec<MessageId>,
@@ -49,7 +48,6 @@ impl Receipt {
                 actor,
                 actor_account,
                 token,
-                actor_token: token,
                 recipient,
                 channel: match conversation {
                     Conversation::Channel(channel) => Some(channel.clone()),
@@ -77,7 +75,6 @@ impl Receipt {
                 actor,
                 actor_account,
                 token,
-                actor_token: token,
                 recipient: None,
                 channel: None,
                 msgids: Vec::new(),
@@ -108,10 +105,6 @@ impl Receipt {
         }
     }
 
-    pub(crate) fn set_actor_token(&mut self, token: Option<papo_core::ReplyToken>) {
-        self.identity.actor_token = token;
-    }
-
     pub(crate) fn set_reference(
         &mut self,
         msgids: impl IntoIterator<Item = MessageId>,
@@ -124,24 +117,6 @@ impl Receipt {
     #[allow(dead_code)]
     pub(crate) fn recipient(&self) -> Option<crate::UserHandle> {
         self.reference().recipient
-    }
-
-    pub(crate) fn actor_recipient(&self) -> Option<RecipientGuard> {
-        let actor = self.identity.actor.user()?;
-        Some(RecipientGuard {
-            nick: actor.nick(),
-            account: actor.account().clone(),
-            receipt: actor
-                .proof()
-                .and_then(papo_core::Proven::__recipient)
-                .map(papo_core::RecipientGuard::__token)
-                .or(self.identity.actor_token),
-            validated: actor
-                .proof()
-                .and_then(papo_core::Proven::__recipient)
-                .cloned()
-                .map(Box::new),
-        })
     }
 
     pub(crate) fn update_actor(&mut self, actor: Source, conversation: &Conversation) {
@@ -158,13 +133,6 @@ impl Receipt {
         conversation: &Conversation,
     ) {
         self.identity.actor = actor;
-        self.identity.actor_token = self
-            .identity
-            .actor
-            .user()
-            .and_then(crate::UserHandle::proof)
-            .and_then(papo_core::Proven::__recipient)
-            .map(papo_core::RecipientGuard::__token);
         self.identity.actor_account = if authorship == Authorship::Own {
             Account::Unknown
         } else {
@@ -188,14 +156,6 @@ pub(crate) trait ReplyReference {
     fn receipt(&self) -> &Receipt;
     fn conversation(&self) -> &Conversation;
     fn server_time(&self) -> Option<crate::ServerTime>;
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct RecipientGuard {
-    pub(crate) nick: Nick,
-    pub(crate) account: Account,
-    pub(crate) receipt: Option<papo_core::ReplyToken>,
-    pub(crate) validated: Option<Box<papo_core::RecipientGuard>>,
 }
 
 /// An IRC return address with optional server message identifiers.

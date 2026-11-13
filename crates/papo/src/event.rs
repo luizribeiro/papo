@@ -2228,13 +2228,6 @@ pub(crate) fn from_core_with_receipt(
             Some(Source::User(user)) => Some(user),
             Some(Source::Server(_)) | None => None,
         };
-    let guard_receipt = |mut receipt: crate::message_ref::Receipt, _conversation: &Conversation| {
-        let actor_token = receipt.actor_recipient().and_then(|actor| {
-            reply_state.map(|state| state.__reply_token_for(actor.nick.as_str()))
-        });
-        receipt.set_actor_token(actor_token);
-        receipt
-    };
     let mut mapped = match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
         papo_core::Event::Motd { lines, .. } => Event::Motd(Motd { lines }),
@@ -2264,15 +2257,12 @@ pub(crate) fn from_core_with_receipt(
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(change.authorship);
-            let receipt = guard_receipt(
-                crate::message_ref::Receipt::new(
-                    Source::User(actor.clone()),
-                    authorship,
-                    &conversation,
-                    reply_token,
-                    return_address,
-                ),
+            let receipt = crate::message_ref::Receipt::new(
+                Source::User(actor.clone()),
+                authorship,
                 &conversation,
+                reply_token,
+                return_address,
             );
             Event::TypingChanged(TypingChanged {
                 server_time: change.server_time,
@@ -2296,15 +2286,12 @@ pub(crate) fn from_core_with_receipt(
             };
             let authorship = Authorship::from_core(message.authorship);
             let conversation = conversation_handle(message.conversation, message.status);
-            let mut receipt = guard_receipt(
-                crate::message_ref::Receipt::new(
-                    Source::User(actor.clone()),
-                    authorship,
-                    &conversation,
-                    reply_token,
-                    return_address,
-                ),
+            let mut receipt = crate::message_ref::Receipt::new(
+                Source::User(actor.clone()),
+                authorship,
                 &conversation,
+                reply_token,
+                return_address,
             );
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             let tag = TagMsg {
@@ -2381,15 +2368,12 @@ pub(crate) fn from_core_with_receipt(
             };
             let authorship = Authorship::from_core(redacted.authorship);
             let conversation = conversation_handle(redacted.conversation, redacted.status);
-            let mut receipt = guard_receipt(
-                crate::message_ref::Receipt::new(
-                    actor.clone(),
-                    authorship,
-                    &conversation,
-                    reply_token,
-                    return_address,
-                ),
+            let mut receipt = crate::message_ref::Receipt::new(
+                actor.clone(),
+                authorship,
                 &conversation,
+                reply_token,
+                return_address,
             );
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             Event::Redacted(Redacted {
