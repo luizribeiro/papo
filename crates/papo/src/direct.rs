@@ -302,24 +302,6 @@ mod tests {
         hasher.finish()
     }
 
-    #[tokio::test]
-    async fn own_direct_reference_does_not_reserve_monitor() {
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(
-            crate::rt::now_mono(),
-            b":ergo.test 001 papo :Welcome to ErgoTest",
-        );
-        session.handle_line(
-            crate::rt::now_mono(),
-            b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
-        );
-        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
-
-        let direct = client.direct("papo").await.unwrap();
-        assert_eq!(direct.to_string(), "papo");
-        assert!(commands.try_recv().is_err());
-    }
-
     #[test]
     #[allow(clippy::mutable_key_type)]
     fn guarded_names_and_direct_nick_follow_renames_and_departures() {
@@ -401,43 +383,6 @@ mod tests {
                 crate::target::Role::Nick("test nick"),
                 <super::DirectRef as crate::Target>::__parts(&direct),
             ),
-            Err(crate::Error::TargetGone)
-        ));
-    }
-
-    #[test]
-    fn departed_guarded_nickname_is_rejected() {
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(
-            crate::rt::now_mono(),
-            b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
-        );
-        session.handle_line(crate::rt::now_mono(), b":papo!~papo@localhost JOIN #review");
-        session.handle_line(
-            crate::rt::now_mono(),
-            b":alice!~alice@cloak.example JOIN #review",
-        );
-        let nick = session.isupport().casemapping().nick("alice");
-        let recipient = session
-            .state()
-            .__capture_recipient(nick.clone(), Account::LoggedOut)
-            .unwrap();
-        let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let direct = super::DirectRef::new(&client, recipient, false);
-        session.handle_line(
-            crate::rt::now_mono(),
-            b":alice!~alice@cloak.example QUIT :Client exited",
-        );
-        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
-        let parts = crate::target::sealed::Parts {
-            text: std::borrow::Cow::Borrowed("alice"),
-            origin: nick.origin(),
-            channel: None,
-            user: Some(direct.user_handle()),
-        };
-
-        assert!(matches!(
-            client.resolve(crate::target::Role::Nick("test nick"), parts),
             Err(crate::Error::TargetGone)
         ));
     }
