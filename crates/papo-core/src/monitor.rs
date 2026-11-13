@@ -164,24 +164,48 @@ impl Monitor {
         self.pending
             .extend(requested.iter().map(|nick| self.casemapping.nick(nick)));
         transmit_chunks("+", &requested, outbox);
-        if desired.len() > limit {
-            outbox.event(Event::MonitorListFull {
-                limit,
-                nicks: desired[limit..]
-                    .iter()
-                    .map(|nick| self.casemapping.nick(nick))
-                    .collect(),
-            });
-        }
+        self.report_overflow(limit, outbox);
     }
 
     pub(super) fn handle_isupport(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
-        if self
-            .restored
-            .is_some_and(|restored| restored != support(isupport))
-        {
-            self.update_casemapping(isupport.casemapping());
-            self.restore(isupport, outbox);
+        let Some(restored) = self.restored else {
+            return;
+        };
+        let support = support(isupport);
+        if support == restored {
+            return;
+        }
+        self.update_casemapping(isupport.casemapping());
+        match (restored, support) {
+            (Ok(_), Ok(limit)) => self.resize(limit, isupport, outbox),
+            _ => self.restore(isupport, outbox),
+        }
+    }
+
+    fn resize(&mut self, limit: usize, isupport: &Isupport, outbox: &mut Outbox) {
+        self.restored = Some(Ok(limit));
+        self.server_limit = None;
+        let mapping = self.names(isupport);
+        let old = self.reserved_effective();
+        for nick in old.iter().skip(limit) {
+            let key = mapping.nick(nick);
+            self.pending.remove(&key);
+            self.tracked.remove(&key);
+            self.presence.remove(&key);
+        }
+        self.rebalance(&old, mapping, limit, outbox);
+        self.report_overflow(limit, outbox);
+    }
+
+    fn report_overflow(&self, limit: usize, outbox: &mut Outbox) {
+        let nicks: Vec<_> = self
+            .effective()
+            .into_iter()
+            .filter(|nick| !self.reserves(nick))
+            .map(|nick| self.casemapping.nick(nick))
+            .collect();
+        if !nicks.is_empty() {
+            outbox.event(Event::MonitorListFull { limit, nicks });
         }
     }
 

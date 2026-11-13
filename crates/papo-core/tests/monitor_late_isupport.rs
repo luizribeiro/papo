@@ -125,3 +125,58 @@ fn reconnecting_with_monitor_waits_for_the_connection_to_finish() {
         .no_client()
         .ignore_rest();
 }
+
+#[test]
+fn a_changed_monitor_limit_rebalances_the_list_and_keeps_presence() {
+    Transcript::new(Config::default())
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=2 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .client("MONITOR + alice,bob")
+        .event(|event| {
+            matches!(event, Event::MonitorListFull { limit: 2, nicks, .. } if nicks == &["carol"])
+        })
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":ergo.test 005 papo MONITOR=3 :are supported")
+        .client("MONITOR + carol")
+        .no_client()
+        .no_event()
+        .server(":ergo.test 005 papo MONITOR=1 :are supported")
+        .client("MONITOR - bob,carol")
+        .event(|event| {
+            matches!(event, Event::MonitorListFull { limit: 1, nicks, .. }
+                if nicks == &["bob", "carol"])
+        })
+        .no_client()
+        .no_event()
+        .inspect(|session| {
+            assert_eq!(session.state().__monitor_presence("alice"), Some(true));
+            assert_eq!(session.state().__monitor_presence("bob"), None);
+        });
+}
+
+#[test]
+fn a_raised_monitor_limit_supersedes_a_list_full_reply() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo MONITOR=3 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .client("MONITOR + alice,bob,carol")
+        .server(":ergo.test 734 papo 2 carol :Monitor list is full.")
+        .event(|event| {
+            matches!(event, Event::MonitorListFull { limit: 2, nicks, .. } if nicks == &["carol"])
+        })
+        .server(":ergo.test 005 papo MONITOR=5 :are supported")
+        .no_client()
+        .update(|session| session.monitor_add(["dave"]))
+        .client("MONITOR + dave")
+        .no_client()
+        .no_event();
+}
