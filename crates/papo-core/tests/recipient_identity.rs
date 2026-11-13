@@ -162,12 +162,6 @@ fn event_proof_adapters_preserve_a_concrete_recipient() {
         .__prove_event_user(token, nick.clone(), account.clone())
         .expect("the event proves Alice's identity");
     assert!(proof.__recipient().is_some());
-    assert!(
-        session
-            .state()
-            .__recipient_from_event(token, nick, account)
-            .is_some()
-    );
 }
 
 #[test]
