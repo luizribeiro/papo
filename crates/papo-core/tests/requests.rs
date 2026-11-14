@@ -946,6 +946,77 @@ fn labelled_who_filling_papos_own_ten_thousand_line_batch_bound_is_complete() {
 }
 
 #[test]
+fn labelled_who_refused_by_the_open_batch_limit_reports_the_limit() {
+    let now = Instant::now();
+    let mut session = labelled_session_with(now, Config::default().max_open_batches(0));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["#lobby"]),
+            ResponseMatcher::Who("#lobby".into()),
+        )
+        .unwrap();
+    let label = sent_label(&mut session);
+    session.handle_line(
+        now,
+        format!("@label={label} :ergo.test BATCH +who-1 labeled-response").as_bytes(),
+    );
+
+    assert!(
+        std::iter::from_fn(|| session.poll_event()).any(|event| matches!(
+            event,
+            Event::Response(response)
+                if response.id == id
+                    && response.state_limit == Some(papo_core::StateLimit::ListEntries)
+        ))
+    );
+}
+
+#[test]
+fn labelled_who_batch_that_stalls_times_out_instead_of_truncating() {
+    let now = Instant::now();
+    let mut session = labelled_session_with(
+        now,
+        Config::default().batch_timeout(std::time::Duration::from_secs(5)),
+    );
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["#lobby"]),
+            ResponseMatcher::Who("#lobby".into()),
+        )
+        .unwrap();
+    let label = sent_label(&mut session);
+    session.handle_line(
+        now,
+        format!("@label={label} :ergo.test BATCH +who-1 labeled-response").as_bytes(),
+    );
+    session.handle_line(
+        now,
+        b"@batch=who-1 :ergo.test 352 papo #lobby ~guest guest-0.example ergo.test guest0 H :0 Guest 0",
+    );
+    session.handle_timeout(now + std::time::Duration::from_secs(6));
+    let stalled: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+    session.handle_timeout(now + std::time::Duration::from_secs(31));
+
+    assert!(stalled.iter().any(|event| matches!(
+        event,
+        Event::BatchAbandoned {
+            reason: papo_core::BatchAbandonReason::Timeout,
+            ..
+        }
+    )));
+    assert!(
+        !stalled
+            .iter()
+            .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+    assert!(std::iter::from_fn(|| session.poll_event()).any(
+        |event| matches!(event, Event::RequestTimedOut { id: timed_out, .. } if timed_out == id)
+    ));
+}
+
+#[test]
 fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
