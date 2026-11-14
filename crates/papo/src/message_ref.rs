@@ -136,8 +136,21 @@ pub(crate) trait ReplyReference {
 /// A reference preserves the address exactly as it arrived, including a status prefix such as
 /// `@#ops`, together with the originating client and any evidence needed to detect a nickname
 /// changing hands. Construct one from a received [`Message`], a sent [`Sent`], or an explicit
-/// `(channel, message_id)` pair. A [`Conversation`] alone is not a return address; see
+/// `(channel, message_id)` pair. Text paired with a message identifier is not a reference; see
 /// [`Conversation`] for status-prefixed audience guidance.
+///
+/// ```
+/// # fn example(client: &papo::Client, message: &papo::Message) {
+/// let _ = client.react(message, "👀");
+/// let _ = client.redact(message.return_address(), "spam");
+/// # }
+/// ```
+///
+/// ```compile_fail
+/// # fn example(client: &papo::Client) {
+/// let _ = client.react(("#papo", "RfcBTzyxY120004"), "👀");
+/// # }
+/// ```
 ///
 /// Some lines, including typing notifications, have no server message identifier. Their references
 /// remain valid send destinations, but [`crate::Client::react`], [`crate::Client::unreact`], and
@@ -409,42 +422,6 @@ pub(crate) fn from_server_notice(notice: &ServerNotice) -> NoticeRef {
     notice.receipt.notice_reference()
 }
 
-macro_rules! borrowed_address_pairs {
-    ($($address:ty),+ $(,)?) => {
-        $(
-            /// Builds a reference from an explicit address and message identifier.
-            impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
-                fn from((address, msgid): ($address, I)) -> Self {
-                    Self::new(
-                        AsRef::<str>::as_ref(&address).to_owned(),
-                        vec![msgid.into()],
-                        crate::Origin::NONE,
-                        None,
-                        None,
-                        None,
-                    )
-                }
-            }
-        )+
-    };
-}
-
-borrowed_address_pairs!(&str, &String);
-
-/// Builds a reference from an explicit address and message identifier.
-impl<I: Into<MessageId>> From<(String, I)> for MessageRef {
-    fn from((address, msgid): (String, I)) -> Self {
-        Self::new(
-            address,
-            vec![msgid.into()],
-            crate::Origin::NONE,
-            None,
-            None,
-            None,
-        )
-    }
-}
-
 impl<I: Into<MessageId>> From<(crate::ChannelHandle, I)> for MessageRef {
     fn from((channel, msgid): (crate::ChannelHandle, I)) -> Self {
         Self::from((&channel, msgid))
@@ -707,16 +684,6 @@ mod tests {
         assert_eq!(replaced, "emily");
         assert_eq!(replaced.msgid(), Some(&MessageId::from("RfcBTzyxY120007")));
         assert_eq!(replaced.recipient, original.recipient);
-    }
-
-    #[test]
-    fn explicit_text_pairs_accept_owned_and_borrowed_strings() {
-        let borrowed = "#operations".to_owned();
-        let borrowed_reference = MessageRef::from((&borrowed, "RfcBTzyxY120008"));
-        let owned_reference = MessageRef::from(("maintenance".to_owned(), "RfcBTzyxY120009"));
-
-        assert_eq!(borrowed_reference, "#operations");
-        assert_eq!(owned_reference, "maintenance");
     }
 
     #[test]

@@ -780,6 +780,20 @@ pub(crate) async fn assert_reply_wire(
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+pub(crate) fn line_reference(
+    address: impl Into<String>,
+    msgid: impl Into<crate::MessageId>,
+) -> crate::MessageRef {
+    crate::MessageRef::new(
+        address.into(),
+        vec![msgid.into()],
+        crate::Origin::NONE,
+        None,
+        None,
+        None,
+    )
+}
+
 pub(crate) async fn negotiate_message_tags(server: &mut DuplexStream) {
     welcome_burst(server).await;
     server_line(server, b":ergo.test CAP * LS :message-tags\r\n").await;

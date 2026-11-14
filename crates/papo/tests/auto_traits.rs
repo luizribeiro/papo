@@ -5,7 +5,7 @@ use std::{future::IntoFuture, sync::Arc};
 use futures_core::Stream;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Kickban,
-    KickbanNick, KickbanRequest, Line, ListRequest, Message as ChatMessage, MessageId, NewAccount,
+    KickbanNick, KickbanRequest, Line, ListRequest, Message as ChatMessage, NewAccount,
     RequestFuture, SendMessage, SetModes, State,
 };
 use papo_proto::Typing;
@@ -25,10 +25,8 @@ fn assert_clone<T: Clone>() {}
 fn assert_event_stream<T: Stream<Item = (Event, Arc<State>)>>() {}
 
 fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
-    let target = "#papo";
-    let id = MessageId::from("RfcBTzyxY120004");
-    assert_send_static(client.react((target, &id), "👍"));
-    assert_send_static(client.unreact((target, &id), "👍"));
+    assert_send_static(client.unreact(message, "👍"));
+    assert_send_static(client.redact(message, "superseded"));
     assert_send_static(client.react(message, "👍"));
     assert_send_static(client.reply(message, "Acknowledged").into_future());
 }
@@ -89,7 +87,6 @@ fn request_futures_are_send() {
     assert_send_static(client.notice("#helpers", "maintenance soon").into_future());
     assert_send_static(client.action("#papo", "waves").into_future());
     assert_send_static(client.typing("#papo", Typing::Active));
-    assert_send_static(client.redact(("#papo", MessageId::from("RfcBTzyxY120004")), ""));
     assert_send_static(client.whois("emily"));
     assert_send_static(client.who(mapping.mask("#papo").to_string()));
     assert_send_static(client.join("#papo").into_future());

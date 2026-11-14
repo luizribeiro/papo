@@ -47,6 +47,10 @@ Sending to a target with stacked status prefixes such as `+@#ops` fails with
 `InvalidInput::InvalidName` before anything is written; Ergo refuses such a target and Solanum
 widens it. A single prefix such as `@#ops` is still sent as written.
 
+`MessageRef` can no longer be built from text and a message identifier (`("#papo", id)`): a
+reference comes from a received line or a `Sent`, so a public reaction, reply or redaction cannot
+point at an ops-only message by its id.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
