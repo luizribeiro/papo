@@ -227,8 +227,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
         assert_eq!(incoming.msgid(), Some(multiline_id));
 
         client_b
-            .privmsg(&channel, "reply through the multiline id")
-            .reply_to(multiline_id)
+            .reply(&incoming, "reply through the multiline id")
             .await
             .unwrap();
         let reply = wait_message(&mut events_a, |message| {

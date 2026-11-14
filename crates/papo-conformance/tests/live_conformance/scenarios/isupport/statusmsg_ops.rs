@@ -247,16 +247,5 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         peer.expect_none(papo::Event::as_typing_changed).await?;
     }
 
-    bob.privmsg(&channel, "bare-channel threaded answer")
-        .reply_to(&question_id)
-        .await?;
-    for peer in [&mut alice, &mut carol, &mut dave] {
-        let leaked = peer
-            .wait_for(|event| message_text(event, "bare-channel threaded answer"))
-            .await?;
-        assert_eq!(leaked.status(), None);
-        assert_eq!(leaked.in_reply_to.as_ref(), Some(&question_id));
-    }
-
     Ok(())
 }

@@ -137,6 +137,16 @@ pub enum Fallback {
 /// client.privmsg("#papo", "hello from the docs");
 /// # }
 /// ```
+///
+/// Threading under a message goes through [`Client::reply`], which answers that line's own
+/// audience. A bare message identifier cannot thread a send, because nothing would tie it to the
+/// audience that saw the message:
+///
+/// ```compile_fail
+/// # async fn send(client: &papo::Client, id: papo::MessageId) -> Result<(), papo::Error> {
+/// client.privmsg("#ops", "fixed").reply_to(id).await?;
+/// # Ok(()) }
+/// ```
 #[must_use = "requests do nothing unless awaited"]
 pub struct SendMessage {
     client: Client,
@@ -319,11 +329,7 @@ impl IntoFuture for KickbanRequest {
 }
 
 impl SendMessage {
-    /// Marks this message as a reply to `message` when replies are available.
-    ///
-    /// The referenced identifier does not constrain the target's audience. See
-    /// [`crate::Conversation`] for status-prefixed line guidance.
-    pub fn reply_to(mut self, message: impl Into<crate::MessageId>) -> Self {
+    pub(crate) fn reply_to(mut self, message: impl Into<crate::MessageId>) -> Self {
         self.reply_to = Some(message.into());
         self
     }

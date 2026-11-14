@@ -51,6 +51,9 @@ widens it. A single prefix such as `@#ops` is still sent as written.
 message identifier (`("#papo", id)`, `(&channel, id)`): a reference comes from a received line or a
 `Sent`, so a public reaction, reply or redaction cannot point at an ops-only message by its id.
 
+`SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
+the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

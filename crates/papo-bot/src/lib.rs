@@ -353,7 +353,7 @@ impl Command {
         Ok(ReplyStatus::Sent)
     }
 
-    /// Sends a private threaded notice, retaining channel context when available.
+    /// Sends a private notice to the sender, retaining channel context when available.
     ///
     /// # Errors
     ///
@@ -375,9 +375,6 @@ impl Command {
             return Ok(ReplyStatus::Dropped);
         }
         let mut request = self.client.notice(&self.message.actor, text);
-        if let Some(id) = self.message.msgid() {
-            request = request.reply_to(id.clone());
-        }
         let context = match self.message.conversation() {
             Conversation::Private(_) => self
                 .message

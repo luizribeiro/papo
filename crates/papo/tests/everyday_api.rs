@@ -93,7 +93,6 @@ fn everyday_api_is_nameable_from_the_facade() {
 
     let send: papo::SendMessage = client
         .privmsg(&channel, "hello from papo")
-        .reply_to("abc123")
         .channel_context("#papo");
     let _: papo::RequestFuture<papo::Sent> = std::future::IntoFuture::into_future(send);
 
