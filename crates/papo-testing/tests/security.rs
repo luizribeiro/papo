@@ -12,6 +12,10 @@ use papo_testing::{Wire, wire};
 
 const PASSWORD: &str = "correct horse battery staple";
 
+fn done<T>(result: Result<T, papo::Error>) -> Result<(), papo::Error> {
+    result.map(drop)
+}
+
 fn is_foreign<T>(result: &Result<T, papo::Error>) -> bool {
     matches!(
         result,
@@ -585,6 +589,93 @@ async fn assert_no_wire(first: &mut Wire, second: &mut Wire) {
                 .is_err()
         );
     }
+}
+
+struct ForeignValues {
+    first: ClientPair,
+    second: ClientPair,
+    channel: papo::ChannelHandle,
+    alice: papo::UserHandle,
+    nick: papo::Nick,
+}
+
+impl ForeignValues {
+    async fn new() -> Self {
+        let (first, second) = client_pair(&[
+            "batch",
+            "draft/chathistory",
+            "draft/metadata-2",
+            "draft/read-marker",
+            "labeled-response",
+            "message-tags",
+            "server-time",
+        ])
+        .await;
+        while second.0.snapshot().name_rules().is_none() {
+            tokio::task::yield_now().await;
+        }
+        let snapshot = first.0.snapshot();
+        let names = snapshot
+            .name_rules()
+            .expect("server advertised CASEMAPPING");
+        Self {
+            channel: first.0.channel("#papo").unwrap(),
+            alice: first.0.query("alice").unwrap(),
+            nick: names.nick("alice"),
+            first,
+            second,
+        }
+    }
+
+    fn message(&self) -> papo::MessageRef {
+        papo::MessageRef::from((self.channel.clone(), "RfcBTzyxY120004"))
+    }
+
+    async fn assert_all_foreign<const N: usize>(
+        mut self,
+        results: [(&str, Result<(), papo::Error>); N],
+    ) {
+        for (request, result) in results {
+            assert!(is_foreign(&result), "{request} returned {result:?}");
+        }
+        assert_no_wire(&mut self.first.2, &mut self.second.2).await;
+    }
+}
+
+#[tokio::test]
+async fn every_send_reports_a_foreign_value_as_foreign_reference() {
+    let foreign = ForeignValues::new().await;
+    let (second, channel, alice, nick) = (
+        &foreign.second.0,
+        &foreign.channel,
+        &foreign.alice,
+        &foreign.nick,
+    );
+    let message = || foreign.message();
+    let results = [
+        ("query", done(second.query(nick))),
+        ("query with a handle", done(second.query(alice))),
+        ("channel", done(second.channel(channel))),
+        (
+            "privmsg to a channel",
+            done(second.privmsg(channel, "release ready").await),
+        ),
+        (
+            "privmsg to a user",
+            done(second.privmsg(alice, "release ready").await),
+        ),
+        (
+            "notice to a nick",
+            done(second.notice(alice, "release ready").await),
+        ),
+        ("action", done(second.action(channel, "waves").await)),
+        ("typing", second.typing(channel, papo::Typing::Active).await),
+        ("reply", done(second.reply(message(), "acknowledged").await)),
+        ("react", second.react(message(), "+1").await),
+        ("unreact", second.unreact(message(), "+1").await),
+        ("redact", second.redact(message(), "posted twice").await),
+    ];
+    foreign.assert_all_foreign(results).await;
 }
 
 #[tokio::test]
