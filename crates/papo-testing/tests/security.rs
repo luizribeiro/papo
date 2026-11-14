@@ -728,6 +728,10 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         ("whois", done(second.whois(nick).await)),
         ("mode", done(second.mode(channel).add('m').await)),
         (
+            "mode op of a foreign user",
+            done(second.mode("#papo").op(alice).await),
+        ),
+        (
             "list_modes",
             done(second.list_modes(channel, papo::ListMode::Ban).await),
         ),
@@ -746,6 +750,7 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
             done(metadata.get(channel, [avatar()]).await),
         ),
         ("metadata.list", done(metadata.list(nick).await)),
+        ("metadata.clear_on", metadata.clear_on(channel).await),
         (
             "metadata.set_on",
             metadata
