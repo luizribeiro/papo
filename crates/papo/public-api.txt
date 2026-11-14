@@ -2345,7 +2345,7 @@ impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
-pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<papo_proto::time::ServerTime>>
+pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<papo::ReadMarker>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
 pub fn papo::Client::mark_read(&self, impl papo::AsConversation) -> papo::MarkReadRequest
 pub fn papo::Client::recent_conversations(&self, papo_proto::time::ServerTime, papo_proto::time::ServerTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>

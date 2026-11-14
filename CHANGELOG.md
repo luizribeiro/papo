@@ -75,6 +75,9 @@ tracked variants now fail with `RequestError` instead of `BuildError`.
 `ReadMarkerChanged::marker` is a `ReadMarker` (`ReadUntil(time)` or `Unset` for `*`), the same
 type `State::read_marker` returns; it replaces `read_until: Option<ServerTime>`.
 
+`Client::fetch_read_marker` resolves to a `ReadMarker` instead of `Option<ServerTime>`, so a `*`
+reply is `Unset`; it fails with `Error::Unconfirmed` when the reply leaves no marker in state.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

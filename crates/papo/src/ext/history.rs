@@ -1394,6 +1394,10 @@ impl Client {
 
     /// Queries the server read marker for a conversation.
     ///
+    /// Resolves to the marker that [`crate::State::read_marker`] holds once the server's
+    /// `MARKREAD` reply has been applied. A marker only advances, so a `*` reply after a
+    /// stored time resolves to that time.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] with reason
@@ -1401,11 +1405,11 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
     /// [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`]. A refusal returns [`Error::Server`] with its typed
-    /// [`crate::Refusal`].
+    /// [`crate::Refusal`]. [`Error::Unconfirmed`] means the reply left no marker in state.
     pub fn fetch_read_marker(
         &self,
         target: impl crate::AsConversation,
-    ) -> crate::RequestFuture<Option<ServerTime>> {
+    ) -> crate::RequestFuture<crate::ReadMarker> {
         let client = self.clone();
         let target = crate::AsConversation::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
@@ -1424,7 +1428,10 @@ impl Client {
                 .map_err(|_| Error::connection_lost())?;
             let response = receiver.await.map_err(|_| Error::connection_lost())??;
             crate::requests::empty(&response)?;
-            Ok(read_marker_time(client.state().read_marker(&target)))
+            client
+                .state()
+                .read_marker(&target)
+                .ok_or(Error::Unconfirmed)
         })
     }
 }
@@ -3245,7 +3252,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn read_marker_queries_update_and_return_cached_state() {
+    async fn read_marker_fetches_agree_with_events_and_state() {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
@@ -3273,50 +3280,92 @@ mod tests {
                 )
                 .unwrap(),
         );
-        let request = tokio::spawn({
-            let client = client.clone();
-            async move { client.fetch_read_marker(channel).await }
-        });
-        client_line(&mut server, b"@label=0 MARKREAD #papo\r\n").await;
-        server_line(
+        let unset = fetch_with_reply(
             &mut server,
+            &client,
+            channel,
+            b"@label=0 MARKREAD #papo\r\n",
             b"@label=0 :ergo.test MARKREAD #papo timestamp=*\r\n",
         )
         .await;
-        assert_eq!(within(request).await.unwrap().unwrap(), None);
+        assert_eq!(unset.unwrap(), crate::ReadMarker::Unset);
+        assert_marker_changed(&mut events, crate::ReadMarker::Unset).await;
         assert_eq!(
             client.state().read_marker("#PAPO"),
             Some(crate::ReadMarker::Unset)
         );
 
-        let request = tokio::spawn({
-            let client = client.clone();
-            async move { client.fetch_read_marker("#papo").await }
-        });
-        client_line(&mut server, b"@label=1 MARKREAD #papo\r\n").await;
-        server_line(
-            &mut server,
-            b"@label=1 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
-        )
-        .await;
-        let expected = server_time(1_760_529_342, 123);
-        assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
-        assert_eq!(
-            client.state().read_marker("#PAPO"),
-            Some(crate::ReadMarker::ReadUntil(expected))
-        );
+        let expected = crate::ReadMarker::ReadUntil(server_time(1_760_529_342, 123));
+        for label in [1, 2] {
+            let set = fetch_with_reply(
+                &mut server,
+                &client,
+                "#papo",
+                format!("@label={label} MARKREAD #papo\r\n").as_bytes(),
+                format!(
+                    "@label={label} :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n"
+                )
+                .as_bytes(),
+            ).await;
+            assert_eq!(set.unwrap(), expected);
+            assert_eq!(client.state().read_marker("#PAPO"), Some(expected));
+        }
+        assert_marker_changed(&mut events, expected).await;
         let foreign = crate::Origin::__new(91).__channel(client.state().casemapping(), "#papo");
         assert_eq!(client.state().read_marker(foreign), None);
         assert_eq!(client.state().read_marker("@#papo"), None);
 
-        let request = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
-        client_line(&mut server, b"@label=2 MARKREAD #papo\r\n").await;
-        server_line(
+        let regressed = fetch_with_reply(
             &mut server,
-            b"@label=2 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+            &client,
+            "#papo",
+            b"@label=3 MARKREAD #papo\r\n",
+            b"@label=3 :ergo.test MARKREAD #papo timestamp=*\r\n",
         )
         .await;
-        assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
+        assert_eq!(regressed.unwrap(), expected);
+        assert_eq!(client.state().read_marker("#PAPO"), Some(expected));
+
+        let malformed = fetch_with_reply(
+            &mut server,
+            &client,
+            "#new",
+            b"@label=4 MARKREAD #new\r\n",
+            b"@label=4 :ergo.test MARKREAD #new timestamp=yesterday\r\n",
+        )
+        .await;
+        assert!(matches!(malformed, Err(Error::Unconfirmed)));
+        assert_eq!(client.state().read_marker("#new"), None);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), events.next())
+                .await
+                .is_err()
+        );
         abort_task(task).await;
+    }
+
+    async fn fetch_with_reply(
+        server: &mut tokio::io::DuplexStream,
+        client: &crate::Client,
+        target: impl crate::AsConversation + Send + 'static,
+        request: &[u8],
+        reply: &[u8],
+    ) -> Result<crate::ReadMarker, Error> {
+        let fetch = tokio::spawn({
+            let client = client.clone();
+            async move { client.fetch_read_marker(target).await }
+        });
+        client_line(server, request).await;
+        server_line(server, reply).await;
+        within(fetch).await.unwrap()
+    }
+
+    async fn assert_marker_changed(events: &mut crate::Events, expected: crate::ReadMarker) {
+        assert!(matches!(
+            next_event(events).await,
+            Some(Event::ReadMarkerChanged(changed))
+                if changed.marker == expected
+                    && matches!(&changed.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+        ));
     }
 }

@@ -101,7 +101,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         );
         assert_eq!(
             client.fetch_read_marker(&channel).await.unwrap(),
-            Some(newest)
+            papo::ReadMarker::ReadUntil(newest)
         );
         client.quit("history test complete").await.unwrap();
     })

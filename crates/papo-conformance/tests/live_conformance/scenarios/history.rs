@@ -427,7 +427,10 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
         alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
-    assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
+    assert_eq!(
+        alice.fetch_read_marker(&channel).await?,
+        papo::ReadMarker::ReadUntil(time)
+    );
 
     assert!(matches!(
         alice.mark_read(&channel).up_to(&older_ref).await?,
@@ -438,7 +441,10 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
         alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
-    assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
+    assert_eq!(
+        alice.fetch_read_marker(&channel).await?,
+        papo::ReadMarker::ReadUntil(time)
+    );
     Ok(())
 }
 

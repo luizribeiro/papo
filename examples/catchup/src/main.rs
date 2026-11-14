@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event, Sasl, Secret};
+use papo::{Client, Event, ReadMarker, Sasl, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -34,8 +34,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn catch_up(client: &Client, channel: &str) -> Result<(), papo::Error> {
     let history = match client.fetch_read_marker(channel).await? {
-        Some(marker) => client.history(channel).after(marker),
-        None => client.history(channel).latest(),
+        ReadMarker::ReadUntil(marker) => client.history(channel).after(marker),
+        _ => client.history(channel).latest(),
     }
     .limit(100)
     .await?;

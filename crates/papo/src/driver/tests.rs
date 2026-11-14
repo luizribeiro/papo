@@ -9915,7 +9915,9 @@ async fn pending_read_marker_request_enables_read_ahead() {
     .await;
     assert_eq!(
         within(marker).await.unwrap().unwrap(),
-        Some(crate::ServerTime::from_stored_millis(1_760_529_342_123).unwrap())
+        crate::ReadMarker::ReadUntil(
+            crate::ServerTime::from_stored_millis(1_760_529_342_123).unwrap()
+        )
     );
 
     abort_task(driver).await;

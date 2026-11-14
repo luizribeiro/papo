@@ -90,7 +90,10 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .await
             .unwrap();
         wait_synced(&mut reader_events, &channel).await;
-        assert!(reader.fetch_read_marker(&channel).await.unwrap() >= newest);
+        assert!(matches!(
+            reader.fetch_read_marker(&channel).await.unwrap(),
+            papo::ReadMarker::ReadUntil(stored) if Some(stored) >= newest
+        ));
         reader.quit("marker checked").await.unwrap();
         poster.quit("catchup test complete").await.unwrap();
     })
