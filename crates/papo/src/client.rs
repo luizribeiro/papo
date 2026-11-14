@@ -179,13 +179,48 @@ pub struct JoinChannel {
     key: Option<crate::Secret>,
 }
 
-/// Builds a kickban request with named nickname and ban roles.
+/// Starts a kickban request; name the nickname with [`Kickban::nick`].
+///
+/// A kickban without its nickname and ban cannot be awaited:
+///
+/// ```compile_fail
+/// # async fn request(client: &papo::Client) -> Result<(), papo::Error> {
+/// client.kickban("#papo").await?;
+/// # Ok(())
+/// # }
+/// ```
 #[must_use = "requests do nothing unless awaited"]
 pub struct Kickban {
     client: Client,
     channel: crate::target::sealed::Parts<'static>,
-    nick: Option<crate::target::sealed::Parts<'static>>,
-    ban: Option<crate::BanTarget>,
+}
+
+/// A kickban request with its nickname; name the ban with [`KickbanNick::ban`].
+///
+/// A kickban without its ban cannot be awaited:
+///
+/// ```compile_fail
+/// # async fn request(client: &papo::Client) -> Result<(), papo::Error> {
+/// client.kickban("#papo").nick("mallory").await?;
+/// # Ok(())
+/// # }
+/// ```
+#[must_use = "requests do nothing unless awaited"]
+pub struct KickbanNick {
+    client: Client,
+    channel: crate::target::sealed::Parts<'static>,
+    nick: crate::target::sealed::Parts<'static>,
+}
+
+/// A complete kickban request; awaiting it yields a [`crate::KickbanOutcome`].
+///
+/// Naming each role keeps a nickname and a ban mask, both often plain text, from being swapped.
+#[must_use = "requests do nothing unless awaited"]
+pub struct KickbanRequest {
+    client: Client,
+    channel: crate::target::sealed::Parts<'static>,
+    nick: crate::target::sealed::Parts<'static>,
+    ban: crate::BanTarget,
     reason: String,
 }
 
@@ -201,6 +236,18 @@ impl std::fmt::Debug for Kickban {
     }
 }
 
+impl std::fmt::Debug for KickbanNick {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("KickbanNick", formatter)
+    }
+}
+
+impl std::fmt::Debug for KickbanRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("KickbanRequest", formatter)
+    }
+}
+
 impl JoinChannel {
     /// Supplies the channel key without exposing it through `Debug` output.
     pub fn key(mut self, key: crate::Secret) -> Self {
@@ -210,18 +257,30 @@ impl JoinChannel {
 }
 
 impl Kickban {
-    /// Sets the nickname to remove after the ban is confirmed.
-    pub fn nick(mut self, nick: impl crate::AsNick) -> Self {
-        self.nick = Some(crate::AsNick::__parts(&nick).into_owned());
-        self
+    /// Names the nickname to remove after the ban is confirmed.
+    pub fn nick(self, nick: impl crate::AsNick) -> KickbanNick {
+        KickbanNick {
+            client: self.client,
+            channel: self.channel,
+            nick: crate::AsNick::__parts(&nick).into_owned(),
+        }
     }
+}
 
-    /// Sets the ban target to confirm before removing the nickname.
-    pub fn ban(mut self, target: impl Into<crate::BanTarget>) -> Self {
-        self.ban = Some(target.into());
-        self
+impl KickbanNick {
+    /// Names the ban target to confirm before removing the nickname.
+    pub fn ban(self, target: impl Into<crate::BanTarget>) -> KickbanRequest {
+        KickbanRequest {
+            client: self.client,
+            channel: self.channel,
+            nick: self.nick,
+            ban: target.into(),
+            reason: String::new(),
+        }
     }
+}
 
+impl KickbanRequest {
     /// Sets the optional human-readable kick reason.
     pub fn reason(mut self, reason: impl Into<String>) -> Self {
         self.reason = reason.into();
@@ -249,22 +308,13 @@ impl IntoFuture for JoinChannel {
     }
 }
 
-impl IntoFuture for Kickban {
+impl IntoFuture for KickbanRequest {
     type Output = Result<crate::KickbanOutcome, Error>;
     type IntoFuture = crate::RequestFuture<crate::KickbanOutcome>;
 
     fn into_future(self) -> Self::IntoFuture {
-        crate::RequestFuture::new(async move {
-            let nick = self
-                .nick
-                .ok_or(InvalidInput::InvalidRequest("kickban nick missing".into()))?;
-            let ban = self
-                .ban
-                .ok_or(InvalidInput::InvalidRequest("kickban ban missing".into()))?;
-            self.client
-                .kickban_request(self.channel, nick, ban, self.reason)
-                .await
-        })
+        self.client
+            .kickban_request(self.channel, self.nick, self.ban, self.reason)
     }
 }
 
@@ -1498,6 +1548,9 @@ impl Client {
 
     /// Sets a channel ban and, only after confirming it, removes `nick` from the channel.
     ///
+    /// Name the nickname with [`Kickban::nick`], then the ban with [`KickbanNick::ban`]; only the
+    /// resulting [`KickbanRequest`] can be awaited.
+    ///
     /// A [`crate::UserHandle`] is checked again after ban confirmation. Text or [`crate::Nick`]
     /// deliberately addresses whoever currently holds that nickname.
     /// The ban remains set when the kick is refused. Leaving or changing nickname during ban
@@ -1518,9 +1571,6 @@ impl Client {
         Kickban {
             client: self.clone(),
             channel: crate::AsChannel::__parts(&channel).into_owned(),
-            nick: None,
-            ban: None,
-            reason: String::new(),
         }
     }
 

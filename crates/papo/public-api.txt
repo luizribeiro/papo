@@ -2706,15 +2706,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::JoinChannel
 impl core::panic::unwind_safe::UnwindSafe for papo::JoinChannel
 pub struct papo::Kickban
 impl papo::Kickban
-pub fn papo::Kickban::ban(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::Kickban::nick(self, impl papo::AsNick) -> Self
-pub fn papo::Kickban::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Kickban::nick(self, impl papo::AsNick) -> papo::KickbanNick
 impl core::fmt::Debug for papo::Kickban
 pub fn papo::Kickban::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::future::into_future::IntoFuture for papo::Kickban
-pub type papo::Kickban::IntoFuture = papo::RequestFuture<papo::KickbanOutcome>
-pub type papo::Kickban::Output = core::result::Result<papo::KickbanOutcome, papo::Error>
-pub fn papo::Kickban::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::Kickban
 impl core::marker::Send for papo::Kickban
 impl core::marker::Sync for papo::Kickban
@@ -2722,6 +2716,18 @@ impl core::marker::Unpin for papo::Kickban
 impl core::marker::UnsafeUnpin for papo::Kickban
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Kickban
 impl core::panic::unwind_safe::UnwindSafe for papo::Kickban
+pub struct papo::KickbanNick
+impl papo::KickbanNick
+pub fn papo::KickbanNick::ban(self, impl core::convert::Into<papo::BanTarget>) -> papo::KickbanRequest
+impl core::fmt::Debug for papo::KickbanNick
+pub fn papo::KickbanNick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::KickbanNick
+impl core::marker::Send for papo::KickbanNick
+impl core::marker::Sync for papo::KickbanNick
+impl core::marker::Unpin for papo::KickbanNick
+impl core::marker::UnsafeUnpin for papo::KickbanNick
+impl core::panic::unwind_safe::RefUnwindSafe for papo::KickbanNick
+impl core::panic::unwind_safe::UnwindSafe for papo::KickbanNick
 #[non_exhaustive] pub struct papo::KickbanOutcome
 pub papo::KickbanOutcome::kick: core::result::Result<(), papo::Error>
 impl core::clone::Clone for papo::KickbanOutcome
@@ -2735,6 +2741,22 @@ impl core::marker::Unpin for papo::KickbanOutcome
 impl core::marker::UnsafeUnpin for papo::KickbanOutcome
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::KickbanOutcome
 impl !core::panic::unwind_safe::UnwindSafe for papo::KickbanOutcome
+pub struct papo::KickbanRequest
+impl papo::KickbanRequest
+pub fn papo::KickbanRequest::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::KickbanRequest
+pub fn papo::KickbanRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::KickbanRequest
+pub type papo::KickbanRequest::IntoFuture = papo::RequestFuture<papo::KickbanOutcome>
+pub type papo::KickbanRequest::Output = core::result::Result<papo::KickbanOutcome, papo::Error>
+pub fn papo::KickbanRequest::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::KickbanRequest
+impl core::marker::Send for papo::KickbanRequest
+impl core::marker::Sync for papo::KickbanRequest
+impl core::marker::Unpin for papo::KickbanRequest
+impl core::marker::UnsafeUnpin for papo::KickbanRequest
+impl core::panic::unwind_safe::RefUnwindSafe for papo::KickbanRequest
+impl core::panic::unwind_safe::UnwindSafe for papo::KickbanRequest
 #[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo::ChannelName

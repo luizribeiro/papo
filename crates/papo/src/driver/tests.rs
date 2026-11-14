@@ -1,5 +1,5 @@
 use super::test_support::*;
-use crate::{Client, Kickban};
+use crate::{Client, KickbanRequest};
 use std::fmt::Write as _;
 
 macro_rules! disconnected {
@@ -108,7 +108,7 @@ fn test_account(value: &str) -> crate::AccountName {
     crate::Casemapping::default().account(value)
 }
 
-fn kickban(client: &Client, channel: &str, nick: &str, ban: &str, reason: &str) -> Kickban {
+fn kickban(client: &Client, channel: &str, nick: &str, ban: &str, reason: &str) -> KickbanRequest {
     client.kickban(channel).nick(nick).ban(ban).reason(reason)
 }
 
@@ -6330,21 +6330,6 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
-    ));
-}
-
-#[tokio::test(flavor = "current_thread")]
-async fn kickban_requires_a_named_nickname_and_ban() {
-    let client = crate::Client::disconnected_for_test();
-    assert!(matches!(
-        client.kickban("#papo").await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidRequest(message)))
-            if message == "kickban nick missing"
-    ));
-    assert!(matches!(
-        client.kickban("#papo").nick("mallory").await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidRequest(message)))
-            if message == "kickban ban missing"
     ));
 }
 

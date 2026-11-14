@@ -5,8 +5,8 @@ use std::{future::IntoFuture, sync::Arc};
 use futures_core::Stream;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Kickban,
-    Line, ListRequest, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
-    SetModes, State,
+    KickbanNick, KickbanRequest, Line, ListRequest, Message as ChatMessage, MessageId, NewAccount,
+    RequestFuture, SendMessage, SetModes, State,
 };
 use papo_proto::Typing;
 
@@ -56,6 +56,8 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send::<SendMessage>();
     assert_send::<JoinChannel>();
     assert_send::<Kickban>();
+    assert_send::<KickbanNick>();
+    assert_send::<KickbanRequest>();
     assert_send::<ListRequest>();
     assert_send::<SetModes>();
     assert_send::<History>();

@@ -89,7 +89,13 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
                 .ban("*!*@gateway.example")
                 .reason("credential leak")
         ),
-        "Kickban { .. }"
+        "KickbanRequest { .. }"
+    );
+    let partial = client.kickban("#papo");
+    assert_eq!(format!("{partial:?}"), "Kickban { .. }");
+    assert_eq!(
+        format!("{:?}", partial.nick("mallory")),
+        "KickbanNick { .. }"
     );
     assert_eq!(format!("{:?}", client.list()), "ListRequest { .. }");
     assert_eq!(format!("{:?}", client.mode("#papo")), "SetModes { .. }");

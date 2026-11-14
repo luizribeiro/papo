@@ -347,7 +347,8 @@ pub use builder::Builder;
 #[cfg(not(browser))]
 pub use builder::StreamSecurity;
 pub use client::{
-    Client, ConfirmedLines, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome,
+    Client, ConfirmedLines, Fallback, JoinChannel, Kickban, KickbanNick, KickbanRequest,
+    SendMessage, Sent, SentOutcome,
 };
 pub use conversation::Conversation;
 pub use driver::{Driver, Events};
