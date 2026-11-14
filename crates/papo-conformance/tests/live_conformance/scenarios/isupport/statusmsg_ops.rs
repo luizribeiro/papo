@@ -249,3 +249,57 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
 
     Ok(())
 }
+
+/// posts to everyone from the window of an operators-only line and refuses stacked prefixes
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response"], isupport = ["STATUSMSG"]),
+    covers = [
+        "security.statusmsg.window-reaches-everyone",
+        "security.statusmsg.stacked-status-refused"
+    ]
+)]
+async fn statusmsg_window_reaches_everyone(s: Scenario) -> papo_testing::Result<()> {
+    let StatusmsgPeers {
+        mut alice,
+        mut bob,
+        mut carol,
+        mut dave,
+        channel,
+    } = statusmsg_peers(&s).await?;
+
+    alice
+        .privmsg(format!("@{channel}"), "operators-only question")
+        .await?;
+    let question = bob
+        .wait_for(|event| message_text(event, "operators-only question"))
+        .await?;
+    let papo::Conversation::Channel(window) = question.conversation() else {
+        panic!("a channel line files under its channel")
+    };
+    bob.privmsg(window, "posted from the window").await?;
+    for peer in [&mut alice, &mut carol, &mut dave] {
+        let posted = peer
+            .wait_for(|event| message_text(event, "posted from the window"))
+            .await?;
+        assert_eq!(posted.status(), None);
+    }
+
+    let stacked = bob
+        .privmsg(format!("+@{channel}"), "stacked audience")
+        .await;
+    assert!(
+        matches!(
+            stacked,
+            Err(papo::Error::InvalidInput(papo::InvalidInput::InvalidName {
+                reason: papo::InvalidIdentifier::InvalidPrefix('@'),
+                ..
+            }))
+        ),
+        "stacked prefixes were not refused: {stacked:?}"
+    );
+    for peer in [&mut alice, &mut carol, &mut dave] {
+        peer.expect_none(|event| message_text(event, "stacked audience"))
+            .await?;
+    }
+    Ok(())
+}
