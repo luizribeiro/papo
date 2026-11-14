@@ -50,7 +50,7 @@ specs = [
   { name = "Message tags", url = "https://ircv3.net/specs/extensions/message-tags", caps = ["message-tags"], api = "SendMessage::tag", coverage = "ircv3.message-tags." },
   { name = "Message IDs", url = "https://ircv3.net/specs/extensions/message-ids", wire = "msgid", support = "Yes", api = "Event::msgid", coverage = "ircv3.message-tags.msgid" },
   { name = "Channel context", url = "https://ircv3.net/specs/client-tags/channel-context", wire = "+channel-context", support = "Yes", api = "SendMessage::channel_context", coverage = "tag.channel-context" },
-  { name = "Reply", url = "https://ircv3.net/specs/client-tags/reply", wire = "+reply", support = "Yes", api = "SendMessage::reply_to", coverage = "tag.reply" },
+  { name = "Reply", url = "https://ircv3.net/specs/client-tags/reply", wire = "+reply", support = "Yes", api = "Client::reply", coverage = "tag.reply" },
   { name = "React", url = "https://ircv3.net/specs/client-tags/react", wire = "+draft/react, +draft/unreact", support = "Yes", api = "Client::react", coverage = "tag.react" },
   { name = "Typing", url = "https://ircv3.net/specs/client-tags/typing", wire = "+typing", support = "Yes", api = "Client::typing", coverage = "tag.typing" },
   { name = "Operator tag", url = "https://ircv3.net/specs/extensions/oper-tag", caps = ["draft/oper-tag"], wire = "draft/oper-tag, draft/oper", api = "—", coverage = "draft.oper-tag" },

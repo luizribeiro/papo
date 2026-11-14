@@ -59,7 +59,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | [Message tags](https://ircv3.net/specs/extensions/message-tags) | `message-tags` | Yes | [`SendMessage::tag`](https://docs.rs/papo/latest/papo/struct.SendMessage.html#method.tag) | [Yes](conformance-matrix.md) |
 | [Message IDs](https://ircv3.net/specs/extensions/message-ids) | `msgid` | Yes | [`Event::msgid`](https://docs.rs/papo/latest/papo/enum.Event.html#method.msgid) | [Yes](conformance-matrix.md) |
 | [Channel context](https://ircv3.net/specs/client-tags/channel-context) | `+channel-context` | Yes | [`SendMessage::channel_context`](https://docs.rs/papo/latest/papo/struct.SendMessage.html#method.channel_context) | [Yes](conformance-matrix.md) |
-| [Reply](https://ircv3.net/specs/client-tags/reply) | `+reply` | Yes | [`SendMessage::reply_to`](https://docs.rs/papo/latest/papo/struct.SendMessage.html#method.reply_to) | [Yes](conformance-matrix.md) |
+| [Reply](https://ircv3.net/specs/client-tags/reply) | `+reply` | Yes | [`Client::reply`](https://docs.rs/papo/latest/papo/struct.Client.html#method.reply) | [Yes](conformance-matrix.md) |
 | [React](https://ircv3.net/specs/client-tags/react) | `+draft/react, +draft/unreact` | Yes | [`Client::react`](https://docs.rs/papo/latest/papo/struct.Client.html#method.react) | [Yes](conformance-matrix.md) |
 | [Typing](https://ircv3.net/specs/client-tags/typing) | `+typing` | Yes | [`Client::typing`](https://docs.rs/papo/latest/papo/struct.Client.html#method.typing) | [Yes](conformance-matrix.md) |
 | [Operator tag](https://ircv3.net/specs/extensions/oper-tag) | `draft/oper-tag, draft/oper` | Yes | — | No |
