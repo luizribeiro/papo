@@ -82,9 +82,7 @@ pub(crate) fn who_account(
     nick: &str,
     response: &papo_core::Response,
 ) -> Result<crate::Account, crate::Error> {
-    if let Some(error) = response.error() {
-        return Err(crate::Error::server(error));
-    }
+    crate::requests::empty(response)?;
     let account = response.lines.iter().find_map(|line| {
         let line = line.as_ref();
         (line.command_is("354") && line.param(1).is_some_and(|found| found == nick))

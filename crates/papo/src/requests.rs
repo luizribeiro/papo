@@ -648,6 +648,16 @@ mod tests {
                 },
             },
             BoundedCase {
+                request: Line::new("WHO").with_params(["guest1", "%na"]),
+                matcher: ResponseMatcher::Who("guest1".into()),
+                row: ":ergo.test 354 papo guest{i} 0",
+                end: ":ergo.test 315 papo guest1 :End of WHO list",
+                bound: 10_000,
+                build: |response, client| {
+                    crate::identity::who_account(client, "guest1", &response).map(drop)
+                },
+            },
+            BoundedCase {
                 request: Line::new("MODE").with_params(["#papo", "b"]),
                 matcher: ResponseMatcher::__list_mode("#papo".into(), crate::ListMode::Ban),
                 row: ":ergo.test 367 papo #papo *!*@host{i}.example oper 1761048000",
