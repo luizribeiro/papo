@@ -1686,9 +1686,9 @@ impl Client {
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            let proven = crate::identity::prove_parts(&client, nick, "invite: nick").await?;
             let channel =
                 client.resolve(crate::target::Role::Channel("invite: channel"), channel)?;
+            let proven = crate::identity::prove_parts(&client, nick, "invite: nick").await?;
             let state = client.state();
             let names = state
                 .known_name_rules()

@@ -6174,6 +6174,12 @@ async fn membership_actions_confirm_success_and_refusal() {
         client.invite(&carol, test_channel("not-a-channel")).await,
         Err(Error::InvalidInput(_))
     ));
+    assert!(matches!(
+        client
+            .invite(&client.query("dave").unwrap(), "not-a-channel")
+            .await,
+        Err(Error::InvalidInput(_))
+    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
             .await
