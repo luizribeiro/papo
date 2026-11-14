@@ -3289,14 +3289,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::RegisterOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::RegisterOutcome
 pub struct papo::RenameChannel
 impl papo::RenameChannel
-pub fn papo::RenameChannel::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::RenameChannel::to(self, impl papo::AsChannel) -> Self
+pub fn papo::RenameChannel::to(self, impl papo::AsChannel) -> papo::RenameChannelRequest
 impl core::fmt::Debug for papo::RenameChannel
 pub fn papo::RenameChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::future::into_future::IntoFuture for papo::RenameChannel
-pub type papo::RenameChannel::IntoFuture = papo::RequestFuture<()>
-pub type papo::RenameChannel::Output = core::result::Result<(), papo::Error>
-pub fn papo::RenameChannel::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::RenameChannel
 impl core::marker::Send for papo::RenameChannel
 impl core::marker::Sync for papo::RenameChannel
@@ -3304,6 +3299,22 @@ impl core::marker::Unpin for papo::RenameChannel
 impl core::marker::UnsafeUnpin for papo::RenameChannel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::RenameChannel
 impl core::panic::unwind_safe::UnwindSafe for papo::RenameChannel
+pub struct papo::RenameChannelRequest
+impl papo::RenameChannelRequest
+pub fn papo::RenameChannelRequest::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::RenameChannelRequest
+pub fn papo::RenameChannelRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::RenameChannelRequest
+pub type papo::RenameChannelRequest::IntoFuture = papo::RequestFuture<()>
+pub type papo::RenameChannelRequest::Output = core::result::Result<(), papo::Error>
+pub fn papo::RenameChannelRequest::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::RenameChannelRequest
+impl core::marker::Send for papo::RenameChannelRequest
+impl core::marker::Sync for papo::RenameChannelRequest
+impl core::marker::Unpin for papo::RenameChannelRequest
+impl core::marker::UnsafeUnpin for papo::RenameChannelRequest
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RenameChannelRequest
+impl core::panic::unwind_safe::UnwindSafe for papo::RenameChannelRequest
 pub struct papo::ReplyCode(_)
 impl papo::ReplyCode
 pub const fn papo::ReplyCode::as_str(&self) -> &str

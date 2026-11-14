@@ -27,6 +27,9 @@ while disconnected, it still skips the current backoff and retries immediately.
 `Client::kickban` can be awaited only after `.nick(..)` and `.ban(..)`; an incomplete kickban does not
 compile.
 
+`Client::rename_channel` can be awaited only after `.to(..)`; a rename without its destination does
+not compile.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

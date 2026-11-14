@@ -241,7 +241,7 @@ impl Peer {
         old: impl AsRef<str>,
         new: impl AsRef<str>,
         reason: impl Into<String>,
-    ) -> papo::RenameChannel {
+    ) -> papo::RenameChannelRequest {
         self.client
             .rename_channel(old.as_ref())
             .to(new.as_ref())

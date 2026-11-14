@@ -121,6 +121,10 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
     assert_eq!(format!("{:?}", client.metadata()), "Metadata { .. }");
     assert_eq!(
         format!("{:?}", client.rename_channel("#papo").to("#papo-dev")),
+        "RenameChannelRequest { .. }"
+    );
+    assert_eq!(
+        format!("{:?}", client.rename_channel("#papo")),
         "RenameChannel { .. }"
     );
 }

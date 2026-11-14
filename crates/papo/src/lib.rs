@@ -358,7 +358,7 @@ pub use error::{
 };
 pub use event_impl::{Authorship, Event, Incomplete, Message, MessageKind, Source, Tags, TagsIter};
 pub use ext::accounts::{AccountCreation, NewAccount};
-pub use ext::extras::RenameChannel;
+pub use ext::extras::{RenameChannel, RenameChannelRequest};
 pub use ext::history::{
     History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, MarkReadOutcome,
     MarkReadRequest, RecentConversation,

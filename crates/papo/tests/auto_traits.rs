@@ -167,6 +167,7 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
             .unsubscribe([papo::MetadataKey::new("pronouns")]),
     );
     assert_send_static(client.metadata().sync("alice"));
+    assert_send_static(client.rename_channel("#r"));
     assert_send_static(client.rename_channel("#r").to("#s"));
 }
 

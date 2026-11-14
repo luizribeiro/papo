@@ -3,12 +3,28 @@ use crate::driver::unstable::UnstableRequest;
 use crate::{Client, driver::CoreRequest};
 use std::future::IntoFuture;
 
-/// Builds a channel rename request with distinct source and destination roles.
+/// Starts a channel rename request; name the destination with [`RenameChannel::to`].
+///
+/// A rename without its destination cannot be awaited:
+///
+/// ```compile_fail
+/// # async fn request(client: &papo::Client) -> Result<(), papo::Error> {
+/// client.rename_channel("#papo").await?;
+/// # Ok(())
+/// # }
+/// ```
 #[must_use = "requests do nothing unless awaited"]
 pub struct RenameChannel {
     client: Client,
     old: crate::target::sealed::Parts<'static>,
-    new: Option<crate::target::sealed::Parts<'static>>,
+}
+
+/// A complete channel rename request with distinct source and destination roles.
+#[must_use = "requests do nothing unless awaited"]
+pub struct RenameChannelRequest {
+    client: Client,
+    old: crate::target::sealed::Parts<'static>,
+    new: crate::target::sealed::Parts<'static>,
     reason: String,
 }
 
@@ -18,13 +34,25 @@ impl std::fmt::Debug for RenameChannel {
     }
 }
 
-impl RenameChannel {
-    /// Sets the destination channel name.
-    pub fn to(mut self, channel: impl crate::AsChannel) -> Self {
-        self.new = Some(crate::AsChannel::__parts(&channel).into_owned());
-        self
+impl std::fmt::Debug for RenameChannelRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("RenameChannelRequest", formatter)
     }
+}
 
+impl RenameChannel {
+    /// Names the destination channel.
+    pub fn to(self, channel: impl crate::AsChannel) -> RenameChannelRequest {
+        RenameChannelRequest {
+            client: self.client,
+            old: self.old,
+            new: crate::AsChannel::__parts(&channel).into_owned(),
+            reason: String::new(),
+        }
+    }
+}
+
+impl RenameChannelRequest {
     /// Sets the optional human-readable rename reason.
     pub fn reason(mut self, reason: impl Into<String>) -> Self {
         self.reason = reason.into();
@@ -32,23 +60,21 @@ impl RenameChannel {
     }
 }
 
-impl IntoFuture for RenameChannel {
+impl IntoFuture for RenameChannelRequest {
     type Output = Result<(), crate::Error>;
     type IntoFuture = crate::RequestFuture<()>;
 
     fn into_future(self) -> Self::IntoFuture {
-        crate::RequestFuture::new(async move {
-            let missing = crate::InvalidInput::InvalidRequest("rename destination missing".into());
-            let new = self.new.ok_or(missing)?;
-            self.client
-                .rename_channel_request(self.old, new, self.reason)
-                .await
-        })
+        self.client
+            .rename_channel_request(self.old, self.new, self.reason)
     }
 }
 
 impl Client {
     /// Requests a channel rename.
+    ///
+    /// Name the destination with [`RenameChannel::to`]; only the resulting
+    /// [`RenameChannelRequest`] can be awaited.
     ///
     /// An empty `reason` means no reason.
     ///
@@ -64,8 +90,6 @@ impl Client {
         RenameChannel {
             client: self.clone(),
             old,
-            new: None,
-            reason: String::new(),
         }
     }
 
