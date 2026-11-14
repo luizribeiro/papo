@@ -951,9 +951,7 @@ mod tests {
 
         assert!(matches!(
             second.mode(channel).op(&user).await,
-            Err(crate::Error::InvalidInput(
-                crate::InvalidInput::ForeignReference
-            ))
+            Err(crate::Error::ForeignReference(_))
         ));
         assert!(matches!(
             second.mode("@#papo").add('m').await,

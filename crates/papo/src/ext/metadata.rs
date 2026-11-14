@@ -445,9 +445,7 @@ mod tests {
 
         assert!(matches!(
             second.metadata().clear_on(channel).await,
-            Err(crate::Error::InvalidInput(
-                crate::InvalidInput::ForeignReference
-            ))
+            Err(crate::Error::ForeignReference(_))
         ));
         assert!(matches!(
             second.metadata().clear_on("@#papo").await,

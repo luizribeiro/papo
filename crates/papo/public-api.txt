@@ -1790,7 +1790,6 @@ pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::CustomStreamNotReusable
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::EmptyText
-pub papo::InvalidInput::ForeignReference
 pub papo::InvalidInput::InsecureAuthentication
 pub papo::InvalidInput::InvalidClientTagKey(alloc::string::String)
 pub papo::InvalidInput::InvalidCtcp

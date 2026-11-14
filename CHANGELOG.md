@@ -33,6 +33,9 @@ not compile.
 `Client::query` and `Client::channel` now return `Result<_, Error>`, so a handle whose user or
 channel has gone fails with `Error::TargetGone` instead of a foreign-reference error.
 
+`InvalidInput::ForeignReference` is removed: every request given a value from another client fails
+with `Error::ForeignReference`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

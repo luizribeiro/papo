@@ -1,8 +1,8 @@
 use std::{io, process::Command, time::Duration};
 
 use papo::{
-    Client, DisconnectCause, Endpoint, Error, Event, Feature, InvalidInput, NetworkId,
-    NetworkState, Reconnect, Sasl, event::BouncerNetworkChanged,
+    Client, DisconnectCause, Endpoint, Error, Event, Feature, NetworkId, NetworkState, Reconnect,
+    Sasl, event::BouncerNetworkChanged,
 };
 use papo_conformance_macros::scenario;
 
@@ -114,10 +114,7 @@ async fn bound_client_reference(s: Scenario) -> papo_testing::Result<()> {
         .reply(&second_message, "must remain local")
         .await
         .unwrap_err();
-    assert!(matches!(
-        error,
-        Error::InvalidInput(InvalidInput::ForeignReference)
-    ));
+    assert!(matches!(error, Error::ForeignReference(_)));
     sender
         .expect_none(|event| message_text(event, "must remain local"))
         .await?;

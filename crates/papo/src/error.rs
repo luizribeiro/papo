@@ -449,6 +449,15 @@ impl std::error::Error for DisconnectCause {
 #[error("the value belongs to another client")]
 pub struct ForeignReference;
 
+impl ForeignReference {
+    pub(crate) fn require_local(origin: crate::Origin, local: crate::Origin) -> Result<(), Self> {
+        [crate::Origin::NONE, local]
+            .contains(&origin)
+            .then_some(())
+            .ok_or(Self)
+    }
+}
+
 /// An error produced by the asynchronous IRC client.
 #[derive(Clone, Debug, Error)]
 #[non_exhaustive]
@@ -1188,7 +1197,6 @@ mod tests {
                 actual: 4095,
             },
             InvalidInput::UnusableMessageReference,
-            InvalidInput::ForeignReference,
             InvalidInput::EmailRequired,
             InvalidInput::AccountNameMustMatchNick,
             InvalidInput::MetadataValueTooLong {

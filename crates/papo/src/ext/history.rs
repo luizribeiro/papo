@@ -1731,11 +1731,11 @@ mod tests {
 
         assert!(matches!(
             second.history("#papo").after(cursor.clone()).query,
-            Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+            Err(Error::ForeignReference(_))
         ));
         assert!(matches!(
             second.history("#papo").latest_after(cursor).query,
-            Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+            Err(Error::ForeignReference(_))
         ));
     }
 
@@ -1770,7 +1770,7 @@ mod tests {
             assert!(first.history(conversation.clone()).latest().query.is_ok());
             assert!(matches!(
                 second.history(conversation).latest().query,
-                Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+                Err(Error::ForeignReference(_))
             ));
         }
     }
@@ -1815,7 +1815,7 @@ mod tests {
         for conversation in [page.conversation, recent.conversation] {
             assert!(matches!(
                 second.history(conversation).latest().query,
-                Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+                Err(Error::ForeignReference(_))
             ));
         }
     }

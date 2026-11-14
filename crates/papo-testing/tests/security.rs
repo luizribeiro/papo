@@ -15,8 +15,7 @@ const PASSWORD: &str = "correct horse battery staple";
 fn is_foreign<T>(result: &Result<T, papo::Error>) -> bool {
     matches!(
         result,
-        Err(papo::Error::ForeignReference(papo::ForeignReference)
-            | papo::Error::InvalidInput(papo::InvalidInput::ForeignReference))
+        Err(papo::Error::ForeignReference(papo::ForeignReference))
     )
 }
 

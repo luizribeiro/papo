@@ -101,9 +101,6 @@ pub enum InvalidInput {
     /// A message reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
     UnusableMessageReference,
-    /// A value belongs to another client.
-    #[error("the value belongs to another client")]
-    ForeignReference,
     /// A message belongs to a different conversation than the requested read marker.
     #[error("the message belongs to another conversation")]
     WrongConversation,

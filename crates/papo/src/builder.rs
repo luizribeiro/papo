@@ -902,9 +902,7 @@ mod tests {
 
         assert!(matches!(
             second.reply(reference, "release ready").await,
-            Err(crate::Error::InvalidInput(
-                crate::InvalidInput::ForeignReference
-            ))
+            Err(crate::Error::ForeignReference(_))
         ));
         let channel = first
             .state()
@@ -913,9 +911,7 @@ mod tests {
             .channel("#papo");
         assert!(matches!(
             second.privmsg(channel, "release ready").await,
-            Err(crate::Error::InvalidInput(
-                crate::InvalidInput::ForeignReference
-            ))
+            Err(crate::Error::ForeignReference(_))
         ));
 
         let actor = crate::__testing::user_handle(

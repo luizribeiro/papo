@@ -6,16 +6,6 @@ use papo_proto::{Casemapping, Mask, Nick};
 
 use crate::Isupport;
 
-fn require_local_origin(
-    origin: crate::Origin,
-    local: crate::Origin,
-) -> Result<(), crate::ForeignReference> {
-    [crate::Origin::NONE, local]
-        .contains(&origin)
-        .then_some(())
-        .ok_or(crate::ForeignReference)
-}
-
 fn resolve_user_parts(
     state: &papo_core::State,
     parts: &crate::target::sealed::Parts<'_>,
@@ -203,7 +193,7 @@ impl Channel {
         nick: impl crate::AsNick,
     ) -> Result<Option<&crate::Member>, crate::ForeignReference> {
         let nick = crate::AsNick::__parts(&nick);
-        require_local_origin(nick.origin, self.name().origin())?;
+        crate::ForeignReference::require_local(nick.origin, self.name().origin())?;
         Ok(self.inner.member(nick.text.as_ref()))
     }
 }
@@ -541,7 +531,7 @@ impl State {
         name: impl crate::AsChannel,
     ) -> Result<Option<&Channel>, crate::ForeignReference> {
         let parts = crate::AsChannel::__parts(&name);
-        require_local_origin(parts.origin, self.nick().origin())?;
+        crate::ForeignReference::require_local(parts.origin, self.nick().origin())?;
         Ok(self.channel_parts(&parts))
     }
 
@@ -640,7 +630,7 @@ impl State {
         nick: impl crate::AsNick,
     ) -> Result<Option<&User>, crate::ForeignReference> {
         let nick = crate::AsNick::__parts(&nick);
-        require_local_origin(nick.origin, self.nick().origin())?;
+        crate::ForeignReference::require_local(nick.origin, self.nick().origin())?;
         let Some(nick) = resolve_user_parts(&self.core, &nick)? else {
             return Ok(None);
         };

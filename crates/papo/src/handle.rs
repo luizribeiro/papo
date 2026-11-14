@@ -609,9 +609,7 @@ impl crate::Client {
     pub fn channel(&self, channel: impl crate::AsChannel) -> Result<ChannelHandle, crate::Error> {
         let parts = crate::AsChannel::__parts(&channel).into_owned();
         let state = self.state();
-        if parts.origin != crate::Origin::NONE && parts.origin != self.origin {
-            return Err(crate::InvalidInput::ForeignReference.into());
-        }
+        crate::ForeignReference::require_local(parts.origin, self.origin)?;
         let name_rules = state
             .known_name_rules()
             .ok_or(crate::InvalidInput::NameRulesUnknown)?;

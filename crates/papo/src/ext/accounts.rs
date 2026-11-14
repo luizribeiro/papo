@@ -316,7 +316,7 @@ mod tests {
                     super::NewAccount::new(secret("correct horse battery staple")).account(foreign),
                 )
                 .await,
-            Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+            Err(Error::ForeignReference(_))
         ));
         assert!(matches!(
             second
