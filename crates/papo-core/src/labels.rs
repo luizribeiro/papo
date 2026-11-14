@@ -5,6 +5,19 @@ use crate::{
 };
 
 impl UnlabelledRequest {
+    fn push_or_overflow(
+        &mut self,
+        message: &LineRef<'_>,
+        complete: bool,
+        max_list_entries: usize,
+    ) -> bool {
+        self.list_rows_full(message, max_list_entries)
+            || self
+                .lines
+                .push_reject_unless_last(message.to_owned(), complete)
+                .is_err()
+    }
+
     fn list_rows_full(&self, message: &LineRef<'_>, maximum: usize) -> bool {
         self.boundary.is_list_row(message)
             && self
@@ -215,40 +228,14 @@ impl Session {
         else {
             return false;
         };
-        let list_limit_reached = self.unlabelled_requests.get(index).is_some_and(|request| {
-            request.list_rows_full(message, self.config.max_list_entries_per_mode)
-        });
+        let max_list_entries = self.config.max_list_entries_per_mode;
         let request = self.unlabelled_requests.get_mut(index).unwrap();
         if join_started {
             request.started = Some(now);
         }
-        if list_limit_reached
-            || request
-                .lines
-                .push_reject_unless_last(message.to_owned(), complete)
-                .is_err()
-        {
-            let mut request = self.unlabelled_requests.remove(index).unwrap();
-            self.requests.retain(|_, pending| pending.id != request.id);
-            if let Some(ResponseMatcher::ListMode { channel, mode }) = request.boundary.matcher() {
-                self.state.invalidate_mode_list(channel, *mode);
-            }
-            if list_limit_reached || request.lines.take_overflow_warning() {
-                self.state
-                    .warn_limit(crate::StateLimit::ListEntries, &mut self.outbox);
-            }
-            let enabled_features = self.supported_features();
-            self.outbox.event(Event::Response(Response {
-                id: request.id,
-                sent: None,
-                lines: request.lines.into_vec(),
-                history: None,
-                history_targets: None,
-                whois_channels: Vec::new(),
-                mode_list: None,
-                state_limit: Some(crate::StateLimit::ListEntries),
-                enabled_features,
-            }));
+        if request.push_or_overflow(message, complete, max_list_entries) {
+            let id = request.id;
+            self.finish_truncated(id);
             return true;
         }
         if complete {
@@ -275,6 +262,40 @@ impl Session {
             self.start_deferred_who();
         }
         true
+    }
+
+    pub(super) fn finish_truncated(&mut self, id: RequestId) {
+        self.requests.retain(|_, pending| pending.id != id);
+        let lines = match self
+            .unlabelled_requests
+            .iter()
+            .position(|request| request.id == id)
+        {
+            Some(index) => {
+                let request = self.unlabelled_requests.remove(index).unwrap();
+                if let Some(ResponseMatcher::ListMode { channel, mode }) =
+                    request.boundary.matcher()
+                {
+                    self.state.invalidate_mode_list(channel, *mode);
+                }
+                request.lines.into_vec()
+            }
+            None => Vec::new(),
+        };
+        self.state
+            .warn_limit(crate::StateLimit::ListEntries, &mut self.outbox);
+        let enabled_features = self.supported_features();
+        self.outbox.event(Event::Response(Response {
+            id,
+            sent: None,
+            lines,
+            history: None,
+            history_targets: None,
+            whois_channels: Vec::new(),
+            mode_list: None,
+            state_limit: Some(crate::StateLimit::ListEntries),
+            enabled_features,
+        }));
     }
 
     pub(super) fn start_deferred_who(&mut self) {
