@@ -597,6 +597,7 @@ struct ForeignValues {
     channel: papo::ChannelHandle,
     alice: papo::UserHandle,
     nick: papo::Nick,
+    account: papo::AccountName,
 }
 
 impl ForeignValues {
@@ -622,6 +623,7 @@ impl ForeignValues {
             channel: first.0.channel("#papo").unwrap(),
             alice: first.0.query("alice").unwrap(),
             nick: names.nick("alice"),
+            account: names.account("alice"),
             first,
             second,
         }
@@ -674,6 +676,86 @@ async fn every_send_reports_a_foreign_value_as_foreign_reference() {
         ("react", second.react(message(), "+1").await),
         ("unreact", second.unreact(message(), "+1").await),
         ("redact", second.redact(message(), "posted twice").await),
+    ];
+    foreign.assert_all_foreign(results).await;
+}
+
+#[tokio::test]
+async fn every_request_reports_a_foreign_value_as_foreign_reference() {
+    let foreign = ForeignValues::new().await;
+    let (second, channel, alice, nick) = (
+        &foreign.second.0,
+        &foreign.channel,
+        &foreign.alice,
+        &foreign.nick,
+    );
+    let own_alice = second.query("alice").unwrap();
+    let avatar = || papo::MetadataKey::new("avatar");
+    let metadata = second.metadata();
+    let results = [
+        ("join", done(second.join(channel).await)),
+        ("part", second.part(channel, "Review complete").await),
+        (
+            "kick from a foreign channel",
+            second.kick(channel, "alice", "Flooding").await,
+        ),
+        (
+            "kick a foreign nick",
+            second.kick("#papo", nick, "Flooding").await,
+        ),
+        ("invite a foreign user", second.invite(alice, "#papo").await),
+        (
+            "invite to a foreign channel",
+            second.invite(&own_alice, channel).await,
+        ),
+        (
+            "kickban",
+            done(
+                second
+                    .kickban(channel)
+                    .nick("alice")
+                    .ban("*!*@cloak.example")
+                    .await,
+            ),
+        ),
+        (
+            "rename_channel",
+            second.rename_channel(channel).to("#papo-release").await,
+        ),
+        ("set_nick", second.set_nick(nick).await),
+        ("set_topic", second.set_topic(channel, "Release 0.1").await),
+        ("clear_topic", second.clear_topic(channel).await),
+        ("whois", done(second.whois(nick).await)),
+        ("mode", done(second.mode(channel).add('m').await)),
+        (
+            "list_modes",
+            done(second.list_modes(channel, papo::ListMode::Ban).await),
+        ),
+        ("history", done(second.history(channel).latest().await)),
+        ("mark_read", done(second.mark_read(channel).await)),
+        (
+            "fetch_read_marker",
+            done(second.fetch_read_marker(channel).await),
+        ),
+        (
+            "metadata.get",
+            done(metadata.get(channel, [avatar()]).await),
+        ),
+        ("metadata.list", done(metadata.list(nick).await)),
+        (
+            "metadata.set_on",
+            metadata
+                .set_on(channel, avatar(), "https://example.org/a.png")
+                .await,
+        ),
+        (
+            "verify_account",
+            done(
+                second
+                    .verify_account(&foreign.account, papo::Secret::new("392814"))
+                    .await,
+            ),
+        ),
     ];
     foreign.assert_all_foreign(results).await;
 }
