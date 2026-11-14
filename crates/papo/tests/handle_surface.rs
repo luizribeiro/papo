@@ -30,6 +30,7 @@ const IDENTITY_TYPES: &[&str] = &[
     "papo::UserHandle",
     "alloc::vec::Vec<papo::ChannelHandle>",
     "core::option::Option<papo::ChannelHandle>",
+    "core::option::Option<papo::Conversation>",
 ];
 
 const NAME_FACTS: &[&str] = &[

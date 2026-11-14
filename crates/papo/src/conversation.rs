@@ -27,6 +27,13 @@ pub enum Conversation {
 }
 
 impl Conversation {
+    pub(crate) const fn channel(&self) -> Option<&crate::ChannelHandle> {
+        match self {
+            Self::Channel(channel) => Some(channel),
+            Self::Private(_) => None,
+        }
+    }
+
     pub(crate) fn from_core_with_state(
         value: papo_core::Conversation,
         origin: crate::Origin,

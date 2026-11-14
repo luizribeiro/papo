@@ -54,6 +54,9 @@ message identifier (`("#papo", id)`, `(&channel, id)`): a reference comes from a
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
 
+`Message::channel_context()` and `Notice::channel_context` are a `Conversation` to file a private
+line under, not a sendable `ChannelHandle`, so answering a DM cannot reach the whole channel.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

@@ -32,6 +32,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub papo::event::Notice::channel_context: core::option::Option<papo::Conversation>",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::event::Notice::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
@@ -70,6 +74,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
         "pub papo::HistoryPage::conversation: papo::Conversation",
         ConversationClass::History,
+    ),
+    (
+        "pub const fn papo::Message::channel_context(&self) -> core::option::Option<&papo::Conversation>",
+        ConversationClass::Event,
     ),
     (
         "pub const fn papo::Message::conversation(&self) -> &papo::Conversation",

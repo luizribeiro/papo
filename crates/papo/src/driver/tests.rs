@@ -7381,10 +7381,12 @@ async fn message_accessors_report_the_wire_audience() {
     );
     let channel_message = next_message(&mut events).await;
     assert_eq!(
-        channel_message
-            .channel_context()
-            .map(crate::ChannelHandle::name),
-        Some(test_channel("#review"))
+        channel_message.channel_context().map(ToString::to_string),
+        Some("#review".to_owned())
+    );
+    assert_eq!(
+        channel_message.channel_context(),
+        Some(status_message.conversation())
     );
 
     within(server.shutdown()).await.unwrap();

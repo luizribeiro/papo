@@ -376,10 +376,7 @@ impl Command {
         }
         let mut request = self.client.notice(&self.message.actor, text);
         let context = match self.message.conversation() {
-            Conversation::Private(_) => self
-                .message
-                .channel_context()
-                .map(|channel| channel.name().to_string()),
+            Conversation::Private(_) => self.message.channel_context().map(ToString::to_string),
             Conversation::Channel(channel) => Some(channel.to_string()),
             _ => None,
         };

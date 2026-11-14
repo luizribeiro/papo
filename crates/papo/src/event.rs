@@ -301,7 +301,7 @@ pub struct Message {
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
     /// held any channel rank. Unverified context remains available in [`Self::tags`].
-    pub(crate) channel_context: Option<crate::ChannelHandle>,
+    pub(crate) channel_context: Option<Conversation>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<papo_proto::Nick>,
@@ -346,8 +346,10 @@ pub struct Notice {
     /// Channel context whose membership was verified when this private notice was received.
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
-    /// held any channel rank. Unverified context remains available in [`Self::tags`].
-    pub channel_context: Option<crate::ChannelHandle>,
+    /// held any channel rank. Unverified context remains available in [`Self::tags`]. It is the
+    /// conversation to file the notice under, not an address: answer the notice through its
+    /// [`Self::return_address`]; see [`Conversation`] for audience guidance.
+    pub channel_context: Option<Conversation>,
     /// Nickname of the client that submitted a relayed notice.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<papo_proto::Nick>,
@@ -761,9 +763,22 @@ impl Message {
         self.msgid.as_ref()
     }
 
-    /// Returns the channel whose shared membership was verified at receipt.
+    /// Returns the channel conversation whose shared membership was verified at receipt.
+    ///
+    /// It is the conversation to file this private message under, not an address: sending to the
+    /// channel would tell everyone in it what one person said privately. Answer the message with
+    /// [`crate::Client::reply`], which stays private and keeps the context tag; see
+    /// [`Conversation`] for audience guidance.
+    ///
+    /// ```compile_fail
+    /// # async fn answer(client: &papo::Client, message: &papo::Message) -> Result<(), papo::Error> {
+    /// if let Some(channel) = message.channel_context() {
+    ///     client.privmsg(channel, "answering in public").await?;
+    /// }
+    /// # Ok(()) }
+    /// ```
     #[must_use]
-    pub const fn channel_context(&self) -> Option<&crate::ChannelHandle> {
+    pub const fn channel_context(&self) -> Option<&Conversation> {
         self.channel_context.as_ref()
     }
 
@@ -875,7 +890,7 @@ impl Message {
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             in_reply_to: metadata.reply_to,
-            channel_context,
+            channel_context: channel_context.map(Conversation::Channel),
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             tags: metadata.tags,
@@ -997,7 +1012,7 @@ impl Notice {
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             in_reply_to: metadata.reply_to,
-            channel_context,
+            channel_context: channel_context.map(Conversation::Channel),
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             tags: metadata.tags,
