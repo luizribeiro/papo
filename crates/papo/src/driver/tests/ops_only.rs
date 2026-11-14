@@ -4,6 +4,7 @@ struct OpsChannel {
     server: DuplexStream,
     client: crate::Client,
     events: crate::Events,
+    joined: crate::ChannelHandle,
     task: tokio::task::JoinHandle<Result<(), Error>>,
 }
 
@@ -38,16 +39,18 @@ impl OpsChannel {
             b":papo-driver!papo@localhost JOIN #ops\r\n:oppy!~u@cloak.example JOIN #ops\r\n",
         )
         .await;
+        let mut joined = Vec::new();
         for _ in 0..2 {
-            assert!(matches!(
-                events.next().await.map(|(event, _)| event),
-                Some(Event::Joined(_))
-            ));
+            let Some(Event::Joined(event)) = events.next().await.map(|(event, _)| event) else {
+                panic!("expected a join");
+            };
+            joined.push(event.channel);
         }
         Self {
             server,
             client,
             events,
+            joined: joined.swap_remove(0),
             task,
         }
     }
@@ -144,6 +147,10 @@ enum Path {
     Unreact,
     Redact,
     ReturnAddress,
+    ConversationChannel,
+    ConversationText,
+    ChannelName,
+    JoinedHandle,
     ChannelLookupOfReturnAddress,
 }
 
@@ -152,6 +159,10 @@ type Answer = std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Erro
 fn answer(path: Path, ops: &OpsChannel, line: &ChatMessage) -> Answer {
     let client = ops.client.clone();
     let line = line.clone();
+    let joined = ops.joined.clone();
+    let crate::Conversation::Channel(channel) = line.conversation().clone() else {
+        panic!("a channel line files under a channel");
+    };
     Box::pin(async move {
         match path {
             Path::Reply => client.reply(&line, "key rotated").await.map(drop),
@@ -162,6 +173,16 @@ fn answer(path: Path, ops: &OpsChannel, line: &ChatMessage) -> Answer {
                 .privmsg(line.return_address(), "key rotated")
                 .await
                 .map(drop),
+            Path::ConversationChannel => client.privmsg(&channel, "key rotated").await.map(drop),
+            Path::ConversationText => client
+                .privmsg(line.conversation().to_string(), "key rotated")
+                .await
+                .map(drop),
+            Path::ChannelName => client
+                .privmsg(channel.name(), "key rotated")
+                .await
+                .map(drop),
+            Path::JoinedHandle => client.privmsg(&joined, "key rotated").await.map(drop),
             Path::ChannelLookupOfReturnAddress => {
                 client.channel(line.return_address().to_string()).map(drop)
             }
@@ -185,8 +206,12 @@ fn without_label(line: &[u8]) -> String {
     }
 }
 
+// References built from text, a channel or a bare id, bare-id threading, and sending to a DM's
+// channel context no longer compile; their compile_fail doctests live on MessageRef,
+// SendMessage and Message::channel_context.
 #[tokio::test(flavor = "current_thread")]
-async fn every_answer_to_an_ops_only_line_keeps_its_address() {
+async fn every_path_from_an_ops_only_line_reaches_the_audience_it_names() {
+    let everyone = Some("PRIVMSG #ops :key rotated\r\n");
     let cases = [
         (
             Path::Reply,
@@ -205,6 +230,10 @@ async fn every_answer_to_an_ops_only_line_keeps_its_address() {
             Some("REDACT @#ops RfcBTzyxY120004 :key rotated\r\n"),
         ),
         (Path::ReturnAddress, Some("PRIVMSG @#ops :key rotated\r\n")),
+        (Path::ConversationChannel, everyone),
+        (Path::ConversationText, everyone),
+        (Path::ChannelName, everyone),
+        (Path::JoinedHandle, everyone),
         (Path::ChannelLookupOfReturnAddress, None),
     ];
     let mut ops = OpsChannel::joined_with([
