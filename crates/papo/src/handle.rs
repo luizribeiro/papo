@@ -590,8 +590,7 @@ impl crate::Client {
             .resolve(crate::target::Role::Nick("query: nick"), parts)
             .map_err(|error| match error {
                 crate::Error::InvalidInput(error) => error,
-                crate::Error::TargetGone => crate::InvalidInput::ForeignReference,
-                _ => unreachable!("local nickname resolution only returns input errors"),
+                _ => crate::InvalidInput::ForeignReference,
             })?;
         let state = self.state();
         let nick = state
@@ -1179,6 +1178,33 @@ mod tests {
             );
         }
         assert!(commands.try_recv().is_err());
+    }
+
+    #[test]
+    fn query_reports_a_proof_from_another_session_as_foreign() {
+        let now = crate::rt::now_mono();
+        let joined = |origin| {
+            let mut config = Config::default().nick("papo");
+            config.origin = crate::Origin::__new(origin);
+            let mut session = Session::new(config);
+            for line in [
+                b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+                b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+                b":alice!alice@staff.ergo.chat JOIN #release * :Alice Example".as_slice(),
+            ] {
+                session.handle_line(now, line);
+            }
+            session
+        };
+        let (client, _) = crate::driver::test_support::client_with_commands(&joined(73));
+        let alice = client.query("alice").unwrap();
+        assert!(alice.proof().is_some());
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&joined(91), true));
+
+        assert!(matches!(
+            client.query(&alice),
+            Err(crate::InvalidInput::ForeignReference)
+        ));
     }
 
     #[tokio::test]
