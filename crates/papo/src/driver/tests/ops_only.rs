@@ -9,10 +9,18 @@ struct OpsChannel {
 
 impl OpsChannel {
     async fn joined() -> Self {
-        let (mut server, client, mut events, driver) =
-            scripted(config().wanted_caps([crate::cap::MESSAGE_TAGS]));
+        Self::joined_with([crate::cap::MESSAGE_TAGS]).await
+    }
+
+    async fn joined_with<const N: usize>(caps: [papo_core::Cap; N]) -> Self {
+        let names = caps
+            .iter()
+            .map(papo_core::Cap::as_str)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
         let task = tokio::spawn(driver);
-        negotiate_caps(&mut server, crate::cap::MESSAGE_TAGS.as_str()).await;
+        negotiate_caps(&mut server, &names).await;
         server_line(
             &mut server,
             b":ergo.test 001 papo-driver :Welcome to the ErgoTest IRC Network papo-driver\r\n:ergo.test 005 papo-driver CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
@@ -62,29 +70,6 @@ const OPS_ONLY: &[u8] =
     b"@msgid=RfcBTzyxY120004 :oppy!~u@cloak.example PRIVMSG @#ops :deploy key rotated?\r\n";
 const PUBLIC: &[u8] =
     b"@msgid=RfcBTzyxY120005 :oppy!~u@cloak.example PRIVMSG #ops :deploying now\r\n";
-
-#[tokio::test(flavor = "current_thread")]
-async fn answers_to_an_ops_only_line_keep_its_address() {
-    let mut ops = OpsChannel::joined().await;
-    let restricted = ops.receive(OPS_ONLY).await;
-    assert_eq!(restricted.status().map(crate::Prefix::symbol), Some('@'));
-
-    within(ops.client.reply(&restricted, "on it"))
-        .await
-        .unwrap();
-    client_line(
-        &mut ops.server,
-        b"@+reply=RfcBTzyxY120004 PRIVMSG @#ops :on it\r\n",
-    )
-    .await;
-    within(ops.client.react(&restricted, "👀")).await.unwrap();
-    client_line(
-        &mut ops.server,
-        "@+reply=RfcBTzyxY120004;+draft/react=👀 TAGMSG @#ops\r\n".as_bytes(),
-    )
-    .await;
-    ops.finish().await;
-}
 
 // Conversation hashes only its immutable channel identity, as an application buffer map does.
 #[allow(clippy::mutable_key_type)]
@@ -149,5 +134,105 @@ async fn stacked_status_signs_are_refused_before_the_wire() {
         .await
         .unwrap();
     client_line(&mut ops.server, b"PRIVMSG @#ops :operators only\r\n").await;
+    ops.finish().await;
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Path {
+    Reply,
+    React,
+    Unreact,
+    Redact,
+    ReturnAddress,
+    ChannelLookupOfReturnAddress,
+}
+
+type Answer = std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send>>;
+
+fn answer(path: Path, ops: &OpsChannel, line: &ChatMessage) -> Answer {
+    let client = ops.client.clone();
+    let line = line.clone();
+    Box::pin(async move {
+        match path {
+            Path::Reply => client.reply(&line, "key rotated").await.map(drop),
+            Path::React => client.react(&line, "👀").await,
+            Path::Unreact => client.unreact(&line, "👀").await,
+            Path::Redact => client.redact(&line, "key rotated").await,
+            Path::ReturnAddress => client
+                .privmsg(line.return_address(), "key rotated")
+                .await
+                .map(drop),
+            Path::ChannelLookupOfReturnAddress => {
+                client.channel(line.return_address().to_string()).map(drop)
+            }
+        }
+    })
+}
+
+fn without_label(line: &[u8]) -> String {
+    let line = String::from_utf8(line.to_vec()).unwrap();
+    let Some((tags, rest)) = line.strip_prefix('@').and_then(|line| line.split_once(' ')) else {
+        return line;
+    };
+    let kept = tags
+        .split(';')
+        .filter(|tag| !tag.starts_with("label="))
+        .collect::<Vec<_>>();
+    if kept.is_empty() {
+        rest.to_owned()
+    } else {
+        format!("@{} {rest}", kept.join(";"))
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn every_answer_to_an_ops_only_line_keeps_its_address() {
+    let cases = [
+        (
+            Path::Reply,
+            Some("@+reply=RfcBTzyxY120004 PRIVMSG @#ops :key rotated\r\n"),
+        ),
+        (
+            Path::React,
+            Some("@+reply=RfcBTzyxY120004;+draft/react=👀 TAGMSG @#ops\r\n"),
+        ),
+        (
+            Path::Unreact,
+            Some("@+reply=RfcBTzyxY120004;+draft/unreact=👀 TAGMSG @#ops\r\n"),
+        ),
+        (
+            Path::Redact,
+            Some("REDACT @#ops RfcBTzyxY120004 :key rotated\r\n"),
+        ),
+        (Path::ReturnAddress, Some("PRIVMSG @#ops :key rotated\r\n")),
+        (Path::ChannelLookupOfReturnAddress, None),
+    ];
+    let mut ops = OpsChannel::joined_with([
+        crate::cap::LABELED_RESPONSE,
+        crate::cap::MESSAGE_TAGS,
+        crate::cap::MESSAGE_REDACTION,
+    ])
+    .await;
+    let line = ops.receive(OPS_ONLY).await;
+    for (path, wire) in cases {
+        let sending = tokio::spawn(answer(path, &ops, &line));
+        match wire {
+            Some(expected) => {
+                let sent = next_client_line(&mut ops.server).await;
+                assert_eq!(without_label(&sent), expected, "{path:?}");
+                sending.abort();
+            }
+            None => assert!(
+                matches!(
+                    within(sending).await.unwrap(),
+                    Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+                        reason: crate::InvalidIdentifier::InvalidPrefix('@'),
+                        ..
+                    }))
+                ),
+                "{path:?} must be refused"
+            ),
+        }
+    }
     ops.finish().await;
 }
