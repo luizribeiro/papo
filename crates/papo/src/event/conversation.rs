@@ -303,8 +303,8 @@ pub struct ReadMarkerChanged {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// The marker time, or `None` when the server reports `*`.
-    pub read_until: Option<ServerTime>,
+    /// The marker the server reported.
+    pub marker: crate::ReadMarker,
 }
 
 /// Severity of an `IRCv3` standard reply.

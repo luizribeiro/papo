@@ -72,6 +72,9 @@ echoes of its own, and refuses a reply, reaction or `REDACT` that points at one 
 same channel. Nothing is written and nothing is retried. In `papo-core`, `Session::send` and its
 tracked variants now fail with `RequestError` instead of `BuildError`.
 
+`ReadMarkerChanged::marker` is a `ReadMarker` (`ReadUntil(time)` or `Unset` for `*`), the same
+type `State::read_marker` returns; it replaces `read_until: Option<ServerTime>`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

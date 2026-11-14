@@ -30,6 +30,12 @@ pub enum ReadMarker {
     ReadUntil(crate::ServerTime),
 }
 
+impl ReadMarker {
+    pub(crate) fn reported(read_until: Option<crate::ServerTime>) -> Self {
+        read_until.map_or(Self::Unset, Self::ReadUntil)
+    }
+}
+
 /// Whether a user is known to be reachable on the IRC network.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
@@ -583,11 +589,9 @@ impl State {
     #[must_use]
     pub fn read_marker(&self, target: impl crate::AsConversation) -> Option<ReadMarker> {
         let target = self.resolve_conversation(target)?;
-        self.core.read_marker(target.to_string()).map(|marker| {
-            marker
-                .read_until
-                .map_or(ReadMarker::Unset, ReadMarker::ReadUntil)
-        })
+        self.core
+            .read_marker(target.to_string())
+            .map(|marker| ReadMarker::reported(marker.read_until))
     }
 
     /// Returns the most recently reported account persistence status.

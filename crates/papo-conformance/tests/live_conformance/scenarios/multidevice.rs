@@ -157,11 +157,11 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
         .wait_for(|event| {
             event.as_read_marker_changed().filter(|marker| {
                 conversation_name(&marker.conversation) == Some(channel.clone())
-                    && marker.read_until == Some(time)
+                    && marker.marker == papo::ReadMarker::ReadUntil(time)
             })
         })
         .await?;
-    assert_eq!(marker.read_until, Some(time));
+    assert_eq!(marker.marker, papo::ReadMarker::ReadUntil(time));
     assert_eq!(
         phone.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
@@ -170,7 +170,7 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
         .expect_none(|event| {
             event
                 .as_read_marker_changed()
-                .filter(|marker| marker.read_until == Some(time))
+                .filter(|marker| marker.marker == papo::ReadMarker::ReadUntil(time))
         })
         .await?;
     Ok(())

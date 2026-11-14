@@ -2432,7 +2432,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::ReadMarkerChanged(marker) => {
             Event::ReadMarkerChanged(ReadMarkerChanged {
                 conversation: conversation_handle(marker.conversation),
-                read_until: marker.read_until,
+                marker: crate::ReadMarker::reported(marker.read_until),
             })
         }
         papo_core::Event::BatchAbandoned {
@@ -6375,21 +6375,27 @@ mod tests {
 
     #[test]
     fn maps_read_markers() {
-        let marker = papo_core::ReadMarker {
-            conversation: papo_core::Conversation::Channel(
-                papo_proto::Casemapping::Rfc1459.channel("#papo"),
-            ),
-            read_until: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
-        };
-        assert!(matches!(
-            forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),
-            Event::ReadMarkerChanged(mapped)
-                if mapped.conversation == map_conversation(
-                    marker.conversation.clone(),
-                    crate::Origin::NONE,
-                )
-                    && mapped.read_until == marker.read_until
-        ));
+        let time = crate::ServerTime::from_stored_millis(1_760_529_342_123).unwrap();
+        for (read_until, expected) in [
+            (Some(time), crate::ReadMarker::ReadUntil(time)),
+            (None, crate::ReadMarker::Unset),
+        ] {
+            let marker = papo_core::ReadMarker {
+                conversation: papo_core::Conversation::Channel(
+                    papo_proto::Casemapping::Rfc1459.channel("#papo"),
+                ),
+                read_until,
+            };
+            assert!(matches!(
+                forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),
+                Event::ReadMarkerChanged(mapped)
+                    if mapped.conversation == map_conversation(
+                        marker.conversation.clone(),
+                        crate::Origin::NONE,
+                    )
+                        && mapped.marker == expected
+            ));
+        }
     }
 
     #[test]

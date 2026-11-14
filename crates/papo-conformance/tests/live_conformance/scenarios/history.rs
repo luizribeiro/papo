@@ -458,7 +458,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&initial.conversation),
         Some(channel.clone())
     );
-    assert_eq!(initial.read_until, None);
+    assert_eq!(initial.marker, papo::ReadMarker::Unset);
     assert_eq!(
         alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::Unset)
@@ -475,7 +475,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&stored.conversation),
         Some(channel.clone())
     );
-    assert_eq!(stored.read_until, Some(time));
+    assert_eq!(stored.marker, papo::ReadMarker::ReadUntil(time));
 
     let mut phone = s.connect_account_session("alice-phone", account).await?;
     let mut early_marker = None;
@@ -502,7 +502,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&replayed.conversation),
         Some(channel.clone())
     );
-    assert_eq!(replayed.read_until, Some(time));
+    assert_eq!(replayed.marker, papo::ReadMarker::ReadUntil(time));
     assert_eq!(
         phone.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
