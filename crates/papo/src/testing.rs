@@ -179,7 +179,6 @@ pub fn message(
             crate::Casemapping::default().channel(&target),
             None,
             None,
-            None,
         ))
     };
     let return_address = conversation.to_string();
@@ -265,7 +264,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        channel: crate::ChannelHandle::from_parts(channel.into(), None, None, None),
+        channel: crate::ChannelHandle::from_parts(channel.into(), None, None),
         actor: user_handle(nick),
         authorship: if own {
             Authorship::Own

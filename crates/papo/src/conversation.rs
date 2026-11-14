@@ -52,7 +52,6 @@ impl Conversation {
             papo_core::Conversation::Channel(channel) => {
                 Self::Channel(crate::ChannelHandle::from_parts(
                     origin.__channel(channel.casemapping(), channel.into_string()),
-                    None,
                     guard,
                     state,
                 ))

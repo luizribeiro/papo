@@ -673,7 +673,7 @@ pub(crate) fn incoming_from_core(
                 .core
                 .__channel_guard(&channel)
         });
-        crate::ChannelHandle::from_parts(channel, None, guard, handle_state)
+        crate::ChannelHandle::from_parts(channel, guard, handle_state)
     });
     let authorship = Authorship::from_core(received.authorship());
     let (raw, batch_type) = received.into_parts();
@@ -1075,7 +1075,6 @@ impl ServerNotice {
         {
             Audience::Channel(crate::ChannelHandle::from_parts(
                 origin.__channel(isupport.casemapping(), target),
-                status,
                 None,
                 None,
             ))
@@ -1446,7 +1445,6 @@ pub(crate) fn joined_from_line(
         received_at: envelope.received_at,
         channel: crate::ChannelHandle::from_parts(
             origin.__channel(casemapping, join.channel),
-            None,
             None,
             None,
         ),
@@ -2181,19 +2179,17 @@ pub(crate) fn from_core_with_receipt(
             prove_not_bot,
         )
     };
-    let channel_handle = |channel: ChannelName, status| {
+    let channel_handle = |channel: ChannelName| {
         let channel = origin.__channel(channel.casemapping(), channel.into_string());
         let guard = reply_state.and_then(|state| {
             state
                 .channel(&channel)
                 .map(|_| state.__channel_guard(&channel))
         });
-        crate::ChannelHandle::from_parts(channel, status, guard, handle_state)
+        crate::ChannelHandle::from_parts(channel, guard, handle_state)
     };
-    let conversation_handle = |conversation, status| match conversation {
-        papo_core::Conversation::Channel(channel) => {
-            Conversation::Channel(channel_handle(channel, status))
-        }
+    let conversation_handle = |conversation| match conversation {
+        papo_core::Conversation::Channel(channel) => Conversation::Channel(channel_handle(channel)),
         papo_core::Conversation::Private(nick) => {
             Conversation::Private(crate::UserHandle::from_current_state(
                 origin.__nick(nick.casemapping(), nick.into_string()),
@@ -2225,7 +2221,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
             let reply_token = conversation_reply_token(reply_state, &change.conversation);
-            let conversation = conversation_handle(change.conversation, change.status);
+            let conversation = conversation_handle(change.conversation);
             let envelope = EventEnvelope {
                 msgid: None,
                 server_time: change.server_time,
@@ -2263,7 +2259,7 @@ pub(crate) fn from_core_with_receipt(
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(message.authorship);
-            let conversation = conversation_handle(message.conversation, message.status);
+            let conversation = conversation_handle(message.conversation);
             let mut receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
                 &conversation,
@@ -2344,7 +2340,7 @@ pub(crate) fn from_core_with_receipt(
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(redacted.authorship);
-            let conversation = conversation_handle(redacted.conversation, redacted.status);
+            let conversation = conversation_handle(redacted.conversation);
             let mut receipt = crate::message_ref::Receipt::new(
                 actor.clone(),
                 &conversation,
@@ -2434,7 +2430,7 @@ pub(crate) fn from_core_with_receipt(
         } => Event::MetadataChanged(MetadataChanged {
             subject: match subject {
                 papo_core::Subject::Channel(channel) => {
-                    crate::Subject::Channel(channel_handle(channel, None))
+                    crate::Subject::Channel(channel_handle(channel))
                 }
                 papo_core::Subject::User(nick) => {
                     crate::Subject::User(crate::UserHandle::from_current_state(nick, handle_state))
@@ -2458,7 +2454,7 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::ReadMarkerChanged(marker) => {
             Event::ReadMarkerChanged(ReadMarkerChanged {
-                conversation: conversation_handle(marker.conversation, None),
+                conversation: conversation_handle(marker.conversation),
                 read_until: marker.read_until,
             })
         }
@@ -2494,7 +2490,7 @@ pub(crate) fn from_core_with_receipt(
             created_at,
             ..
         } => Event::Warning(Warning::ChannelRecreated {
-            channel: channel_handle(channel, None),
+            channel: channel_handle(channel),
             previous_created_at,
             created_at,
         }),
@@ -2519,18 +2515,18 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel: channel_handle(channel, None),
+                channel: channel_handle(channel),
                 actor,
                 authorship: Authorship::from_core(authorship),
                 netjoin: netjoin.map(SplitServers::from_core),
             })
         }
         papo_core::Event::ChannelSynced { channel, .. } => Event::ChannelSynced(ChannelSynced {
-            channel: channel_handle(channel, None),
+            channel: channel_handle(channel),
         }),
         papo_core::Event::MembersRefreshed { channel, .. } => {
             Event::MembersRefreshed(MembersRefreshed {
-                channel: channel_handle(channel, None),
+                channel: channel_handle(channel),
             })
         }
         papo_core::Event::Parted {
@@ -2555,7 +2551,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 facts,
-                channel: channel_handle(channel, None),
+                channel: channel_handle(channel),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 authorship: Authorship::from_core(authorship),
             })
@@ -2587,7 +2583,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel: channel_handle(channel, None),
+                channel: channel_handle(channel),
                 subject: crate::UserHandle::from_event(
                     subject,
                     facts
@@ -2631,7 +2627,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel: channel_handle(channel, None),
+                channel: channel_handle(channel),
                 subject: crate::UserHandle::from_current_state(subject, handle_state),
                 actor,
                 authorship: Authorship::from_core(authorship),
@@ -2664,10 +2660,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 facts,
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
-                channels: channels
-                    .into_iter()
-                    .map(|channel| channel_handle(channel, None))
-                    .collect(),
+                channels: channels.into_iter().map(&channel_handle).collect(),
                 authorship: Authorship::from_core(authorship),
                 netsplit: netsplit.map(SplitServers::from_core),
             })
@@ -2690,10 +2683,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 old,
                 new,
-                channels: channels
-                    .into_iter()
-                    .map(|channel| channel_handle(channel, None))
-                    .collect(),
+                channels: channels.into_iter().map(&channel_handle).collect(),
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -2714,7 +2704,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel: channel_handle(new.clone(), None),
+                channel: channel_handle(new.clone()),
                 old,
                 new,
                 actor,
@@ -2818,7 +2808,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 subject: match subject {
                     papo_core::Subject::Channel(channel) => {
-                        crate::Subject::Channel(channel_handle(channel, None))
+                        crate::Subject::Channel(channel_handle(channel))
                     }
                     papo_core::Subject::User(nick) => crate::Subject::User(
                         crate::UserHandle::from_current_state(nick, handle_state),
@@ -2853,7 +2843,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel: channel_handle(channel, None),
+                channel: channel_handle(channel),
                 topic: topic.map(|topic| papo_proto::display_text(&topic).into_owned()),
                 actor,
                 authorship: Authorship::from_core(authorship),
@@ -2969,11 +2959,11 @@ mod tests {
     }
 
     fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None, None)
+        crate::ChannelHandle::from_parts(value, None, None)
     }
 
     fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None, None)
+        crate::ChannelHandle::from_parts(value, None, None)
     }
 
     fn user_handle(value: crate::Nick) -> crate::UserHandle {

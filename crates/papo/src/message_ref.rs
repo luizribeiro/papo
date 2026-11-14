@@ -506,7 +506,7 @@ mod tests {
     use super::*;
 
     fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None, None)
+        crate::ChannelHandle::from_parts(value, None, None)
     }
 
     fn user_handle(value: crate::Nick) -> crate::UserHandle {
@@ -732,7 +732,6 @@ mod tests {
         let mut receipt = Receipt::new(actor.clone(), &channel, None, "@#ops".into());
         receipt.identity.channel = Some(crate::ChannelHandle::from_parts(
             mapping.channel("#ops"),
-            None,
             Some(guard),
             None,
         ));

@@ -1450,7 +1450,7 @@ impl Client {
                 .map_err(|_| Error::connection_lost())?;
             receiver.await.map_err(|_| Error::connection_lost())??;
         }
-        Ok(crate::ChannelHandle::new(self, channel, None, true))
+        Ok(crate::ChannelHandle::new(self, channel, true))
     }
 
     /// Leaves a channel.

@@ -288,7 +288,6 @@ mod tests {
             mapping.channel("#papo"),
             None,
             None,
-            None,
         ));
         let actor = crate::UserHandle::from_parts(
             actor.nick().clone(),

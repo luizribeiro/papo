@@ -71,7 +71,6 @@ impl Typer {
                     None,
                     Some(crate::ChannelHandle::from_parts(
                         channel.clone(),
-                        core.status(),
                         Some(guard),
                         None,
                     )),

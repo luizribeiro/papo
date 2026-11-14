@@ -270,12 +270,7 @@ pub(crate) fn who(
                 let flags = reply.flags(isupport)?;
                 Some(WhoEntry {
                     channel: reply.channel.map(|channel| {
-                        crate::ChannelHandle::new(
-                            client,
-                            origin.__channel(mapping, channel),
-                            None,
-                            false,
-                        )
+                        crate::ChannelHandle::new(client, origin.__channel(mapping, channel), false)
                     }),
                     user: crate::UserHandle::from_current_state(
                         origin.__nick(mapping, reply.nick?),
@@ -327,7 +322,6 @@ fn plain_who(
                 crate::ChannelHandle::new(
                     client,
                     origin.__channel(isupport.casemapping(), channel),
-                    None,
                     false,
                 )
             }),

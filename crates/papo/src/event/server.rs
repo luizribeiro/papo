@@ -156,7 +156,6 @@ mod tests {
                     crate::Casemapping::default().channel("#release"),
                     None,
                     None,
-                    None,
                 ),
                 previous_created_at: crate::ServerTime::from_stored_millis(0).unwrap(),
                 created_at: crate::ServerTime::from_stored_millis(1_000).unwrap(),

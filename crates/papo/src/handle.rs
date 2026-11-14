@@ -438,19 +438,13 @@ struct ChannelInner {
 }
 
 impl ChannelHandle {
-    pub(crate) fn new(
-        client: &crate::Client,
-        channel: crate::ChannelName,
-        _status: Option<crate::Prefix>,
-        joined: bool,
-    ) -> Self {
+    pub(crate) fn new(client: &crate::Client, channel: crate::ChannelName, joined: bool) -> Self {
         let guard = joined.then(|| client.state().core.__channel_guard(&channel));
-        Self::from_parts(channel, None, guard, Some(&client.state))
+        Self::from_parts(channel, guard, Some(&client.state))
     }
 
     pub(crate) fn from_parts(
         channel: crate::ChannelName,
-        _status: Option<crate::Prefix>,
         guard: Option<papo_core::ChannelGuard>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
@@ -642,7 +636,6 @@ impl crate::Client {
         Ok(ChannelHandle::new(
             self,
             channel.clone(),
-            None,
             state.channel_local(&channel).is_some(),
         ))
     }

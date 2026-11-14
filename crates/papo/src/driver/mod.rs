@@ -1704,7 +1704,6 @@ where
                                 channel: crate::ChannelHandle::from_parts(
                                     channel,
                                     None,
-                                    None,
                                     Some(&events.state),
                                 ),
                                 error: crate::ServerError::from_core(error),

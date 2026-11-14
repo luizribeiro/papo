@@ -807,7 +807,6 @@ fn topic_changed(
             origin.__channel(mapping, message.param(0)?),
             None,
             None,
-            None,
         ),
         topic: message
             .param(1)
@@ -1460,7 +1459,7 @@ mod tests {
     };
 
     fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None, None)
+        crate::ChannelHandle::from_parts(value, None, None)
     }
 
     fn user(value: crate::Nick) -> crate::UserHandle {
@@ -2774,9 +2773,7 @@ mod tests {
         assert_eq!(targets.len(), 1);
         assert_eq!(
             targets[0].conversation,
-            crate::Conversation::Channel(crate::ChannelHandle::from_parts(
-                channel, None, None, None,
-            ))
+            crate::Conversation::Channel(crate::ChannelHandle::from_parts(channel, None, None,))
         );
         assert_eq!(targets[0].latest_server_time, server_time(1_792_065_600, 0));
         abort_task(task).await;

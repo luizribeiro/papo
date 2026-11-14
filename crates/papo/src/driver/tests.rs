@@ -99,7 +99,7 @@ fn test_channel(value: &str) -> crate::ChannelName {
 }
 
 fn test_channel_handle(value: &str) -> crate::ChannelHandle {
-    crate::ChannelHandle::from_parts(test_channel(value), None, None, None)
+    crate::ChannelHandle::from_parts(test_channel(value), None, None)
 }
 
 fn test_mask(value: &str) -> crate::Mask {
@@ -8468,7 +8468,6 @@ async fn send_text_retains_an_injected_channel_guard() {
             .nick()
             .origin()
             .__channel(session.isupport().casemapping(), channel.as_str()),
-        None,
         Some(guard),
         None,
     );

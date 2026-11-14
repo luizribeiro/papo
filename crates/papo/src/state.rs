@@ -1022,7 +1022,7 @@ mod name_tests {
 
         session.handle_line(now, b":papo!p@localhost PART #review :Review complete");
         let parted = State::from_session(&session, true);
-        let stale = crate::ChannelHandle::from_parts(channel, None, Some(guard), None);
+        let stale = crate::ChannelHandle::from_parts(channel, Some(guard), None);
         assert!(parted.channel(stale).unwrap().is_none());
     }
 
