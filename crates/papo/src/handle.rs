@@ -602,8 +602,13 @@ impl crate::Client {
     }
 
     /// Creates a channel handle without sending an IRC command.
+    ///
+    /// A handle names the whole channel. A status-prefixed address such as `@#ops` is a line's
+    /// audience, not a channel, so it is refused; see [`crate::Conversation`] for ops-only
+    /// guidance.
     /// # Errors
     /// Returns [`crate::Error::InvalidInput`] when name rules are unknown or reject the channel,
+    /// including a `STATUSMSG` prefix such as `@#ops`,
     /// [`crate::Error::ForeignReference`] when `channel` belongs to another client, and
     /// [`crate::Error::TargetGone`] when `channel` is a handle to a channel this client has left.
     pub fn channel(&self, channel: impl crate::AsChannel) -> Result<ChannelHandle, crate::Error> {
@@ -623,6 +628,15 @@ impl crate::Client {
         let (status, conversation) = state.parse_target_inner(&text).map_err(|reason| {
             crate::InvalidInput::invalid_argument("channel: channel", &text, reason)
         })?;
+        if status.is_some() {
+            let prefix = text.chars().next().unwrap_or_default();
+            return Err(crate::InvalidInput::invalid_argument(
+                "channel: channel",
+                text,
+                crate::InvalidIdentifier::InvalidPrefix(prefix),
+            )
+            .into());
+        }
         let papo_core::Conversation::Channel(channel) = conversation else {
             let channel = name_rules.channel(&text);
             let Err(reason) = channel.check(state.isupport().inner()) else {
@@ -888,25 +902,36 @@ mod tests {
     }
 
     #[test]
-    fn statusmsg_handle_reply_stays_ops_only() {
+    fn channel_lookup_refuses_a_status_prefixed_name() {
         let mut session = Session::new(Config::default().nick("papo"));
         for line in [
-            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=@+ :are supported"
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=~&@%+ :are supported"
                 .as_slice(),
             b":papo!papo@localhost JOIN #ops * :Papo Client".as_slice(),
         ] {
             session.handle_line(crate::rt::now_mono(), line);
         }
         let client = crate::driver::test_support::client_with_commands(&session).0;
-        let handle = client.channel("@#ops").unwrap();
 
-        assert_eq!(handle.name(), "#ops");
-        assert_eq!(handle.status().map(crate::Prefix::symbol), Some('@'));
-        assert_eq!(crate::AsChannel::__parts(&handle).text(), "#ops");
-        assert_eq!(crate::AsConversation::__parts(&handle).text(), "#ops");
-        assert_eq!(crate::Target::__parts(&handle).text(), "@#ops");
-        let reference = crate::MessageRef::from((handle, "RfcBTzyxY120004"));
-        assert_eq!(crate::Target::__parts(&reference).text(), "@#ops");
+        for (text, prefix) in [
+            ("@#ops", '@'),
+            ("+#ops", '+'),
+            ("+@#ops", '+'),
+            ("~#ops", '~'),
+        ] {
+            let Err(crate::Error::InvalidInput(crate::InvalidInput::InvalidName {
+                argument,
+                name,
+                reason,
+            })) = client.channel(text)
+            else {
+                panic!("{text} must be refused as a channel");
+            };
+            assert_eq!(argument, "channel: channel");
+            assert_eq!(name, text);
+            assert_eq!(reason, crate::InvalidIdentifier::InvalidPrefix(prefix));
+        }
+        assert_eq!(client.channel("#ops").unwrap().name(), "#ops");
     }
 
     #[test]

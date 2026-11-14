@@ -36,6 +36,9 @@ channel has gone fails with `Error::TargetGone` instead of a foreign-reference e
 `InvalidInput::ForeignReference` is removed: every request given a value from another client fails
 with `Error::ForeignReference`.
 
+`Client::channel` refuses a status-prefixed name such as `@#ops` with `InvalidInput::InvalidName`:
+a channel handle names the whole channel, never a line's ops-only audience.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
