@@ -206,9 +206,6 @@ fn without_label(line: &[u8]) -> String {
     }
 }
 
-// References built from text, a channel or a bare id, bare-id threading, and sending to a DM's
-// channel context no longer compile; their compile_fail doctests live on MessageRef,
-// SendMessage and Message::channel_context.
 #[tokio::test(flavor = "current_thread")]
 async fn every_path_from_an_ops_only_line_reaches_the_audience_it_names() {
     let everyone = Some("PRIVMSG #ops :key rotated\r\n");

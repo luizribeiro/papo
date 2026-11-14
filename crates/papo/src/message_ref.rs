@@ -147,19 +147,19 @@ pub(crate) trait ReplyReference {
 /// # }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// # fn example(client: &papo::Client) {
 /// let _ = client.react(("#papo", "RfcBTzyxY120004"), "👀");
 /// # }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// # fn example(client: &papo::Client, channel: &papo::ChannelHandle) {
 /// let _ = client.redact((channel, "RfcBTzyxY120004"), "spam");
 /// # }
 /// ```
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// # fn example(client: &papo::Client, message: &papo::Message) {
 /// let _ = client.react((message.return_address(), "RfcBTzyxY120005"), "👀");
 /// # }

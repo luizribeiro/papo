@@ -770,7 +770,7 @@ impl Message {
     /// [`crate::Client::reply`], which stays private and keeps the context tag; see
     /// [`Conversation`] for audience guidance.
     ///
-    /// ```compile_fail
+    /// ```compile_fail,E0277
     /// # async fn answer(client: &papo::Client, message: &papo::Message) -> Result<(), papo::Error> {
     /// if let Some(channel) = message.channel_context() {
     ///     client.privmsg(channel, "answering in public").await?;

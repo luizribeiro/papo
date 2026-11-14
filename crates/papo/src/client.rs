@@ -142,7 +142,7 @@ pub enum Fallback {
 /// audience. A bare message identifier cannot thread a send, because nothing would tie it to the
 /// audience that saw the message:
 ///
-/// ```compile_fail
+/// ```compile_fail,E0624
 /// # async fn send(client: &papo::Client, id: papo::MessageId) -> Result<(), papo::Error> {
 /// client.privmsg("#ops", "fixed").reply_to(id).await?;
 /// # Ok(()) }

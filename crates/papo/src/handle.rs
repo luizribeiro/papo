@@ -459,7 +459,7 @@ impl ChannelHandle {
         self.0.guard.as_ref()
     }
 
-    /// Returns the channel's current name without a status prefix.
+    /// Returns the channel's current name.
     #[must_use]
     pub fn name(&self) -> crate::ChannelName {
         self.0
