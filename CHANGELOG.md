@@ -84,6 +84,10 @@ reply is `Unset`; it fails with `Error::Unconfirmed` when the reply leaves no ma
 Requests that would grow a full bounded state store now fail locally with `Error::StateLimit`
 before sending, while updates to entries already tracked at the limit remain available.
 
+`Client::who` and `Client::whois` now return `Error::StateLimit`, as `Client::list` does, when an
+unlabelled reply exceeds 10,000 lines, instead of a partial result that looks complete. A reply of
+exactly 10,000 rows keeps its end numeric and completes normally.
+
 JOIN requests now complete with a refusal for any target-naming 4xx/5xx numeric or `FAIL JOIN`,
 including server-specific invalid-channel numerics such as 448 and 479.
 
