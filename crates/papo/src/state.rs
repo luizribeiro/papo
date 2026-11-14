@@ -685,9 +685,7 @@ impl State {
     ) -> Option<crate::Conversation> {
         let parts = crate::AsConversation::__parts(&conversation);
         let origin = self.nick().origin();
-        if parts.origin != crate::Origin::NONE && parts.origin != origin {
-            return None;
-        }
+        crate::ForeignReference::require_local(parts.origin, origin).ok()?;
         let conversation = self.core.conversation(parts.text).ok()?;
         let guard = match &conversation {
             papo_core::Conversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
