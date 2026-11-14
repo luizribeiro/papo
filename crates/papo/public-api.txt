@@ -2861,14 +2861,6 @@ pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt:
 impl core::fmt::Display for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl papo::Target for papo::MessageRef
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ChannelHandle, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((&papo::ChannelHandle, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::MessageRef, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((&papo::MessageRef, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::ChannelHandle, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((papo::ChannelHandle, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::MessageRef, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((papo::MessageRef, I)) -> Self
 impl<T: ReplyReference + ?core::marker::Sized> core::convert::From<&T> for papo::MessageRef
 pub fn papo::MessageRef::from(&T) -> Self
 impl core::marker::Freeze for papo::MessageRef

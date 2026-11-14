@@ -598,11 +598,12 @@ struct ForeignValues {
     alice: papo::UserHandle,
     nick: papo::Nick,
     account: papo::AccountName,
+    message: papo::MessageRef,
 }
 
 impl ForeignValues {
     async fn new() -> Self {
-        let (first, second) = client_pair(&[
+        let (mut first, second) = client_pair(&[
             "batch",
             "draft/chathistory",
             "draft/metadata-2",
@@ -619,7 +620,17 @@ impl ForeignValues {
         let names = snapshot
             .name_rules()
             .expect("server advertised CASEMAPPING");
+        first
+            .2
+            .server("@msgid=RfcBTzyxY120004 :alice!~a@cloak.example PRIVMSG #papo :release status")
+            .await;
+        let message = loop {
+            if let papo::Event::Message(message) = next_active_event(&mut first.1).await {
+                break message;
+            }
+        };
         Self {
+            message: message.return_address(),
             channel: first.0.channel("#papo").unwrap(),
             alice: first.0.query("alice").unwrap(),
             nick: names.nick("alice"),
@@ -630,7 +641,7 @@ impl ForeignValues {
     }
 
     fn message(&self) -> papo::MessageRef {
-        papo::MessageRef::from((self.channel.clone(), "RfcBTzyxY120004"))
+        self.message.clone()
     }
 
     async fn assert_all_foreign<const N: usize>(
@@ -964,19 +975,23 @@ async fn assert_line_recipient_guard(
     name: &str,
     reference: papo::MessageRef,
 ) {
-    let with_id = papo::MessageRef::from((reference.clone(), "ErgoGuardTarget"));
-    for result in [
+    let mut results = Vec::new();
+    if reference.msgid().is_some() {
+        results.extend([
+            client.react(reference.clone(), "✅").await,
+            client.unreact(reference.clone(), "✅").await,
+            client.redact(reference.clone(), "superseded").await,
+        ]);
+    }
+    for result in results.into_iter().chain([
         client
             .reply(reference.clone(), "payroll attached")
             .await
             .map(|_| ()),
-        client.react(with_id.clone(), "✅").await,
-        client.unreact(with_id.clone(), "✅").await,
-        client.redact(with_id, "superseded").await,
         client.typing(reference.clone(), papo::Typing::Active).await,
         client.action(reference.clone(), "waves").await.map(|_| ()),
         client.notice(reference, "classified").await.map(|_| ()),
-    ] {
+    ]) {
         assert!(
             matches!(result, Err(papo::Error::TargetGone)),
             "{name} did not retain its recipient guard: {result:?}"

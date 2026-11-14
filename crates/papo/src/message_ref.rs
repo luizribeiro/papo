@@ -135,9 +135,10 @@ pub(crate) trait ReplyReference {
 ///
 /// A reference preserves the address exactly as it arrived, including a status prefix such as
 /// `@#ops`, together with the originating client and any evidence needed to detect a nickname
-/// changing hands. Construct one from a received [`Message`], a sent [`Sent`], or an explicit
-/// `(channel, message_id)` pair. Text paired with a message identifier is not a reference; see
-/// [`Conversation`] for status-prefixed audience guidance.
+/// changing hands. A reference comes only from a line: a received [`Message`] (or another
+/// received line's `return_address()`) or a [`Sent`]. A channel, a conversation or a bare message
+/// identifier is not a reference, so a reaction or reply cannot point a public line at an
+/// ops-only message; see [`Conversation`] for status-prefixed audience guidance.
 ///
 /// ```
 /// # fn example(client: &papo::Client, message: &papo::Message) {
@@ -149,6 +150,18 @@ pub(crate) trait ReplyReference {
 /// ```compile_fail
 /// # fn example(client: &papo::Client) {
 /// let _ = client.react(("#papo", "RfcBTzyxY120004"), "👀");
+/// # }
+/// ```
+///
+/// ```compile_fail
+/// # fn example(client: &papo::Client, channel: &papo::ChannelHandle) {
+/// let _ = client.redact((channel, "RfcBTzyxY120004"), "spam");
+/// # }
+/// ```
+///
+/// ```compile_fail
+/// # fn example(client: &papo::Client, message: &papo::Message) {
+/// let _ = client.react((message.return_address(), "RfcBTzyxY120005"), "👀");
 /// # }
 /// ```
 ///
@@ -422,38 +435,6 @@ pub(crate) fn from_server_notice(notice: &ServerNotice) -> NoticeRef {
     notice.receipt.notice_reference()
 }
 
-impl<I: Into<MessageId>> From<(crate::ChannelHandle, I)> for MessageRef {
-    fn from((channel, msgid): (crate::ChannelHandle, I)) -> Self {
-        Self::from((&channel, msgid))
-    }
-}
-
-impl<I: Into<MessageId>> From<(&crate::ChannelHandle, I)> for MessageRef {
-    fn from((channel, msgid): (&crate::ChannelHandle, I)) -> Self {
-        Self::new(
-            crate::Target::__parts(channel).text.into_owned(),
-            vec![msgid.into()],
-            channel.origin(),
-            None,
-            None,
-            Some(channel.clone()),
-        )
-    }
-}
-
-impl<I: Into<MessageId>> From<(MessageRef, I)> for MessageRef {
-    fn from((mut reference, msgid): (MessageRef, I)) -> Self {
-        reference.msgids = vec![msgid.into()];
-        reference
-    }
-}
-
-impl<I: Into<MessageId>> From<(&MessageRef, I)> for MessageRef {
-    fn from((reference, msgid): (&MessageRef, I)) -> Self {
-        Self::from((reference.clone(), msgid))
-    }
-}
-
 pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin {
     match conversation {
         Conversation::Channel(channel) => channel.origin(),
@@ -660,30 +641,6 @@ mod tests {
             sent.outcome(),
             crate::SentOutcome::Confirmed { .. }
         ));
-    }
-
-    #[test]
-    fn explicit_pairs_replace_an_existing_references_id_and_keep_its_guard() {
-        let mapping = crate::Casemapping::default();
-        let mut message = crate::__testing::message(
-            Some(crate::__testing::user_handle(mapping.nick("emily"))),
-            "papo",
-            "deploy complete",
-            false,
-        );
-        message.conversation = Conversation::Private(user_handle(mapping.nick("emily")));
-        message.receipt = Receipt::new(
-            crate::Source::User(message.actor.clone()),
-            &message.conversation,
-            None,
-            "emily".into(),
-        );
-        message.msgid = Some("RfcBTzyxY120004".into());
-        let original = message.return_address();
-        let replaced = MessageRef::from((&original, "RfcBTzyxY120007"));
-        assert_eq!(replaced, "emily");
-        assert_eq!(replaced.msgid(), Some(&MessageId::from("RfcBTzyxY120007")));
-        assert_eq!(replaced.recipient, original.recipient);
     }
 
     #[test]

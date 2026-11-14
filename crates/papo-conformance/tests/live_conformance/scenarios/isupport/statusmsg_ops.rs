@@ -258,17 +258,5 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(leaked.in_reply_to.as_ref(), Some(&question_id));
     }
 
-    let bare_channel = bob.channel(&channel)?;
-    bob.react((&bare_channel, &question_id), "📣").await?;
-    for peer in [&mut alice, &mut carol, &mut dave] {
-        let leaked = peer
-            .wait_for(|event| {
-                event.as_reacted().filter(|reaction| {
-                    reaction.reacts_to == question_id && reaction.reaction == "📣"
-                })
-            })
-            .await?;
-        assert_eq!(leaked.status(), None);
-    }
     Ok(())
 }

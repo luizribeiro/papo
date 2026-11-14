@@ -1051,12 +1051,9 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     bob.expect_none(Event::as_redacted).await?;
 
     let Error::Server(refusal) = alice
-        .redact(
-            (alice.channel(&channel)?, "missing-message-id"),
-            "unknown message",
-        )
+        .redact(&sent, "already redacted")
         .await
-        .expect_err("an unknown message identifier must be refused")
+        .expect_err("a message redacted once is unknown to the server")
     else {
         panic!("an unknown message identifier did not return a server refusal")
     };

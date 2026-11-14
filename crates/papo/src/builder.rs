@@ -898,7 +898,14 @@ mod tests {
         let (second, _, _) = Builder::new("ircs://irc.example.net")
             .casemapping(crate::Casemapping::default())
             .build();
-        let reference = (first.channel("#papo").unwrap(), "RfcBTzyxY120004");
+        let reference = crate::MessageRef::new(
+            "#papo".into(),
+            vec!["RfcBTzyxY120004".into()],
+            first.origin(),
+            None,
+            None,
+            None,
+        );
 
         assert!(matches!(
             second.reply(reference, "release ready").await,
