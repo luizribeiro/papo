@@ -117,6 +117,7 @@ mod metadata;
 mod monitor;
 mod name;
 mod nick_regain;
+mod ops_only;
 mod outgoing;
 #[cfg(feature = "unstable")]
 #[path = "unstable/persistence.rs"]
@@ -3577,6 +3578,7 @@ pub struct Session {
     server_clock: Option<server_clock::ServerClock>,
     monitor: Monitor,
     nick_regain: NickRegain,
+    ops_only: ops_only::OpsOnlyLines,
     metadata_subscriptions_sent: bool,
     bouncer_resync: BouncerResync,
     rate_limit: RateLimiter,
@@ -3615,6 +3617,7 @@ impl std::fmt::Debug for Session {
             .field("server_clock", &self.server_clock)
             .field("monitor", &self.monitor)
             .field("nick_regain", &self.nick_regain)
+            .field("ops_only", &self.ops_only)
             .field(
                 "metadata_subscriptions_sent",
                 &self.metadata_subscriptions_sent,
@@ -3949,6 +3952,7 @@ impl Session {
             server_clock: None,
             monitor: Monitor::new(origin),
             nick_regain: NickRegain::default(),
+            ops_only: ops_only::OpsOnlyLines::default(),
             metadata_subscriptions_sent: false,
             bouncer_resync: BouncerResync::Idle,
             rate_limit,
@@ -4083,6 +4087,7 @@ impl Session {
                     .as_ref()
                     .map_or(message, |redacted| redacted.as_ref());
                 self.observe_server_time(now, &message);
+                self.remember_ops_only(&message);
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
                 }
@@ -4326,6 +4331,7 @@ impl Session {
         message: Line,
         guard: Option<TargetGuard>,
     ) -> Result<TransmitToken, RequestError> {
+        self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
         let line = message.encode()?;
         drop(message);
