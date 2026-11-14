@@ -137,53 +137,75 @@ test "$PAPO_TEST_UPSTREAM" = 127.0.0.1:7667"#,
 }
 
 #[test]
-fn plain_binary_does_not_start_a_server() {
-    let directory = directory();
-    let binary = executable(&directory, "parser_tests-deadbeef", "exit 0");
-    let status = runner(&binary)
-        .env("PAPO_TEST_SERVER_BIN", directory.join("must-not-run"))
-        .status()
-        .unwrap();
-    assert!(status.success());
-    fs::remove_dir_all(directory).unwrap();
-}
-
-#[test]
-fn offline_papo_unit_test_does_not_start_a_server() {
-    let directory = directory();
-    let binary = executable(&directory, "papo-deadbeef", "exit 0");
-    let status = runner(&binary)
-        .arg("builder::tests::fills_every_session_configuration_field")
-        .arg("--exact")
-        .env("PAPO_TEST_SERVER_BIN", directory.join("must-not-run"))
-        .status()
-        .unwrap();
-    assert!(status.success());
-    fs::remove_dir_all(directory).unwrap();
-}
-
-#[test]
-fn live_papo_unit_test_starts_a_server() {
-    let directory = directory();
-    let helper = executable(
-        &directory,
-        "server-helper",
-        r"printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem '' '' '' ''
+fn starts_a_server_only_for_invocations_that_run_live_tests() {
+    for (binary, args, starts) in [
+        ("papo-deadbeef", "", true),
+        ("papo-deadbeef", "--nocapture", true),
+        ("papo-deadbeef", "--list --format terse", false),
+        ("papo-deadbeef", "--list --format terse --ignored", false),
+        (
+            "papo-deadbeef",
+            "--exact driver::tests::mode_changes_return_confirmed_facts_after_a_later_disconnect --nocapture",
+            false,
+        ),
+        (
+            "papo-deadbeef",
+            "--exact handle::tests::only_a_live_own_line_recaptures_a_failed_event_proof --nocapture",
+            false,
+        ),
+        (
+            "papo-deadbeef",
+            "--exact transport::live::plaintext_cap_exchange --nocapture",
+            true,
+        ),
+        (
+            "papo-deadbeef",
+            "--exact transport::websocket::live::rejects_a_partial_line_at_shutdown --nocapture",
+            true,
+        ),
+        (
+            "papo-deadbeef",
+            "builder::tests::fills_every_session_configuration_field --exact",
+            false,
+        ),
+        ("papo-deadbeef", "plaintext_cap_exchange", true),
+        ("papo-deadbeef", "builder::tests", true),
+        ("live_client-deadbeef", "", true),
+        (
+            "live_client-deadbeef",
+            "--exact registers_messages_itself_and_quits --nocapture",
+            true,
+        ),
+        ("live_client-deadbeef", "--list --format terse", false),
+        ("parser_tests-deadbeef", "", false),
+    ] {
+        let directory = directory();
+        let started = directory.join("started");
+        let helper = executable(
+            &directory,
+            "server-helper",
+            &format!(
+                r"touch {}
+printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem '' '' '' ''
 read -r _ || true",
-    );
-    let binary = executable(
-        &directory,
-        "papo-deadbeef",
-        "test \"$PAPO_TEST_PLAINTEXT\" = 127.0.0.1:6667",
-    );
-    let status = runner(&binary)
-        .arg("transport::websocket::live::rejects_a_partial_line_at_shutdown")
-        .arg("--exact")
-        .env("PAPO_TEST_SERVER_BIN", helper)
-        .status()
-        .unwrap();
-    assert!(status.success());
-    fs::remove_dir_all(directory).unwrap();
+                started.display()
+            ),
+        );
+        let check = if starts {
+            "test \"$PAPO_TEST_PLAINTEXT\" = 127.0.0.1:6667"
+        } else {
+            "test -z \"${PAPO_TEST_PLAINTEXT-}\""
+        };
+        let binary = executable(&directory, binary, check);
+        let status = runner(&binary)
+            .args(args.split_whitespace())
+            .env("PAPO_TEST_SERVER_BIN", helper)
+            .status()
+            .unwrap();
+        assert!(status.success(), "{binary:?} {args:?}");
+        assert_eq!(started.exists(), starts, "{binary:?} {args:?}");
+        fs::remove_dir_all(directory).unwrap();
+    }
 }
 
 fn runner(binary: &Path) -> Command {

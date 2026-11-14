@@ -100,18 +100,40 @@ start_server() {
   fi
 }
 
+names_a_live_test() {
+  [[ $1 == *::live::* ]]
+}
+
+# Cargo runs a whole binary or substring filters, either of which may select a live test;
+# nextest lists with --list and runs one test with --exact.
 needs_server() {
+  local exact=false filters=() filter
+  shift
+  while (( $# )); do
+    case $1 in
+      --list) return 1 ;;
+      --exact) exact=true ;;
+      --format | --skip | --test-threads | --logfile | --color | --shuffle-seed | -Z) shift ;;
+      -*) ;;
+      *) filters+=("$1") ;;
+    esac
+    (( $# == 0 )) || shift
+  done
   if [[ $binary_name == live_* ]]; then
     return 0
   fi
   if [[ $binary_name != papo ]]; then
     return 1
   fi
-  # Cargo runs the whole library without a name filter; nextest names one test.
-  if (( $# == 1 )) || [[ ${2-} == --* ]]; then
+  if ! $exact || (( ${#filters[@]} == 0 )); then
     return 0
   fi
-  [[ ${2-} == transport::live::* || ${2-} == transport::websocket::live::* ]]
+  for filter in "${filters[@]}"; do
+    if names_a_live_test "$filter"; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 if needs_server "$@"; then
