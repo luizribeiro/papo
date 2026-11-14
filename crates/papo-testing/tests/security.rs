@@ -734,6 +734,10 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         ("history", done(second.history(channel).latest().await)),
         ("mark_read", done(second.mark_read(channel).await)),
         (
+            "mark_read up to a foreign message",
+            done(second.mark_read("#papo").up_to(&foreign.message()).await),
+        ),
+        (
             "fetch_read_marker",
             done(second.fetch_read_marker(channel).await),
         ),

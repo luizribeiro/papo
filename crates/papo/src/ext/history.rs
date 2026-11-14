@@ -61,8 +61,9 @@ impl MarkReadRequest {
     /// explicitly. Their server time is still included when marking the whole conversation read
     /// with [`Client::mark_read`] without `up_to`.
     ///
-    /// Awaiting returns [`crate::InvalidInput::WrongConversation`] if the message belongs to a
-    /// different conversation, and [`crate::InvalidInput::NoServerTime`] if it has no server time.
+    /// Awaiting returns [`crate::Error::ForeignReference`] if the message belongs to another client,
+    /// [`crate::InvalidInput::WrongConversation`] if it belongs to a different conversation, and
+    /// [`crate::InvalidInput::NoServerTime`] if it has no server time.
     pub fn up_to(mut self, message: &crate::MessageRef) -> Self {
         self.boundary = MarkReadBoundary::Message(Box::new(message.clone()));
         self
@@ -91,6 +92,7 @@ impl IntoFuture for MarkReadRequest {
                 self.target,
             )?;
             let latest = if let MarkReadBoundary::Message(message) = self.boundary {
+                crate::ForeignReference::require_local(message.origin(), self.client.origin())?;
                 let server_time = message
                     .server_time()
                     .ok_or(crate::InvalidInput::NoServerTime)?;
