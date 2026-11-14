@@ -644,6 +644,17 @@ mod tests {
     }
 
     #[test]
+    fn only_a_channel_conversation_has_a_channel_handle() {
+        let mapping = crate::Casemapping::default();
+        let handle = channel_handle(mapping.channel("#ops"));
+        let channel = Conversation::Channel(handle.clone());
+        let private = Conversation::Private(user_handle(mapping.nick("oppy")));
+
+        assert_eq!(channel.channel(), Some(&handle));
+        assert_eq!(private.channel(), None);
+    }
+
+    #[test]
     fn actor_updates_clear_channel_guards_only_for_private_conversations() {
         let mapping = crate::Casemapping::default();
         let channel = Conversation::Channel(channel_handle(mapping.channel("#ops")));
