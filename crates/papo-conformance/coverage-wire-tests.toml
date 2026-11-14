@@ -145,6 +145,9 @@
 "security::oversized_unlabelled_who_returns_a_state_limit_error" = [
   "security.who.truncated-reply",
 ]
+"security::oversized_labelled_who_returns_a_state_limit_error" = [
+  "security.who.truncated-labelled-reply",
+]
 "security::unfinished_ban_list_stays_bounded_and_the_client_keeps_working" = [
   "security.list-mode.unfinished-reply-bound",
 ]

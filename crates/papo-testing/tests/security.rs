@@ -199,6 +199,40 @@ async fn oversized_unlabelled_who_returns_a_state_limit_error() {
     ));
 }
 
+#[tokio::test(start_paused = true)]
+async fn oversized_labelled_who_returns_a_state_limit_error() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&["batch", "labeled-response"]).await;
+    connected(&mut events).await;
+    let request = tokio::spawn(async move { client.who("#lobby").await });
+    let sent = wire.next_sent().await;
+    let label = sent
+        .strip_prefix("@label=")
+        .and_then(|rest| rest.strip_suffix(" WHO #lobby"))
+        .expect("WHO must carry a label");
+    wire.server(format!(
+        "@label={label} :offline.test BATCH +who-reply labeled-response"
+    ))
+    .await;
+    for index in 0..10_000 {
+        wire.server(format!(
+            "@batch=who-reply :offline.test 352 papo #lobby ~guest guest-{index}.example offline.test guest{index} H :0 Guest {index}"
+        ))
+        .await;
+    }
+    wire.server("@batch=who-reply :offline.test 315 papo #lobby :End of WHO list")
+        .await;
+    wire.server(":offline.test BATCH -who-reply").await;
+
+    assert!(matches!(
+        request.await.unwrap(),
+        Err(papo::Error::StateLimit(papo::StateLimit::ListEntries))
+    ));
+}
+
 #[tokio::test]
 async fn unfinished_ban_list_stays_bounded_and_the_client_keeps_working() {
     let (client, mut events, mut wire) = wire(
