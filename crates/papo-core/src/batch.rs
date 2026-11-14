@@ -94,6 +94,7 @@ pub(crate) enum BatchEvent {
         reference: String,
         batch_type: String,
         reason: BatchAbandonReason,
+        label: Option<String>,
     },
     Line {
         line: Line,
@@ -180,12 +181,17 @@ impl Batches {
         {
             return BatchAction::Dispatch(self.context(message));
         }
+        let label = correlated_label
+            .then(|| message.tag("label"))
+            .flatten()
+            .map(std::borrow::Cow::into_owned);
         if self.open.len() >= self.max_open {
             self.remember_abandoned(reference, kind);
             return BatchAction::Complete(vec![BatchEvent::Abandoned {
                 reference: reference.to_owned(),
                 batch_type: kind.to_owned(),
                 reason: BatchAbandonReason::OpenBatchLimit,
+                label,
             }]);
         }
         let multiline_collectors = if kind == cap::MULTILINE.as_str() {
@@ -201,10 +207,7 @@ impl Batches {
             OpenBatch {
                 opening: message.to_owned(),
                 kind: kind.to_owned(),
-                label: correlated_label
-                    .then(|| message.tag("label"))
-                    .flatten()
-                    .map(std::borrow::Cow::into_owned),
+                label,
                 parent,
                 params: message.params().skip(2).map(str::to_owned).collect(),
                 end: message
@@ -492,6 +495,7 @@ impl Batches {
             types.insert(candidate.clone(), self.open[candidate].kind.clone());
         }
         let batch_type = types[reference].clone();
+        let label = self.open[reference].label.clone();
         let history_target = is_history(&batch_type)
             .then(|| self.open[reference].params.first().cloned())
             .flatten();
@@ -571,6 +575,7 @@ impl Batches {
             reference: reference.to_owned(),
             batch_type,
             reason,
+            label,
         });
         events
     }

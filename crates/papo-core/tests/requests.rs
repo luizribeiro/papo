@@ -870,6 +870,81 @@ fn unlabelled_list_of_papos_own_ten_thousand_entry_bound_ignores_the_start_heade
     assert!(response.lines[10_000].as_ref().command_is("323"));
 }
 
+fn sent_label(session: &mut Session) -> String {
+    let sent = format!("{:?}", session.poll_transmit().unwrap());
+    sent.split("@label=")
+        .nth(1)
+        .and_then(|rest| rest.split(' ').next())
+        .unwrap()
+        .to_owned()
+}
+
+fn labelled_who_response(rows: usize) -> (papo_core::Response, Vec<Event>) {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["#lobby"]),
+            ResponseMatcher::Who("#lobby".into()),
+        )
+        .unwrap();
+    let label = sent_label(&mut session);
+    session.handle_line(
+        now,
+        format!("@label={label} :ergo.test BATCH +who-1 labeled-response").as_bytes(),
+    );
+    for index in 0..rows {
+        session.handle_line(
+            now,
+            format!(
+                "@batch=who-1 :ergo.test 352 papo #lobby ~guest guest-{index}.example ergo.test guest{index} H :0 Guest {index}"
+            )
+            .as_bytes(),
+        );
+    }
+    session.handle_line(
+        now,
+        b"@batch=who-1 :ergo.test 315 papo #lobby :End of WHO list",
+    );
+    session.handle_line(now, b":ergo.test BATCH -who-1");
+    let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+    let response = events
+        .iter()
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response.clone()),
+            _ => None,
+        })
+        .expect("the labelled WHO request must finish without waiting for its timeout");
+    (response, events)
+}
+
+#[test]
+fn labelled_who_over_papos_own_ten_thousand_line_batch_bound_reports_the_limit() {
+    let (response, events) = labelled_who_response(10_000);
+
+    assert_eq!(
+        response.state_limit,
+        Some(papo_core::StateLimit::ListEntries)
+    );
+    assert!(events.iter().any(|event| matches!(
+        event,
+        Event::BatchAbandoned {
+            reason: papo_core::BatchAbandonReason::LineLimit,
+            ..
+        }
+    )));
+}
+
+#[test]
+fn labelled_who_filling_papos_own_ten_thousand_line_batch_bound_is_complete() {
+    let (response, _) = labelled_who_response(9_999);
+
+    assert_eq!(response.state_limit, None);
+    assert_eq!(response.lines.len(), 10_000);
+    assert!(response.lines[9_999].as_ref().command_is("315"));
+}
+
 #[test]
 fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));

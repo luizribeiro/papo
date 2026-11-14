@@ -6363,11 +6363,19 @@ impl Session {
                 reference,
                 batch_type,
                 reason,
-            } => self.outbox.event(Event::BatchAbandoned {
-                reference: BatchId::from(reference),
-                batch_type: BatchType::from(batch_type),
-                reason,
-            }),
+                label,
+            } => {
+                self.outbox.event(Event::BatchAbandoned {
+                    reference: BatchId::from(reference),
+                    batch_type: BatchType::from(batch_type),
+                    reason,
+                });
+                if reason != BatchAbandonReason::Timeout
+                    && let Some(request) = label.and_then(|label| self.requests.get(&label))
+                {
+                    self.finish_truncated(request.id);
+                }
+            }
             BatchEvent::Line { line, batch_type } => {
                 let context = batch_type
                     .clone()
