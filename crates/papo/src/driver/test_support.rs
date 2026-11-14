@@ -794,18 +794,26 @@ pub(crate) fn line_reference(
     )
 }
 
-pub(crate) async fn negotiate_message_tags(server: &mut DuplexStream) {
+pub(crate) async fn negotiate_caps(server: &mut DuplexStream, caps: &str) {
     welcome_burst(server).await;
-    server_line(server, b":ergo.test CAP * LS :message-tags\r\n").await;
-    client_line(server, b"CAP REQ :message-tags\r\n").await;
-    server_line(server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+    server_line(
+        server,
+        format!(":ergo.test CAP * LS :{caps}\r\n").as_bytes(),
+    )
+    .await;
+    client_line(server, format!("CAP REQ :{caps}\r\n").as_bytes()).await;
+    server_line(
+        server,
+        format!(":ergo.test CAP * ACK :{caps}\r\n").as_bytes(),
+    )
+    .await;
     client_line(server, b"CAP END\r\n").await;
 }
 
 pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected: Option<&[u8]>) {
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["message-tags"]));
     let task = tokio::spawn(driver);
-    negotiate_message_tags(&mut server).await;
+    negotiate_caps(&mut server, "message-tags").await;
     if !isupport.is_empty() {
         server_line(&mut server, isupport.as_bytes()).await;
     }

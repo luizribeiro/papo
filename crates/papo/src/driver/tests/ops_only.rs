@@ -12,7 +12,7 @@ impl OpsChannel {
         let (mut server, client, mut events, driver) =
             scripted(config().wanted_caps([crate::cap::MESSAGE_TAGS]));
         let task = tokio::spawn(driver);
-        negotiate_message_tags(&mut server).await;
+        negotiate_caps(&mut server, crate::cap::MESSAGE_TAGS.as_str()).await;
         server_line(
             &mut server,
             b":ergo.test 001 papo-driver :Welcome to the ErgoTest IRC Network papo-driver\r\n:ergo.test 005 papo-driver CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
