@@ -540,16 +540,7 @@ impl Client {
                     Some(ResponseMatcher::__list_mode(name.to_string(), mode)),
                 )
                 .await?;
-            if let Some(limit) = response.state_limit {
-                return Err(Error::StateLimit(limit));
-            }
-            if let Some(error) = response.error() {
-                return Err(Error::server(error));
-            }
-            response
-                .mode_list
-                .map(|entries| crate::state::mode_list_from_core(&entries, state.nick().origin()))
-                .ok_or_else(|| Error::unexpected_reply("MODE"))
+            crate::requests::list_mode(response, state.nick().origin())
         })
     }
 }

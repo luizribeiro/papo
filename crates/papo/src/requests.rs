@@ -387,6 +387,17 @@ pub(crate) fn list(
     Ok(list_entries(response.lines, isupport, origin))
 }
 
+pub(crate) fn list_mode(
+    response: Response,
+    origin: crate::Origin,
+) -> Result<Vec<crate::ModeListEntry>, Error> {
+    empty(&response)?;
+    response
+        .mode_list
+        .map(|entries| crate::state::mode_list_from_core(&entries, origin))
+        .ok_or_else(|| Error::unexpected_reply("MODE"))
+}
+
 fn list_entries(
     lines: impl IntoIterator<Item = Line>,
     isupport: &Isupport,
@@ -416,7 +427,8 @@ mod tests {
     use papo_proto::{Casemapping, Isupport, Line};
 
     use super::{
-        Response, WHOX_FIELDS, empty, list, list_entries, plain_who, who, whois, whois_channel,
+        Response, WHOX_FIELDS, empty, list, list_entries, list_mode, plain_who, who, whois,
+        whois_channel,
     };
     use crate::Error;
 
@@ -634,6 +646,14 @@ mod tests {
                 build: |response, _| {
                     whois(response, "alice", &Isupport::default(), crate::Origin::NONE).map(drop)
                 },
+            },
+            BoundedCase {
+                request: Line::new("MODE").with_params(["#papo", "b"]),
+                matcher: ResponseMatcher::__list_mode("#papo".into(), crate::ListMode::Ban),
+                row: ":ergo.test 367 papo #papo *!*@host{i}.example oper 1761048000",
+                end: ":ergo.test 368 papo #papo :End of channel ban list",
+                bound: 1_000,
+                build: |response, _| list_mode(response, crate::Origin::NONE).map(drop),
             },
         ];
 
