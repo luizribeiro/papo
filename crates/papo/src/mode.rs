@@ -146,7 +146,7 @@ impl BanTarget {
 #[must_use = "requests do nothing unless awaited"]
 pub struct SetModes {
     client: Client,
-    target: String,
+    target: Result<String, Error>,
     changes: Vec<Change>,
     invalid_input: Option<crate::InvalidInput>,
 }
@@ -384,13 +384,14 @@ impl IntoFuture for SetModes {
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
+            let target = self.target?;
             if let Some(error) = self.invalid_input {
                 return Err(error.into());
             }
             self.client
                 .state()
-                .parse_target_inner(&self.target)
-                .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;
+                .parse_target_inner(&target)
+                .map_err(|reason| InvalidInput::invalid_name(target.clone(), reason))?;
             let mut proven = Vec::with_capacity(self.changes.len());
             for change in self.changes {
                 proven.push(change.resolve_nick(&self.client).await?);
@@ -400,7 +401,7 @@ impl IntoFuture for SetModes {
                 .into_iter()
                 .map(|change| change.resolve(&state))
                 .collect::<Result<Vec<_>, _>>()?;
-            let messages = encode(state.isupport().inner(), &self.target, &changes)?;
+            let messages = encode(state.isupport().inner(), &target, &changes)?;
             for message in &messages {
                 message.encode().map_err(Error::build)?;
             }
@@ -430,7 +431,7 @@ impl IntoFuture for SetModes {
                             .client
                             .correlated_guarded(
                                 message,
-                                Some(ResponseMatcher::Mode(self.target.clone())),
+                                Some(ResponseMatcher::Mode(target.clone())),
                                 guard,
                             )
                             .await
@@ -449,7 +450,7 @@ impl IntoFuture for SetModes {
                                 return Ok(result);
                             }
                         };
-                        let applied = confirmed(&response, &state, &self.target, chunk);
+                        let applied = confirmed(&response, &state, &target, chunk);
                         if let Some(error) = response.error() {
                             let refusal = error.refusal();
                             result.refused.extend(
@@ -487,19 +488,14 @@ impl IntoFuture for SetModes {
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
     pub fn mode(&self, target: impl crate::AsConversation) -> SetModes {
-        let (target, invalid_input) = match self.resolve(
-            crate::target::Role::Conversation("mode: target"),
-            crate::AsConversation::__parts(&target),
-        ) {
-            Ok(target) => (target, None),
-            Err(crate::Error::InvalidInput(error)) => (String::new(), Some(error)),
-            Err(error) => unreachable!("address resolution returned {error}"),
-        };
         SetModes {
             client: self.clone(),
-            target,
+            target: self.resolve(
+                crate::target::Role::Conversation("mode: target"),
+                crate::AsConversation::__parts(&target),
+            ),
             changes: Vec::new(),
-            invalid_input,
+            invalid_input: None,
         }
     }
 

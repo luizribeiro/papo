@@ -79,6 +79,7 @@ Metadata operations on a person now prove and recheck that identity before trans
 `UserHandle::key` captures a persistable peer key, and `Client::open` returns `NotSamePerson` with the current key when a saved identity does not match.
 
 `Client::join` now resolves to the synchronized `ChannelHandle` for the joined channel.
+Mode and metadata requests on a channel handle the client has since left now fail with `Error::TargetGone` instead of panicking.
 
 `UserHandle` and `ChannelHandle` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
 

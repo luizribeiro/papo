@@ -1126,6 +1126,62 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn requests_on_a_departed_channel_handle_fail_as_gone() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+            b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let channel = client.channel("#release").unwrap();
+        session.handle_line(
+            now,
+            b":ChanServ!ChanServ@services.ergo.test KICK #release papo :Flooding",
+        );
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+
+        let metadata = client.metadata();
+        let avatar = || crate::MetadataKey::new("avatar");
+        for (request, result) in [
+            ("mode", client.mode(&channel).add('m').await.map(|_| ())),
+            (
+                "mode with a raw key",
+                client
+                    .mode(&channel)
+                    .add_with('k', "hunter2")
+                    .await
+                    .map(|_| ()),
+            ),
+            (
+                "metadata.get",
+                metadata.get(&channel, [avatar()]).await.map(|_| ()),
+            ),
+            ("metadata.list", metadata.list(&channel).await.map(|_| ())),
+            (
+                "metadata.set_on",
+                metadata
+                    .set_on(&channel, avatar(), "https://example.org/a.png")
+                    .await,
+            ),
+            (
+                "metadata.remove_on",
+                metadata.remove_on(&channel, avatar()).await,
+            ),
+            ("metadata.clear_on", metadata.clear_on(&channel).await),
+            ("metadata.sync", metadata.sync(&channel).await),
+        ] {
+            assert!(
+                matches!(result, Err(crate::Error::TargetGone)),
+                "{request} returned {result:?}"
+            );
+        }
+        assert!(commands.try_recv().is_err());
+    }
+
+    #[tokio::test]
     async fn foreign_user_handle_fails_before_who() {
         let mut source = Config::default().nick("papo");
         source.origin = crate::Origin::__new(73);

@@ -3270,8 +3270,8 @@ impl core::marker::Send for papo::SetModes
 impl core::marker::Sync for papo::SetModes
 impl core::marker::Unpin for papo::SetModes
 impl core::marker::UnsafeUnpin for papo::SetModes
-impl core::panic::unwind_safe::RefUnwindSafe for papo::SetModes
-impl core::panic::unwind_safe::UnwindSafe for papo::SetModes
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::SetModes
+impl !core::panic::unwind_safe::UnwindSafe for papo::SetModes
 pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> &papo::Account
