@@ -2189,3 +2189,80 @@ async fn repeated_completed_children_hit_the_parent_batch_limit() {
         "vendor/sync batch was abandoned: LineLimit"
     );
 }
+
+async fn joined_channel_handle(
+    client: &papo::Client,
+    events: &mut Events,
+    wire: &mut Wire,
+) -> papo::ChannelHandle {
+    wire.server(":papo-wire!~u@localhost JOIN #papo").await;
+    assert!(matches!(
+        next_active_event(events).await,
+        papo::Event::Joined(_)
+    ));
+    client.channel("#papo").unwrap()
+}
+
+async fn assert_stale_channel_requests_fail(
+    client: &papo::Client,
+    wire: &mut Wire,
+    stale: &papo::ChannelHandle,
+) {
+    let avatar = || papo::MetadataKey::new("avatar");
+    let metadata = client.metadata();
+    for (request, result) in [
+        ("mode", client.mode(stale).add('m').await.map(|_| ())),
+        (
+            "metadata.get",
+            metadata.get(stale, [avatar()]).await.map(|_| ()),
+        ),
+        ("metadata.list", metadata.list(stale).await.map(|_| ())),
+        (
+            "metadata.set_on",
+            metadata
+                .set_on(stale, avatar(), "https://example.org/a.png")
+                .await,
+        ),
+        (
+            "metadata.remove_on",
+            metadata.remove_on(stale, avatar()).await,
+        ),
+        ("metadata.clear_on", metadata.clear_on(stale).await),
+        ("metadata.sync", metadata.sync(stale).await),
+    ] {
+        assert!(
+            matches!(result, Err(papo::Error::TargetGone)),
+            "{request} on a stale channel handle returned {result:?}"
+        );
+    }
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn stale_channel_handles_fail_mode_and_metadata_requests() {
+    for departure in [
+        &[":ChanServ!ChanServ@services.ergo.test KICK #papo papo-wire :Flooding"][..],
+        &[
+            ":papo-wire!~u@localhost PART #papo :Restarting",
+            ":papo-wire!~u@localhost JOIN #papo",
+        ],
+    ] {
+        let (client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test", "papo-wire")
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(Reconnect::never()),
+        );
+        wire.register(&["draft/metadata-2"]).await;
+        connected(&mut events).await;
+        let stale = joined_channel_handle(&client, &mut events, &mut wire).await;
+        for line in departure {
+            wire.server(*line).await;
+            next_active_event(&mut events).await;
+        }
+        assert_stale_channel_requests_fail(&client, &mut wire, &stale).await;
+    }
+}

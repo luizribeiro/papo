@@ -119,6 +119,7 @@ ids = [
   "security.guard-proof.concurrent-genuine",
   "security.send-path-23-26.guarded-moderation",
   "security.channel-guard.receipt-targets",
+  "security.channel-guard.stale-handle-requests",
   "security.adv-8.metadata-nick-handoff",
   "security.adv-12.recipient-identity",
   "security.adv-16.infallible-line-formatting",

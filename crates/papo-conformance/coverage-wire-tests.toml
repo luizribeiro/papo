@@ -31,6 +31,9 @@
   "security.api.receipt-backed-direct-source",
   "security.api.receipt-backed-references",
 ]
+"security::stale_channel_handles_fail_mode_and_metadata_requests" = [
+  "security.channel-guard.stale-handle-requests",
+]
 "direct_identity::user_handle_follows_rename_and_refuses_a_nickname_takeover" = [
   "security.dm-direct.guarded-targets",
 ]
