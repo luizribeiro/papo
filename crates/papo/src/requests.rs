@@ -170,6 +170,7 @@ pub(crate) fn whois(
     isupport: &Isupport,
     origin: crate::Origin,
 ) -> Result<Option<Whois>, Error> {
+    whole(&response)?;
     if let Some(error) = response.error() {
         if error.refusal() == crate::Refusal::NoSuchNick {
             return Ok(None);
@@ -255,9 +256,7 @@ pub(crate) fn who(
     client: &crate::Client,
     extended: bool,
 ) -> Result<Vec<WhoEntry>, Error> {
-    if let Some(error) = response.error() {
-        return Err(Error::server(error));
-    }
+    empty(&response)?;
     let origin = client.origin();
     let mapping = isupport.casemapping();
     Ok(response
@@ -365,7 +364,15 @@ fn highest_rank(prefixes: &[Prefix]) -> Option<Rank> {
     prefixes.iter().filter_map(|prefix| prefix.rank()).max()
 }
 
+/// Refuses a reply that a state bound cut short, so a partial answer never looks complete.
+pub(crate) fn whole(response: &Response) -> Result<(), Error> {
+    response
+        .state_limit
+        .map_or(Ok(()), |limit| Err(limit.into()))
+}
+
 pub(crate) fn empty(response: &Response) -> Result<(), Error> {
+    whole(response)?;
     response
         .error()
         .map_or(Ok(()), |error| Err(Error::server(error)))
@@ -376,12 +383,7 @@ pub(crate) fn list(
     isupport: &Isupport,
     origin: crate::Origin,
 ) -> Result<Vec<ListEntry>, Error> {
-    if let Some(limit) = response.state_limit {
-        return Err(limit.into());
-    }
-    if let Some(error) = response.error() {
-        return Err(Error::server(error));
-    }
+    empty(&response)?;
     Ok(list_entries(response.lines, isupport, origin))
 }
 
@@ -413,7 +415,9 @@ mod tests {
     use papo_core::{Account, Away, Config, Event, ResponseMatcher, Session};
     use papo_proto::{Casemapping, Isupport, Line};
 
-    use super::{WHOX_FIELDS, empty, list_entries, plain_who, who, whois, whois_channel};
+    use super::{
+        Response, WHOX_FIELDS, empty, list, list_entries, plain_who, who, whois, whois_channel,
+    };
     use crate::Error;
 
     #[test]
@@ -552,6 +556,101 @@ mod tests {
         assert_eq!(extended.len(), 1);
         assert!(extended[0].is_oper);
         assert_eq!(extended[0].user.nick(), "alice");
+    }
+
+    struct BoundedCase {
+        request: Line,
+        matcher: ResponseMatcher,
+        row: &'static str,
+        end: &'static str,
+        bound: usize,
+        build: fn(Response, &crate::Client) -> Result<(), Error>,
+    }
+
+    fn bounded_reply(case: &BoundedCase, rows: usize) -> Response {
+        let now = Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .nick("papo")
+                .rate_limit(papo_core::RateLimit::unlimited()),
+        );
+        session
+            .request_with_matcher(now, case.request.clone(), case.matcher.clone())
+            .unwrap();
+        for index in 0..rows {
+            let row = case.row.replace("{i}", &index.to_string());
+            session.handle_line(now, row.as_bytes());
+        }
+        session.handle_line(now, case.end.as_bytes());
+        std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) => Some(response),
+                _ => None,
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn every_bounded_reply_refuses_a_truncated_answer() {
+        let session = Session::new(Config::default().nick("papo"));
+        let client = crate::driver::test_support::client_with_commands(&session).0;
+        let cases = [
+            BoundedCase {
+                request: Line::new("WHO").with_params(["#lobby"]),
+                matcher: ResponseMatcher::Who("#lobby".into()),
+                row: ":ergo.test 352 papo #lobby ~guest guest-{i}.example ergo.test guest{i} H :0 Guest {i}",
+                end: ":ergo.test 315 papo #lobby :End of WHO list",
+                bound: 10_000,
+                build: |response, client| {
+                    who(response, &Isupport::default(), client, false).map(drop)
+                },
+            },
+            BoundedCase {
+                request: Line::new("WHO").with_params(["#lobby", WHOX_FIELDS]),
+                matcher: ResponseMatcher::Who("#lobby".into()),
+                row: ":ergo.test 354 papo 152 #lobby ~guest guest-{i}.example guest{i} H 0 :Guest {i}",
+                end: ":ergo.test 315 papo #lobby :End of WHO list",
+                bound: 10_000,
+                build: |response, client| {
+                    who(response, &Isupport::default(), client, true).map(drop)
+                },
+            },
+            BoundedCase {
+                request: Line::new("LIST"),
+                matcher: ResponseMatcher::List,
+                row: ":ergo.test 322 papo #channel-{i} 3 :[+nt] chat",
+                end: ":ergo.test 323 papo :End of /LIST",
+                bound: 10_000,
+                build: |response, _| {
+                    list(response, &Isupport::default(), crate::Origin::NONE).map(drop)
+                },
+            },
+            BoundedCase {
+                request: Line::new("WHOIS").with_params(["alice"]),
+                matcher: ResponseMatcher::Whois("alice".into()),
+                row: ":ergo.test 319 papo alice :#channel-{i}",
+                end: ":ergo.test 318 papo alice :End of /WHOIS list",
+                bound: 10_000,
+                build: |response, _| {
+                    whois(response, "alice", &Isupport::default(), crate::Origin::NONE).map(drop)
+                },
+            },
+        ];
+
+        for case in &cases {
+            let request = case.request.to_string();
+            assert!(
+                matches!(
+                    (case.build)(bounded_reply(case, case.bound + 1), &client),
+                    Err(Error::StateLimit(papo_core::StateLimit::ListEntries))
+                ),
+                "{request} accepted a truncated reply"
+            );
+            assert!(
+                (case.build)(bounded_reply(case, case.bound), &client).is_ok(),
+                "{request} refused a reply at the bound"
+            );
+        }
     }
 
     #[test]

@@ -1359,7 +1359,8 @@ impl Client {
     ///
     /// Returns `None` when the target is not online. Returns [`Error::Server`] with
     /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
-    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`crate::Refusal::Other`] when refused. A reply longer than 10,000 lines returns
+    /// [`Error::StateLimit`]. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     /// ```compile_fail
     /// # fn swapped(client: &papo::Client, channel: &papo::ChannelName) {
@@ -1396,7 +1397,8 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
-    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`crate::Refusal::Other`] when refused. A reply longer than 10,000 lines returns
+    /// [`Error::StateLimit`] without a partial list. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn who(&self, mask: impl crate::AsMask) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
         let client = self.clone();
@@ -1954,7 +1956,8 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
-    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
+    /// [`crate::Refusal::Other`] when refused. A longer reply returns [`Error::StateLimit`]
+    /// without a partial list. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn list(&self) -> crate::ListRequest {
         crate::ListRequest::new(self.clone())
