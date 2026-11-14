@@ -2333,7 +2333,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Channel
 pub struct papo::ChannelHandle(_)
 impl papo::ChannelHandle
 pub fn papo::ChannelHandle::name(&self) -> papo::ChannelName
-pub const fn papo::ChannelHandle::status(&self) -> core::option::Option<papo::Prefix>
 impl core::clone::Clone for papo::ChannelHandle
 pub fn papo::ChannelHandle::clone(&self) -> Self
 impl core::cmp::Eq for papo::ChannelHandle

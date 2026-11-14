@@ -1,10 +1,22 @@
 use std::fmt;
 
-/// The IRC conversation to which a chat line belongs.
+/// The IRC conversation to which a chat line belongs: the window an application files it in.
 ///
-/// A channel handle retains a `STATUSMSG` audience when the received line had one. A conversation
-/// is not a send target; answer through the line's return address so an ops-only audience cannot
-/// be widened accidentally.
+/// # Ops-only lines
+///
+/// A line sent to a status-prefixed address such as `@#ops` reached only the channel's operators
+/// (`+#ops`: voiced members and up). Its conversation is still the plain channel `#ops`, so an
+/// ops-only line and a public line in `#ops` have equal conversations and share one buffer,
+/// history, read marker and member list. The audience stays on the line: read it with the line's
+/// `status()`, and answer it with [`crate::Client::reply`], [`crate::Client::react`],
+/// [`crate::Client::redact`] or the line's `return_address()`, which keep `@#ops`.
+///
+/// Sending to the conversation's channel reaches everyone in it. That is what a composer typing
+/// in the `#ops` window wants, and never the answer to an ops-only line. [`crate::Client::channel`]
+/// refuses `@#ops`, so a channel handle never carries a status sign.
+///
+/// A server can also hide an audience without a sign (Ergo's `+U`, Solanum's `+z`): such a line
+/// arrives as plain `#ops` and no client can tell.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Conversation {

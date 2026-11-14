@@ -60,6 +60,8 @@ impl OpsChannel {
 
 const OPS_ONLY: &[u8] =
     b"@msgid=RfcBTzyxY120004 :oppy!~u@cloak.example PRIVMSG @#ops :deploy key rotated?\r\n";
+const PUBLIC: &[u8] =
+    b"@msgid=RfcBTzyxY120005 :oppy!~u@cloak.example PRIVMSG #ops :deploying now\r\n";
 
 #[tokio::test(flavor = "current_thread")]
 async fn answers_to_an_ops_only_line_keep_its_address() {
@@ -81,5 +83,37 @@ async fn answers_to_an_ops_only_line_keep_its_address() {
         "@+reply=RfcBTzyxY120004;+draft/react=👀 TAGMSG @#ops\r\n".as_bytes(),
     )
     .await;
+    ops.finish().await;
+}
+
+// Conversation hashes only its immutable channel identity, as an application buffer map does.
+#[allow(clippy::mutable_key_type)]
+#[tokio::test(flavor = "current_thread")]
+async fn ops_only_and_public_lines_file_under_the_plain_channel() {
+    let mut ops = OpsChannel::joined().await;
+    let restricted = ops.receive(OPS_ONLY).await;
+    let public = ops.receive(PUBLIC).await;
+
+    assert_eq!(restricted.conversation(), public.conversation());
+    let mut buffers = std::collections::HashMap::new();
+    buffers.insert(
+        restricted.conversation().clone(),
+        vec![restricted.raw_text.clone()],
+    );
+    buffers
+        .entry(public.conversation().clone())
+        .or_default()
+        .push(public.raw_text.clone());
+    let [(key, lines)] = buffers.into_iter().collect::<Vec<_>>().try_into().unwrap();
+    assert_eq!(key.to_string(), "#ops");
+    assert_eq!(lines, ["deploy key rotated?", "deploying now"]);
+
+    let crate::Conversation::Channel(composer) = key else {
+        panic!("a channel line files under a channel");
+    };
+    within(ops.client.privmsg(&composer, "posting to everyone"))
+        .await
+        .unwrap();
+    client_line(&mut ops.server, b"PRIVMSG #ops :posting to everyone\r\n").await;
     ops.finish().await;
 }

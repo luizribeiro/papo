@@ -39,6 +39,10 @@ with `Error::ForeignReference`.
 `Client::channel` refuses a status-prefixed name such as `@#ops` with `InvalidInput::InvalidName`:
 a channel handle names the whole channel, never a line's ops-only audience.
 
+`ChannelHandle::status` is removed and a channel handle never carries a status sign: an `@#ops`
+line and a `#ops` line have equal conversations whose channel sends to `#ops`. Answer an ops-only
+line through `reply`, `react`, `redact` or its `return_address()`, which keep `@#ops`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

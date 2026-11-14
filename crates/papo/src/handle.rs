@@ -425,8 +425,11 @@ impl Hash for UserHandle {
 }
 
 /// A live identity for one joined-channel lifecycle.
+///
+/// A handle names the whole channel and never carries a status sign: sending to it reaches
+/// everyone. See [`crate::Conversation`] for answering ops-only lines.
 #[derive(Clone)]
-pub struct ChannelHandle((Arc<ChannelInner>, Option<crate::Prefix>));
+pub struct ChannelHandle(Arc<ChannelInner>);
 
 struct ChannelInner {
     channel: crate::ChannelName,
@@ -438,38 +441,34 @@ impl ChannelHandle {
     pub(crate) fn new(
         client: &crate::Client,
         channel: crate::ChannelName,
-        status: Option<crate::Prefix>,
+        _status: Option<crate::Prefix>,
         joined: bool,
     ) -> Self {
         let guard = joined.then(|| client.state().core.__channel_guard(&channel));
-        Self::from_parts(channel, status, guard, Some(&client.state))
+        Self::from_parts(channel, None, guard, Some(&client.state))
     }
 
     pub(crate) fn from_parts(
         channel: crate::ChannelName,
-        status: Option<crate::Prefix>,
+        _status: Option<crate::Prefix>,
         guard: Option<papo_core::ChannelGuard>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
-        Self((
-            Arc::new(ChannelInner {
-                channel,
-                guard,
-                state: state.map(Arc::clone),
-            }),
-            status,
-        ))
+        Self(Arc::new(ChannelInner {
+            channel,
+            guard,
+            state: state.map(Arc::clone),
+        }))
     }
 
     pub(crate) fn guard(&self) -> Option<&papo_core::ChannelGuard> {
-        self.0.0.guard.as_ref()
+        self.0.guard.as_ref()
     }
 
     /// Returns the channel's current name without a status prefix.
     #[must_use]
     pub fn name(&self) -> crate::ChannelName {
         self.0
-            .0
             .state
             .as_ref()
             .and_then(|state| {
@@ -478,18 +477,12 @@ impl ChannelHandle {
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 self.guard().and_then(|guard| state.resolve_channel(guard))
             })
-            .unwrap_or_else(|| self.0.0.channel.clone())
-    }
-
-    /// Returns the status prefix retained by this chat address.
-    #[must_use]
-    pub const fn status(&self) -> Option<crate::Prefix> {
-        self.0.1
+            .unwrap_or_else(|| self.0.channel.clone())
     }
 
     #[allow(dead_code)]
     pub(crate) fn origin(&self) -> crate::Origin {
-        self.0.0.channel.origin()
+        self.0.channel.origin()
     }
 }
 
@@ -510,9 +503,9 @@ impl std::fmt::Display for ChannelHandle {
 
 impl PartialEq for ChannelHandle {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.0.0.guard, &other.0.0.guard) {
+        match (&self.0.guard, &other.0.guard) {
             (Some(left), Some(right)) => left == right,
-            (None, None) => self.0.0.channel == other.0.0.channel,
+            (None, None) => self.0.channel == other.0.channel,
             _ => false,
         }
     }
@@ -534,9 +527,9 @@ impl PartialEq<&str> for ChannelHandle {
 
 impl Hash for ChannelHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.0.guard.hash(state);
-        if self.0.0.guard.is_none() {
-            self.0.0.channel.hash(state);
+        self.0.guard.hash(state);
+        if self.0.guard.is_none() {
+            self.0.channel.hash(state);
         }
     }
 }
@@ -649,7 +642,7 @@ impl crate::Client {
         Ok(ChannelHandle::new(
             self,
             channel.clone(),
-            status,
+            None,
             state.channel_local(&channel).is_some(),
         ))
     }
@@ -661,7 +654,7 @@ impl crate::AsChannel for ChannelHandle {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(self.name().to_string()),
-            origin: self.0.0.channel.origin(),
+            origin: self.0.channel.origin(),
             channel: self.guard().cloned().map(Box::new),
             user: None,
         }
@@ -695,12 +688,7 @@ impl crate::AsConversation for UserHandle {
 
 impl crate::Target for ChannelHandle {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
-        let mut parts = <Self as crate::AsChannel>::__parts(self);
-        if let Some(status) = self.status() {
-            parts.text =
-                std::borrow::Cow::Owned(format!("{}{name}", status.symbol(), name = self.name()));
-        }
-        parts
+        <Self as crate::AsChannel>::__parts(self)
     }
 }
 
@@ -943,7 +931,6 @@ mod tests {
 
         assert_eq!(restored, handle);
         assert_eq!(restored.name(), "#release");
-        assert_eq!(restored.status(), None);
     }
 
     #[test]
