@@ -485,14 +485,8 @@ async fn foreign_watch_add_never_reaches_either_wire() {
         .expect("server advertised CASEMAPPING")
         .nick("alice");
 
-    assert!(matches!(
-        second.query(alice),
-        Err(papo::InvalidInput::ForeignReference)
-    ));
-    assert!(matches!(
-        second.query(first.query("alice").unwrap()),
-        Err(papo::InvalidInput::ForeignReference)
-    ));
+    assert!(is_foreign(&second.query(alice)));
+    assert!(is_foreign(&second.query(first.query("alice").unwrap())));
     assert_no_wire(&mut first_wire, &mut second_wire).await;
 }
 

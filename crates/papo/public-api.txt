@@ -2294,9 +2294,9 @@ pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, 
 pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core::option::Option<papo::Whois>>
 impl papo::Client
-pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::InvalidInput>
+pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::Error>
 pub fn papo::Client::open(&self, &papo::PeerKey) -> papo::RequestFuture<papo::UserHandle>
-pub fn papo::Client::query(&self, impl papo::AsNick) -> core::result::Result<papo::UserHandle, papo::InvalidInput>
+pub fn papo::Client::query(&self, impl papo::AsNick) -> core::result::Result<papo::UserHandle, papo::Error>
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountCreation>

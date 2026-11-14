@@ -583,15 +583,12 @@ impl crate::Client {
 
     /// Creates a user handle without sending an IRC command.
     /// # Errors
-    /// Returns [`crate::InvalidInput`] when name rules are unknown or reject the nickname.
-    pub fn query(&self, nick: impl crate::AsNick) -> Result<UserHandle, crate::InvalidInput> {
+    /// Returns [`crate::Error::InvalidInput`] when name rules are unknown or reject the nickname,
+    /// [`crate::Error::ForeignReference`] when `nick` belongs to another client, and
+    /// [`crate::Error::TargetGone`] when `nick` is a handle whose user has left.
+    pub fn query(&self, nick: impl crate::AsNick) -> Result<UserHandle, crate::Error> {
         let parts = crate::AsNick::__parts(&nick).into_owned();
-        let text = self
-            .resolve(crate::target::Role::Nick("query: nick"), parts)
-            .map_err(|error| match error {
-                crate::Error::InvalidInput(error) => error,
-                _ => crate::InvalidInput::ForeignReference,
-            })?;
+        let text = self.resolve(crate::target::Role::Nick("query: nick"), parts)?;
         let state = self.state();
         let nick = state
             .known_name_rules()
@@ -606,15 +603,14 @@ impl crate::Client {
 
     /// Creates a channel handle without sending an IRC command.
     /// # Errors
-    /// Returns [`crate::InvalidInput`] when name rules are unknown or reject the channel.
-    pub fn channel(
-        &self,
-        channel: impl crate::AsChannel,
-    ) -> Result<ChannelHandle, crate::InvalidInput> {
+    /// Returns [`crate::Error::InvalidInput`] when name rules are unknown or reject the channel,
+    /// [`crate::Error::ForeignReference`] when `channel` belongs to another client, and
+    /// [`crate::Error::TargetGone`] when `channel` is a handle to a channel this client has left.
+    pub fn channel(&self, channel: impl crate::AsChannel) -> Result<ChannelHandle, crate::Error> {
         let parts = crate::AsChannel::__parts(&channel).into_owned();
         let state = self.state();
         if parts.origin != crate::Origin::NONE && parts.origin != self.origin {
-            return Err(crate::InvalidInput::ForeignReference);
+            return Err(crate::InvalidInput::ForeignReference.into());
         }
         let name_rules = state
             .known_name_rules()
@@ -622,7 +618,7 @@ impl crate::Client {
         let text = match parts.channel.as_deref() {
             Some(guard) => state
                 .resolve_channel(guard)
-                .ok_or(crate::InvalidInput::ForeignReference)?
+                .ok_or(crate::Error::TargetGone)?
                 .into_string(),
             None => parts.text.into_owned(),
         };
@@ -634,11 +630,9 @@ impl crate::Client {
             let Err(reason) = channel.check(state.isupport().inner()) else {
                 unreachable!("a private conversation is not a channel");
             };
-            return Err(crate::InvalidInput::invalid_argument(
-                "channel: channel",
-                text,
-                reason,
-            ));
+            return Err(
+                crate::InvalidInput::invalid_argument("channel: channel", text, reason).into(),
+            );
         };
         Ok(ChannelHandle::new(
             self,
@@ -1079,24 +1073,24 @@ mod tests {
 
         assert!(matches!(
             client.query("#release"),
-            Err(crate::InvalidInput::InvalidName {
+            Err(crate::Error::InvalidInput(crate::InvalidInput::InvalidName {
                 argument: "query: nick",
                 name,
                 reason: crate::InvalidIdentifier::InvalidPrefix('#'),
-            }) if name == "#release"
+            })) if name == "#release"
         ));
         assert!(matches!(
             client.channel("release"),
-            Err(crate::InvalidInput::InvalidName {
+            Err(crate::Error::InvalidInput(crate::InvalidInput::InvalidName {
                 argument: "channel: channel",
                 name,
                 reason: crate::InvalidIdentifier::InvalidPrefix('r'),
-            }) if name == "release"
+            })) if name == "release"
         ));
     }
 
     #[test]
-    fn handle_factories_type_expired_references() {
+    fn handle_factories_report_departed_handles_as_gone() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
         for line in [
@@ -1116,11 +1110,11 @@ mod tests {
 
         assert!(matches!(
             client.query(&alice),
-            Err(crate::InvalidInput::ForeignReference)
+            Err(crate::Error::TargetGone)
         ));
         assert!(matches!(
             client.channel(&channel),
-            Err(crate::InvalidInput::ForeignReference)
+            Err(crate::Error::TargetGone)
         ));
     }
 
@@ -1203,7 +1197,7 @@ mod tests {
 
         assert!(matches!(
             client.query(&alice),
-            Err(crate::InvalidInput::ForeignReference)
+            Err(crate::Error::ForeignReference(_))
         ));
     }
 

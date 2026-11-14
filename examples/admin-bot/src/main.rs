@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             {
                 let result = match client.query(*nick) {
                     Ok(user) => client.mode(&channel).op(&user).await.map(|_| ()),
-                    Err(error) => Err(error.into()),
+                    Err(error) => Err(error),
                 };
                 if let Err(refusal) = result {
                     reply(&client, &message, format!("cannot op {nick}: {refusal}")).await;
