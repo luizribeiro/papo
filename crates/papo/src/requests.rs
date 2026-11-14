@@ -573,27 +573,65 @@ mod tests {
     struct BoundedCase {
         request: Line,
         matcher: ResponseMatcher,
+        labelled: bool,
+        head: &'static [&'static str],
         row: &'static str,
         end: &'static str,
         bound: usize,
         build: fn(Response, &crate::Client) -> Result<(), Error>,
     }
 
-    fn bounded_reply(case: &BoundedCase, rows: usize) -> Response {
-        let now = Instant::now();
+    fn bounded_session(now: Instant, labelled: bool) -> Session {
         let mut session = Session::new(
             Config::default()
                 .nick("papo")
                 .rate_limit(papo_core::RateLimit::unlimited()),
         );
+        if labelled {
+            session.handle_connected(now);
+            for line in [
+                "CAP * LS :labeled-response",
+                "CAP * ACK :labeled-response",
+                ":ergo.test 001 papo :Welcome to the Ergo test network",
+                ":ergo.test 422 papo :MOTD File is missing",
+            ] {
+                session.handle_line(now, line.as_bytes());
+            }
+            while session.poll_transmit().is_some() {}
+            while session.poll_event().is_some() {}
+        }
+        session
+    }
+
+    fn bounded_reply(case: &BoundedCase, rows: usize) -> Response {
+        let now = Instant::now();
+        let mut session = bounded_session(now, case.labelled);
         session
             .request_with_matcher(now, case.request.clone(), case.matcher.clone())
             .unwrap();
-        for index in 0..rows {
-            let row = case.row.replace("{i}", &index.to_string());
-            session.handle_line(now, row.as_bytes());
+        let rows = (0..rows).map(|index| case.row.replace("{i}", &index.to_string()));
+        let mut lines: Vec<String> = case.head.iter().map(|line| (*line).to_owned()).collect();
+        lines.extend(rows);
+        lines.push(case.end.to_owned());
+        if case.labelled {
+            let sent = format!("{:?}", session.poll_transmit().unwrap());
+            let label = sent
+                .split("@label=")
+                .nth(1)
+                .unwrap()
+                .split(' ')
+                .next()
+                .unwrap();
+            lines = std::iter::once(format!(
+                "@label={label} :ergo.test BATCH +reply labeled-response"
+            ))
+            .chain(lines.into_iter().map(|line| format!("@batch=reply {line}")))
+            .chain([":ergo.test BATCH -reply".to_owned()])
+            .collect();
         }
-        session.handle_line(now, case.end.as_bytes());
+        for line in &lines {
+            session.handle_line(now, line.as_bytes());
+        }
         std::iter::from_fn(|| session.poll_event())
             .find_map(|event| match event {
                 Event::Response(response) => Some(response),
@@ -610,6 +648,8 @@ mod tests {
             BoundedCase {
                 request: Line::new("WHO").with_params(["#lobby"]),
                 matcher: ResponseMatcher::Who("#lobby".into()),
+                labelled: false,
+                head: &[],
                 row: ":ergo.test 352 papo #lobby ~guest guest-{i}.example ergo.test guest{i} H :0 Guest {i}",
                 end: ":ergo.test 315 papo #lobby :End of WHO list",
                 bound: 10_000,
@@ -620,6 +660,8 @@ mod tests {
             BoundedCase {
                 request: Line::new("WHO").with_params(["#lobby", WHOX_FIELDS]),
                 matcher: ResponseMatcher::Who("#lobby".into()),
+                labelled: false,
+                head: &[],
                 row: ":ergo.test 354 papo 152 #lobby ~guest guest-{i}.example guest{i} H 0 :Guest {i}",
                 end: ":ergo.test 315 papo #lobby :End of WHO list",
                 bound: 10_000,
@@ -630,6 +672,8 @@ mod tests {
             BoundedCase {
                 request: Line::new("LIST"),
                 matcher: ResponseMatcher::List,
+                labelled: false,
+                head: &[":ergo.test 321 papo Channel :Users Name"],
                 row: ":ergo.test 322 papo #channel-{i} 3 :[+nt] chat",
                 end: ":ergo.test 323 papo :End of /LIST",
                 bound: 10_000,
@@ -640,6 +684,8 @@ mod tests {
             BoundedCase {
                 request: Line::new("WHOIS").with_params(["alice"]),
                 matcher: ResponseMatcher::Whois("alice".into()),
+                labelled: false,
+                head: &[],
                 row: ":ergo.test 319 papo alice :#channel-{i}",
                 end: ":ergo.test 318 papo alice :End of /WHOIS list",
                 bound: 10_000,
@@ -650,6 +696,8 @@ mod tests {
             BoundedCase {
                 request: Line::new("WHO").with_params(["guest1", "%na"]),
                 matcher: ResponseMatcher::Who("guest1".into()),
+                labelled: false,
+                head: &[],
                 row: ":ergo.test 354 papo guest{i} 0",
                 end: ":ergo.test 315 papo guest1 :End of WHO list",
                 bound: 10_000,
@@ -660,10 +708,24 @@ mod tests {
             BoundedCase {
                 request: Line::new("MODE").with_params(["#papo", "b"]),
                 matcher: ResponseMatcher::__list_mode("#papo".into(), crate::ListMode::Ban),
+                labelled: false,
+                head: &[],
                 row: ":ergo.test 367 papo #papo *!*@host{i}.example oper 1761048000",
                 end: ":ergo.test 368 papo #papo :End of channel ban list",
                 bound: 1_000,
                 build: |response, _| list_mode(response, crate::Origin::NONE).map(drop),
+            },
+            BoundedCase {
+                request: Line::new("WHO").with_params(["#lobby"]),
+                matcher: ResponseMatcher::Who("#lobby".into()),
+                labelled: true,
+                head: &[],
+                row: ":ergo.test 352 papo #lobby ~guest guest-{i}.example ergo.test guest{i} H :0 Guest {i}",
+                end: ":ergo.test 315 papo #lobby :End of WHO list",
+                bound: 9_999,
+                build: |response, client| {
+                    who(response, &Isupport::default(), client, false).map(drop)
+                },
             },
         ];
 
