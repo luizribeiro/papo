@@ -1750,6 +1750,11 @@ impl ResponseBoundary {
             .is_some_and(|matcher| matcher.is_list_row(message))
     }
 
+    fn is_framing(&self, message: &LineRef<'_>) -> bool {
+        matches!(self.matcher(), Some(ResponseMatcher::List))
+            && message.command() == Command::Numeric(Numeric::RPL_LISTSTART)
+    }
+
     fn fence(&self, request_id: u64) -> Option<String> {
         let prefix = match self {
             Self::Matcher(ResponseMatcher::Mode(_)) => "papo-mode",

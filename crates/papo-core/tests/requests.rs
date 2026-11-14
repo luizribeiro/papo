@@ -844,6 +844,33 @@ fn unlabelled_who_at_papos_own_ten_thousand_row_bound_is_complete() {
 }
 
 #[test]
+fn unlabelled_list_of_papos_own_ten_thousand_entry_bound_ignores_the_start_header() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let id = session
+        .request_with_matcher(now, Line::new("LIST"), ResponseMatcher::List)
+        .unwrap();
+    session.handle_line(now, b":ergo.test 321 papo Channel :Users Name");
+    for index in 0..10_000 {
+        session.handle_line(
+            now,
+            format!(":ergo.test 322 papo #channel-{index} 3 :[+nt] chat").as_bytes(),
+        );
+    }
+    session.handle_line(now, b":ergo.test 323 papo :End of /LIST");
+
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .expect("the LIST request must finish");
+    assert_eq!(response.state_limit, None);
+    assert_eq!(response.lines.len(), 10_001);
+    assert!(response.lines[10_000].as_ref().command_is("323"));
+}
+
+#[test]
 fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(

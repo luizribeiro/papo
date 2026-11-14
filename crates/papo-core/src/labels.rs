@@ -11,6 +11,9 @@ impl UnlabelledRequest {
         complete: bool,
         max_list_entries: usize,
     ) -> bool {
+        if self.boundary.is_framing(message) {
+            return false;
+        }
         self.list_rows_full(message, max_list_entries)
             || self
                 .lines
