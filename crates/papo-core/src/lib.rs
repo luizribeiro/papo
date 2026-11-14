@@ -2377,6 +2377,16 @@ pub enum RequestError {
         /// Supplied key count.
         actual: usize,
     },
+    /// The send threads, reacts to or redacts a status-prefixed line, and reaches members the
+    /// line did not.
+    ///
+    /// Only the same status target, or one with a higher-ranked sign in the server's `PREFIX`,
+    /// may point at such a line.
+    #[non_exhaustive]
+    WiderThanReferenced {
+        /// The status sign the referenced line was sent to.
+        referenced: Prefix,
+    },
     /// A relayed nickname contains none of the server-advertised separator characters.
     #[cfg(feature = "unstable")]
     InvalidRelayNickname,
@@ -2459,6 +2469,11 @@ impl std::fmt::Display for RequestError {
             Self::TooManyMetadataSubscriptions { .. } => {
                 formatter.write_str("too many metadata subscriptions")
             }
+            Self::WiderThanReferenced { referenced } => write!(
+                formatter,
+                "the referenced message reached only {} members; this send reaches others",
+                referenced.symbol()
+            ),
             #[cfg(feature = "unstable")]
             Self::InvalidRelayNickname => {
                 formatter.write_str("relayed nickname does not contain an allowed separator")
@@ -2485,7 +2500,8 @@ impl std::error::Error for RequestError {
             | Self::EmailRequired
             | Self::CustomAccountNameUnsupported
             | Self::MetadataValueTooLong { .. }
-            | Self::TooManyMetadataSubscriptions { .. } => None,
+            | Self::TooManyMetadataSubscriptions { .. }
+            | Self::WiderThanReferenced { .. } => None,
             Self::InvalidMetadataKey { reason, .. } => Some(reason),
             #[cfg(feature = "unstable")]
             Self::InvalidRelayNickname => None,
@@ -7296,5 +7312,17 @@ mod tests {
             assert!(outbox.transmits.is_empty());
             assert!(outbox.immediate.is_empty());
         }
+    }
+
+    #[test]
+    fn a_wider_send_names_the_referenced_audience() {
+        let error = super::RequestError::WiderThanReferenced {
+            referenced: papo_proto::Prefix::__new('o', '@'),
+        };
+        assert_eq!(
+            error.to_string(),
+            "the referenced message reached only @ members; this send reaches others"
+        );
+        assert!(std::error::Error::source(&error).is_none());
     }
 }

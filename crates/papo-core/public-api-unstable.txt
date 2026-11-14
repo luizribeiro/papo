@@ -1212,6 +1212,8 @@ pub papo_core::RequestError::StateLimit(papo_core::StateLimit)
 pub papo_core::RequestError::TooManyMetadataSubscriptions::actual: usize
 pub papo_core::RequestError::TooManyMetadataSubscriptions::maximum: usize
 pub papo_core::RequestError::Unsupported(papo_core::Unsupported)
+#[non_exhaustive] pub papo_core::RequestError::WiderThanReferenced
+pub papo_core::RequestError::WiderThanReferenced::referenced: papo::isupport::Prefix
 impl core::clone::Clone for papo_core::RequestError
 pub fn papo_core::RequestError::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::RequestError
