@@ -500,6 +500,19 @@ impl Sent {
     }
 }
 
+/// Servers disagree on stacked signs: Ergo answers `+@#ops` with 401 and Solanum widens it to
+/// voiced members, so only one sign can name an audience reliably.
+fn refuse_stacked_status(state: &State, text: &str) -> Result<(), crate::InvalidIdentifier> {
+    let mut rest = text.chars();
+    rest.next();
+    match state.parse_target_inner(rest.as_str()) {
+        Ok((Some(_), _)) => Err(crate::InvalidIdentifier::InvalidPrefix(
+            rest.next().unwrap_or_default(),
+        )),
+        _ => Ok(()),
+    }
+}
+
 impl Client {
     async fn resolve_send(
         &self,
@@ -555,16 +568,21 @@ impl Client {
         }
         let result = match role {
             crate::target::Role::Send(_) => {
-                state.parse_target_inner(&text).and_then(|(_, target)| {
-                    if matches!(target, papo_core::Conversation::Channel(_)) || parts.user.is_some()
-                    {
-                        Ok(())
-                    } else {
-                        Err(crate::InvalidIdentifier::InvalidPrefix(
-                            text.chars().next().unwrap_or('\0'),
-                        ))
-                    }
-                })
+                state
+                    .parse_target_inner(&text)
+                    .and_then(|(status, target)| {
+                        if status.is_some() {
+                            refuse_stacked_status(&state, &text)
+                        } else if matches!(target, papo_core::Conversation::Channel(_))
+                            || parts.user.is_some()
+                        {
+                            Ok(())
+                        } else {
+                            Err(crate::InvalidIdentifier::InvalidPrefix(
+                                text.chars().next().unwrap_or('\0'),
+                            ))
+                        }
+                    })
             }
             crate::target::Role::Channel(_) => {
                 name_rules.channel(&text).check(state.isupport().inner())

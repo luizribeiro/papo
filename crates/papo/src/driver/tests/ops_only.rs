@@ -117,3 +117,37 @@ async fn ops_only_and_public_lines_file_under_the_plain_channel() {
     client_line(&mut ops.server, b"PRIVMSG #ops :posting to everyone\r\n").await;
     ops.finish().await;
 }
+
+fn refused_sign(result: Result<impl std::fmt::Debug, Error>) -> (&'static str, String, char) {
+    match result {
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument,
+            name,
+            reason: crate::InvalidIdentifier::InvalidPrefix(sign),
+        })) => (argument, name, sign),
+        other => panic!("expected a refused status sign, got {other:?}"),
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn stacked_status_signs_are_refused_before_the_wire() {
+    let mut ops = OpsChannel::joined().await;
+
+    for (target, second) in [("+@#ops", '@'), ("@+#ops", '+'), ("~&#ops", '&')] {
+        let sent = within(ops.client.privmsg(target, "who sees this?")).await;
+        assert_eq!(refused_sign(sent), ("target", target.to_owned(), second));
+        let notice = within(ops.client.notice(target, "who sees this?")).await;
+        assert_eq!(refused_sign(notice), ("target", target.to_owned(), second));
+        let typing = within(ops.client.typing(target, Typing::Active)).await;
+        assert_eq!(
+            refused_sign(typing),
+            ("typing: target", target.to_owned(), second)
+        );
+    }
+
+    within(ops.client.privmsg("@#ops", "operators only"))
+        .await
+        .unwrap();
+    client_line(&mut ops.server, b"PRIVMSG @#ops :operators only\r\n").await;
+    ops.finish().await;
+}

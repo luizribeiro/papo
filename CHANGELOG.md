@@ -43,6 +43,10 @@ a channel handle names the whole channel, never a line's ops-only audience.
 line and a `#ops` line have equal conversations whose channel sends to `#ops`. Answer an ops-only
 line through `reply`, `react`, `redact` or its `return_address()`, which keep `@#ops`.
 
+Sending to a target with stacked status prefixes such as `+@#ops` fails with
+`InvalidInput::InvalidName` before anything is written; Ergo refuses such a target and Solanum
+widens it. A single prefix such as `@#ops` is still sent as written.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
