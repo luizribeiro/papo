@@ -2252,7 +2252,7 @@ pub fn papo_core::Session::reauthenticate(&mut self, std::time::Instant)
 pub fn papo_core::Session::request(&mut self, std::time::Instant, papo::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::request_silent(&mut self, std::time::Instant, papo::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::request_with_matcher(&mut self, std::time::Instant, papo::Line, papo_core::ResponseMatcher) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::send(&mut self, std::time::Instant, papo::Line) -> core::result::Result<(), papo::BuildError>
+pub fn papo_core::Session::send(&mut self, std::time::Instant, papo::Line) -> core::result::Result<(), papo_core::RequestError>
 pub fn papo_core::Session::send_text(&mut self, std::time::Instant, papo_core::TextKind, &str, &str, &[(&str, &str)]) -> core::result::Result<core::option::Option<papo_core::RequestId>, papo_core::RequestError>
 pub fn papo_core::Session::server_rejoins_channels(&self) -> bool
 pub const fn papo_core::Session::state(&self) -> &papo_core::State

@@ -1125,7 +1125,7 @@ where
                             }
                             transmits.insert(token, PendingTransmit::Empty(result));
                         }
-                        Err(error) => { _ = result.send(Err(Error::build(error))); }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::SendPerson { proof, command, typing_target, result }) => {
@@ -1136,7 +1136,7 @@ where
                             );
                             transmits.insert(token, PendingTransmit::Empty(result));
                         }
-                        Err(error) => { _ = result.send(Err(Error::build(error))); }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::Request { message, matcher, guard, result }) => {
@@ -1311,9 +1311,11 @@ where
                         let line = Line::tagmsg(&target).with_tag("+typing", value);
                         let queued = match guard {
                             ChatGuard::Person(proof) => {
-                                papo_core::PersonCommand::__new(line).and_then(|command| {
-                                    session.send_person_tracked(current, proof, command)
-                                })
+                                papo_core::PersonCommand::__new(line)
+                                    .map_err(papo_core::RequestError::Build)
+                                    .and_then(|command| {
+                                        session.send_person_tracked(current, proof, command)
+                                    })
                             }
                             ChatGuard::Target(guard) => {
                                 session.send_target_guarded_tracked(current, line, guard)
@@ -1328,7 +1330,7 @@ where
                                 }
                                 transmits.insert(token, PendingTransmit::Empty(result));
                             }
-                            Err(error) => { _ = result.send(Err(Error::build(error))); }
+                            Err(error) => { _ = result.send(Err(Error::request(error))); }
                         }
                     } else {
                         _ = result.send(Ok(()));
@@ -1483,7 +1485,7 @@ fn request_quit(
         }
         Err(error) => {
             if let Some(result) = result {
-                _ = result.send(Err(Error::build(error)));
+                _ = result.send(Err(Error::request(error)));
             }
         }
     }

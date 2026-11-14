@@ -4259,8 +4259,9 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`BuildError`] if `message` cannot be represented as a valid IRC wire line.
-    pub fn send(&mut self, now: Instant, message: Line) -> Result<(), BuildError> {
+    /// Returns [`RequestError::Build`] if `message` cannot be represented as a valid IRC wire
+    /// line.
+    pub fn send(&mut self, now: Instant, message: Line) -> Result<(), RequestError> {
         self.send_tracked(now, message).map(drop)
     }
 
@@ -4270,7 +4271,7 @@ impl Session {
         &mut self,
         now: Instant,
         message: Line,
-    ) -> Result<TransmitToken, BuildError> {
+    ) -> Result<TransmitToken, RequestError> {
         self.send_guarded_tracked(now, message, None)
     }
 
@@ -4281,7 +4282,7 @@ impl Session {
         now: Instant,
         proof: Proven,
         command: PersonCommand,
-    ) -> Result<TransmitToken, BuildError> {
+    ) -> Result<TransmitToken, RequestError> {
         let target = proof.captured_nick().clone();
         self.send_target_guarded_tracked(
             now,
@@ -4297,7 +4298,7 @@ impl Session {
         now: Instant,
         message: Line,
         recipient: Option<RecipientGuard>,
-    ) -> Result<TransmitToken, BuildError> {
+    ) -> Result<TransmitToken, RequestError> {
         self.send_target_guarded_tracked(now, message, recipient.map(TargetGuard::Recipient))
     }
 
@@ -4308,7 +4309,7 @@ impl Session {
         now: Instant,
         message: Line,
         guard: Option<TargetGuard>,
-    ) -> Result<TransmitToken, BuildError> {
+    ) -> Result<TransmitToken, RequestError> {
         self.rate_limit.advance(now);
         let line = message.encode()?;
         drop(message);

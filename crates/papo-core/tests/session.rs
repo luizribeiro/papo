@@ -129,7 +129,7 @@ fn rejects_an_invalid_message_before_queueing_a_valid_one() {
     let mut session = Session::new(Config::default());
     assert_eq!(
         session.send(now, Line::new("").with_params(["tester"])),
-        Err(BuildError::InvalidCommand)
+        Err(RequestError::Build(BuildError::InvalidCommand))
     );
     assert_eq!(session.send(now, Line::join("#papo")), Ok(()));
     assert_eq!(
