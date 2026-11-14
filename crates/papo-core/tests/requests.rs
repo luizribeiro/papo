@@ -795,6 +795,54 @@ fn unlabelled_list_overflow_finishes_with_the_literal_entry_limit() {
     assert_eq!(response.lines.len(), 10_000);
 }
 
+fn unlabelled_who_response(rows: usize) -> papo_core::Response {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["#lobby"]),
+            ResponseMatcher::Who("#lobby".into()),
+        )
+        .unwrap();
+    for index in 0..rows {
+        session.handle_line(
+            now,
+            format!(
+                ":ergo.test 352 papo #lobby ~guest guest-{index}.example ergo.test guest{index} H :0 Guest {index}"
+            )
+            .as_bytes(),
+        );
+    }
+    session.handle_line(now, b":ergo.test 315 papo #lobby :End of WHO list");
+    std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .expect("the WHO request must finish")
+}
+
+#[test]
+fn unlabelled_who_over_papos_own_ten_thousand_row_bound_reports_the_limit() {
+    let response = unlabelled_who_response(10_001);
+
+    assert_eq!(
+        response.state_limit,
+        Some(papo_core::StateLimit::ListEntries)
+    );
+    assert_eq!(response.lines.len(), 10_000);
+}
+
+#[test]
+fn unlabelled_who_at_papos_own_ten_thousand_row_bound_is_complete() {
+    let response = unlabelled_who_response(10_000);
+
+    assert_eq!(response.state_limit, None);
+    assert_eq!(response.lines.len(), 10_001);
+    assert!(response.lines[10_000].as_ref().command_is("315"));
+}
+
 #[test]
 fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));

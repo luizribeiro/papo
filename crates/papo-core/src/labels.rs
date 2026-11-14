@@ -4,6 +4,18 @@ use crate::{
     parse_whois_channels, sent_info,
 };
 
+impl UnlabelledRequest {
+    fn list_rows_full(&self, message: &LineRef<'_>, maximum: usize) -> bool {
+        self.boundary.is_list_row(message)
+            && self
+                .lines
+                .iter()
+                .filter(|line| self.boundary.is_list_row(&line.as_ref()))
+                .count()
+                >= maximum
+    }
+}
+
 impl Session {
     pub(super) fn resolve_message(&mut self, message: &LineRef<'_>) -> Option<bool> {
         let label = message
@@ -204,19 +216,18 @@ impl Session {
             return false;
         };
         let list_limit_reached = self.unlabelled_requests.get(index).is_some_and(|request| {
-            request.boundary.is_list_row(message)
-                && request
-                    .lines
-                    .iter()
-                    .filter(|line| request.boundary.is_list_row(&line.as_ref()))
-                    .count()
-                    >= self.config.max_list_entries_per_mode
+            request.list_rows_full(message, self.config.max_list_entries_per_mode)
         });
         let request = self.unlabelled_requests.get_mut(index).unwrap();
         if join_started {
             request.started = Some(now);
         }
-        if list_limit_reached || request.lines.push_reject(message.to_owned()).is_err() {
+        if list_limit_reached
+            || request
+                .lines
+                .push_reject_unless_last(message.to_owned(), complete)
+                .is_err()
+        {
             let mut request = self.unlabelled_requests.remove(index).unwrap();
             self.requests.retain(|_, pending| pending.id != request.id);
             if let Some(ResponseMatcher::ListMode { channel, mode }) = request.boundary.matcher() {

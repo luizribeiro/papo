@@ -25,6 +25,14 @@ impl<T> BoundedCollection<T> {
         Ok(())
     }
 
+    pub(crate) fn push_reject_unless_last(&mut self, value: T, last: bool) -> Result<(), T> {
+        if !last {
+            return self.push_reject(value);
+        }
+        self.entries.push(value);
+        Ok(())
+    }
+
     pub(crate) fn push_evict_oldest(&mut self, value: T) -> Option<T> {
         self.entries.push(value);
         (self.entries.len() > self.limit).then(|| {
