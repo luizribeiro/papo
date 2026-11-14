@@ -168,6 +168,33 @@ fn starts_a_server_only_for_invocations_that_run_live_tests() {
             "builder::tests::fills_every_session_configuration_field --exact",
             false,
         ),
+        (
+            "papo-deadbeef",
+            "--exact transport::live_helpers::connect --nocapture",
+            false,
+        ),
+        (
+            "papo-deadbeef",
+            "--exact builder::tests::a transport::live::plaintext_cap_exchange",
+            true,
+        ),
+        (
+            "papo-deadbeef",
+            "--exact builder::tests::a --skip transport::live::plaintext_cap_exchange",
+            false,
+        ),
+        (
+            "papo-deadbeef",
+            "--exact --format terse --test-threads 1 --color always --logfile out --shuffle-seed 7 -Z unstable-options",
+            true,
+        ),
+        ("papo-deadbeef", "--exact", true),
+        ("papo-deadbeef", "--exact builder::tests::a --format", false),
+        (
+            "papo-deadbeef",
+            "--list transport::live::plaintext_cap_exchange",
+            false,
+        ),
         ("papo-deadbeef", "plaintext_cap_exchange", true),
         ("papo-deadbeef", "builder::tests", true),
         ("live_client-deadbeef", "", true),
@@ -178,6 +205,11 @@ fn starts_a_server_only_for_invocations_that_run_live_tests() {
         ),
         ("live_client-deadbeef", "--list --format terse", false),
         ("parser_tests-deadbeef", "", false),
+        (
+            "parser_tests-deadbeef",
+            "--exact transport::live::plaintext_cap_exchange",
+            false,
+        ),
     ] {
         let directory = directory();
         let started = directory.join("started");
