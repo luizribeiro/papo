@@ -350,7 +350,6 @@ fn historical_tagmsg(
             .ok()?;
     let conversation = crate::Conversation::from_core_with_state(
         conversation,
-        status,
         client.origin(),
         &client.state,
         &state,
@@ -448,7 +447,7 @@ fn reaction(
         papo_core::Conversation::Channel(channel) => Some(state.core.__channel_guard(channel)),
         _ => None,
     });
-    let conversation = crate::Conversation::from_core(conversation, status, origin, None, guard);
+    let conversation = crate::Conversation::from_core(conversation, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
         authorship,
@@ -516,7 +515,7 @@ fn redaction(
         papo_core::Conversation::Channel(channel) => Some(state.core.__channel_guard(channel)),
         _ => None,
     });
-    let conversation = crate::Conversation::from_core(conversation, status, origin, None, guard);
+    let conversation = crate::Conversation::from_core(conversation, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
         authorship,
@@ -1302,7 +1301,6 @@ impl Client {
             let state = self.state();
             crate::Conversation::from_core_with_state(
                 conversation,
-                None,
                 self.origin(),
                 &self.state,
                 &state,
@@ -1363,7 +1361,6 @@ impl Client {
                         .map(|(conversation, latest_server_time)| RecentConversation {
                             conversation: crate::Conversation::from_core(
                                 conversation,
-                                None,
                                 client.origin(),
                                 Some(&client.state),
                                 None,
@@ -1903,7 +1900,6 @@ mod tests {
             .map(|item| {
                 let conversation = crate::Conversation::from_core(
                     conversation.clone(),
-                    None,
                     crate::Origin::NONE,
                     None,
                     None,

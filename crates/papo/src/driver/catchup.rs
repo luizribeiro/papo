@@ -109,7 +109,6 @@ pub(super) fn advance_catchup(
         let state = client.state();
         crate::Conversation::from_core_with_state(
             core_conversation,
-            None,
             client.origin(),
             &client.state,
             &state,

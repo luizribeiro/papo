@@ -715,13 +715,8 @@ pub(crate) fn incoming_from_core(
         attach_message_handles(&mut event, Some(reply_token), handle_state, false);
         return event;
     };
-    let conversation = Conversation::from_core(
-        conversation,
-        status,
-        origin,
-        handle_state,
-        channel_guard.clone(),
-    );
+    let conversation =
+        Conversation::from_core(conversation, origin, handle_state, channel_guard.clone());
     let mut event = message_event_from_line(
         raw,
         batch_type.as_deref(),
@@ -801,8 +796,7 @@ impl Message {
         else {
             return Err(raw);
         };
-        let conversation =
-            Conversation::from_core(conversation, status, crate::Origin::NONE, None, None);
+        let conversation = Conversation::from_core(conversation, crate::Origin::NONE, None, None);
         Self::new_with_context(
             raw,
             None,
@@ -1242,13 +1236,8 @@ pub(crate) fn historical_message_event(
     ) else {
         return unparsed_from_line(raw, received_at);
     };
-    let conversation = Conversation::from_core_with_state(
-        conversation,
-        status,
-        client.origin(),
-        &client.state,
-        &snapshot,
-    );
+    let conversation =
+        Conversation::from_core_with_state(conversation, client.origin(), &client.state, &snapshot);
     let conversation = historical_conversation(
         &raw.as_ref(),
         authorship,
@@ -2975,12 +2964,8 @@ mod tests {
         )
     }
 
-    fn map_conversation(
-        value: papo_core::Conversation,
-        status: Option<crate::Prefix>,
-        origin: crate::Origin,
-    ) -> Conversation {
-        Conversation::from_core(value, status, origin, None, None)
+    fn map_conversation(value: papo_core::Conversation, origin: crate::Origin) -> Conversation {
+        Conversation::from_core(value, origin, None, None)
     }
 
     fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
@@ -3249,7 +3234,7 @@ mod tests {
                 None,
                 papo_core::Conversation::Private(isupport.casemapping().nick(nick)),
             ));
-        let conversation = map_conversation(conversation, status, crate::Origin::NONE);
+        let conversation = map_conversation(conversation, crate::Origin::NONE);
         message_event_from_line(
             message,
             None,
@@ -3628,7 +3613,6 @@ mod tests {
                 Line::privmsg("#papo", "hello").with_source("emily!~e@localhost"),
                 map_conversation(
                     papo_core::Conversation::Channel(origin.__channel(mapping, "#papo")),
-                    None,
                     origin,
                 ),
             ),
@@ -3904,7 +3888,7 @@ mod tests {
             isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
             let (status, conversation) =
                 papo_core::classify_conversation(&line.as_ref(), "papo", &isupport).unwrap();
-            let conversation = map_conversation(conversation, status, crate::Origin::NONE);
+            let conversation = map_conversation(conversation, crate::Origin::NONE);
             message_event_from_line(
                 line,
                 None,
@@ -3969,7 +3953,7 @@ mod tests {
                 .to_owned();
         let (status, conversation) =
             papo_core::classify_conversation(&notice.as_ref(), "papo", &isupport).unwrap();
-        let conversation = map_conversation(conversation, status, crate::Origin::NONE);
+        let conversation = map_conversation(conversation, crate::Origin::NONE);
         assert!(
             super::Notice::from_line(
                 notice,
@@ -5090,7 +5074,6 @@ mod tests {
                 if matches!(mapped.actor, Source::User(ref user) if user.nick() == "alice")
                     && mapped.conversation == map_conversation(
                         redacted.conversation.clone(),
-                        redacted.status,
                         crate::Origin::NONE,
                     )
                     && mapped.status == redacted.status
@@ -6339,7 +6322,6 @@ mod tests {
             Event::ReadMarkerChanged(mapped)
                 if mapped.conversation == map_conversation(
                     marker.conversation.clone(),
-                    None,
                     crate::Origin::NONE,
                 )
                     && mapped.read_until == marker.read_until

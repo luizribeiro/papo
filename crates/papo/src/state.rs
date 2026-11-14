@@ -693,7 +693,6 @@ impl State {
         };
         Some(crate::Conversation::from_core(
             conversation,
-            None,
             origin,
             None,
             guard,

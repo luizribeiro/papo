@@ -1274,7 +1274,6 @@ impl Client {
         };
         let conversation = crate::Conversation::from_core(
             core_conversation,
-            status,
             self.origin,
             Some(&self.state),
             channel_guard,

@@ -81,7 +81,6 @@ impl Typer {
         };
         let conversation = Conversation::from_core(
             conversation.clone(),
-            core.status(),
             state.nick().origin(),
             None,
             channel
@@ -122,7 +121,6 @@ impl TypingTable {
                 (
                     Conversation::from_core(
                         conversation.clone(),
-                        typer.status(),
                         state.nick().origin(),
                         None,
                         guard,

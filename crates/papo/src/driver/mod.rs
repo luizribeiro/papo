@@ -1654,7 +1654,6 @@ where
                     let state = client.state();
                     crate::Conversation::from_core_with_state(
                         conversation,
-                        None,
                         client.origin(),
                         &client.state,
                         &state,

@@ -20,7 +20,7 @@ impl NameRules<'_> {
         self.state
             .conversation_inner(text)
             .map(|conversation| {
-                Conversation::from_core(conversation, None, self.state.nick().origin(), None, None)
+                Conversation::from_core(conversation, self.state.nick().origin(), None, None)
             })
             .map_err(|reason| InvalidInput::invalid_name(text, reason))
     }
@@ -46,13 +46,7 @@ impl NameRules<'_> {
             .map(|(status, conversation)| {
                 (
                     status,
-                    Conversation::from_core(
-                        conversation,
-                        status,
-                        self.state.nick().origin(),
-                        None,
-                        None,
-                    ),
+                    Conversation::from_core(conversation, self.state.nick().origin(), None, None),
                 )
             })
             .map_err(|reason| InvalidInput::invalid_name(target, reason))

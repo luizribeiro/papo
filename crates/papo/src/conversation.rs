@@ -29,7 +29,6 @@ pub enum Conversation {
 impl Conversation {
     pub(crate) fn from_core_with_state(
         value: papo_core::Conversation,
-        status: Option<crate::Prefix>,
         origin: crate::Origin,
         state: &std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>,
         snapshot: &crate::State,
@@ -40,12 +39,11 @@ impl Conversation {
             }
             _ => None,
         };
-        Self::from_core(value, status, origin, Some(state), guard)
+        Self::from_core(value, origin, Some(state), guard)
     }
 
     pub(crate) fn from_core(
         value: papo_core::Conversation,
-        status: Option<crate::Prefix>,
         origin: crate::Origin,
         state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
         guard: Option<papo_core::ChannelGuard>,
@@ -54,7 +52,7 @@ impl Conversation {
             papo_core::Conversation::Channel(channel) => {
                 Self::Channel(crate::ChannelHandle::from_parts(
                     origin.__channel(channel.casemapping(), channel.into_string()),
-                    status,
+                    None,
                     guard,
                     state,
                 ))
