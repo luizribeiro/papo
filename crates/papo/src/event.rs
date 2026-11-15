@@ -6129,6 +6129,88 @@ mod tests {
     mod unstable {
         use super::*;
 
+        // Exhaustive on purpose, and compiled with the unstable variants: a new Event variant
+        // fails to build here until it is classified. A line that can carry a status sign must
+        // also join `line_types!`, which the agreement test below checks on real lines.
+        const fn carries_a_line(event: &Event) -> bool {
+            match event {
+                Event::Message(_)
+                | Event::Notice(_)
+                | Event::Incomplete(_)
+                | Event::ServerNotice(_)
+                | Event::Restricted(_)
+                | Event::CtcpQuery(_)
+                | Event::CtcpReply(_)
+                | Event::Other(_)
+                | Event::TagMsg(_)
+                | Event::Reacted(_)
+                | Event::TypingChanged(_)
+                | Event::Redacted(_) => true,
+                Event::Connecting(_)
+                | Event::Connected(_)
+                | Event::Lagged(_)
+                | Event::Motd(_)
+                | Event::BroadcastCtcp(_)
+                | Event::BroadcastTagMsg(_)
+                | Event::StandardReply(_)
+                | Event::AccountCreation(_)
+                | Event::PersistenceChanged(_)
+                | Event::BouncerNetworkChanged(_)
+                | Event::MetadataChanged(_)
+                | Event::History(_)
+                | Event::ReadMarkerChanged(_)
+                | Event::Warning(_)
+                | Event::CapsChanged(_)
+                | Event::FeaturesChanged(_)
+                | Event::CasemappingChanged(_)
+                | Event::AutoJoinFailed(_)
+                | Event::Joined(_)
+                | Event::ChannelSynced(_)
+                | Event::MembersRefreshed(_)
+                | Event::Parted(_)
+                | Event::Kicked(_)
+                | Event::Invited(_)
+                | Event::Quit(_)
+                | Event::NickChanged(_)
+                | Event::ChannelRenamed(_)
+                | Event::AccountChanged(_)
+                | Event::AwayChanged(_)
+                | Event::HostChanged(_)
+                | Event::RealnameChanged(_)
+                | Event::ModeChanged(_)
+                | Event::TopicChanged(_)
+                | Event::MonitorOnline(_)
+                | Event::MonitorOffline(_)
+                | Event::Disconnected(_) => false,
+            }
+        }
+
+        #[test]
+        fn every_line_variant_is_separated_by_status() {
+            let now = Instant::now();
+            for line in [
+                ":alice!~alice@cloak.example PRIVMSG #review :release approved",
+                ":alice!~alice@cloak.example NOTICE #review :maintenance begins soon",
+                ":irc.sol.test NOTICE #review :KNOCK: #review (bob[~bob@127.0.0.1] has asked for an invite)",
+                ":alice!~alice@cloak.example PRIVMSG #review :\x01VERSION\x01",
+                ":alice!~alice@cloak.example NOTICE #review :\x01VERSION Ergo-2.15.0\x01",
+                "@+example/status=ready :alice!~alice@cloak.example TAGMSG #review",
+                "@+draft/react=👍;+draft/reply=RfcBTzyxY120001 :alice!~alice@cloak.example TAGMSG #review",
+                ":alice!~alice@cloak.example REDACT #review RfcBTzyxY120001 :off-topic",
+                ":ergo.test 999 papo :an unknown numeric",
+                ":alice!~alice@cloak.example JOIN #review",
+                ":oper!staff@staff.example PRIVMSG $*.example.org :\x01VERSION\x01",
+                ":alice!~alice@cloak.example NICK alicia",
+            ] {
+                let event = mapped_live_event(line, now);
+                assert_eq!(
+                    event.line_view().is_some(),
+                    carries_a_line(&event),
+                    "{line} -> {event:?}"
+                );
+            }
+        }
+
         #[test]
         fn maps_request_untracked() {
             let now = Instant::now();
