@@ -118,3 +118,38 @@ fn presence_changes_record_the_subject_at_arrival() {
         assert_identity_at_arrival(&case);
     }
 }
+
+#[test]
+fn joins_and_renames_record_the_subject_at_arrival() {
+    for case in [
+        Case {
+            name: "JOIN",
+            line: ":carol!~carol@cloak.example JOIN #review",
+            subject: "carol",
+            token: |event| match event {
+                Event::Joined { nick, token, .. } if nick == "carol" => Some(*token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "extended-join",
+            line: ":carol!~carol@cloak.example JOIN #review carol :Carol Danvers",
+            subject: "carol",
+            token: |event| match event {
+                Event::Joined { nick, token, .. } if nick == "carol" => Some(*token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "NICK",
+            line: ":alice!~alice@cloak.example NICK alicia",
+            subject: "alicia",
+            token: |event| match event {
+                Event::NickChanged { token, .. } => Some(*token),
+                _ => None,
+            },
+        },
+    ] {
+        assert_identity_at_arrival(&case);
+    }
+}

@@ -2851,6 +2851,8 @@ pub enum Event {
         channel: ChannelName,
         /// The joining user's nickname.
         nick: Nick,
+        /// Identity of the joining user once the join was applied.
+        token: ReplyToken,
         /// Whether the joining user is this session's user.
         authorship: Authorship,
         /// The netjoin batch that carried this join, when applicable.
@@ -2959,6 +2961,8 @@ pub enum Event {
         old: Nick,
         /// The new nickname.
         new: Nick,
+        /// Identity of the renamed user when the line arrived.
+        token: ReplyToken,
         /// Shared channels where papo knows the user is a member.
         channels: Vec<ChannelName>,
         /// Whether the renamed user is this session's user.
@@ -3102,7 +3106,7 @@ hidden_event_constructors! {
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
     __channel_recreated(channel: ChannelName, previous_created_at: papo_proto::ServerTime, created_at: papo_proto::ServerTime) => ChannelRecreated;
-    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
+    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
@@ -3111,7 +3115,7 @@ hidden_event_constructors! {
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Authorship) => Parted;
     __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
-    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
+    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Authorship) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Authorship) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Authorship) => HostChanged;

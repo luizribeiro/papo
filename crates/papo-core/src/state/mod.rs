@@ -1201,6 +1201,7 @@ impl State {
                     self.remove_metadata(nick);
                 }
             }
+            let token = self.__reply_token_for(nick);
             self.rename_user(nick, new_nick);
             if own_rename {
                 self.nick = mapping.nick(new_nick);
@@ -1210,6 +1211,7 @@ impl State {
                 actor: message.raw_source().unwrap_or(nick).to_owned(),
                 old: mapping.nick(nick),
                 new: mapping.nick(new_nick),
+                token,
                 channels,
                 authorship,
             });

@@ -84,6 +84,7 @@ impl State {
         } else {
             crate::LineEnvelope::from_line(message)
         };
+        let joined = outbox.events.len();
         outbox.event(Event::Joined {
             envelope,
             actor: message
@@ -93,6 +94,7 @@ impl State {
             realname: join.realname.map(str::to_owned),
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
+            token: self.__reply_token_for(nick),
             authorship: self.nick_authorship(nick),
             netjoin: None,
         });
@@ -122,6 +124,9 @@ impl State {
             });
         }
         self.add_member(join.channel, nick, username, host, &[], outbox);
+        if let Some(Event::Joined { token, .. }) = outbox.events.get_mut(joined) {
+            *token = self.__reply_token_for(nick);
+        }
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
             && join.realname.is_some()
         {

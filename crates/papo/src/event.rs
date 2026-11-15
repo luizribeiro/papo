@@ -4749,6 +4749,7 @@ mod tests {
                 None,
                 Casemapping::Ascii.channel("#Papo[dev]"),
                 Casemapping::Ascii.nick("Alice[bot]"),
+                papo_core::ReplyToken::__unknown(crate::Origin::NONE),
                 papo_core::Authorship::Other,
                 None,
             ),
@@ -5594,6 +5595,7 @@ mod tests {
             Some("Alice Liddell".to_owned()),
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
+            papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             papo_core::Authorship::Other,
             None,
         ));
@@ -5819,6 +5821,7 @@ mod tests {
             "emily!~emily@cloak.example".into(),
             Casemapping::default().nick("emily"),
             Casemapping::default().nick("em"),
+            papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             vec![Casemapping::default().channel("#papo")],
             papo_core::Authorship::Other,
         )) else {
