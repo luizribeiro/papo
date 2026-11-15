@@ -7,7 +7,7 @@ use crate::Peer;
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 pub(super) fn confirmed_line(
-    sent: &papo::Sent,
+    sent: &papo::SendOutcome,
 ) -> (&papo::MessageId, &str, Option<papo::ServerTime>) {
     let papo::SentOutcome::Confirmed {
         lines, server_time, ..

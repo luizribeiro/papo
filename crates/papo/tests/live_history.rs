@@ -245,7 +245,7 @@ async fn cursor_pages_every_message_once() {
     .await;
 }
 
-fn confirmed_line(sent: &papo::Sent) -> (&papo::MessageId, &str, Option<papo::ServerTime>) {
+fn confirmed_line(sent: &papo::SendOutcome) -> (&papo::MessageId, &str, Option<papo::ServerTime>) {
     let papo::SentOutcome::Confirmed {
         lines, server_time, ..
     } = sent.outcome()

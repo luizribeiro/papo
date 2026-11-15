@@ -47,7 +47,7 @@ use tokio::{
 use crate::{
     Error, Event, InvalidInput, Reconnect,
     address::ServerAddress,
-    client::{Client, Sent},
+    client::{Client, SendOutcome},
     event_impl as event,
     rt::{BoxFuture, Io},
     state::State,
@@ -199,7 +199,7 @@ pub(crate) enum Command {
         fallbacks: Vec<crate::Fallback>,
         action: bool,
         guard: ChatGuard,
-        result: oneshot::Sender<Result<Sent, Error>>,
+        result: oneshot::Sender<Result<SendOutcome, Error>>,
     },
     Typing {
         target: String,
@@ -239,7 +239,7 @@ enum PendingRequest {
         remaining: usize,
         texts: Vec<String>,
         confirmations: Vec<papo_core::SentInfo>,
-        result: oneshot::Sender<Result<Sent, Error>>,
+        result: oneshot::Sender<Result<SendOutcome, Error>>,
     },
 }
 
@@ -291,7 +291,7 @@ impl PendingRequest {
                     });
                 }
                 remember_resolved_sent(resolved_sent, &confirmations);
-                _ = result.send(Ok(Sent::from_confirmations(
+                _ = result.send(Ok(SendOutcome::from_confirmations(
                     &confirmations,
                     texts,
                     conversation,
@@ -320,7 +320,7 @@ enum PendingTransmit {
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
-        result: oneshot::Sender<Result<Sent, Error>>,
+        result: oneshot::Sender<Result<SendOutcome, Error>>,
     },
 }
 
@@ -335,7 +335,7 @@ impl PendingTransmit {
                 fallbacks,
                 result,
             } => {
-                _ = result.send(Ok(Sent::unconfirmed(
+                _ = result.send(Ok(SendOutcome::unconfirmed(
                     conversation,
                     status,
                     receipt,

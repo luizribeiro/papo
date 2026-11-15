@@ -10,7 +10,7 @@ use papo::Reconnect;
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
-type ReplyTask = tokio::task::JoinHandle<Result<papo::Sent, papo::Error>>;
+type ReplyTask = tokio::task::JoinHandle<Result<papo::SendOutcome, papo::Error>>;
 
 fn start_concurrent_replies(
     client: &papo::Client,

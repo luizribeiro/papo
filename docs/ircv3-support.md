@@ -32,7 +32,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | [Pre-away](https://ircv3.net/specs/extensions/pre-away) | `draft/pre-away` | Yes | [`Builder::away_on_connect`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.away_on_connect) | [Yes](conformance-matrix.md) |
 | [Changing hosts](https://ircv3.net/specs/extensions/chghost) | `chghost` | Yes | [`Event::HostChanged`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.HostChanged) | [Yes](conformance-matrix.md) |
 | [Set name](https://ircv3.net/specs/extensions/setname) | `setname` | Yes | [`Client::set_realname`](https://docs.rs/papo/latest/papo/struct.Client.html#method.set_realname) | [Yes](conformance-matrix.md) |
-| [Echo message](https://ircv3.net/specs/extensions/echo-message) | `echo-message` | Yes | [`Sent`](https://docs.rs/papo/latest/papo/struct.Sent.html) | [Yes](conformance-matrix.md) |
+| [Echo message](https://ircv3.net/specs/extensions/echo-message) | `echo-message` | Yes | [`SendOutcome`](https://docs.rs/papo/latest/papo/struct.SendOutcome.html) | [Yes](conformance-matrix.md) |
 | [Invite notify](https://ircv3.net/specs/extensions/invite-notify) | `invite-notify` | Yes | [`Event::Invited`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.Invited) | [Yes](conformance-matrix.md) |
 | [Labeled response](https://ircv3.net/specs/extensions/labeled-response) | `labeled-response` | Yes | [`RequestFuture`](https://docs.rs/papo/latest/papo/struct.RequestFuture.html) | [Yes](conformance-matrix.md) |
 | [Multi-prefix](https://ircv3.net/specs/extensions/multi-prefix) | `multi-prefix` | Yes | [`Member::prefixes`](https://docs.rs/papo/latest/papo/struct.Member.html#method.prefixes) | [Yes](conformance-matrix.md) |

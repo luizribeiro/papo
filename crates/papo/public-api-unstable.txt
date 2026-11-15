@@ -3477,8 +3477,8 @@ pub fn papo::SendMessage::tag(self, impl core::convert::Into<alloc::string::Stri
 impl core::fmt::Debug for papo::SendMessage
 pub fn papo::SendMessage::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::SendMessage
-pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::Sent>
-pub type papo::SendMessage::Output = core::result::Result<papo::Sent, papo::Error>
+pub type papo::SendMessage::IntoFuture = papo::RequestFuture<papo::SendOutcome>
+pub type papo::SendMessage::Output = core::result::Result<papo::SendOutcome, papo::Error>
 pub fn papo::SendMessage::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::SendMessage
 impl core::marker::Send for papo::SendMessage
@@ -3487,29 +3487,29 @@ impl core::marker::Unpin for papo::SendMessage
 impl core::marker::UnsafeUnpin for papo::SendMessage
 impl core::panic::unwind_safe::RefUnwindSafe for papo::SendMessage
 impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
-#[non_exhaustive] pub struct papo::Sent
-pub papo::Sent::conversation: papo::Conversation
-pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
-pub papo::Sent::status: core::option::Option<papo::Prefix>
-impl papo::Sent
-pub fn papo::Sent::origin(&self) -> papo::Origin
-pub const fn papo::Sent::outcome(&self) -> &papo::SentOutcome
-pub fn papo::Sent::return_address(&self) -> papo::MessageRef
-impl core::clone::Clone for papo::Sent
-pub fn papo::Sent::clone(&self) -> Self
-impl core::cmp::Eq for papo::Sent
-impl core::cmp::PartialEq for papo::Sent
-pub fn papo::Sent::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Sent
-pub fn papo::Sent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Sent
-impl core::marker::Freeze for papo::Sent
-impl core::marker::Send for papo::Sent
-impl core::marker::Sync for papo::Sent
-impl core::marker::Unpin for papo::Sent
-impl core::marker::UnsafeUnpin for papo::Sent
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Sent
-impl core::panic::unwind_safe::UnwindSafe for papo::Sent
+#[non_exhaustive] pub struct papo::SendOutcome
+pub papo::SendOutcome::conversation: papo::Conversation
+pub papo::SendOutcome::fallbacks: alloc::vec::Vec<papo::Fallback>
+pub papo::SendOutcome::status: core::option::Option<papo::Prefix>
+impl papo::SendOutcome
+pub fn papo::SendOutcome::origin(&self) -> papo::Origin
+pub const fn papo::SendOutcome::outcome(&self) -> &papo::SentOutcome
+pub fn papo::SendOutcome::return_address(&self) -> papo::MessageRef
+impl core::clone::Clone for papo::SendOutcome
+pub fn papo::SendOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::SendOutcome
+impl core::cmp::PartialEq for papo::SendOutcome
+pub fn papo::SendOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::SendOutcome
+pub fn papo::SendOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::SendOutcome
+impl core::marker::Freeze for papo::SendOutcome
+impl core::marker::Send for papo::SendOutcome
+impl core::marker::Sync for papo::SendOutcome
+impl core::marker::Unpin for papo::SendOutcome
+impl core::marker::UnsafeUnpin for papo::SendOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::SendOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::SendOutcome
 pub struct papo::ServerError
 impl papo::ServerError
 pub const fn papo::ServerError::code(&self) -> &papo::ReplyCode

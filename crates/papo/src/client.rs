@@ -54,7 +54,7 @@ pub struct Client {
 /// correlated server copy is consumed and is not also emitted as a [`crate::Message`] event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Sent {
+pub struct SendOutcome {
     /// IRC conversation to which the message was sent.
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
@@ -406,8 +406,8 @@ impl SendMessage {
 }
 
 impl IntoFuture for SendMessage {
-    type Output = Result<Sent, Error>;
-    type IntoFuture = crate::RequestFuture<Sent>;
+    type Output = Result<SendOutcome, Error>;
+    type IntoFuture = crate::RequestFuture<SendOutcome>;
 
     fn into_future(self) -> Self::IntoFuture {
         crate::RequestFuture::new(async move {
@@ -478,7 +478,7 @@ impl IntoFuture for SendMessage {
     }
 }
 
-impl Sent {
+impl SendOutcome {
     /// Returns whether and how the server confirmed the sent message.
     #[must_use]
     pub const fn outcome(&self) -> &SentOutcome {
@@ -989,7 +989,7 @@ impl Client {
     ///
     /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
     /// which is not also emitted as an event. Applications that log every message must log their
-    /// own sends from the returned [`Sent`]. Without both capabilities, it resolves after the last
+    /// own sends from the returned [`SendOutcome`]. Without both capabilities, it resolves after the last
     /// line is written and has no server-assigned metadata.
     ///
     /// A conversation is deliberately not a send target because it does not retain a received
@@ -1083,7 +1083,7 @@ impl Client {
 
     /// Sends a private message threaded as a reply to `message` when supported.
     ///
-    /// Passing the received line or [`Sent`] preserves its return address. See
+    /// Passing the received line or [`SendOutcome`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
     /// A notice is not a reply input:
     ///
@@ -1127,7 +1127,7 @@ impl Client {
     /// exactly, without case folding or Unicode normalization.
     /// The result carries the server's msgid and time for the reaction when `echo-message` and
     /// `labeled-response` let it confirm one; see [`ReactOutcome`].
-    /// Passing the received line or [`Sent`] preserves its return address; see
+    /// Passing the received line or [`SendOutcome`] preserves its return address; see
     /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
     /// # Errors
@@ -1153,7 +1153,7 @@ impl Client {
     ///
     /// `emoji` must exactly match the added reaction; papo performs no Unicode normalization.
     /// The result is confirmed the same way as [`Client::react`].
-    /// Passing the received line or [`Sent`] preserves its return address; see
+    /// Passing the received line or [`SendOutcome`] preserves its return address; see
     /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
     /// # Errors
@@ -1277,7 +1277,7 @@ impl Client {
 
     /// Redacts a message from a conversation's history.
     ///
-    /// Passing the received line or [`Sent`] preserves its return address. See
+    /// Passing the received line or [`SendOutcome`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
     /// A sent message split across multiple lines is redacted in send order. Redaction stops at
     /// the first error, and any earlier lines remain redacted.
@@ -1354,7 +1354,7 @@ impl Client {
         tags: Vec<(String, String)>,
         fallbacks: Vec<Fallback>,
         action: bool,
-    ) -> Result<Sent, Error> {
+    ) -> Result<SendOutcome, Error> {
         let state = self.state();
         let wire_target = target.text.clone();
         let (status, conversation) = target.conversation(self, &state)?;
@@ -1373,7 +1373,12 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_chat_message(target, message).await?;
-            return Ok(Sent::unconfirmed(conversation, status, receipt, fallbacks));
+            return Ok(SendOutcome::unconfirmed(
+                conversation,
+                status,
+                receipt,
+                fallbacks,
+            ));
         }
         let (result, receiver) = oneshot::channel();
         self.commands

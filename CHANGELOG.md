@@ -49,7 +49,8 @@ widens it. A single prefix such as `@#ops` is still sent as written.
 
 `MessageRef` can no longer be built from text, a channel handle or another reference paired with a
 message identifier (`("#papo", id)`, `(&channel, id)`): a reference comes from a received line or a
-`Sent`, so a public reaction, reply or redaction cannot point at an ops-only message by its id.
+`SendOutcome`, so a public reaction, reply or redaction cannot point at an ops-only message by its
+id.
 
 A line sent to a status-prefixed channel address such as `@#ops` now arrives only as
 `Event::Restricted`, live and in history pages, with the sign in `Restricted::audience` and the
@@ -81,6 +82,8 @@ reply is `Unset`; it fails with `Error::Unconfirmed` when the reply leaves no ma
 `Client::react` and `Client::unreact` resolve to a `ReactOutcome` instead of `()`: its conversation
 and status audience, and a `Confirmation` that is `Confirmed { msgid, server_time }` from the
 labelled echo, or `Unconfirmed` with an `UnconfirmedReason` when the server cannot confirm it.
+
+`Sent` is renamed `SendOutcome`.
 
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
@@ -441,7 +444,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | Boxed `Event::{Message, Notice, ServerNotice, History}` payloads | Unboxed payloads; the Box-specific `MessageRef` conversions were removed |
 | Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` and `as_auto_join_failed()` |
 | `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Authorship::Own` |
-| Own sends could also arrive as message events | A correlated send resolves to `Sent`; applications that log chat insert their own sends from that value |
+| Own sends could also arrive as message events | A correlated send resolves to `SendOutcome`; applications that log chat insert their own sends from that value |
 | `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
 | `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
 | `Reacted::message` and `removed: bool` | `reacts_to` and `ReactionAction::{Added, Removed}` |

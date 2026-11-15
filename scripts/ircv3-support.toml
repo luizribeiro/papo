@@ -23,7 +23,7 @@ specs = [
   { name = "Pre-away", url = "https://ircv3.net/specs/extensions/pre-away", caps = ["draft/pre-away"], api = "Builder::away_on_connect", coverage = "draft.pre-away" },
   { name = "Changing hosts", url = "https://ircv3.net/specs/extensions/chghost", caps = ["chghost"], api = "Event::HostChanged", coverage = "ircv3.chghost" },
   { name = "Set name", url = "https://ircv3.net/specs/extensions/setname", caps = ["setname"], api = "Client::set_realname", coverage = "ircv3.setname" },
-  { name = "Echo message", url = "https://ircv3.net/specs/extensions/echo-message", caps = ["echo-message"], api = "Sent", coverage = "ircv3.echo-message" },
+  { name = "Echo message", url = "https://ircv3.net/specs/extensions/echo-message", caps = ["echo-message"], api = "SendOutcome", coverage = "ircv3.echo-message" },
   { name = "Invite notify", url = "https://ircv3.net/specs/extensions/invite-notify", caps = ["invite-notify"], api = "Event::Invited", coverage = "ircv3.invite-notify" },
   { name = "Labeled response", url = "https://ircv3.net/specs/extensions/labeled-response", caps = ["labeled-response"], api = "RequestFuture", coverage = "ircv3.labeled-response." },
   { name = "Multi-prefix", url = "https://ircv3.net/specs/extensions/multi-prefix", caps = ["multi-prefix"], api = "Member::prefixes", coverage = "ircv3.multi-prefix" },

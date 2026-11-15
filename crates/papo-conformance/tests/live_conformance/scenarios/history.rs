@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use papo::{Account, Authorship, Client, Endpoint, Error, Event, Sasl, Sent};
+use papo::{Account, Authorship, Client, Endpoint, Error, Event, Sasl, SendOutcome};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{confirmed_line, conversation_name};
@@ -13,7 +13,7 @@ fn read_marker_time() -> papo::ServerTime {
 async fn history_peers(
     s: &Scenario,
     texts: &[&str],
-) -> papo_testing::Result<(Peer, Peer, String, Vec<Sent>)> {
+) -> papo_testing::Result<(Peer, Peer, String, Vec<SendOutcome>)> {
     let writer = s.connect("writer").await?;
     let reader = s.connect("reader").await?;
     let channel = s.channel_name();

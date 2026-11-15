@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Conversation, Message, MessageId, Sent, Source,
+    Conversation, Message, MessageId, SendOutcome, Source,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -136,7 +136,7 @@ pub(crate) trait ReplyReference {
 /// A reference preserves the address exactly as it arrived, including a status prefix such as
 /// `@#ops`, together with the originating client and any evidence needed to detect a nickname
 /// changing hands. A reference comes only from a line: a received [`Message`] (or another
-/// received line's `return_address()`) or a [`Sent`]. A channel, a conversation or a bare message
+/// received line's `return_address()`) or a [`SendOutcome`]. A channel, a conversation or a bare message
 /// identifier is not a reference, so a reaction or reply cannot point a public line at an
 /// ops-only message; see [`Conversation`] for status-prefixed audience guidance.
 ///
@@ -396,7 +396,7 @@ impl ReplyReference for Message {
     }
 }
 
-impl ReplyReference for Sent {
+impl ReplyReference for SendOutcome {
     fn receipt(&self) -> &Receipt {
         &self.receipt
     }
@@ -609,7 +609,7 @@ mod tests {
         assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120004")));
         assert_eq!(reference.origin(), origin);
 
-        let mut sent = Sent {
+        let mut sent = SendOutcome {
             conversation: Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
             status: Some(crate::Prefix::__new('o', '@')),
             receipt: Receipt::new(
