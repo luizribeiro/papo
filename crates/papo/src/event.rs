@@ -1721,7 +1721,7 @@ impl Event {
                 Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 Audience::Me | Audience::Broadcast(_) => None,
             },
-            Self::Restricted(event) => event.line.conversation(),
+            Self::Restricted(event) => event.line.view().conversation(),
             Self::CtcpQuery(event) => Some(event.conversation.clone()),
             Self::CtcpReply(event) => Some(event.conversation.clone()),
             Self::TagMsg(event) => Some(event.conversation.clone()),
@@ -1826,7 +1826,7 @@ impl Event {
                 event.msgid.as_ref()
             }
             Self::ServerNotice(event) => event.msgid.as_ref(),
-            Self::Restricted(event) => event.line.msgid(),
+            Self::Restricted(event) => event.line.view().msgid(),
             Self::CtcpQuery(event) => event.msgid.as_ref(),
             Self::CtcpReply(event) => event.msgid.as_ref(),
             Self::BroadcastCtcp(event) => event.msgid.as_ref(),
@@ -1860,7 +1860,7 @@ impl Event {
             }
             Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => event.server_time,
             Self::ServerNotice(event) => event.server_time,
-            Self::Restricted(event) => event.line.server_time(),
+            Self::Restricted(event) => event.line.view().server_time(),
             Self::CtcpQuery(event) => event.server_time,
             Self::CtcpReply(event) => event.server_time,
             Self::BroadcastCtcp(event) => event.server_time,
@@ -1898,7 +1898,7 @@ impl Event {
                 Some(event.received_at)
             }
             Self::ServerNotice(event) => Some(event.received_at),
-            Self::Restricted(event) => Some(event.line.received_at()),
+            Self::Restricted(event) => Some(event.line.view().received_at()),
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
             Self::BroadcastCtcp(event) => Some(event.received_at),

@@ -43,6 +43,21 @@ macro_rules! line_types {
             $($(#[$doc])* $variant($ty),)+
         }
 
+        /// A line payload borrowed from a plain arm or from [`Restricted::line`], so each
+        /// accessor is written once for both.
+        #[derive(Clone, Copy)]
+        pub(crate) enum LineView<'a> {
+            $($variant(&'a $ty),)+
+        }
+
+        impl RestrictedLine {
+            pub(crate) const fn view(&self) -> LineView<'_> {
+                match self {
+                    $(Self::$variant(line) => LineView::$variant(line),)+
+                }
+            }
+        }
+
         /// Moves a status-prefixed line into [`crate::Event::Restricted`], so that no plain arm
         /// ever carries one. The event stream and every history item both end here.
         pub(crate) fn separate(event: crate::Event) -> crate::Event {
@@ -81,83 +96,6 @@ line_types! {
     TypingChanged(TypingChanged),
 }
 
-variant_accessors! { RestrictedLine;
-    (Message, as_message, Message),
-    (Notice, as_notice, Notice),
-    (Incomplete, as_incomplete, Incomplete),
-    (ServerNotice, as_server_notice, ServerNotice),
-    (CtcpQuery, as_ctcp_query, CtcpQuery),
-    (CtcpReply, as_ctcp_reply, CtcpReply),
-    (TagMsg, as_tag_msg, TagMsg),
-    (Reacted, as_reacted, Reacted),
-    (Redacted, as_redacted, Redacted),
-    (TypingChanged, as_typing_changed, TypingChanged),
-}
-
-impl RestrictedLine {
-    pub(crate) fn conversation(&self) -> Option<Conversation> {
-        match self {
-            Self::Message(line) => Some(line.conversation.clone()),
-            Self::Notice(line) => Some(line.conversation.clone()),
-            Self::Incomplete(line) => Some(line.conversation().clone()),
-            Self::ServerNotice(line) => match &line.to {
-                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
-                Audience::Me | Audience::Broadcast(_) => None,
-            },
-            Self::CtcpQuery(line) => Some(line.conversation.clone()),
-            Self::CtcpReply(line) => Some(line.conversation.clone()),
-            Self::TagMsg(line) => Some(line.conversation.clone()),
-            Self::Reacted(line) => Some(line.conversation.clone()),
-            Self::Redacted(line) => Some(line.conversation.clone()),
-            Self::TypingChanged(line) => Some(line.conversation.clone()),
-        }
-    }
-
-    pub(crate) const fn msgid(&self) -> Option<&MessageId> {
-        match self {
-            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => {
-                line.msgid.as_ref()
-            }
-            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.msgid.as_ref(),
-            Self::ServerNotice(line) => line.msgid.as_ref(),
-            Self::CtcpQuery(line) => line.msgid.as_ref(),
-            Self::CtcpReply(line) => line.msgid.as_ref(),
-            Self::TagMsg(line) => line.msgid.as_ref(),
-            Self::Reacted(line) => line.msgid.as_ref(),
-            Self::Redacted(line) => line.msgid.as_ref(),
-            Self::TypingChanged(_) => None,
-        }
-    }
-
-    pub(crate) fn server_time(&self) -> Option<ServerTime> {
-        match self {
-            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => line.server_time,
-            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.server_time,
-            Self::ServerNotice(line) => line.server_time,
-            Self::CtcpQuery(line) => line.server_time,
-            Self::CtcpReply(line) => line.server_time,
-            Self::TagMsg(line) => super::tagged_from_tags(&line.tags),
-            Self::Reacted(line) => line.server_time,
-            Self::Redacted(line) => line.server_time,
-            Self::TypingChanged(line) => line.server_time,
-        }
-    }
-
-    pub(crate) const fn received_at(&self) -> SystemTime {
-        match self {
-            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => line.received_at,
-            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.received_at,
-            Self::ServerNotice(line) => line.received_at,
-            Self::CtcpQuery(line) => line.received_at,
-            Self::CtcpReply(line) => line.received_at,
-            Self::TagMsg(line) => line.received_at,
-            Self::Reacted(line) => line.received_at,
-            Self::Redacted(line) => line.received_at,
-            Self::TypingChanged(line) => line.received_at,
-        }
-    }
-}
-
 trait TakeStatus {
     fn take_status(&mut self) -> Option<Prefix>;
 }
@@ -191,4 +129,81 @@ impl TakeStatus for Incomplete {
             Self::Notice(notice) => notice.take_status(),
         }
     }
+}
+
+impl<'a> LineView<'a> {
+    pub(crate) fn conversation(self) -> Option<Conversation> {
+        match self {
+            Self::Message(line) => Some(line.conversation.clone()),
+            Self::Notice(line) => Some(line.conversation.clone()),
+            Self::Incomplete(line) => Some(line.conversation().clone()),
+            Self::ServerNotice(line) => match &line.to {
+                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                Audience::Me | Audience::Broadcast(_) => None,
+            },
+            Self::CtcpQuery(line) => Some(line.conversation.clone()),
+            Self::CtcpReply(line) => Some(line.conversation.clone()),
+            Self::TagMsg(line) => Some(line.conversation.clone()),
+            Self::Reacted(line) => Some(line.conversation.clone()),
+            Self::Redacted(line) => Some(line.conversation.clone()),
+            Self::TypingChanged(line) => Some(line.conversation.clone()),
+        }
+    }
+
+    pub(crate) const fn msgid(self) -> Option<&'a MessageId> {
+        match self {
+            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => {
+                line.msgid.as_ref()
+            }
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.msgid.as_ref(),
+            Self::ServerNotice(line) => line.msgid.as_ref(),
+            Self::CtcpQuery(line) => line.msgid.as_ref(),
+            Self::CtcpReply(line) => line.msgid.as_ref(),
+            Self::TagMsg(line) => line.msgid.as_ref(),
+            Self::Reacted(line) => line.msgid.as_ref(),
+            Self::Redacted(line) => line.msgid.as_ref(),
+            Self::TypingChanged(_) => None,
+        }
+    }
+
+    pub(crate) fn server_time(self) -> Option<ServerTime> {
+        match self {
+            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => line.server_time,
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.server_time,
+            Self::ServerNotice(line) => line.server_time,
+            Self::CtcpQuery(line) => line.server_time,
+            Self::CtcpReply(line) => line.server_time,
+            Self::TagMsg(line) => super::tagged_from_tags(&line.tags),
+            Self::Reacted(line) => line.server_time,
+            Self::Redacted(line) => line.server_time,
+            Self::TypingChanged(line) => line.server_time,
+        }
+    }
+
+    pub(crate) const fn received_at(self) -> SystemTime {
+        match self {
+            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => line.received_at,
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.received_at,
+            Self::ServerNotice(line) => line.received_at,
+            Self::CtcpQuery(line) => line.received_at,
+            Self::CtcpReply(line) => line.received_at,
+            Self::TagMsg(line) => line.received_at,
+            Self::Reacted(line) => line.received_at,
+            Self::Redacted(line) => line.received_at,
+            Self::TypingChanged(line) => line.received_at,
+        }
+    }
+}
+
+variant_accessors! { RestrictedLine;
+    (Message, as_message, Message),
+    (Notice, as_notice, Notice),
+    (Incomplete, as_incomplete, Incomplete),
+    (ServerNotice, as_server_notice, ServerNotice),
+    (CtcpQuery, as_ctcp_query, CtcpQuery),
+    (CtcpReply, as_ctcp_reply, CtcpReply),
+    (TagMsg, as_tag_msg, TagMsg),
+    (Reacted, as_reacted, Reacted),
+    (Redacted, as_redacted, Redacted),
+    (TypingChanged, as_typing_changed, TypingChanged),
 }
