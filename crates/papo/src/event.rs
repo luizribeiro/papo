@@ -5988,6 +5988,7 @@ mod tests {
             Some(papo_core::ModeArg::__member(
                 Casemapping::default().nick("emily"),
                 crate::Prefix::__new('o', '@'),
+                papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             )),
         )];
         assert!(matches!(
@@ -6141,6 +6142,7 @@ mod tests {
                 Some(papo_core::ModeArg::__member(
                     names.nick("Alice"),
                     crate::Prefix::__new('o', '@'),
+                    papo_core::ReplyToken::__unknown(crate::Origin::NONE),
                 )),
             ),
             core(

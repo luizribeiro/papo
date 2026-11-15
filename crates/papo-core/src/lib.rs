@@ -1320,6 +1320,9 @@ pub enum ModeArg {
         nick: Nick,
         /// The membership prefix corresponding to the mode.
         prefix: Prefix,
+        /// Identity of the member when the line arrived.
+        #[doc(hidden)]
+        token: ReplyToken,
     },
     /// A mask for a list mode advertised in the first `CHANMODES` group.
     Mask(Mask),
@@ -1332,8 +1335,12 @@ pub enum ModeArg {
 impl ModeArg {
     #[doc(hidden)]
     #[must_use]
-    pub fn __member(nick: Nick, prefix: Prefix) -> Self {
-        Self::Member { nick, prefix }
+    pub fn __member(nick: Nick, prefix: Prefix, token: ReplyToken) -> Self {
+        Self::Member {
+            nick,
+            prefix,
+            token,
+        }
     }
 }
 

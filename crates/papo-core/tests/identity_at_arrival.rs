@@ -7,7 +7,7 @@ mod support;
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, ReplyToken, Session, TypingReason};
+use papo_core::{Config, Event, ModeArg, ReplyToken, Session, TypingReason};
 use support::Transcript;
 
 struct Case {
@@ -238,6 +238,46 @@ fn actors_and_subjects_record_the_person_at_arrival() {
         },
     ] {
         assert_identity_at_arrival(&case);
+    }
+}
+
+#[test]
+fn mode_members_record_each_member_at_arrival() {
+    for case in [
+        Case {
+            name: "MODE member",
+            line: ":dave!~dave@users.example MODE #review +o alice",
+            subject: "alice",
+            token: |event| member_token(event, 0),
+        },
+        Case {
+            name: "MODE second member",
+            line: ":dave!~dave@users.example MODE #review +vo dave alice",
+            subject: "alice",
+            token: |event| member_token(event, 1),
+        },
+    ] {
+        let mut session = Session::new(Config::default().nick("papo"));
+        server(
+            &mut session,
+            ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu CHANTYPES=# PREFIX=(qaohv)~&@%+ :are supported by this server",
+        );
+        join_review(&mut session);
+        check_identity(
+            &mut session,
+            &case,
+            ":alice!~alice@cloak.example QUIT :Quit: bye",
+        );
+    }
+}
+
+fn member_token(event: &Event, index: usize) -> Option<ReplyToken> {
+    match event {
+        Event::ModeChanged { changes, .. } => match changes.get(index)?.arg {
+            Some(ModeArg::Member { token, .. }) => Some(token),
+            _ => None,
+        },
+        _ => None,
     }
 }
 
