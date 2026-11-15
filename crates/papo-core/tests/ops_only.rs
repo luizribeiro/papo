@@ -241,3 +241,23 @@ fn a_reconnect_forgets_the_previous_connections_ops_only_ids() {
     connect(&mut session, now, "", &[]);
     assert_eq!(session.send(now, line(public)), Ok(()));
 }
+
+#[test]
+fn an_echo_of_our_own_ops_only_line_is_remembered() {
+    let now = Instant::now();
+    let mut session = ergo_with_caps(now, "echo-message message-tags server-time", &[]);
+    session
+        .send_text(now, TextKind::Privmsg, "@#ops", "rotated at 18:00", &[])
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(&b"PRIVMSG @#ops :rotated at 18:00\r\n"[..])
+    );
+    session.handle_line(
+        now,
+        b"@msgid=bgtfh28j4fwi6fhfqnauegctia;time=2026-11-15T00:13:54.620Z :papo!~u@87gpv5ftgihhq.irc PRIVMSG @#ops :rotated at 18:00",
+    );
+    let react = "@+draft/react=✅;+draft/reply=bgtfh28j4fwi6fhfqnauegctia TAGMSG #ops";
+    assert!(refused_as(&session.send(now, line(react)), '@'));
+    assert_eq!(session.poll_transmit(), None);
+}
