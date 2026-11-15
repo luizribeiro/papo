@@ -143,20 +143,10 @@ macro_rules! separate_restricted {
         /// ever carries one. The event stream and every history item both end here.
         pub(crate) fn separate(event: crate::Event) -> crate::Event {
             let (audience, line) = match event {
-                $(crate::Event::$variant(mut line) => match line.status.take() {
+                $(crate::Event::$variant(mut line) => match line.take_status() {
                     Some(audience) => (audience, RestrictedLine::$variant(line)),
                     None => return crate::Event::$variant(line),
                 },)+
-                crate::Event::Incomplete(mut line) => {
-                    let status = match &mut line {
-                        Incomplete::Message(message) => message.status.take(),
-                        Incomplete::Notice(notice) => notice.status.take(),
-                    };
-                    match status {
-                        Some(audience) => (audience, RestrictedLine::Incomplete(line)),
-                        None => return crate::Event::Incomplete(line),
-                    }
-                }
                 event => return event,
             };
             crate::Event::Restricted(Restricted { audience, line })
@@ -167,6 +157,7 @@ macro_rules! separate_restricted {
 separate_restricted!(
     Message,
     Notice,
+    Incomplete,
     ServerNotice,
     CtcpQuery,
     CtcpReply,
@@ -175,3 +166,38 @@ separate_restricted!(
     Redacted,
     TypingChanged,
 );
+
+trait TakeStatus {
+    fn take_status(&mut self) -> Option<Prefix>;
+}
+
+macro_rules! status_field {
+    ($($ty:ty),+ $(,)?) => {
+        $(impl TakeStatus for $ty {
+            fn take_status(&mut self) -> Option<Prefix> {
+                self.status.take()
+            }
+        })+
+    };
+}
+
+status_field!(
+    Message,
+    Notice,
+    ServerNotice,
+    CtcpQuery,
+    CtcpReply,
+    TagMsg,
+    Reacted,
+    Redacted,
+    TypingChanged,
+);
+
+impl TakeStatus for Incomplete {
+    fn take_status(&mut self) -> Option<Prefix> {
+        match self {
+            Self::Message(message) => message.take_status(),
+            Self::Notice(notice) => notice.take_status(),
+        }
+    }
+}
