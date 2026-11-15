@@ -186,6 +186,7 @@ fn internal_type_paths(snapshot: &str) -> Vec<&str> {
 const INTERNAL_REEXPORTS: &[(&str, &str)] = &[
     ("papo_core::cap::Cap", "papo::Cap"),
     ("papo_proto::LineRef", "papo::LineRef"),
+    ("papo_proto::modes::ModeAction", "papo::ModeAction"),
     ("papo_proto::Param", "papo::Param"),
     ("papo_proto::Source", "papo::LineSource"),
     ("papo_proto::time::ServerTime", "papo::ServerTime"),

@@ -308,6 +308,7 @@ mod isupport_impl;
 mod message_ref;
 pub mod metadata;
 mod mode;
+mod mode_change;
 mod name_rules;
 pub mod numeric;
 #[cfg_attr(not(feature = "unstable"), path = "peer_bouncer/stable.rs")]
@@ -377,6 +378,7 @@ pub use handle::{ChannelHandle, UserHandle, Watch};
 pub use isupport_impl::Isupport;
 pub use message_ref::{MessageRef, NoticeRef};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
+pub use mode_change::{ModeArg, ModeChange};
 pub use name_rules::{NameCheck, NameRules};
 #[doc(inline)]
 pub use papo_core::InvalidUrl;
@@ -387,7 +389,7 @@ pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, ConnectionEpoch, Feature, InvalidServerTime, Member,
-    MetadataView, ModeAction, ModeArg, ModeChange, ModeValue, Rank, ServerTime, User,
+    MetadataView, ModeAction, ModeValue, Rank, ServerTime, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

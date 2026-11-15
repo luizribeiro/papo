@@ -605,11 +605,14 @@ impl Change {
             .ok_or(crate::InvalidInput::NameRulesUnknown)?;
         let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
             ('k', _) => ModeArg::Key(crate::Secret::new(argument.text())),
-            (_, ModeKind::Prefix(prefix)) => ModeArg::__member(names.nick(argument.text()), prefix),
+            (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
+                nick: names.nick(argument.text()),
+                prefix,
+            },
             (_, ModeKind::List) => ModeArg::Mask(names.mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),
         });
-        Ok(ModeChange::__new(
+        Ok(ModeChange::new(
             mode,
             if self.set {
                 ModeAction::Add
@@ -1029,7 +1032,7 @@ mod tests {
     fn mode_confirmation_rejects_every_nonmatching_echo_dimension() {
         let state =
             state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
-        let ban = crate::ModeChange::__new(
+        let ban = crate::ModeChange::new(
             'b',
             crate::ModeAction::Add,
             Some(crate::ModeArg::Mask(
@@ -1039,8 +1042,8 @@ mod tests {
                     .mask("alice!*@*"),
             )),
         );
-        let invisible = crate::ModeChange::__new('i', crate::ModeAction::Add, None);
-        let moderated = crate::ModeChange::__new('m', crate::ModeAction::Add, None);
+        let invisible = crate::ModeChange::new('i', crate::ModeAction::Add, None);
+        let moderated = crate::ModeChange::new('m', crate::ModeAction::Add, None);
 
         for line in [
             ":alice!~alice@users.example MODE #papo +b alice!*@*",

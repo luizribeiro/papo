@@ -2824,7 +2824,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 authorship: Authorship::from_core(authorship),
                 own_nick,
-                changes,
+                changes: changes.into_iter().map(ModeChange::from_core).collect(),
             })
         }
         papo_core::Event::TopicChanged {
@@ -2915,13 +2915,14 @@ pub(crate) fn typed_mode_change(
 ) -> ModeChange {
     let arg = arg.map(|arg| match (mode, kind) {
         ('k', _) => ModeArg::Key(crate::Secret::new(arg)),
-        (_, papo_proto::ModeKind::Prefix(prefix)) => {
-            ModeArg::__member(origin.__nick(casemapping, arg), prefix)
-        }
+        (_, papo_proto::ModeKind::Prefix(prefix)) => ModeArg::Member {
+            nick: origin.__nick(casemapping, arg),
+            prefix,
+        },
         (_, papo_proto::ModeKind::List) => ModeArg::Mask(origin.__mask(casemapping, arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
-    ModeChange::__new(mode, action, arg)
+    ModeChange::new(mode, action, arg)
 }
 
 #[cfg(all(test, not(browser)))]
@@ -6076,21 +6077,21 @@ mod tests {
     #[test]
     fn mode_about_covers_nick_arguments_user_subjects_and_history() {
         let mapping = Casemapping::Rfc1459;
-        let own = ModeChange::__new(
+        let own = ModeChange::new(
             'o',
             ModeAction::Add,
-            Some(ModeArg::__member(
-                mapping.nick("emily"),
-                crate::Prefix::__new('o', '@'),
-            )),
+            Some(ModeArg::Member {
+                nick: mapping.nick("emily"),
+                prefix: crate::Prefix::__new('o', '@'),
+            }),
         );
-        let other = ModeChange::__new(
+        let other = ModeChange::new(
             'v',
             ModeAction::Add,
-            Some(ModeArg::__member(
-                mapping.nick("alice"),
-                crate::Prefix::__new('v', '+'),
-            )),
+            Some(ModeArg::Member {
+                nick: mapping.nick("alice"),
+                prefix: crate::Prefix::__new('v', '+'),
+            }),
         );
         let channel_mode = mode_event(
             Subject::Channel(channel_handle(mapping.channel("#papo"))),
@@ -6107,7 +6108,7 @@ mod tests {
             Authorship::Unknown
         );
 
-        let user_mode = ModeChange::__new('i', ModeAction::Add, None);
+        let user_mode = ModeChange::new('i', ModeAction::Add, None);
         for (subject, own_nick, expected) in [
             ("papo{bot}", Some("Papo[Bot]"), Authorship::Own),
             ("alice", Some("Papo[Bot]"), Authorship::Other),
@@ -6120,6 +6121,52 @@ mod tests {
             );
         }
         assert_eq!(channel_mode.about(&user_mode), Authorship::Other);
+    }
+
+    #[test]
+    fn core_changes_keep_every_argument_kind() {
+        let names = Casemapping::Rfc1459;
+        let core = |mode, arg| papo_core::ModeChange::__new(mode, ModeAction::Add, arg);
+        let cases = [
+            core(
+                'o',
+                Some(papo_core::ModeArg::__member(
+                    names.nick("Alice"),
+                    crate::Prefix::__new('o', '@'),
+                )),
+            ),
+            core(
+                'b',
+                Some(papo_core::ModeArg::Mask(names.mask("*!*@spam.example"))),
+            ),
+            core(
+                'k',
+                Some(papo_core::ModeArg::Key(crate::Secret::new(
+                    "review-key-2026",
+                ))),
+            ),
+            core('l', Some(papo_core::ModeArg::Value("50".into()))),
+            core('m', None),
+        ];
+        let mapped: Vec<_> = cases
+            .into_iter()
+            .map(crate::ModeChange::from_core)
+            .collect();
+
+        assert!(
+            matches!(&mapped[0].arg, Some(ModeArg::Member { nick, prefix }) if nick == "alice" && prefix.symbol() == '@')
+        );
+        assert!(matches!(&mapped[1].arg, Some(ModeArg::Mask(mask)) if mask == "*!*@spam.example"));
+        assert!(
+            matches!(&mapped[2].arg, Some(ModeArg::Key(key)) if key.expose() == "review-key-2026")
+        );
+        assert!(matches!(&mapped[3].arg, Some(ModeArg::Value(value)) if value == "50"));
+        assert_eq!(mapped[4].arg, None);
+        assert_eq!(
+            mapped.iter().map(|change| change.mode).collect::<String>(),
+            "obklm"
+        );
+        assert!(mapped.iter().all(|change| change.action == ModeAction::Add));
     }
 
     #[test]
