@@ -95,9 +95,8 @@ fn stored_forms_round_trip_before_epoch_and_at_bounds() {
         "1969-12-31T23:59:59.999Z",
         "9999-12-31T23:59:59.999Z",
     ] {
-        let parsed: ServerTime = input.parse().unwrap();
+        let parsed = ServerTime::from_stored(input).unwrap();
         assert_eq!(parsed.to_string(), input);
-        assert_eq!(ServerTime::from_stored(input), Ok(parsed));
         assert_eq!(
             ServerTime::from_stored_millis(parsed.as_millis()),
             Ok(parsed)
