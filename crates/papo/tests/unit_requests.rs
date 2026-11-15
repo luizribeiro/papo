@@ -1,4 +1,5 @@
-//! Checks that every request resolving to `()` names why the protocol gives it no confirmation.
+//! Checks that every request resolving to `()` names why the protocol gives it no confirmation,
+//! and that every other request result is a plain value or an `*Outcome`.
 
 use std::collections::BTreeSet;
 
@@ -66,6 +67,41 @@ const UNIT_REQUESTS: &[(&str, Reason)] = &[
     ),
 ];
 
+#[derive(Clone, Copy, Debug)]
+enum Plain {
+    Handle,
+    List,
+    Page,
+    Value,
+}
+
+const PLAIN_RESULTS: &[(&str, Plain)] = &[
+    ("alloc::vec::Vec<papo::BouncerNetwork>", Plain::List),
+    ("alloc::vec::Vec<papo::Line>", Plain::List),
+    ("alloc::vec::Vec<papo::ListEntry>", Plain::List),
+    ("alloc::vec::Vec<papo::MetadataKey>", Plain::List),
+    ("alloc::vec::Vec<papo::ModeListEntry>", Plain::List),
+    ("alloc::vec::Vec<papo::RecentConversation>", Plain::List),
+    ("alloc::vec::Vec<papo::WhoEntry>", Plain::List),
+    ("core::option::Option<papo::Whois>", Plain::Value),
+    ("core::time::Duration", Plain::Value),
+    ("papo::ChannelHandle", Plain::Handle),
+    ("papo::HistoryPage", Plain::Page),
+    ("papo::MetadataValue", Plain::Value),
+    ("papo::NetworkId", Plain::Value),
+    ("papo::PersistenceStatus", Plain::Value),
+    ("papo::ReadMarker", Plain::Value),
+    ("papo::UserHandle", Plain::Handle),
+    (
+        "std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>",
+        Plain::List,
+    ),
+    (
+        "std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>",
+        Plain::List,
+    ),
+];
+
 /// The item a snapshot line declares, with the request result it resolves to.
 fn request(line: &str) -> Option<(&str, &str)> {
     let line = line.split(" where ").next()?;
@@ -126,6 +162,21 @@ fn every_unit_request_names_why_it_has_no_confirmation() {
         .map(|(path, _)| path)
         .collect();
     assert_listed(&unit, UNIT_REQUESTS, "classify under R15");
+}
+
+#[test]
+fn every_other_request_result_is_a_plain_value_or_an_outcome() {
+    let results = requests()
+        .into_iter()
+        .filter(|(path, _)| path.starts_with("papo::"))
+        .map(|(_, ty)| ty)
+        .filter(|ty| *ty != "()" && !ty.ends_with("Outcome") && !ty.contains("Outcome<"))
+        .collect();
+    assert_listed(
+        &results,
+        PLAIN_RESULTS,
+        "name the result *Outcome or list it as a plain value",
+    );
 }
 
 #[test]
