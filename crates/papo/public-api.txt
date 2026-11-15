@@ -2949,7 +2949,7 @@ pub fn papo::Metadata::remove(&self, papo::MetadataKey) -> papo::RequestFuture<(
 pub fn papo::Metadata::remove_on(&self, impl papo::AsConversation, papo::MetadataKey) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, papo::MetadataKey, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::MetadataValue>
 pub fn papo::Metadata::set_on(&self, impl papo::AsConversation, papo::MetadataKey, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::MetadataValue>
-pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<papo::SubscribeOutcome> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Metadata::sync(&self, impl papo::AsConversation) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 impl core::fmt::Debug for papo::Metadata
@@ -3502,6 +3502,24 @@ impl core::marker::Unpin for papo::State
 impl core::marker::UnsafeUnpin for papo::State
 impl core::panic::unwind_safe::RefUnwindSafe for papo::State
 impl core::panic::unwind_safe::UnwindSafe for papo::State
+#[non_exhaustive] pub struct papo::SubscribeOutcome
+pub papo::SubscribeOutcome::refused: alloc::vec::Vec<(papo::MetadataKey, papo::Refusal)>
+pub papo::SubscribeOutcome::subscribed: alloc::vec::Vec<papo::MetadataKey>
+impl core::clone::Clone for papo::SubscribeOutcome
+pub fn papo::SubscribeOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::SubscribeOutcome
+impl core::cmp::PartialEq for papo::SubscribeOutcome
+pub fn papo::SubscribeOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::SubscribeOutcome
+pub fn papo::SubscribeOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::SubscribeOutcome
+impl core::marker::Freeze for papo::SubscribeOutcome
+impl core::marker::Send for papo::SubscribeOutcome
+impl core::marker::Sync for papo::SubscribeOutcome
+impl core::marker::Unpin for papo::SubscribeOutcome
+impl core::marker::UnsafeUnpin for papo::SubscribeOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::SubscribeOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::SubscribeOutcome
 pub struct papo::Tags(_)
 impl papo::Tags
 pub fn papo::Tags::contains(&self, &str) -> bool

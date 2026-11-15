@@ -379,7 +379,7 @@ async fn a_metadata_clear_resolves_to_the_keys_the_server_cleared() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn a_subscription_refused_past_the_limit_still_subscribes_the_other_keys() {
-    let result = answered(
+    let outcome = answered(
         METADATA,
         |client| client.metadata().subscribe([display_name(), crate::MetadataKey::new("avatar")]),
         "@label=0 METADATA * SUB display-name avatar",
@@ -391,8 +391,33 @@ async fn a_subscription_refused_past_the_limit_still_subscribes_the_other_keys()
             ":ergo.test BATCH -8",
         ],
     )
-    .await;
-    assert!(result.is_ok(), "{result:?}");
+    .await
+    .unwrap();
+    assert_eq!(outcome.subscribed, [display_name()]);
+    assert_eq!(
+        outcome.refused,
+        [(
+            crate::MetadataKey::new("avatar"),
+            crate::Refusal::MetadataLimitReached
+        )]
+    );
+
+    let silent = answered(
+        METADATA,
+        |client| {
+            client
+                .metadata()
+                .subscribe([display_name(), crate::MetadataKey::new("avatar")])
+        },
+        "@label=0 METADATA * SUB display-name avatar",
+        &["@time=2026-11-15T20:11:41.204Z;label=0 :ergo.test 770 papo-driver display-name"],
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        silent.refused,
+        [(crate::MetadataKey::new("avatar"), crate::Refusal::Other)]
+    );
 
     let refused = answered(
         METADATA,

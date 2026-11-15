@@ -368,7 +368,7 @@ pub use ext::history::{
     History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, MarkReadOutcome,
     MarkReadRequest, RecentConversation,
 };
-pub use ext::metadata::Metadata;
+pub use ext::metadata::{Metadata, SubscribeOutcome};
 #[cfg(feature = "unstable")]
 pub use ext::{
     bouncer::{AddNetwork, Bouncer, ChangeNetwork},

@@ -4,6 +4,19 @@ use papo_core::MetadataCommand;
 
 use crate::{Client, Error, MetadataValue, driver::CoreRequest};
 
+/// What the server did with each key of a [`Metadata::subscribe`] request.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct SubscribeOutcome {
+    /// Keys the server now sends updates for, as listed in `RPL_METADATASUBOK`.
+    pub subscribed: Vec<crate::MetadataKey>,
+    /// Requested keys the server left out, with the refusal of its `FAIL`.
+    ///
+    /// A server that stops at its limit names only the first key it refused, so every key it
+    /// left out carries that refusal, or [`crate::Refusal::Other`] when it sent none.
+    pub refused: Vec<(crate::MetadataKey, crate::Refusal)>,
+}
+
 /// Handle for metadata requests and cached metadata state.
 pub struct Metadata {
     client: Client,
@@ -356,7 +369,7 @@ impl Metadata {
         self.clear_target(target, user)
     }
 
-    /// Subscribes to metadata keys.
+    /// Subscribes to metadata keys and resolves to the keys the server subscribed and refused.
     ///
     /// A server may refuse some keys, for example past its subscription limit, while it
     /// subscribes the others; the request succeeds when any key was subscribed.
@@ -369,24 +382,36 @@ impl Metadata {
     /// return [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub fn subscribe<I, S>(&self, keys: I) -> crate::RequestFuture<()>
+    pub fn subscribe<I, S>(&self, keys: I) -> crate::RequestFuture<SubscribeOutcome>
     where
         I: IntoIterator<Item = S>,
         S: Into<crate::MetadataKey>,
     {
         let client = self.client.clone();
+        let requested: Vec<crate::MetadataKey> = keys.into_iter().map(Into::into).collect();
         let command = MetadataCommand::__sub(
-            keys.into_iter()
-                .map(Into::into)
+            requested
+                .iter()
+                .cloned()
                 .map(crate::MetadataKey::into_string)
                 .collect(),
         );
         crate::RequestFuture::new(async move {
             let response = client.core_request(CoreRequest::Metadata(command)).await?;
-            if subscribed(&response).next().is_some() {
-                return Ok(());
+            let subscribed: Vec<_> = subscribed(&response).collect();
+            if subscribed.is_empty() {
+                crate::requests::empty(&response)?;
             }
-            crate::requests::empty(&response)
+            let refusal = response.refusal().unwrap_or(crate::Refusal::Other);
+            let refused = requested
+                .into_iter()
+                .filter(|key| !subscribed.contains(key))
+                .map(|key| (key, refusal))
+                .collect();
+            Ok(SubscribeOutcome {
+                subscribed,
+                refused,
+            })
         })
     }
 

@@ -132,6 +132,9 @@ server echoed in `RENAME`.
 `Metadata::subscribe` succeeds when the server subscribed any key, even if it refused others past
 its limit with a `FAIL`.
 
+`Metadata::subscribe` resolves to a `SubscribeOutcome`: the keys in `RPL_METADATASUBOK` and each
+requested key the server left out with its refusal.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
