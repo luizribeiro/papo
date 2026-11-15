@@ -323,10 +323,7 @@ pub struct Message {
     pub received_at: SystemTime,
     /// The identifier referenced by a reply tag.
     pub in_reply_to: Option<MessageId>,
-    /// Channel context whose membership was verified when this private message was received.
-    ///
-    /// This proves that the actor and client shared the channel at receipt, not that the actor
-    /// held any channel rank. Unverified context remains available in [`Self::tags`].
+    /// Channel context named by this private message; see [`Self::channel_context`].
     pub(crate) channel_context: Option<Conversation>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
@@ -368,12 +365,14 @@ pub struct Notice {
     pub received_at: SystemTime,
     /// The identifier referenced by a reply tag.
     pub in_reply_to: Option<MessageId>,
-    /// Channel context whose membership was verified when this private notice was received.
+    /// Channel context named by this private notice.
     ///
-    /// This proves that the actor and client shared the channel at receipt, not that the actor
-    /// held any channel rank. Unverified context remains available in [`Self::tags`]. It is the
-    /// conversation to file the notice under, not an address: answer the notice through its
-    /// [`Self::return_address`]; see [`Conversation`] for audience guidance.
+    /// On a live notice, this proves that the actor and client shared the channel at receipt, not
+    /// that the actor held any channel rank. On a history page item it is only the valid channel
+    /// the line names, because past membership cannot be checked. Context that failed these
+    /// checks remains available in [`Self::tags`]. It is the conversation to file the notice
+    /// under, not an address: answer the notice through its [`Self::return_address`]; see
+    /// [`Conversation`] for audience guidance.
     pub channel_context: Option<Conversation>,
     /// Nickname of the client that submitted a relayed notice.
     #[cfg(feature = "unstable")]
@@ -799,7 +798,12 @@ impl Message {
         self.msgid.as_ref()
     }
 
-    /// Returns the channel conversation whose shared membership was verified at receipt.
+    /// Returns the channel conversation this private message's context tag names.
+    ///
+    /// On a live message, the actor and client shared that channel at receipt; this says nothing
+    /// about the actor's channel rank. On a history page item it is only the valid channel the
+    /// line names, because past membership cannot be checked. Context that failed these checks
+    /// remains available in [`Message::tags`].
     ///
     /// It is the conversation to file this private message under, not an address: sending to the
     /// channel would tell everyone in it what one person said privately. Answer the message with
@@ -1282,6 +1286,13 @@ pub(crate) fn historical_message_event(
     ) else {
         return unparsed_from_line(raw, received_at);
     };
+    let channel_context = papo_core::claimed_channel_context(
+        &raw.as_ref(),
+        &conversation,
+        snapshot.isupport().inner(),
+        client.origin(),
+    )
+    .map(|channel| channel_context_handle(channel, client.origin(), Some(&client.state)));
     let conversation =
         Conversation::from_core_with_state(conversation, client.origin(), &client.state, &snapshot);
     let conversation = historical_conversation(
@@ -1299,7 +1310,7 @@ pub(crate) fn historical_message_event(
         actor_party,
         conversation,
         status,
-        None,
+        channel_context,
         snapshot.isupport().inner(),
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         false,

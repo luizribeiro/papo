@@ -1629,6 +1629,112 @@ mod tests {
         assert_eq!(historical.actor, live.actor);
     }
 
+    fn review_session(members: &[&str]) -> Session {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported",
+        );
+        for member in members {
+            let join = format!(":{member}!~{member}@cloak.example JOIN #review");
+            session.handle_line(now, join.as_bytes());
+        }
+        while session.poll_event().is_some() {}
+        session
+    }
+
+    fn live_and_historical(session: &mut Session, raw: &str) -> (PageEvent, PageEvent) {
+        session.handle_line(Instant::now(), raw.as_bytes());
+        let received = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                papo_core::Event::Line(line) => Some(line),
+                _ => None,
+            })
+            .unwrap();
+        let (client, _) = client_with_commands(session);
+        let live = crate::event_impl::incoming_from_core(
+            received,
+            client.origin(),
+            session.isupport(),
+            false,
+            false,
+            UNIX_EPOCH,
+            Some(&client.state),
+        );
+        let historical = history_item(
+            papo_core::HistoryItem::Message(core_item(raw)),
+            None,
+            &client,
+            UNIX_EPOCH,
+        );
+        (live, historical)
+    }
+
+    fn channel_context(event: &PageEvent) -> Option<&crate::Conversation> {
+        match event {
+            PageEvent::Message(message) => message.channel_context(),
+            PageEvent::Notice(notice) => notice.channel_context.as_ref(),
+            other => panic!("expected a message or notice, got {other:?}"),
+        }
+    }
+
+    fn channel_context_name(event: &PageEvent) -> Option<String> {
+        channel_context(event).map(ToString::to_string)
+    }
+
+    #[test]
+    fn history_and_live_name_the_same_channel_context() {
+        let mut session = review_session(&["papo", "emily"]);
+        for (raw, expected) in [
+            (
+                "@msgid=RfcBTzyxY120010;+draft/channel-context=#review :emily!~emily@cloak.example PRIVMSG papo :can you check the release notes?",
+                Some("#review"),
+            ),
+            (
+                "@msgid=RfcBTzyxY120011;+channel-context=#review :emily!~emily@cloak.example PRIVMSG papo :\x01ACTION waves\x01",
+                Some("#review"),
+            ),
+            (
+                "@msgid=RfcBTzyxY120016;+channel-context=#REVIEW :emily!~emily@cloak.example PRIVMSG papo :the [review] doc is updated",
+                Some("#review"),
+            ),
+            (
+                "@msgid=RfcBTzyxY120012;+channel-context=#review :emily!~emily@cloak.example NOTICE papo :build 4412 finished",
+                Some("#review"),
+            ),
+            (
+                "@msgid=RfcBTzyxY120013;+channel-context=#ops :emily!~emily@cloak.example PRIVMSG #review :release is ready",
+                None,
+            ),
+            (
+                "@msgid=RfcBTzyxY120014 :emily!~emily@cloak.example PRIVMSG papo :thanks",
+                None,
+            ),
+        ] {
+            let (live, historical) = live_and_historical(&mut session, raw);
+            assert_eq!(channel_context_name(&live).as_deref(), expected, "{raw}");
+            assert_eq!(
+                channel_context(&historical),
+                channel_context(&live),
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn history_channel_context_needs_no_current_membership() {
+        let mut session = review_session(&["papo"]);
+        let raw = "@msgid=RfcBTzyxY120015;+channel-context=#review :emily!~emily@cloak.example PRIVMSG papo :can you check the release notes?";
+        let (live, historical) = live_and_historical(&mut session, raw);
+
+        assert_eq!(channel_context(&live), None);
+        assert_eq!(
+            channel_context_name(&historical).as_deref(),
+            Some("#review")
+        );
+    }
+
     #[test]
     fn live_and_history_build_the_same_actor_from_one_line() {
         let raw = "@account=alice;bot;draft/oper=network-admin;msgid=RfcBTzyxY120019 :alice!~a@staff.example PART #papo :Deploying release";
