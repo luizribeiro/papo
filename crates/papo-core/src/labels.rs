@@ -387,6 +387,7 @@ impl Session {
         guard: Option<crate::TargetGuard>,
         requires_registration: bool,
     ) -> Result<(), RequestError> {
+        self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
             && matches!(

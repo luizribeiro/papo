@@ -4550,6 +4550,7 @@ impl Session {
         guard: Option<TargetGuard>,
     ) -> Result<SendTextResult, RequestError> {
         self.validate_target(target)?;
+        self.check_text_audience(target, tags)?;
         self.rate_limit.advance(now);
         let multiline = self
             .caps
@@ -4939,6 +4940,7 @@ impl Session {
             }
             return Ok(id);
         }
+        self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
         if self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);

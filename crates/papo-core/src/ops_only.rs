@@ -88,6 +88,16 @@ impl Session {
         reference(message).map_or(Ok(()), |(target, id)| self.check_audience(target, &id))
     }
 
+    pub(crate) fn check_text_audience(
+        &self,
+        target: &str,
+        tags: &[(&str, &str)],
+    ) -> Result<(), RequestError> {
+        tags.iter()
+            .filter(|(key, _)| matches!(*key, "+reply" | "+draft/reply"))
+            .try_for_each(|(_, id)| self.check_audience(target, id))
+    }
+
     /// Refuses a send to `target` that points at a remembered ops-only line it would widen.
     pub(crate) fn check_audience(&self, target: &str, msgid: &str) -> Result<(), RequestError> {
         let Some(original) = self.ops_only.audiences.get(msgid) else {

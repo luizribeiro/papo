@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, RateLimit, RequestError, Session};
+use papo_core::{Config, RateLimit, RequestError, ResponseMatcher, Session, TextKind};
 use papo_proto::{Line, LineRef};
 
 const ERGO_ISUPPORT: &str = ":ergo.test 005 papo CASEMAPPING=ascii CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server";
@@ -10,11 +10,22 @@ const PUBLIC: &str = "@msgid=x8n4qz2kbtqe2nqrwg3hba7m5y;time=2026-11-14T18:02:15
 const VOICED: &str = "@msgid=k3mz8w2qdvbe4iqx7hgufyn5ta;time=2026-11-14T18:03:40.112Z :vicky!~vicky@cloak.example PRIVMSG +#ops :can someone review?";
 const OPS_ONLY: &str = "@msgid=bc3fyyzsmb8ip7aiti6gakzmja;time=2026-11-14T18:02:11.204Z :oppy!~oppy@cloak.example PRIVMSG @#ops :deploy key rotated?";
 
+const LABELLED: &str = "batch draft/message-redaction labeled-response message-tags";
+
 fn ergo(now: Instant, lines: &[&str]) -> Session {
+    ergo_with_caps(now, "", lines)
+}
+
+fn ergo_with_caps(now: Instant, caps: &str, lines: &[&str]) -> Session {
     let mut config = Config::default();
     config.rate_limit = RateLimit::unlimited();
     let mut session = Session::new(config);
     session.handle_connected(now);
+    let ls = format!(":ergo.test CAP * LS :{caps}");
+    let ack = format!(":ergo.test CAP * ACK :{caps}");
+    for line in [ls, ack] {
+        session.handle_line(now, line.as_bytes());
+    }
     let welcome = [
         ":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo",
         ERGO_ISUPPORT,
@@ -144,4 +155,48 @@ fn a_sign_missing_from_prefix_matches_only_itself() {
     assert_eq!(session.send(now, line(same)), Ok(()));
     let ranked = "@+draft/reply=Zq7Hk2Rp PRIVMSG @#ops :checked, two stale bans";
     assert!(refused_as(&session.send(now, line(ranked)), '%'));
+}
+
+type Entry = fn(&mut Session, Instant, &str) -> Result<(), RequestError>;
+
+#[test]
+fn every_way_to_queue_a_line_checks_its_audience() {
+    const ID: &str = "bc3fyyzsmb8ip7aiti6gakzmja";
+    let entries: [(&str, Entry); 4] = [
+        ("send", |session, now, target| {
+            let react = format!("@+draft/react=👀;+draft/reply={ID} TAGMSG {target}");
+            session.send(now, line(&react))
+        }),
+        ("send_text", |session, now, target| {
+            let tags = [("+draft/reply", ID)];
+            session
+                .send_text_detailed(now, TextKind::Privmsg, target, "rotated, yes", &tags)
+                .map(drop)
+        }),
+        ("request", |session, now, target| {
+            let redact = Line::new("REDACT").with_params([target, ID]);
+            session.request(now, redact).map(drop)
+        }),
+        ("request_with_matcher", |session, now, target| {
+            let redact = Line::new("REDACT").with_params([target, ID]);
+            let matcher = ResponseMatcher::Ping("papo-redact".to_owned());
+            session.request_with_matcher(now, redact, matcher).map(drop)
+        }),
+    ];
+    for (name, entry) in entries {
+        let caps = if name == "request" { LABELLED } else { "" };
+        for (target, allowed) in [("@#ops", true), ("#ops", false)] {
+            let now = Instant::now();
+            let mut session = ergo_with_caps(now, caps, &[OPS_ONLY]);
+            let result = entry(&mut session, now, target);
+            let sent = session.poll_transmit();
+            if allowed {
+                assert_eq!(result, Ok(()), "{name} {target}");
+                assert!(sent.is_some(), "{name} {target}");
+            } else {
+                assert!(refused_as(&result, '@'), "{name} {target}: {result:?}");
+                assert_eq!(sent, None, "{name} {target}");
+            }
+        }
+    }
 }
