@@ -13,3 +13,5 @@ separate reply-rate budgets.
 A command sent to a status-prefixed address such as `@#ops` arrives as `papo::Event::Restricted`
 and is ignored unless the bot passes that line to `BotConfig::restricted_command`. The command's
 `audience()` names the sign, and its replies go back to `@#ops`, never to `#ops`.
+`BotConfig::command` ignores the restricted line's inner message, so a channel command that reports
+no audience reached the whole channel.
