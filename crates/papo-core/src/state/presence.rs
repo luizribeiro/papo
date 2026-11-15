@@ -34,7 +34,7 @@ impl State {
                                 nick: self.casemapping.nick(nick),
                                 account,
                                 token,
-                                authorship,
+                                actor_party: authorship,
                             });
                         }
                     }
@@ -165,7 +165,7 @@ impl State {
                 nick: self.casemapping.nick(nick),
                 account,
                 token,
-                authorship: self.source_party(message),
+                actor_party: self.source_party(message),
             });
         }
         Some(Handled::Yes)
@@ -207,7 +207,7 @@ impl State {
                     nick: self.casemapping.nick(nick),
                     away: next,
                     token,
-                    authorship: self.source_party(message),
+                    actor_party: self.source_party(message),
                 });
             }
             return Some(Handled::Yes);
@@ -232,7 +232,7 @@ impl State {
                             nick: self.casemapping.nick(nick),
                             away: next,
                             token,
-                            authorship: self.nick_party(nick),
+                            actor_party: self.nick_party(nick),
                         });
                     }
                 }
@@ -248,7 +248,7 @@ impl State {
                     nick: self.nick.clone(),
                     away: Away::Present,
                     token: self.__reply_token_for(self.nick.as_str()),
-                    authorship: Party::Me,
+                    actor_party: Party::Me,
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY)
@@ -267,7 +267,7 @@ impl State {
                     nick: self.nick.clone(),
                     away,
                     token: self.__reply_token_for(self.nick.as_str()),
-                    authorship: Party::Me,
+                    actor_party: Party::Me,
                 });
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}
@@ -331,7 +331,7 @@ impl State {
             username: own.username.clone().unwrap_or(fallback_username),
             host: host.to_owned(),
             token,
-            authorship: Party::Me,
+            actor_party: Party::Me,
         });
         Some(Handled::Yes)
     }
@@ -356,7 +356,7 @@ impl State {
                 username: change.user.to_owned(),
                 host: change.host.to_owned(),
                 token,
-                authorship: self.source_party(message),
+                actor_party: self.source_party(message),
             });
             return Some(Handled::Yes);
         }
@@ -380,7 +380,7 @@ impl State {
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
             token,
-            authorship: self.source_party(message),
+            actor_party: self.source_party(message),
         });
         Some(Handled::Yes)
     }

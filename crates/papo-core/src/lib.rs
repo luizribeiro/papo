@@ -2991,7 +2991,7 @@ pub enum Event {
         /// Shared channels where papo knows the user is a member.
         channels: Vec<ChannelName>,
         /// Whether the renamed user is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
     /// A joined channel was renamed.
     #[non_exhaustive]
@@ -3025,7 +3025,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
     /// A user's away state changed.
     #[non_exhaustive]
@@ -3041,7 +3041,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
     /// A user's username or hostname changed.
     #[non_exhaustive]
@@ -3059,7 +3059,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
     /// A user's real name changed.
     #[non_exhaustive]
@@ -3077,7 +3077,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
     /// A user or channel mode changed.
     #[non_exhaustive]
@@ -3093,7 +3093,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Party,
+        actor_party: Party,
         /// Whether the distinct subject is this session's user.
         subject_party: Party,
         /// This session's nickname when the event was built.
@@ -3115,7 +3115,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
 }
 
@@ -3148,13 +3148,13 @@ hidden_event_constructors! {
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, actor_party: Party) => Parted;
     __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, actor_party: Party, netsplit: Option<SplitServers>) => Quit;
-    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Party) => NickChanged;
-    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Party) => AccountChanged;
-    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Party) => AwayChanged;
-    __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Party) => HostChanged;
-    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Party) => RealnameChanged;
-    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Party, subject_party: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
-    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, authorship: Party) => TopicChanged;
+    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, actor_party: Party) => NickChanged;
+    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, actor_party: Party) => AccountChanged;
+    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, actor_party: Party) => AwayChanged;
+    __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, actor_party: Party) => HostChanged;
+    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, actor_party: Party) => RealnameChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
+    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, actor_party: Party) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
     __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;

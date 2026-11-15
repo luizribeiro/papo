@@ -531,7 +531,7 @@ impl Monitor {
                     username: user.to_owned(),
                     host: host.to_owned(),
                     token: state.__reply_token_for(nick),
-                    authorship: if internal_nick
+                    actor_party: if internal_nick
                         .is_some_and(|own| crate::names_equal(isupport.casemapping(), own, nick))
                     {
                         Party::Me

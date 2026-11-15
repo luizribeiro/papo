@@ -36,7 +36,7 @@ fn live_subject_facts_are_exact() {
                 event,
                 Event::ModeChanged {
                     subject: Subject::User(nick),
-                    authorship: Party::Other,
+                    actor_party: Party::Other,
                     subject_party: Party::Me,
                     ..
                 } if nick == "papo"
@@ -65,7 +65,7 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
                 Event::NickChanged {
                     old,
                     new,
-                    authorship: Party::Me,
+                    actor_party: Party::Me,
                     ..
                 } if old == "papo" && new == "papo-away"
             )
@@ -115,7 +115,7 @@ fn sibling_device_away_is_own() {
     .event_until(|event| {
         matches!(event, Event::AwayChanged {
                 nick,
-                authorship: Party::Me,
+                actor_party: Party::Me,
                 ..
             } if nick == "papo-phone")
     });
@@ -146,7 +146,7 @@ fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
         matches!(event, Event::NickChanged {
                 old,
                 channels,
-                authorship: Party::Me,
+                actor_party: Party::Me,
                 ..
             } if old == "papo-phone" && *channels == ["#papo", "#rust"])
     })
@@ -155,7 +155,7 @@ fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
         matches!(event, Event::NickChanged {
                 old,
                 channels,
-                authorship: Party::Other,
+                actor_party: Party::Other,
                 ..
             } if old == "emily" && *channels == ["#rust"])
     });
@@ -235,7 +235,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 event,
                 Event::ModeChanged {
                     subject: Subject::User(nick),
-                    authorship: Party::Me,
+                    actor_party: Party::Me,
                     subject_party: Party::Me,
                     ..
                 } if nick == "papo"
@@ -250,7 +250,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 event,
                 Event::ModeChanged {
                     subject: Subject::Channel(channel),
-                    authorship: Party::Me,
+                    actor_party: Party::Me,
                     subject_party: Party::Other,
                     ..
                 } if channel == "papo"
@@ -263,7 +263,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 Event::NickChanged {
                     old,
                     new,
-                    authorship: Party::Other,
+                    actor_party: Party::Other,
                     ..
                 } if old == "papo-old" && new == "papo"
             )

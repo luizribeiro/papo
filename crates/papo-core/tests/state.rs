@@ -98,13 +98,13 @@ fn a_foreign_rename_into_the_own_nick_keeps_the_own_row() {
             assert_eq!(session.state().user("papo").unwrap().username(), Some("papo"));
         })
         .server(":alice NICK papo")
-        .event(|event| matches!(event, Event::NickChanged { authorship: Party::Other, .. }))
+        .event(|event| matches!(event, Event::NickChanged { actor_party: Party::Other, .. }))
         .inspect(|session| {
             assert_eq!(session.state().nick(), "papo");
             assert_eq!(session.state().username(), "papo");
         })
         .server(":ergo.test 396 papo cloak.example :is now your displayed host")
-        .event(|event| matches!(event, Event::HostChanged { username, authorship: Party::Me, .. } if username == "papo"))
+        .event(|event| matches!(event, Event::HostChanged { username, actor_party: Party::Me, .. } if username == "papo"))
         .inspect(|session| {
             assert_eq!(session.state().username(), "papo");
             assert_eq!(session.state().host(), Some("cloak.example"));
@@ -134,7 +134,7 @@ fn a_foreign_rename_after_casemapping_changes_keeps_own_metadata_clear() {
         matches!(
             event,
             Event::NickChanged {
-                authorship: Party::Other,
+                actor_party: Party::Other,
                 ..
             }
         )
@@ -959,7 +959,7 @@ fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, authorship: Party::Other, .. } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, actor_party: Party::Other, .. } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::Present);
             assert_eq!(
@@ -1046,12 +1046,12 @@ fn uncorrelated_away_numerics_report_an_unspecified_message() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, authorship: Party::Me, .. } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, actor_party: Party::Me, .. } if nick == "emily"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::__away_value(None));
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, authorship: Party::Me, .. } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, actor_party: Party::Me, .. } if nick == "emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .no_event();
 }

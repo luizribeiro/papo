@@ -1253,7 +1253,7 @@ impl State {
                 new: mapping.nick(new_nick),
                 token,
                 channels,
-                authorship,
+                actor_party: authorship,
             });
             return Handled::Yes;
         }
@@ -1335,7 +1335,7 @@ impl State {
                     nick: self.casemapping.nick(nick),
                     realname: change.realname.to_owned(),
                     token,
-                    authorship: self.nick_party(nick),
+                    actor_party: self.nick_party(nick),
                 });
             }
         }
@@ -1414,7 +1414,7 @@ impl State {
             subject_token: self.__reply_token_for(target),
             actor: Source::from_proto_with_names(actor, self.casemapping),
             actor_token: self.source_token(message),
-            authorship: self.source_party(message),
+            actor_party: self.source_party(message),
             subject_party: match message.source() {
                 _ if isupport.is_channel(target) => Party::Other,
                 _ => self.nick_party(target),
@@ -1529,7 +1529,7 @@ impl State {
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 actor: Source::from_proto_with_names(actor, self.casemapping),
                 actor_token: self.source_token(message),
-                authorship: self.source_party(message),
+                actor_party: self.source_party(message),
             });
         }
         let Some(channel) = channel_name.and_then(|name| self.channel_mut(name)) else {
@@ -2472,7 +2472,7 @@ mod metadata_tests {
             outbox.events.pop_front(),
             Some(Event::HostChanged {
                 username,
-                authorship: Party::Me,
+                actor_party: Party::Me,
                 ..
             }) if username == "papo"
         ));
