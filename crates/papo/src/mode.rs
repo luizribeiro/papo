@@ -167,10 +167,40 @@ pub struct ModesOutcome {
     pub refused: Vec<(ModeChange, Refusal)>,
     /// Changes the request could not finish, with the error that stopped it, such as a
     /// disconnect after an earlier chunk was applied.
+    ///
+    /// A change the server answered without echoing or refusing, as Ergo does for a mode that is
+    /// already set, is here with [`Error::NotVerified`].
     pub failed: Vec<(ModeChange, Error)>,
 }
 
 impl ModesOutcome {
+    fn record(
+        &mut self,
+        response: &Response,
+        state: &crate::State,
+        target: &str,
+        chunk: &[ModeChange],
+    ) -> Option<papo_core::ServerError> {
+        let applied = confirmed(response, state, target, chunk);
+        let unechoed = chunk
+            .iter()
+            .filter(|change| !applied.contains(change))
+            .cloned();
+        let error = response.error();
+        match &error {
+            Some(error) => {
+                let refusal = error.refusal();
+                self.refused
+                    .extend(unechoed.map(|change| (change, refusal)));
+            }
+            None => self
+                .failed
+                .extend(unechoed.map(|change| (change, Error::NotVerified))),
+        }
+        self.applied.extend(applied);
+        error
+    }
+
     /// Returns whether every requested change was either applied or explicitly refused.
     #[must_use]
     pub fn is_complete(&self) -> bool {
@@ -455,19 +485,9 @@ impl IntoFuture for SetModes {
                                 return Ok(result);
                             }
                         };
-                        let applied = confirmed(&response, &state, &target, chunk);
-                        if let Some(error) = response.error() {
-                            let refusal = error.refusal();
-                            result.refused.extend(
-                                chunk
-                                    .iter()
-                                    .filter(|change| !applied.contains(change))
-                                    .cloned()
-                                    .map(|change| (change, refusal)),
-                            );
+                        if let Some(error) = result.record(&response, &state, &target, chunk) {
                             first_refusal.get_or_insert(error);
                         }
-                        result.applied.extend(applied);
                     }
                     if result.applied.is_empty()
                         && let Some(error) = first_refusal

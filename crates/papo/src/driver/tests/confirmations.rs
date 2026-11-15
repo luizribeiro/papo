@@ -2,6 +2,7 @@ use crate::driver::test_support::*;
 use crate::{Confirmation, UnconfirmedReason};
 
 const LABELLED: &str = "labeled-response message-tags";
+const ERGO_ISUPPORT: &[u8] = b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server\r\n";
 
 async fn answered<T: Send + 'static>(
     caps: &str,
@@ -12,6 +13,7 @@ async fn answered<T: Send + 'static>(
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps.split(' ')));
     let task = tokio::spawn(driver);
     complete_connect_caps(&mut server, &mut events, caps, caps).await;
+    server_line(&mut server, ERGO_ISUPPORT).await;
     let pending = tokio::spawn(request(client));
     client_line(&mut server, format!("{sent}\r\n").as_bytes()).await;
     for reply in replies {
@@ -456,5 +458,44 @@ async fn a_metadata_sync_says_when_the_server_defers_it() {
         .await
         .unwrap();
         assert_eq!(outcome, expected, "{replies:?}");
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_mode_change_the_server_ignores_fails_as_not_verified() {
+    let cases: [(&str, &str, &[&str]); 2] = [
+        (
+            LABELLED,
+            "@label=0 MODE #papo +n",
+            &[
+                "@label=0 :ergo.test BATCH +5 labeled-response",
+                "@time=2026-11-15T20:07:32.192Z;batch=5 :ergo.test 324 papo-driver #papo +Cnt",
+                "@time=2026-11-15T20:07:32.192Z;batch=5 :ergo.test 329 papo-driver #papo 1794773224",
+                ":ergo.test BATCH -5",
+            ],
+        ),
+        (
+            "message-tags",
+            "MODE #papo +n\r\nPING papo-mode-0",
+            &[":ergo.test PONG ergo.test :papo-mode-0"],
+        ),
+    ];
+    for (caps, sent, replies) in cases {
+        let outcome = answered(
+            caps,
+            |client| client.mode("#papo").add('n').into_future(),
+            sent,
+            replies,
+        )
+        .await
+        .unwrap();
+        assert!(
+            outcome.applied.is_empty() && outcome.refused.is_empty(),
+            "{sent}"
+        );
+        let [(change, Error::NotVerified)] = outcome.failed.as_slice() else {
+            panic!("{sent}: {outcome:?}");
+        };
+        assert_eq!(change.mode, 'n', "{sent}");
     }
 }
