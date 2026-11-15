@@ -730,14 +730,7 @@ impl Builder {
         (client, events, driver)
     }
 
-    pub(crate) fn build_with_connector(
-        self,
-        connector: crate::driver::Connector,
-    ) -> (crate::Client, crate::Events, crate::Driver) {
-        self.build_with_connect(None, Some(connector))
-    }
-
-    fn build_with_connect(
+    pub(crate) fn build_with_connect(
         mut self,
         registration: Option<crate::driver::ConnectSender>,
         connector: Option<crate::driver::Connector>,

@@ -105,13 +105,6 @@ impl Receipt {
         self.reference().recipient
     }
 
-    pub(crate) fn update_actor(&mut self, actor: Source, conversation: &Conversation) {
-        self.update_event_actor(actor, conversation);
-        if matches!(conversation, Conversation::Private(_)) {
-            self.address = conversation.to_string();
-        }
-    }
-
     pub(crate) fn update_event_actor(&mut self, actor: Source, conversation: &Conversation) {
         self.identity.actor = actor;
         self.identity.recipient = match conversation {
@@ -644,17 +637,6 @@ mod tests {
     }
 
     #[test]
-    fn only_a_channel_conversation_has_a_channel_handle() {
-        let mapping = crate::Casemapping::default();
-        let handle = channel_handle(mapping.channel("#ops"));
-        let channel = Conversation::Channel(handle.clone());
-        let private = Conversation::Private(user_handle(mapping.nick("oppy")));
-
-        assert_eq!(channel.channel(), Some(&handle));
-        assert_eq!(private.channel(), None);
-    }
-
-    #[test]
     fn actor_updates_clear_channel_guards_only_for_private_conversations() {
         let mapping = crate::Casemapping::default();
         let channel = Conversation::Channel(channel_handle(mapping.channel("#ops")));
@@ -671,9 +653,9 @@ mod tests {
             None,
         ));
 
-        receipt.update_actor(actor.clone(), &channel);
+        receipt.update_event_actor(actor.clone(), &channel);
         assert!(receipt.identity.channel.is_some());
-        receipt.update_actor(
+        receipt.update_event_actor(
             actor,
             &Conversation::Private(user_handle(mapping.nick("alice"))),
         );
