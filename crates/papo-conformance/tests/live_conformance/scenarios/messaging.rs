@@ -828,6 +828,27 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+fn assert_confirmed_as_seen(
+    outcome: &papo::ReactOutcome,
+    seen: &papo::event::Reacted,
+    channel: &str,
+) {
+    let confirmed = match &outcome.confirmation {
+        papo::Confirmation::Confirmed { msgid, .. } => Some(msgid),
+        papo::Confirmation::Unconfirmed {
+            reason: papo::UnconfirmedReason::NoMessageId,
+            ..
+        } => None,
+        other => panic!("echo-message and labeled-response confirm a reaction: {other:?}"),
+    };
+    assert_eq!(confirmed, seen.msgid());
+    assert_eq!(outcome.status, None);
+    assert_eq!(
+        conversation_name(&outcome.conversation),
+        Some(channel.to_owned())
+    );
+}
+
 /// replies and reaction changes retain the referenced message identifier
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags"]),
@@ -860,8 +881,8 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.clone())
     );
 
-    match bob.react(&original, "👍").await {
-        Ok(_) => {}
+    let reacted = match bob.react(&original, "👍").await {
+        Ok(reacted) => reacted,
         Err(Error::Unsupported(unsupported))
             if unsupported.feature == Feature::Reactions
                 && unsupported.reason == UnsupportedReason::TagDenied =>
@@ -869,8 +890,9 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
             return Ok(());
         }
         Err(error) => return Err(error.into()),
-    }
+    };
     let added = alice.wait_for(Event::as_reacted).await?;
+    assert_confirmed_as_seen(&reacted, &added, &channel);
     assert_eq!(
         conversation_name(added.conversation()),
         Some(channel.clone())
@@ -880,8 +902,9 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(added.action, papo::event::ReactionAction::Added);
     assert_eq!(crate::source_nick(&added.actor), Some(bob.nick().as_str()));
 
-    bob.unreact(&original, "👍").await?;
+    let unreacted = bob.unreact(&original, "👍").await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
+    assert_confirmed_as_seen(&unreacted, &removed, &channel);
     assert_eq!(
         conversation_name(removed.conversation()),
         Some(channel.clone())
