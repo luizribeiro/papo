@@ -167,6 +167,32 @@ struct ResolvedSend {
 }
 
 impl ResolvedSend {
+    fn conversation(
+        &self,
+        client: &Client,
+        state: &State,
+    ) -> Result<(Option<crate::Prefix>, crate::Conversation), Error> {
+        let (status, core_conversation) = state
+            .parse_target_inner(&self.text)
+            .map_err(|reason| InvalidInput::invalid_name(&self.text, reason))?;
+        let channel_guard = match (&core_conversation, self.guard.as_ref()) {
+            (_, Some(papo_core::TargetGuard::Channel(channel))) => Some(channel.clone()),
+            (papo_core::Conversation::Channel(channel), _)
+                if state.channel_local(channel).is_some() =>
+            {
+                Some(state.core.__channel_guard(channel))
+            }
+            _ => None,
+        };
+        let conversation = crate::Conversation::from_core(
+            core_conversation,
+            client.origin,
+            Some(&client.state),
+            channel_guard,
+        );
+        Ok((status, conversation))
+    }
+
     fn into_chat_guard(self) -> crate::driver::ChatGuard {
         self.person.map_or_else(
             || crate::driver::ChatGuard::Target(self.guard),
@@ -1298,24 +1324,7 @@ impl Client {
     ) -> Result<Sent, Error> {
         let state = self.state();
         let wire_target = target.text.clone();
-        let (status, core_conversation) = state
-            .parse_target_inner(&wire_target)
-            .map_err(|reason| InvalidInput::invalid_name(&wire_target, reason))?;
-        let channel_guard = match (&core_conversation, target.guard.as_ref()) {
-            (_, Some(papo_core::TargetGuard::Channel(channel))) => Some(channel.clone()),
-            (papo_core::Conversation::Channel(channel), _)
-                if state.channel_local(channel).is_some() =>
-            {
-                Some(state.core.__channel_guard(channel))
-            }
-            _ => None,
-        };
-        let conversation = crate::Conversation::from_core(
-            core_conversation,
-            self.origin,
-            Some(&self.state),
-            channel_guard,
-        );
+        let (status, conversation) = target.conversation(self, &state)?;
         let receipt = state.sent_receipt(&conversation, wire_target.clone());
         if !state.is_connected() {
             let text = if action {
