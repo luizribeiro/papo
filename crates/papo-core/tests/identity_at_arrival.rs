@@ -38,14 +38,18 @@ fn joined_review() -> Session {
 }
 
 fn assert_identity_at_arrival(case: &Case) {
+    assert_identity_after(
+        case,
+        &format!(":{}!~alice@cloak.example QUIT :Quit: bye", case.subject),
+    );
+}
+
+fn assert_identity_after(case: &Case, departure: &str) {
     let mut session = joined_review();
     server(&mut session, case.line);
     let at_arrival = session.state().__reply_token_for(case.subject);
     assert!(at_arrival.__is_known(), "{}: subject is unknown", case.name);
-    server(
-        &mut session,
-        &format!(":{}!~alice@cloak.example QUIT :Quit: bye", case.subject),
-    );
+    server(&mut session, departure);
     server(
         &mut session,
         &format!(":mallory!~mallory@users.example NICK {}", case.subject),
@@ -310,4 +314,57 @@ fn tags_redactions_and_typing_record_the_actor_at_arrival() {
     ] {
         assert_identity_at_arrival(&case);
     }
+}
+
+fn line_token(
+    event: &Event,
+    token: fn(&papo_core::ReceivedLine) -> ReplyToken,
+) -> Option<ReplyToken> {
+    match event {
+        Event::Line(line) if line.as_ref().command_is("PRIVMSG") => Some(token(line)),
+        _ => None,
+    }
+}
+
+#[test]
+fn private_messages_record_the_peer_at_arrival() {
+    let cases = [
+        Case {
+            name: "DM sender",
+            line: "@msgid=RfcBTzyxY120010 :alice!~alice@cloak.example PRIVMSG papo :can you review 142?",
+            subject: "alice",
+            token: |event| line_token(event, papo_core::ReceivedLine::__source_token),
+        },
+        Case {
+            name: "DM peer",
+            line: "@msgid=RfcBTzyxY120010 :alice!~alice@cloak.example PRIVMSG papo :can you review 142?",
+            subject: "alice",
+            token: |event| line_token(event, papo_core::ReceivedLine::__reply_token),
+        },
+        Case {
+            name: "own DM recipient",
+            line: "@msgid=RfcBTzyxY120011 :papo!~papo@localhost PRIVMSG alice :looking now",
+            subject: "alice",
+            token: |event| line_token(event, papo_core::ReceivedLine::__reply_token),
+        },
+    ];
+    for case in &cases {
+        assert_identity_at_arrival(case);
+        assert_identity_after(case, ":alice!~alice@cloak.example NICK alicia");
+    }
+}
+
+#[test]
+fn an_own_private_message_records_the_own_user_as_its_source() {
+    let mut session = joined_review();
+    let own = session.state().__reply_token_for("papo");
+    server(
+        &mut session,
+        "@msgid=RfcBTzyxY120011 :papo!~papo@localhost PRIVMSG alice :looking now",
+    );
+    let source = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| line_token(&event, papo_core::ReceivedLine::__source_token))
+        .expect("own private message");
+    assert!(own.__is_known());
+    assert_eq!(source, own);
 }

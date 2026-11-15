@@ -63,6 +63,7 @@ impl Session {
                 crate::Conversation::Channel(channel) => Some(self.channel_guard(channel)),
                 crate::Conversation::Private(_) => None,
             });
+        let source_token = self.state.source_token(&line.as_ref());
         ReceivedLine {
             line,
             batch_type,
@@ -71,6 +72,7 @@ impl Session {
             status,
             channel_context,
             reply_token,
+            source_token,
             channel_guard,
         }
     }

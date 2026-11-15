@@ -3249,6 +3249,7 @@ pub struct ReceivedLine {
     status: Option<Prefix>,
     channel_context: Option<ChannelName>,
     reply_token: ReplyToken,
+    source_token: ReplyToken,
     channel_guard: Option<ChannelGuard>,
 }
 
@@ -3473,6 +3474,13 @@ impl ReceivedLine {
     #[must_use]
     pub const fn __reply_token(&self) -> ReplyToken {
         self.reply_token
+    }
+
+    /// Returns the identity of the line's user source when the line arrived.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __source_token(&self) -> ReplyToken {
+        self.source_token
     }
 
     /// Returns the channel membership captured with this line.
@@ -6914,10 +6922,8 @@ mod tests {
             conversation: None,
             status: None,
             channel_context: None,
-            reply_token: ReplyToken {
-                origin: papo_proto::Origin::NONE,
-                identity: None,
-            },
+            reply_token: ReplyToken::__unknown(papo_proto::Origin::NONE),
+            source_token: ReplyToken::__unknown(papo_proto::Origin::NONE),
             channel_guard: None,
         }
     }
