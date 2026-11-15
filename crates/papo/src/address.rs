@@ -101,6 +101,25 @@ pub enum InvalidInput {
     /// A message reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
     UnusableMessageReference,
+    /// A send threads, reacts to or redacts a status-prefixed line and reaches members that line
+    /// did not.
+    ///
+    /// papo remembers the ids of the last 1024 status-prefixed lines this connection received,
+    /// including echoes of its own, and forgets them on reconnect. A line that points at one of
+    /// them through `+reply`, `+draft/reply` or `REDACT` may go only to the same sign on the same
+    /// channel, or to a higher-ranked sign in the server's `PREFIX`: an answer to `@#ops` may go
+    /// to `@#ops` or `~#ops`, never to `#ops`, `+#ops`, another channel or a private message.
+    /// Ids papo never saw are not checked. Nothing is written, and papo never retries the send
+    /// with another target. See [`crate::Conversation`] for status-prefixed line guidance.
+    #[error(
+        "the referenced message reached only {} members; this send reaches others",
+        .referenced.symbol()
+    )]
+    #[non_exhaustive]
+    WiderThanReferenced {
+        /// The status sign the referenced line was sent to.
+        referenced: crate::Prefix,
+    },
     /// A message belongs to a different conversation than the requested read marker.
     #[error("the message belongs to another conversation")]
     WrongConversation,

@@ -1832,6 +1832,8 @@ pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
 pub papo::InvalidInput::UnstableCapability(papo_core::cap::Cap)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::Url(papo::InvalidUrl)
+#[non_exhaustive] pub papo::InvalidInput::WiderThanReferenced
+pub papo::InvalidInput::WiderThanReferenced::referenced: papo::Prefix
 pub papo::InvalidInput::WireMessage(papo::BuildError)
 pub papo::InvalidInput::WrongConversation
 pub papo::InvalidInput::ZeroEventCapacity

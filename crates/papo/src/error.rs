@@ -636,6 +636,9 @@ impl Error {
             Request::InvalidMessageReference => {
                 Self::InvalidInput(InvalidInput::UnusableMessageReference)
             }
+            Request::WiderThanReferenced { referenced, .. } => {
+                Self::InvalidInput(InvalidInput::WiderThanReferenced { referenced })
+            }
             Request::StateLimit(limit) => Self::StateLimit(limit),
             Request::ServerTimeInFuture {
                 requested,
@@ -1197,6 +1200,9 @@ mod tests {
                 actual: 4095,
             },
             InvalidInput::UnusableMessageReference,
+            InvalidInput::WiderThanReferenced {
+                referenced: crate::Prefix::__new('o', '@'),
+            },
             InvalidInput::EmailRequired,
             InvalidInput::AccountNameMustMatchNick,
             InvalidInput::MetadataValueTooLong {

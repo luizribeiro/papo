@@ -353,6 +353,8 @@ impl SendMessage {
     /// [`UnsupportedReason::DisabledByClient`]. A key rejected by `CLIENTTAGDENY` returns the
     /// same feature with [`UnsupportedReason::TagDenied`]. Other key grammar and encoded-size
     /// failures return [`Error::InvalidInput`].
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.tags.push((key.into(), value.into()));
         self
@@ -754,6 +756,8 @@ impl Client {
     ///
     /// Returns [`Error::InvalidInput`] when the line cannot be represented on
     /// the wire, or [`Error::Disconnected`] if the driver stops before writing it.
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn send_raw(&self, line: Line) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move { client.send_message(line).await })
@@ -822,6 +826,8 @@ impl Client {
     /// raw requests have no unlabelled fallback. Also returns an error when the
     /// line cannot be represented on the wire, the request limit is reached,
     /// the response times out, or the driver stops.
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn request_raw(&self, line: Line) -> crate::RequestFuture<Vec<Line>> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
@@ -1051,6 +1057,8 @@ impl Client {
     ///
     /// Returns [`Error::TargetGone`] in the private-recipient case described above. It returns an
     /// error if the text is empty or invalid, or the driver has stopped.
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn reply(
         &self,
         message: impl Into<crate::MessageRef>,
@@ -1085,6 +1093,8 @@ impl Client {
     /// identifier returns [`InvalidInput::UnusableMessageReference`].
     /// A private reference whose nickname is proven to belong to another user returns
     /// [`Error::TargetGone`].
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn react(
         &self,
         message: impl Into<crate::MessageRef>,
@@ -1108,6 +1118,8 @@ impl Client {
     /// identifier returns [`InvalidInput::UnusableMessageReference`].
     /// A private reference whose nickname is proven to belong to another user returns
     /// [`Error::TargetGone`].
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn unreact(
         &self,
         message: impl Into<crate::MessageRef>,
@@ -1222,6 +1234,8 @@ impl Client {
     /// [`InvalidInput::UnusableMessageReference`].
     /// A private reference whose nickname is proven to belong to another user returns
     /// [`Error::TargetGone`].
+    /// A send that widens a remembered status-prefixed line's audience returns
+    /// [`InvalidInput::WiderThanReferenced`].
     pub fn redact(
         &self,
         message: impl Into<crate::MessageRef>,
