@@ -1991,7 +1991,7 @@ impl Client {
                 .await?;
             let echo = crate::requests::echo(&response, "TOPIC")?;
             Ok(crate::TopicOutcome {
-                topic: echo.param(1).unwrap_or_default().to_owned(),
+                topic: echo.param(1).ok_or(Error::NotVerified)?.to_owned(),
                 confirmation: crate::Confirmation::from_echo(&echo),
             })
         })

@@ -499,3 +499,15 @@ async fn a_mode_change_the_server_ignores_fails_as_not_verified() {
         assert_eq!(change.mode, 'n', "{sent}");
     }
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_topic_echo_without_its_text_is_not_verified() {
+    let result = answered(
+        LABELLED,
+        |client| client.set_topic("#papo", "hello topic"),
+        "@label=0 TOPIC #papo :hello topic",
+        &["@time=2026-11-15T20:07:16.155Z;label=0 :papo-driver!~u@3t4fgnf9zitka.irc TOPIC #papo"],
+    )
+    .await;
+    assert!(matches!(result, Err(Error::NotVerified)), "{result:?}");
+}
