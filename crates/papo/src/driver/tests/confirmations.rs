@@ -338,3 +338,41 @@ async fn a_metadata_set_resolves_to_the_value_the_server_stored() {
         "{unverified:?}"
     );
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_metadata_clear_resolves_to_the_keys_the_server_cleared() {
+    let cases: [(&[&str], &[&str]); 2] = [
+        (
+            &[
+                "@time=2026-11-15T20:11:38.200Z;label=0 :ergo.test BATCH +5 metadata papo-driver",
+                "@time=2026-11-15T20:11:38.200Z;batch=5 :ergo.test 766 papo-driver papo-driver avatar :Metadata value cleared",
+                "@time=2026-11-15T20:11:38.200Z;batch=5 :ergo.test 766 papo-driver papo-driver display-name :Metadata value cleared",
+                "@time=2026-11-15T20:11:38.200Z :ergo.test BATCH -5",
+            ],
+            &["avatar", "display-name"],
+        ),
+        (
+            &[
+                "@label=0;time=2026-11-15T20:11:39.703Z :ergo.test BATCH +6 metadata papo-driver",
+                "@time=2026-11-15T20:11:39.703Z :ergo.test BATCH -6",
+            ],
+            &[],
+        ),
+    ];
+    for (replies, expected) in cases {
+        let cleared = answered(
+            METADATA,
+            |client| client.metadata().clear(),
+            "@label=0 METADATA * CLEAR",
+            replies,
+        )
+        .await
+        .unwrap();
+        let expected: Vec<_> = expected
+            .iter()
+            .copied()
+            .map(crate::MetadataKey::new)
+            .collect();
+        assert_eq!(cleared, expected, "{replies:?}");
+    }
+}

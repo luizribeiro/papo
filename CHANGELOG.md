@@ -126,7 +126,8 @@ kept, which may be cut to `TOPICLEN`, and the echo's `Confirmation`.
 Awaiting a `RenameChannelRequest` resolves to a `ChannelHandle` for the channel under the name the
 server echoed in `RENAME`.
 
-`Metadata::set` and `Metadata::set_on` resolve to the `MetadataValue` the server stored.
+`Metadata::set` and `Metadata::set_on` resolve to the `MetadataValue` the server stored, and
+`Metadata::clear` and `Metadata::clear_on` to the keys it cleared.
 
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.

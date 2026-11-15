@@ -60,7 +60,7 @@ async fn call_with_handed_off_person(
             .reason("ban evasion")
             .await
             .map(drop),
-        "papo::Metadata::clear_on" => metadata.clear_on(alice).await,
+        "papo::Metadata::clear_on" => metadata.clear_on(alice).await.map(drop),
         "papo::Metadata::get" => metadata.get(alice, [display_name]).await.map(drop),
         "papo::Metadata::list" => metadata.list(alice).await.map(drop),
         "papo::Metadata::remove_on" => metadata.remove_on(alice, display_name).await,

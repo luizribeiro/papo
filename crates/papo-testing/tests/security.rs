@@ -823,7 +823,7 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
             done(metadata.get(channel, [avatar()]).await),
         ),
         ("metadata.list", done(metadata.list(nick).await)),
-        ("metadata.clear_on", metadata.clear_on(channel).await),
+        ("metadata.clear_on", done(metadata.clear_on(channel).await)),
         (
             "metadata.set_on",
             metadata
@@ -2493,7 +2493,7 @@ async fn assert_stale_channel_requests_fail(
             "metadata.remove_on",
             metadata.remove_on(stale, avatar()).await,
         ),
-        ("metadata.clear_on", metadata.clear_on(stale).await),
+        ("metadata.clear_on", done(metadata.clear_on(stale).await)),
         ("metadata.sync", metadata.sync(stale).await),
     ] {
         assert!(

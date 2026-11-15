@@ -137,7 +137,7 @@ impl Metadata {
         &self,
         target: Result<String, Error>,
         user: Option<crate::UserHandle>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<Vec<crate::MetadataKey>> {
         let metadata = Self {
             client: self.client.clone(),
         };
@@ -146,10 +146,14 @@ impl Metadata {
             let proof = metadata
                 .prove_target(&target, user, "metadata: target")
                 .await?;
-            metadata
+            let response = metadata
                 .request(MetadataCommand::__clear(target), proof)
-                .await
-                .map(drop)
+                .await?;
+            Ok(response
+                .metadata()
+                .into_iter()
+                .filter_map(|(key, value)| value.is_none().then_some(key))
+                .collect())
         })
     }
 
@@ -330,7 +334,7 @@ impl Metadata {
         self.unset(target, user, key)
     }
 
-    /// Clears all metadata for the current nickname.
+    /// Clears all metadata for the current nickname and resolves to the keys the server cleared.
     ///
     /// # Errors
     ///
@@ -339,12 +343,15 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub fn clear(&self) -> crate::RequestFuture<()> {
+    pub fn clear(&self) -> crate::RequestFuture<Vec<crate::MetadataKey>> {
         self.clear_target(Ok("*".into()), None)
     }
 
-    /// Clears all metadata on a user or channel.
-    pub fn clear_on(&self, target: impl crate::AsConversation) -> crate::RequestFuture<()> {
+    /// Clears all metadata on a user or channel and resolves to the keys the server cleared.
+    pub fn clear_on(
+        &self,
+        target: impl crate::AsConversation,
+    ) -> crate::RequestFuture<Vec<crate::MetadataKey>> {
         let (target, user) = self.target(target, "metadata.clear_on: target");
         self.clear_target(target, user)
     }

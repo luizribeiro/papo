@@ -1178,7 +1178,10 @@ mod tests {
                 "metadata.remove_on",
                 metadata.remove_on(&channel, avatar()).await,
             ),
-            ("metadata.clear_on", metadata.clear_on(&channel).await),
+            (
+                "metadata.clear_on",
+                metadata.clear_on(&channel).await.map(|_| ()),
+            ),
             ("metadata.sync", metadata.sync(&channel).await),
         ] {
             assert!(
