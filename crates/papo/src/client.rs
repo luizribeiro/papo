@@ -12,7 +12,7 @@ use papo_proto::{Ctcp, Typing};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error, Feature, InvalidInput, Line, ServerTime, Unsupported, UnsupportedReason,
+    Error, Feature, InvalidInput, Line, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
@@ -64,8 +64,6 @@ pub struct SendOutcome {
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub status: Option<crate::Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
-    /// Whether the server confirmed the message, with its assigned metadata when it did.
-    pub(crate) outcome: SentOutcome,
     /// Each logical line papo sent, in send order, with the server's confirmation of it.
     ///
     /// Long text is split into several lines, and segments in one `draft/multiline` batch form
@@ -98,29 +96,6 @@ impl SentLine {
     }
 }
 
-/// The server-confirmation outcome of a sent chat message.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum SentOutcome {
-    /// Every logical message line was echoed with a server-assigned identifier.
-    #[non_exhaustive]
-    Confirmed {
-        /// One identifier and exact sent text for each logical line after papo's splitting.
-        ///
-        /// Segments in one `draft/multiline` batch form one logical line. For long messages, papo
-        /// uses multiline concatenation so length-based splits do not introduce line breaks.
-        lines: ConfirmedLines,
-        /// Server time from the first labelled echo that supplied one.
-        server_time: Option<ServerTime>,
-    },
-    /// The server did not confirm the message with echoes and identifiers.
-    ///
-    /// This happens when `echo-message` and `labeled-response` are not both available. The send
-    /// resolves after its last wire line is written, so it cannot be used for reactions or
-    /// redaction.
-    Unconfirmed,
-}
-
 /// The result of adding or removing a reaction with [`Client::react`] or [`Client::unreact`].
 ///
 /// The labelled echo of the reaction is consumed here and is not also emitted as an event.
@@ -137,30 +112,6 @@ pub struct ReactOutcome {
     pub status: Option<crate::Prefix>,
     /// Whether the server confirmed the reaction, with the identity it assigned when it did.
     pub confirmation: crate::Confirmation,
-}
-
-/// The non-empty logical lines in a confirmed send.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConfirmedLines {
-    lines: Vec<(crate::MessageId, String)>,
-}
-
-impl ConfirmedLines {
-    pub(crate) fn new(lines: Vec<(crate::MessageId, String)>) -> Option<Self> {
-        (!lines.is_empty()).then_some(Self { lines })
-    }
-
-    /// Returns the first confirmed line.
-    #[must_use]
-    pub fn first(&self) -> &(crate::MessageId, String) {
-        &self.lines[0]
-    }
-
-    /// Returns every confirmed line in send order.
-    #[must_use]
-    pub fn as_slice(&self) -> &[(crate::MessageId, String)] {
-        &self.lines
-    }
 }
 
 /// A compatibility fallback applied to an outgoing chat message.
@@ -507,12 +458,6 @@ impl IntoFuture for SendMessage {
 }
 
 impl SendOutcome {
-    /// Returns whether and how the server confirmed the sent message.
-    #[must_use]
-    pub const fn outcome(&self) -> &SentOutcome {
-        &self.outcome
-    }
-
     /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
@@ -538,7 +483,6 @@ impl SendOutcome {
             conversation,
             status,
             receipt,
-            outcome: SentOutcome::Unconfirmed,
             lines,
             fallbacks,
         }
@@ -553,23 +497,12 @@ impl SendOutcome {
         mut receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
-        let server_time = echoes
-            .iter()
-            .flatten()
-            .find_map(crate::confirmation::echo_time);
         let msgids = echoes
             .iter()
             .flatten()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
-        let confirmed = msgids.len() == texts.len();
-        let outcome = ConfirmedLines::new(msgids.iter().cloned().zip(texts.clone()).collect())
-            .filter(|_| confirmed)
-            .map_or(SentOutcome::Unconfirmed, |lines| SentOutcome::Confirmed {
-                lines,
-                server_time,
-            });
-        if confirmed {
+        if msgids.len() == texts.len() {
             receipt.set_reference(msgids, None);
         }
         // papo labels a send only when echo-message is on as well.
@@ -585,7 +518,6 @@ impl SendOutcome {
             conversation,
             status,
             receipt,
-            outcome,
             lines,
             fallbacks,
         }

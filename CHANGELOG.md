@@ -85,6 +85,10 @@ labelled echo, or `Unconfirmed` with an `UnconfirmedReason` when the server cann
 
 `Sent` is renamed `SendOutcome`.
 
+`SentOutcome`, `ConfirmedLines` and `SendOutcome::outcome()` are removed: each `SentLine` in
+`SendOutcome::lines` has its exact text and its own `Confirmation`, so a partial echo shows which
+lines were confirmed.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
@@ -354,7 +358,7 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 | `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&UserHandle`; `SetModes::prefix(mode, &user)` handles advertised custom prefix modes |
 | `kickban(channel, nick, reason, ban)` | `kickban(channel).nick(nick).ban(ban).reason(reason)` names the nickname and ban roles; `ban` is typed as `BanTarget` |
 | `rename_channel(old, new, reason)` | `rename_channel(old).to(new).reason(reason)` gives the two channel roles distinct positions |
-| Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, `channel_context()`, and `Sent::outcome()` are read-only accessors backed by receipt evidence |
+| Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, and `channel_context()` are read-only accessors backed by receipt evidence |
 | `Extban::Account(String)` | Opaque `Extban::account(impl AsAccount)` is the only account-extban constructor |
 | Parsed `Extban` values could not be inspected | `Extban::as_account()` returns the typed account name |
 | `metadata::keys` constants were strings | Constants are reusable `MetadataKey` values accepted directly by writes |
@@ -486,7 +490,7 @@ visibility fields.
 
 Sent-message confirmation is explicit and retains every logical line's exact text:
 
-`SentOutcome::Confirmed::lines` is now a non-empty `ConfirmedLines` collection.
+`SendOutcome::lines` holds one `SentLine { text, confirmation }` per logical line, in send order.
 
 ```rust,ignore
 // Before
@@ -494,16 +498,17 @@ if let Some(id) = sent.msgid { /* first line only */ }
 for id in sent.line_msgids { /* text unavailable */ }
 
 // After
-match &sent.outcome {
-    SentOutcome::Confirmed { lines, server_time, .. } => {
-        for (id, text) in lines.as_slice() { /* store the confirmed line */ }
+for line in &sent.lines {
+    match &line.confirmation {
+        Confirmation::Confirmed { msgid, .. } => { /* store line.text under msgid */ }
+        Confirmation::Unconfirmed { reason, .. } => { /* no usable message ID */ }
+        _ => {}
     }
-    SentOutcome::Unconfirmed => { /* no usable message IDs */ }
-    _ => {}
 }
 ```
 
-`Sent::{msgid, line_msgids, server_time}` were removed. `Sent::status` is `Option<Prefix>`, and
+`SendOutcome` has no `msgid`, `line_msgids` or `server_time`. `SendOutcome::status` is
+`Option<Prefix>`, and
 `return_address()` returns a guarded `MessageRef`. Reacting or redacting an unconfirmed send fails
 because it has no server message ID. Redacting a confirmed split send processes every line in send
 order as one driver-owned composite operation.

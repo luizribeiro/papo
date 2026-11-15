@@ -406,10 +406,10 @@ impl ReplyReference for SendOutcome {
     }
 
     fn server_time(&self) -> Option<crate::ServerTime> {
-        match &self.outcome {
-            crate::SentOutcome::Confirmed { server_time, .. } => *server_time,
-            crate::SentOutcome::Unconfirmed => None,
-        }
+        self.lines.iter().find_map(|line| match line.confirmation {
+            crate::Confirmation::Confirmed { server_time, .. } => server_time,
+            crate::Confirmation::Unconfirmed { .. } => None,
+        })
     }
 }
 
@@ -618,14 +618,6 @@ mod tests {
                 None,
                 "@#ops".into(),
             ),
-            outcome: crate::SentOutcome::Confirmed {
-                lines: crate::ConfirmedLines::new(vec![
-                    ("RfcBTzyxY120005".into(), "deploy complete".into()),
-                    ("RfcBTzyxY120006".into(), "deploy verified".into()),
-                ])
-                .unwrap(),
-                server_time: Some(crate::ServerTime::from_stored_millis(0).unwrap()),
-            },
             lines: [
                 ("RfcBTzyxY120005", "deploy complete"),
                 ("RfcBTzyxY120006", "deploy verified"),
@@ -648,11 +640,6 @@ mod tests {
         assert_eq!(reference, "@#ops");
         assert_eq!(reference.msgids.len(), 2);
         assert_eq!(reference.origin(), origin);
-
-        assert!(matches!(
-            sent.outcome(),
-            crate::SentOutcome::Confirmed { .. }
-        ));
     }
 
     #[test]

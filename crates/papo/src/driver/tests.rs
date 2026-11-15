@@ -7989,18 +7989,6 @@ async fn chat_text_preserves_an_automatically_split_multiline_batch() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
-#[test]
-fn confirmed_lines_reject_empty_input_and_expose_the_first_line() {
-    assert!(crate::ConfirmedLines::new(Vec::new()).is_none());
-    let lines = crate::ConfirmedLines::new(vec![(
-        crate::MessageId::from("RfcBTzyxY120004"),
-        "deployment complete".into(),
-    )])
-    .unwrap();
-
-    assert_eq!(lines.first(), &lines.as_slice()[0]);
-}
-
 #[tokio::test(flavor = "current_thread")]
 async fn message_builder_sends_reply_context_and_custom_tags() {
     let config = config().wanted_caps(["echo-message", "labeled-response", "message-tags"]);
@@ -9048,7 +9036,6 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
         ]
         .map(|(id, text)| confirmed_line(id, None, text))
         .into(),
-        outcome: crate::SentOutcome::Unconfirmed,
         fallbacks: Vec::new(),
     };
     sent.receipt.set_reference(
