@@ -8,9 +8,17 @@ use std::fmt;
 /// (`+#ops`: voiced members and up). Its conversation is still the plain channel `#ops`, so an
 /// ops-only line and a public line in `#ops` have equal conversations and share one buffer,
 /// history, read marker and member list. The audience stays with the line: such a line arrives
-/// only in [`crate::Event::Restricted`], whose `audience` names it. Answer it with
-/// [`crate::Client::reply`], [`crate::Client::react`], [`crate::Client::redact`] or the line's
-/// `return_address()`, which keep `@#ops`.
+/// only in [`crate::Event::Restricted`] (live, and among [`crate::HistoryPage::items`]), whose
+/// `audience` names it. Answer it with [`crate::Client::reply`], [`crate::Client::react`],
+/// [`crate::Client::redact`] or the line's `return_address()`, which keep `@#ops`.
+///
+/// Code that never matches the restricted arm never sees ops-only lines, so a bot that announces
+/// to `#ops` from its message handler cannot repeat an ops-only command to everyone. Its cost is
+/// the other direction: such code misses those lines entirely, and a log or a window that should
+/// show them has to handle the arm. State still counts them under the plain channel: the typing
+/// list shows a typer who typed to `@#ops` (each [`crate::Typer`] keeps that address), and
+/// [`crate::Client::mark_read`] without an explicit boundary marks through the newest line,
+/// restricted or not. Ergo stores no ops-only lines in history; soju stores and replays them.
 ///
 /// Sending to the conversation's channel reaches everyone in it. That is what a composer typing
 /// in the `#ops` window wants, and never the answer to an ops-only line. [`crate::Client::channel`]

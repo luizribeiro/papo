@@ -59,6 +59,16 @@ Creating the handle sends nothing. Its first guarded use proves who holds the ni
 
 Channel events carry `ChannelHandle`, which follows a joined channel across `RENAME`. A handle always names the whole channel, so sending to it reaches everyone: a line sent to `@#ops` files under the plain `#ops` conversation, and only the line itself (`client.reply`, `client.react`, `return_address()`) answers its ops-only audience. `client.channel("@#ops")` is refused.
 
+Ops-only lines get their own arm. A line sent to `@#ops` (or `+#ops`) arrives only as `Event::Restricted`, never as `Event::Message`, so a bot whose handler announces to `#ops` cannot repeat an ops-only command to the whole channel just because it never thought about them. Handle the arm when you want those lines:
+
+```rust
+if let Event::Restricted(restricted) = &event
+    && let RestrictedLine::Message(message) = &restricted.line
+{
+    client.reply(message, "on it").await?; // answers @#ops
+}
+```
+
 **No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
 
 ```rust
