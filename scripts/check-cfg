@@ -32,9 +32,9 @@ crates/papo-core/src/lib.rs|not(feature = "unstable")
 crates/papo-core/src/refusal.rs|feature = "unstable"
 crates/papo-core/src/state/mod.rs|feature = "unstable"
 crates/papo-proto/src/casemapping.rs|feature = "precis"
+crates/papo/src/address.rs|feature = "unstable"
 crates/papo/src/builder.rs|not(browser)
 crates/papo/src/driver/mod.rs|feature = "unstable"
-crates/papo/src/error.rs|feature = "unstable"
 crates/papo/src/error.rs|tls
 crates/papo/src/event.rs|feature = "unstable"
 crates/papo/src/fail.rs|feature = "unstable"

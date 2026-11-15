@@ -265,6 +265,8 @@ history cursors, read markers, or other values sent back to the server. Stored t
 Format one with its `Display` impl; `papo::time::format` and `papo_proto::time::format` are removed.
 
 `InvalidInput::KnownCapability::feature` is now the `Feature` to enable, not its name as text.
+`InvalidInput::{InvalidRelayNickname, InvalidWebPushEndpoint, InvalidWebPushKey}` exist only with
+the `unstable` feature, like the operations that return them.
 
 `UserHandle` equality and hashing identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
