@@ -298,6 +298,7 @@ fn restricted_variant(line: &crate::RestrictedLine) -> &'static str {
         crate::RestrictedLine::Redacted(_) => "Redacted",
         crate::RestrictedLine::TypingChanged(_) => "TypingChanged",
         crate::RestrictedLine::Incomplete(_) => "Incomplete",
+        crate::RestrictedLine::Other(_) => "Other",
     }
 }
 
@@ -312,6 +313,7 @@ fn plain_variant(event: &Event) -> &'static str {
         Event::Reacted(_) => "Reacted",
         Event::Redacted(_) => "Redacted",
         Event::TypingChanged(_) => "TypingChanged",
+        Event::Other(_) => "Other",
         event => panic!("unexpected plain event {event:?}"),
     }
 }
@@ -403,6 +405,46 @@ async fn every_line_type_with_a_status_sign_arrives_restricted() {
             assert_eq!(event.server_time().unwrap().to_string(), time, "{line}");
             assert!(event.received_at().is_some(), "{line}");
         }
+    }
+    ops.finish().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_untyped_line_with_a_status_sign_arrives_restricted() {
+    let mut ops = OpsChannel::joined().await;
+    server_line(
+        &mut ops.server,
+        b"@msgid=kzhqp4zbpva7jvgd9gc223pdma :ergo.test BATCH +qd7 example.com/digest\r\n",
+    )
+    .await;
+    for (to, sign) in [("@#ops", Some('@')), ("#ops", None)] {
+        let line = format!(
+            "@batch=qd7;time=2026-11-14T04:38:13.052Z :oppy!~u@cloak.example PRIVMSG {to} :deploy key rotated?\r\n"
+        );
+        server_line(&mut ops.server, line.as_bytes()).await;
+        let event = loop {
+            let event = next_event(&mut ops.events).await.unwrap();
+            if event
+                .as_other()
+                .is_some_and(|other| other.line.as_ref().command_is("BATCH"))
+            {
+                continue;
+            }
+            break event;
+        };
+        match (&event, sign) {
+            (Event::Restricted(restricted), Some(sign)) => {
+                assert_eq!(restricted.audience.symbol(), sign);
+                let other = restricted.line.as_other().expect("an untyped line");
+                assert_eq!(other.line.as_ref().param(1), Some("deploy key rotated?"));
+            }
+            (Event::Other(other), None) => assert_eq!(other.line.as_ref().param(0), Some("#ops")),
+            (event, _) => panic!("{to} arrived as {event:?}"),
+        }
+        assert_eq!(
+            event.server_time().unwrap().to_string(),
+            "2026-11-14T04:38:13.052Z"
+        );
     }
     ops.finish().await;
 }

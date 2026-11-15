@@ -2006,6 +2006,7 @@ pub papo::RestrictedLine::CtcpReply(papo::event::CtcpReply)
 pub papo::RestrictedLine::Incomplete(papo::Incomplete)
 pub papo::RestrictedLine::Message(papo::Message)
 pub papo::RestrictedLine::Notice(papo::event::Notice)
+pub papo::RestrictedLine::Other(papo::event::Unparsed)
 pub papo::RestrictedLine::Reacted(papo::event::Reacted)
 pub papo::RestrictedLine::Redacted(papo::event::Redacted)
 pub papo::RestrictedLine::ServerNotice(papo::event::ServerNotice)
@@ -2021,6 +2022,8 @@ impl papo::RestrictedLine
 pub const fn papo::RestrictedLine::as_message(&self) -> core::option::Option<&papo::Message>
 impl papo::RestrictedLine
 pub const fn papo::RestrictedLine::as_notice(&self) -> core::option::Option<&papo::event::Notice>
+impl papo::RestrictedLine
+pub const fn papo::RestrictedLine::as_other(&self) -> core::option::Option<&papo::event::Unparsed>
 impl papo::RestrictedLine
 pub const fn papo::RestrictedLine::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
 impl papo::RestrictedLine

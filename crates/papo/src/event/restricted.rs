@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use super::{
     Audience, CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, Reacted, Redacted,
-    ServerNotice, ServerTime, TagMsg, TypingChanged,
+    ServerNotice, ServerTime, TagMsg, TypingChanged, Unparsed,
 };
 use crate::{Conversation, Prefix};
 
@@ -70,9 +70,13 @@ macro_rules! line_types {
 
         /// Moves a status-prefixed line into [`crate::Event::Restricted`], so that no plain arm
         /// ever carries one. The event stream and every history item both end here.
-        pub(crate) fn separate(event: crate::Event) -> crate::Event {
+        pub(crate) fn separate(
+            event: crate::Event,
+            own_nick: &str,
+            isupport: &papo_proto::Isupport,
+        ) -> crate::Event {
             let (audience, line) = match event {
-                $(crate::Event::$variant(mut line) => match line.take_status() {
+                $(crate::Event::$variant(mut line) => match line.take_status(own_nick, isupport) {
                     Some(audience) => (audience, RestrictedLine::$variant(line)),
                     None => return crate::Event::$variant(line),
                 },)+
@@ -104,16 +108,18 @@ line_types! {
     Redacted(Redacted),
     /// A user's typing state changed.
     TypingChanged(TypingChanged),
+    /// A line papo did not turn into a typed payload.
+    Other(Unparsed),
 }
 
 trait TakeStatus {
-    fn take_status(&mut self) -> Option<Prefix>;
+    fn take_status(&mut self, own_nick: &str, isupport: &papo_proto::Isupport) -> Option<Prefix>;
 }
 
 macro_rules! status_field {
     ($($ty:ty),+ $(,)?) => {
         $(impl TakeStatus for $ty {
-            fn take_status(&mut self) -> Option<Prefix> {
+            fn take_status(&mut self, _: &str, _: &papo_proto::Isupport) -> Option<Prefix> {
                 self.status.take()
             }
         })+
@@ -133,11 +139,21 @@ status_field!(
 );
 
 impl TakeStatus for Incomplete {
-    fn take_status(&mut self) -> Option<Prefix> {
+    fn take_status(&mut self, own_nick: &str, isupport: &papo_proto::Isupport) -> Option<Prefix> {
         match self {
-            Self::Message(message) => message.take_status(),
-            Self::Notice(notice) => notice.take_status(),
+            Self::Message(message) => message.take_status(own_nick, isupport),
+            Self::Notice(notice) => notice.take_status(own_nick, isupport),
         }
+    }
+}
+
+// An unparsed line was never classified, so its target is read here: a status sign on it names
+// the same audience a typed line would carry.
+impl TakeStatus for Unparsed {
+    fn take_status(&mut self, own_nick: &str, isupport: &papo_proto::Isupport) -> Option<Prefix> {
+        papo_core::classify_conversation(&self.line.as_ref(), own_nick, isupport)
+            .ok()
+            .and_then(|(status, _)| status)
     }
 }
 
@@ -157,6 +173,7 @@ impl<'a> LineView<'a> {
             Self::Reacted(line) => Some(line.conversation.clone()),
             Self::Redacted(line) => Some(line.conversation.clone()),
             Self::TypingChanged(line) => Some(line.conversation.clone()),
+            Self::Other(_) => None,
         }
     }
 
@@ -172,6 +189,7 @@ impl<'a> LineView<'a> {
             Self::TagMsg(line) => line.msgid.as_ref(),
             Self::Reacted(line) => line.msgid.as_ref(),
             Self::Redacted(line) => line.msgid.as_ref(),
+            Self::Other(line) => line.msgid.as_ref(),
             Self::TypingChanged(_) => None,
         }
     }
@@ -187,6 +205,7 @@ impl<'a> LineView<'a> {
             Self::Reacted(line) => line.server_time,
             Self::Redacted(line) => line.server_time,
             Self::TypingChanged(line) => line.server_time,
+            Self::Other(line) => line.server_time,
         }
     }
 
@@ -201,6 +220,7 @@ impl<'a> LineView<'a> {
             Self::Reacted(line) => line.received_at,
             Self::Redacted(line) => line.received_at,
             Self::TypingChanged(line) => line.received_at,
+            Self::Other(line) => line.received_at,
         }
     }
 }
@@ -216,4 +236,5 @@ variant_accessors! { RestrictedLine;
     (Reacted, as_reacted, Reacted),
     (Redacted, as_redacted, Redacted),
     (TypingChanged, as_typing_changed, TypingChanged),
+    (Other, as_other, Unparsed),
 }

@@ -597,7 +597,14 @@ impl Events {
         context: &mut task::Context<'_>,
     ) -> task::Poll<Option<(Event, Arc<State>)>> {
         self.poll_queued(context).map(|item| {
-            item.map(|(event, state)| (crate::event_impl::separate_restricted(event), state))
+            item.map(|(event, state)| {
+                let event = crate::event_impl::separate_restricted(
+                    event,
+                    state.nick().as_str(),
+                    state.isupport().inner(),
+                );
+                (event, state)
+            })
         })
     }
 

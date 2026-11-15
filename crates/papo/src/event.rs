@@ -1725,7 +1725,8 @@ impl Event {
             | Self::TagMsg(_)
             | Self::Reacted(_)
             | Self::Redacted(_)
-            | Self::TypingChanged(_) => self.line_view().and_then(LineView::conversation),
+            | Self::TypingChanged(_)
+            | Self::Other(_) => self.line_view().and_then(LineView::conversation),
             Self::MetadataChanged(event) => match &event.subject {
                 crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 crate::Subject::User(_) => None,
@@ -1751,7 +1752,6 @@ impl Event {
             | Self::Motd(_)
             | Self::BroadcastCtcp(_)
             | Self::BroadcastTagMsg(_)
-            | Self::Other(_)
             | Self::StandardReply(_)
             | Self::AccountCreation(_)
             | Self::Warning(_)
@@ -1831,7 +1831,6 @@ impl Event {
             Self::ChannelRenamed(event) => event.msgid.as_ref(),
             Self::ModeChanged(event) => event.msgid.as_ref(),
             Self::TopicChanged(event) => event.msgid.as_ref(),
-            Self::Other(event) => event.msgid.as_ref(),
             _ => None,
         }
     }
@@ -1861,7 +1860,6 @@ impl Event {
             Self::AwayChanged(event) => event.server_time,
             Self::HostChanged(event) => event.server_time,
             Self::RealnameChanged(event) => event.server_time,
-            Self::Other(event) => event.server_time,
             _ => None,
         }
     }
@@ -1888,7 +1886,6 @@ impl Event {
             Self::RealnameChanged(event) => Some(event.received_at),
             Self::ModeChanged(event) => Some(event.received_at),
             Self::TopicChanged(event) => Some(event.received_at),
-            Self::Other(event) => Some(event.received_at),
             _ => None,
         }
     }

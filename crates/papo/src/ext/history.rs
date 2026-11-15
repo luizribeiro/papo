@@ -308,7 +308,7 @@ pub(crate) fn history_item(
         }
     };
     crate::event_impl::attach_message_handles(&mut event, actor_token, Some(&client.state), true);
-    crate::event_impl::separate_restricted(event)
+    crate::event_impl::separate_restricted(event, state.nick().as_str(), state.isupport().inner())
 }
 
 fn shared_history_actor_token(
