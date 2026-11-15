@@ -308,7 +308,7 @@ pub(crate) fn history_item(
         }
     };
     crate::event_impl::attach_message_handles(&mut event, actor_token, Some(&client.state), true);
-    event
+    crate::event_impl::separate_restricted(event)
 }
 
 fn shared_history_actor_token(
@@ -2631,6 +2631,69 @@ mod tests {
         .await;
         history_response(&mut server, 1).await;
         within(request).await.unwrap().unwrap();
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn soju_replays_ops_only_lines_in_the_restricted_arm() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_connect_history(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b":soju.test 005 papo-driver CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported\r\n",
+        )
+        .await;
+        while client.state().isupport().statusmsg() != Some("~&@%+") {
+            tokio::task::yield_now().await;
+        }
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.history("#ops").latest().limit(3).await }
+        });
+        client_line(&mut server, b"@label=0 CHATHISTORY LATEST #ops * 3\r\n").await;
+        server_line(
+            &mut server,
+            concat!(
+                "@label=0 :soju.test BATCH +reply labeled-response\r\n",
+                "@batch=reply :soju.test BATCH +2 chathistory #ops\r\n",
+                "@time=2026-11-14T04:39:05.754Z;msgid=97b979m6qw8cdht9ktjmyk4fjs;batch=2 :oppy!~u@3g9xu4jk52ewq.irc PRIVMSG #ops :via-soju public\r\n",
+                "@time=2026-11-14T04:39:08.956Z;msgid=mmaw5dbdbfcdtemfrdriw2pg5n;batch=2 :bnc!~u@3g9xu4jk52ewq.irc PRIVMSG @#ops :bnc to ops\r\n",
+                "@batch=2;time=2026-11-14T04:39:13.558Z;msgid=sp4ei85cy8ukw26bhk3bdmujua :oppy!~u@3g9xu4jk52ewq.irc PRIVMSG @#ops soju-ops-only-stored?\r\n",
+                "@batch=reply :soju.test BATCH -2\r\n",
+                ":soju.test BATCH -reply\r\n",
+            )
+            .as_bytes(),
+        )
+        .await;
+        let page = within(request).await.unwrap().unwrap();
+
+        let [
+            Event::Message(public),
+            Event::Restricted(first),
+            Event::Restricted(second),
+        ] = page.items.as_slice()
+        else {
+            panic!(
+                "expected one public and two restricted items: {:?}",
+                page.items
+            );
+        };
+        assert_eq!(public.raw_text, "via-soju public");
+        for (restricted, text) in [(first, "bnc to ops"), (second, "soju-ops-only-stored?")] {
+            assert_eq!(restricted.audience.symbol(), '@');
+            let message = restricted.line.as_message().expect("restricted message");
+            assert_eq!(message.raw_text, text);
+            assert_eq!(message.conversation(), public.conversation());
+            assert_eq!(message.return_address(), "@#ops");
+        }
         abort_task(task).await;
     }
 
