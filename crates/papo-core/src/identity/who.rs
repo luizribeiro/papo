@@ -16,18 +16,7 @@ impl Session {
         if nick.origin() != self.state.__reply_token().origin {
             return Err(ProofFailure::ForeignReference);
         }
-        let row_matches = lines.iter().any(|line| {
-            let line = line.as_ref();
-            if !line.command_is("354") || line.param(1) != Some(nick.as_str()) {
-                return false;
-            }
-            match (&account, line.param(2)) {
-                (Account::LoggedIn(expected), Some(actual)) => expected == actual,
-                (Account::LoggedOut, Some("0" | "*")) => true,
-                (Account::Unknown | Account::LoggedIn(_) | Account::LoggedOut, _) => false,
-            }
-        });
-        if !row_matches {
+        if self.state.__who_account(nick.as_str(), lines).as_ref() != Some(&account) {
             return Err(ProofFailure::MissingEvidence);
         }
         if let Some(user) = self.state.user(&nick)

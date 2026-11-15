@@ -5,6 +5,26 @@ use super::{
 };
 
 impl State {
+    /// Returns the account a WHOX `%na` reply lists for `nick`, matching the row's nickname under
+    /// the session's casemapping, or `None` when no row names `nick`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __who_account(&self, nick: &str, lines: &[papo_proto::Line]) -> Option<Account> {
+        let account = lines.iter().find_map(|line| {
+            let line = line.as_ref();
+            (line.command_is("354")
+                && line
+                    .param(1)
+                    .is_some_and(|found| self.names_equal(found, nick)))
+            .then(|| line.param(2))
+            .flatten()
+        })?;
+        Some(match account {
+            "0" | "*" => Account::LoggedOut,
+            account => Account::LoggedIn(self.casemapping.account(account)),
+        })
+    }
+
     fn apply_user_tags(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return;

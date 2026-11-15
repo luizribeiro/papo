@@ -610,3 +610,6 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` (requires the
   `unstable` feature) for the validated upload endpoint. Raw advertised values remain available
   through `State::isupport()`.
+- The `WHO nick %na` proof behind `Client::open` and first sends to a `UserHandle` matches the
+  reply's nickname under the server's casemapping, so `Alice` or `{bot}` (for `[bot]` under
+  rfc1459) is proven instead of failing with `Error::TargetGone`.
