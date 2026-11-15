@@ -399,16 +399,29 @@ impl PartialEq<&str> for Subject {
     }
 }
 
-/// Whether an event's actor is this session's user.
+/// Who a person on a line is relative to this session's user.
+///
+/// The session decides it when the line is applied, from the nick it held then and the line's
+/// `account` tag, and stores it with the line. Comparing a line's nick with
+/// [`Session::nick`] later gives a different answer once either side has changed nicks.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
-pub enum Authorship {
-    /// The actor is this session's user.
-    Own,
-    /// The actor is another user or a server.
+pub enum Party {
+    /// The person is this session's user.
+    Me,
+    /// The person is another user or a server.
     Other,
-    /// The protocol did not prove who the actor is relative to this session.
+    /// The protocol did not prove who the person is relative to this session.
     Unknown,
+}
+
+#[doc(hidden)]
+pub type Authorship = Party;
+
+#[allow(non_upper_case_globals)]
+impl Party {
+    #[doc(hidden)]
+    pub const Own: Self = Self::Me;
 }
 
 /// Classifies the IRC conversation and lowest-ranked `STATUSMSG` prefix addressed by a line.
