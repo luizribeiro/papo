@@ -128,7 +128,7 @@ pub fn wire_client(
             Ok(Box::new(client) as Box<dyn crate::rt::Io>)
         })
     });
-    let (client, events, driver) = builder.build_with_connector(connector);
+    let (client, events, driver) = builder.build_with_connect(None, Some(connector));
     (client, events, driver, receiver)
 }
 
@@ -188,14 +188,8 @@ pub fn message(
             None,
         ))
     };
-    let return_address = conversation.to_string();
     let actor = actor.unwrap_or_else(|| user_handle(crate::Casemapping::default().nick("unknown")));
-    let receipt = crate::message_ref::Receipt::new(
-        crate::Source::User(actor.clone()),
-        &conversation,
-        None,
-        return_address,
-    );
+    let receipt = receipt(&actor, &conversation, None, None);
     Message {
         actor,
         actor_party: Party::Other,
@@ -222,23 +216,44 @@ pub fn set_message_account(message: &mut Message, account: crate::Account) {
     if let crate::Conversation::Private(user) = &mut message.conversation {
         *user = message.actor.clone();
     }
-    message.receipt.update_actor(
-        crate::Source::User(message.actor.clone()),
-        &message.conversation,
-    );
+    restamp(message);
 }
 
 /// Sets the message identifier and the matching immutable receipt evidence.
 pub fn set_message_id(message: &mut Message, id: crate::MessageId) {
-    message.msgid = Some(id.clone());
-    message.receipt.set_reference(
-        [id],
-        message
-            .channel_context
-            .as_ref()
-            .and_then(crate::Conversation::channel)
-            .cloned(),
+    message.msgid = Some(id);
+    restamp(message);
+}
+
+fn restamp(message: &mut Message) {
+    message.receipt = receipt(
+        &message.actor,
+        &message.conversation,
+        message.msgid.clone(),
+        message.channel_context.as_ref(),
     );
+}
+
+fn receipt(
+    actor: &UserHandle,
+    conversation: &crate::Conversation,
+    msgid: Option<crate::MessageId>,
+    channel_context: Option<&crate::Conversation>,
+) -> crate::message_ref::Receipt {
+    let mut receipt = crate::message_ref::Receipt::new(
+        crate::Source::User(actor.clone()),
+        conversation,
+        None,
+        conversation.to_string(),
+    );
+    if let Some(id) = msgid {
+        let channel_context = match channel_context {
+            Some(crate::Conversation::Channel(channel)) => Some(channel.clone()),
+            _ => None,
+        };
+        receipt.set_reference([id], channel_context);
+    }
+    receipt
 }
 
 /// Sets the actor and matching private conversation on a test message.
@@ -248,10 +263,7 @@ pub fn set_message_actor(message: &mut Message, actor: &crate::UserHandle) {
         message.conversation = crate::Conversation::Private(actor.clone());
     }
     message.actor = actor;
-    message.receipt.update_actor(
-        crate::Source::User(message.actor.clone()),
-        &message.conversation,
-    );
+    restamp(message);
 }
 
 /// Constructs a connected event payload.
@@ -454,6 +466,29 @@ mod tests {
         let snapshot = state("bob", true);
         assert_eq!(snapshot.nick().as_str(), "bob");
         assert!(snapshot.is_connected());
+    }
+
+    #[test]
+    fn a_message_reference_keeps_the_channel_context_through_later_setters() {
+        let mapping = crate::Casemapping::default();
+        let ops = crate::ChannelHandle::from_parts(mapping.channel("#ops"), None, None);
+        let mut message = message(
+            Some(user_handle(mapping.nick("ChanServ"))),
+            "papo",
+            "You have been granted op on #ops",
+            true,
+        );
+        message.channel_context = Some(crate::Conversation::Channel(ops.clone()));
+        set_message_id(&mut message, "ergo-msgid-7xq2".into());
+        set_message_actor(&mut message, &user_handle(mapping.nick("BotServ")));
+
+        let reference = crate::MessageRef::from(&message);
+        assert_eq!(
+            reference.msgid().map(AsRef::as_ref),
+            Some("ergo-msgid-7xq2")
+        );
+        assert_eq!(reference.channel_context(), Some(&ops));
+        assert_eq!(message.return_address(), "BotServ");
     }
 
     #[test]
