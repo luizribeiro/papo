@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, RateLimit, RequestError, ResponseMatcher, Session, TextKind};
+use papo_core::{Config, Event, RateLimit, RequestError, ResponseMatcher, Session, TextKind};
 use papo_proto::{Line, LineRef};
 
 const ERGO_ISUPPORT: &str = ":ergo.test 005 papo CASEMAPPING=ascii CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server";
@@ -260,4 +260,32 @@ fn an_echo_of_our_own_ops_only_line_is_remembered() {
     let react = "@+draft/react=✅;+draft/reply=bgtfh28j4fwi6fhfqnauegctia TAGMSG #ops";
     assert!(refused_as(&session.send(now, line(react)), '@'));
     assert_eq!(session.poll_transmit(), None);
+}
+
+#[test]
+fn a_refused_ops_only_redaction_is_reported_and_never_retried() {
+    for refusal in [
+        // Ergo 2.19.1 does not accept a status target for REDACT.
+        ":ergo.test 401 papo @#ops :No such nick",
+        // The message-redaction specification's code for such a target.
+        ":ergo.test FAIL REDACT INVALID_TARGET @#ops :You cannot redact messages here",
+    ] {
+        let now = Instant::now();
+        let mut session = ergo_with_caps(now, LABELLED, &[OPS_ONLY]);
+        let redact = line("REDACT @#ops bc3fyyzsmb8ip7aiti6gakzmja :wrong channel");
+        let id = session.request(now, redact).unwrap();
+        let sent = session.poll_transmit().expect("redaction is sent");
+        let sent = LineRef::parse_bytes(sent.trim_ascii_end()).unwrap();
+        assert_eq!(sent.param(0), Some("@#ops"));
+        let label = sent.tag("label").unwrap();
+        let reply = format!("@time=2026-11-15T00:13:55.421Z;label={label} {refusal}");
+        session.handle_line(now, reply.as_bytes());
+
+        let Some(Event::Response(response)) = session.poll_event() else {
+            panic!("{refusal}: the refusal is reported")
+        };
+        assert_eq!(response.id, id);
+        assert!(response.error().is_some(), "{refusal}");
+        assert_eq!(session.poll_transmit(), None, "{refusal}");
+    }
 }
