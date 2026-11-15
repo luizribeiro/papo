@@ -76,6 +76,7 @@ async fn each_line_of_a_send_carries_its_own_confirmation() {
         msgid: msgid.into(),
         server_time: Some(time.parse().unwrap()),
     };
+    let unconfirmed = crate::Confirmation::unconfirmed;
     let cases = [
         (
             "echo-message labeled-response",
@@ -92,7 +93,25 @@ async fn each_line_of_a_send_carries_its_own_confirmation() {
             [first, second_without_msgid],
             [
                 confirmed("ripxp4ezdb76is6ep47ic7rexa", "2026-11-15T17:42:12.749Z"),
-                crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoMessageId),
+                unconfirmed(crate::UnconfirmedReason::NoMessageId),
+            ],
+        ),
+        (
+            "echo-message message-tags",
+            "message-tags",
+            ["", ""],
+            [
+                unconfirmed(crate::UnconfirmedReason::NoLabeledResponse),
+                unconfirmed(crate::UnconfirmedReason::NoLabeledResponse),
+            ],
+        ),
+        (
+            "labeled-response",
+            "labeled-response",
+            ["", ""],
+            [
+                unconfirmed(crate::UnconfirmedReason::NoEchoMessage),
+                unconfirmed(crate::UnconfirmedReason::NoEchoMessage),
             ],
         ),
     ];
@@ -107,4 +126,32 @@ async fn each_line_of_a_send_carries_its_own_confirmation() {
             "{advertised}: {echoes:?}"
         );
     }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_send_queued_before_welcome_keeps_its_text_unconfirmed() {
+    let caps = "echo-message labeled-response";
+    let (mut server, client, _events, driver) = scripted(config().wanted_caps(caps.split(' ')));
+    let task = tokio::spawn(driver);
+    negotiate_caps(&mut server, caps).await;
+    let sent = tokio::spawn({
+        let client = client.clone();
+        async move { client.privmsg("#papo", "deploy finished").await }
+    });
+    tokio::task::yield_now().await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PRIVMSG #papo :deploy finished\r\n").await;
+    let sent = within(sent).await.unwrap().unwrap();
+    assert_eq!(
+        sent.lines,
+        [line(
+            "deploy finished",
+            crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoLabeledResponse)
+        )]
+    );
+    task.abort();
 }
