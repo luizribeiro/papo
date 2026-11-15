@@ -103,6 +103,8 @@ and `HistoryPage::end` reports whether older messages after that cursor may have
 `HistoryPage::cursor` now provides one `HistoryReference` for continuing from either page edge.
 `History::message` fetches the one history item with a saved message ID, or `None` when the
 server no longer has it; the item answers with replies and reactions like any page item.
+Private history messages and notices now carry `channel_context` from a valid context tag, so
+`Client::reply` keeps the tag; past channel membership is not checked on history items.
 
 `Feature::from_name` resolves exact stable feature names back to their typed values.
 
