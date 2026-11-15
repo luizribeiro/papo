@@ -2843,6 +2843,32 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn mark_read_counts_an_ops_only_line_under_its_plain_channel() {
+        let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_connect_read_marker(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b"@time=2025-10-15T11:55:42.123Z;msgid=Newest :alice!a@host PRIVMSG @#papo :ops only\r\n",
+        )
+        .await;
+        while !matches!(next_event(&mut events).await, Some(Event::Restricted(_))) {}
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.mark_read("#papo").await }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        request.abort();
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     #[allow(clippy::too_many_lines)]
     async fn mark_read_ignores_local_clock_and_reports_typed_outcomes() {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
