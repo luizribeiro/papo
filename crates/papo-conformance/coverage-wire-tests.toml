@@ -64,6 +64,9 @@
 "direct_reply::concurrent_guarded_sends_reach_the_proven_recipient" = [
   "security.guard-proof.concurrent-genuine",
 ]
+"identity_at_arrival::late_mapped_events_name_the_sender_not_the_next_nick_holder" = [
+  "security.guard-proof.event-identity-at-arrival",
+]
 "moderation_identity::person_method_identity_matrix" = [
   "security.send-path-23-26.guarded-moderation",
 ]

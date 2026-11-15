@@ -106,6 +106,8 @@ All private chat operations now recheck that proof at the final wire write, rewr
 
 User state lookups now return a typed `ForeignReference` error and preserve handle identity across nickname changes and handoffs.
 
+Every `UserHandle` in a live event names the person who sent or was named by the line, even when the event is read after later lines moved that nickname to someone else.
+
 `State::presence` reports online, offline, or unknown evidence for a `UserHandle` without allocating a monitor slot.
 
 `UserHandle::watch` is now the sole public owner of server-side `MONITOR` entries; its synchronous `Watch` lease reports whether the server accepted the entry.
