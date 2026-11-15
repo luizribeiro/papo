@@ -1039,6 +1039,27 @@ mod tests {
     }
 
     #[test]
+    fn a_session_audience_refusal_is_wider_than_referenced() {
+        let now = web_time::Instant::now();
+        let mut session = papo_core::Session::new(papo_core::Config::default());
+        session.handle_connected(now);
+        for line in [
+            ":ergo.test 005 papo PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server",
+            "@msgid=z6apvbu245cpg8t9b48v5bdmqs :oppy!~u@87gpv5ftgihhq.irc PRIVMSG @#ops :deploy key rotated?",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let reply = papo_proto::Line::privmsg("#ops", "rotated at 18:00")
+            .with_tag("+draft/reply", "z6apvbu245cpg8t9b48v5bdmqs");
+        let refused = session.send(now, reply).unwrap_err();
+        assert!(matches!(
+            Error::request(refused),
+            Error::InvalidInput(InvalidInput::WiderThanReferenced { referenced, .. })
+                if referenced.symbol() == '@'
+        ));
+    }
+
+    #[test]
     fn request_errors_retain_their_public_categories() {
         use papo_core::RequestError as Request;
 
