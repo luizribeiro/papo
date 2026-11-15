@@ -79,6 +79,9 @@
 "security::an_unseen_nick_handoff_does_not_pass_the_admins_account_check" = [
   "security.guard-proof.unseen-message-peer-handoff",
 ]
+"security::a_who_proof_never_follows_its_nick_to_the_next_holder" = [
+  "security.guard-proof.who-proof-nick-handoff",
+]
 "security::ctcp_replies_refuse_nick_handoffs" = [
   "security.addr-10.ctcp-nick-handoff",
 ]

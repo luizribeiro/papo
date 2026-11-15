@@ -122,6 +122,7 @@ ids = [
   "security.guard-proof.concurrent-genuine",
   "security.guard-proof.event-identity-at-arrival",
   "security.guard-proof.unseen-message-peer-handoff",
+  "security.guard-proof.who-proof-nick-handoff",
   "security.send-path-23-26.guarded-moderation",
   "security.channel-guard.receipt-targets",
   "security.channel-guard.stale-handle-requests",
