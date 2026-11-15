@@ -2,7 +2,7 @@ use std::{future::IntoFuture, time::Duration};
 
 use papo_core::{Account, Away, Response, ResponseMatcher};
 use papo_proto::{
-    ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence, WhoxReply,
+    ChannelName, Command, Isupport, Line, Numeric, ServerName, WhoxPresence, WhoxReply,
 };
 
 use crate::{Error, Prefix, Rank};
@@ -13,8 +13,11 @@ pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Whois {
-    /// Nickname reported by the server.
-    pub nick: Nick,
+    /// User named by `RPL_WHOISUSER` (`311`), or the requested user when the server omits it.
+    ///
+    /// The handle follows that person's later nickname changes; read facts the reply does not
+    /// carry from [`crate::State::user`].
+    pub user: crate::UserHandle,
     /// Username reported by `RPL_WHOISUSER`; it may start with `~`.
     pub username: Option<String>,
     /// Hostname reported by `RPL_WHOISUSER`.
@@ -168,7 +171,7 @@ pub(crate) fn whois(
     response: Response,
     requested_nick: &str,
     isupport: &Isupport,
-    origin: crate::Origin,
+    client: &crate::Client,
 ) -> Result<Option<Whois>, Error> {
     whole(&response)?;
     if let Some(error) = response.error() {
@@ -177,9 +180,14 @@ pub(crate) fn whois(
         }
         return Err(Error::server(error));
     }
+    let origin = client.origin();
     let mapping = isupport.casemapping();
+    let nick = whois_user_nick(&response).unwrap_or_else(|| requested_nick.to_owned());
     let mut result = Whois {
-        nick: origin.__nick(mapping, requested_nick),
+        user: crate::UserHandle::from_current_state(
+            origin.__nick(mapping, &nick),
+            Some(&client.state),
+        ),
         username: None,
         host: None,
         realname: None,
@@ -198,7 +206,6 @@ pub(crate) fn whois(
         };
         match numeric {
             Numeric::RPL_WHOISUSER => {
-                result.nick = origin.__nick(mapping, message.param(1).unwrap_or(requested_nick));
                 result.username = message.param(2).map(str::to_owned);
                 result.host = message.param(3).map(str::to_owned);
                 result.realname = message.param(5).map(str::to_owned);
@@ -231,6 +238,16 @@ pub(crate) fn whois(
         }
     }
     Ok(Some(result))
+}
+
+fn whois_user_nick(response: &Response) -> Option<String> {
+    response.lines.iter().find_map(|line| {
+        let message = line.as_ref();
+        (message.command() == Command::Numeric(Numeric::RPL_WHOISUSER))
+            .then(|| message.param(1))
+            .flatten()
+            .map(str::to_owned)
+    })
 }
 
 fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> WhoisChannel {
@@ -450,31 +467,108 @@ mod tests {
         assert_eq!(channel.rank(), Some(crate::Rank::Owner));
     }
 
+    fn whois_response(session: &mut Session, lines: &[&str]) -> papo_core::Response {
+        let now = Instant::now();
+        session
+            .request_with_matcher(
+                now,
+                Line::new("WHOIS").with_params(["alice"]),
+                ResponseMatcher::Whois("alice".into()),
+            )
+            .unwrap();
+        for line in lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) => Some(response),
+                _ => None,
+            })
+            .unwrap()
+    }
+
+    fn session_sharing_review_with_alice() -> Session {
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            ":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported by this server",
+            ":papo!p@localhost JOIN #review",
+            ":Alice!~alice@cloak.example JOIN #review",
+        ] {
+            session.handle_line(Instant::now(), line.as_bytes());
+        }
+        session
+    }
+
+    fn whois_user(session: &mut Session, lines: &[&str]) -> (crate::Client, crate::UserHandle) {
+        let response = whois_response(session, lines);
+        let client = crate::driver::test_support::client_with_commands(session).0;
+        let user = whois(response, "alice", session.isupport(), &client)
+            .unwrap()
+            .unwrap()
+            .user;
+        (client, user)
+    }
+
+    #[test]
+    fn whois_user_is_the_reported_person_and_follows_nick_changes() {
+        let mut session = session_sharing_review_with_alice();
+        let (client, user) = whois_user(
+            &mut session,
+            &[
+                ":ergo.test 311 papo Alice ~alice cloak.example * :Alice Example",
+                ":ergo.test 319 papo Alice :#review",
+                ":ergo.test 318 papo alice :End of /WHOIS list",
+            ],
+        );
+        assert_eq!(user.nick().as_str(), "Alice");
+        assert_eq!(user, client.query("alice").unwrap());
+
+        session.handle_line(Instant::now(), b":Alice!~alice@cloak.example NICK alicia");
+        *client.state.write().unwrap() =
+            std::sync::Arc::new(crate::State::from_session(&session, true));
+        assert_eq!(user.nick().as_str(), "alicia");
+    }
+
+    #[test]
+    fn whois_user_falls_back_to_the_request_or_an_unshared_name() {
+        let mut shared = session_sharing_review_with_alice();
+        let (client, user) = whois_user(
+            &mut shared,
+            &[":ergo.test 318 papo alice :End of /WHOIS list"],
+        );
+        assert_eq!(user, client.query("Alice").unwrap());
+        assert_eq!(user, client.query("Alice").unwrap());
+
+        let mut unshared = Session::new(Config::default().nick("papo"));
+        unshared.handle_line(
+            Instant::now(),
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported by this server",
+        );
+        let (client, user) = whois_user(
+            &mut unshared,
+            &[
+                ":ergo.test 311 papo Alice ~alice cloak.example * :Alice Example",
+                ":ergo.test 318 papo alice :End of /WHOIS list",
+            ],
+        );
+        assert_eq!(user.nick().as_str(), "Alice");
+        assert_eq!(user, client.query("alice").unwrap());
+    }
+
     #[test]
     fn whois_only_reports_an_account_fact_proved_by_the_server() {
         let reply = |lines: &[&str]| {
-            let now = Instant::now();
             let mut session = Session::new(Config::default().nick("papo"));
-            session
-                .request_with_matcher(
-                    now,
-                    Line::new("WHOIS").with_params(["alice"]),
-                    ResponseMatcher::Whois("alice".into()),
-                )
-                .unwrap();
-            for line in lines {
-                session.handle_line(now, line.as_bytes());
-            }
-            let response = std::iter::from_fn(|| session.poll_event())
-                .find_map(|event| match event {
-                    Event::Response(response) => Some(response),
-                    _ => None,
-                })
-                .unwrap();
-            whois(response, "alice", &Isupport::default(), crate::Origin::NONE)
-                .unwrap()
-                .unwrap()
-                .account
+            let response = whois_response(&mut session, lines);
+            whois(
+                response,
+                "alice",
+                &Isupport::default(),
+                &crate::Client::disconnected_for_test(),
+            )
+            .unwrap()
+            .unwrap()
+            .account
         };
 
         assert!(matches!(
@@ -689,8 +783,8 @@ mod tests {
                 row: ":ergo.test 319 papo alice :#channel-{i}",
                 end: ":ergo.test 318 papo alice :End of /WHOIS list",
                 bound: 10_000,
-                build: |response, _| {
-                    whois(response, "alice", &Isupport::default(), crate::Origin::NONE).map(drop)
+                build: |response, client| {
+                    whois(response, "alice", &Isupport::default(), client).map(drop)
                 },
             },
             BoundedCase {

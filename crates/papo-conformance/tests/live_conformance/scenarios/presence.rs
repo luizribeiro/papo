@@ -225,7 +225,7 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
         .whois(alice.nick().as_str())
         .await?
         .expect("WHOIS target exists");
-    assert_eq!(whois.nick, alice.nick().as_str());
+    assert_eq!(whois.user.nick(), alice.nick().as_str());
     assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
@@ -428,7 +428,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         .await?
         .expect("WHOIS target exists");
 
-    assert_eq!(whois.nick, alice_nick.as_str());
+    assert_eq!(whois.user.nick(), alice_nick.as_str());
     assert!(
         whois
             .username
@@ -551,7 +551,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         .await?
         .expect("WHOIS target exists");
 
-    assert_eq!(whois.nick, alice_nick.as_str());
+    assert_eq!(whois.user.nick(), alice_nick.as_str());
     assert!(
         whois
             .username
@@ -718,7 +718,7 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
         .await?
         .expect("WHOIS target exists");
 
-    assert_eq!(whois.nick, alice_nick.as_str());
+    assert_eq!(whois.user.nick(), alice_nick.as_str());
     if whois.server.as_ref().is_none_or(|server| server.is_empty()) {
         return s.skip("server sends no WHOIS server numeric 312");
     }

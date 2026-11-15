@@ -476,8 +476,8 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
         .whois(bob.snapshot().nick().as_str())
         .await?
         .expect("WHOIS target exists");
-    assert_eq!(whois.nick, *alice.snapshot().nick());
-    assert_eq!(ordinary.nick, bob.snapshot().nick().as_str());
+    assert_eq!(whois.user.nick(), *alice.snapshot().nick());
+    assert_eq!(ordinary.user.nick(), bob.snapshot().nick().as_str());
     assert!(whois.host.is_some());
     assert_ne!(whois.host, ordinary.host);
     alice.expect_none(Event::as_disconnected).await?;
