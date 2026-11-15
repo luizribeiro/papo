@@ -2671,6 +2671,7 @@ pub(crate) fn from_core_with_receipt(
             old,
             new,
             actor,
+            actor_token,
             authorship,
             reason,
             ..
@@ -2679,6 +2680,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = actor_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
+            let actor = source_at_arrival(actor, actor_token);
             Event::ChannelRenamed(ChannelRenamed {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2811,6 +2813,7 @@ pub(crate) fn from_core_with_receipt(
             channel,
             topic,
             actor,
+            actor_token,
             authorship,
             ..
         } => {
@@ -2824,6 +2827,7 @@ pub(crate) fn from_core_with_receipt(
             ) else {
                 return CoreEvent::Unknown;
             };
+            let actor = source_at_arrival(actor, actor_token);
             Event::TopicChanged(TopicChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -6767,6 +6771,26 @@ mod tests {
                     line: ":dave!~dave@users.example INVITE alice #review",
                     subject: "alice",
                     person: |event| event.as_invited().map(|invited| invited.subject.clone()),
+                },
+                Case {
+                    name: "TOPIC actor",
+                    line: ":alice!~alice@cloak.example TOPIC #review :Release 0.1 review",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_topic_changed()
+                            .and_then(|changed| user_source(&changed.actor))
+                    },
+                },
+                Case {
+                    name: "RENAME actor",
+                    line: ":alice!~alice@cloak.example RENAME #review #release :Release review",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_channel_renamed()
+                            .and_then(|renamed| user_source(&renamed.actor))
+                    },
                 },
             ] {
                 assert_person_at_arrival(&case);
