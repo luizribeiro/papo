@@ -6788,7 +6788,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
     assert_eq!(result.applied.len(), 3);
     assert!(result.is_complete());
     assert!(
-        matches!(result.applied[0].arg, Some(crate::ModeArg::Member { ref user, .. }) if user == "alice")
+        matches!(result.applied[0].arg, Some(crate::ModeArg::Member { ref user, .. }) if user == "alice" && user.proof().is_some())
     );
     assert!(
         matches!(result.applied[2].arg, Some(crate::ModeArg::Mask(ref mask)) if mask == "*!*@spam.example")

@@ -102,3 +102,93 @@ async fn whois_user_follows_the_reported_person() {
         Err(papo::Error::TargetGone)
     ));
 }
+
+fn member(event: &papo::Event) -> papo::UserHandle {
+    let papo::Event::ModeChanged(changed) = event else {
+        panic!("expected a mode change, got {event:?}")
+    };
+    match changed.changes.as_slice() {
+        [
+            papo::ModeChange {
+                arg: Some(papo::ModeArg::Member { user, .. }),
+                ..
+            },
+        ] => user.clone(),
+        other => panic!("expected one member mode, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn member_mode_user_follows_nick_changes_and_takes_modes() {
+    let (client, mut events, mut wire) = joined_review().await;
+    let event = server_until(
+        &mut events,
+        &mut wire,
+        ":ChanServ!ChanServ@localhost MODE #review +v Alice",
+    )
+    .await;
+    let user = member(&event);
+    assert_eq!(user, client.query("alice").unwrap());
+
+    server_until(
+        &mut events,
+        &mut wire,
+        ":Alice!~alice@cloak.example NICK alicia",
+    )
+    .await;
+    assert_eq!(user.nick().as_str(), "alicia");
+    assert_eq!(
+        sends_op(&client, &mut wire, &user).await,
+        "MODE #review +o alicia"
+    );
+}
+
+#[tokio::test]
+async fn member_mode_user_who_left_is_not_the_next_holder() {
+    let (client, mut events, mut wire) = joined_review().await;
+    let event = server_until(
+        &mut events,
+        &mut wire,
+        ":ChanServ!ChanServ@localhost MODE #review +v mallory",
+    )
+    .await;
+    let user = member(&event);
+    server_until(
+        &mut events,
+        &mut wire,
+        ":mallory!~mallory@users.example QUIT :Quit: bye",
+    )
+    .await;
+    server_until(
+        &mut events,
+        &mut wire,
+        ":Alice!~alice@cloak.example NICK mallory",
+    )
+    .await;
+
+    assert_eq!(user.nick().as_str(), "mallory");
+    assert_ne!(user, client.query("mallory").unwrap());
+    assert!(matches!(
+        client.mode("#review").op(&user).await,
+        Err(papo::Error::TargetGone)
+    ));
+}
+
+#[tokio::test]
+async fn member_mode_read_after_a_handoff_names_the_person_at_the_line() {
+    let (client, mut events, mut wire) = joined_review().await;
+    for line in [
+        ":ChanServ!ChanServ@localhost MODE #review +v mallory",
+        ":mallory!~mallory@users.example QUIT :Quit: bye",
+        ":Alice!~alice@cloak.example NICK mallory",
+    ] {
+        wire.server(line).await;
+    }
+    let user = loop {
+        let event = next_active_event(&mut events).await;
+        if matches!(event, papo::Event::ModeChanged(_)) {
+            break member(&event);
+        }
+    };
+    assert_ne!(user, client.query("mallory").unwrap());
+}

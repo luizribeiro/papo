@@ -2555,7 +2555,7 @@ mod tests {
                 action: crate::ModeAction::Add,
                 arg: Some(crate::ModeArg::Member { user, .. }),
                 ..
-            }] if user == "alice"
+            }] if user == "alice" && user.is_unproven_history()
         ));
         let Event::ModeChanged(list_mode) = &page.items[4] else {
             panic!("expected replayed list mode")
