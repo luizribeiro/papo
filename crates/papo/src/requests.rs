@@ -62,8 +62,9 @@ pub struct KickOutcome {
 pub struct Whois {
     /// User named by `RPL_WHOISUSER` (`311`), or the requested user when the server omits it.
     ///
-    /// The handle follows that person's later nickname changes; read facts the reply does not
-    /// carry from [`crate::State::user`].
+    /// Like [`WhoEntry::user`], it is resolved from the nickname when the reply is read, then
+    /// follows that person's later nickname changes; read facts the reply does not carry from
+    /// [`crate::State::user`].
     pub user: crate::UserHandle,
     /// Username reported by `RPL_WHOISUSER`; it may start with `~`.
     pub username: Option<String>,
@@ -116,6 +117,9 @@ pub struct WhoEntry {
     /// Channel associated with this reply, when present.
     pub channel: Option<crate::ChannelHandle>,
     /// User reported by the reply.
+    ///
+    /// Like [`Whois::user`], it is resolved from the nickname when the reply is read, then
+    /// follows that person's later nickname changes.
     pub user: crate::UserHandle,
     /// Username from `nick!user@host`; it may start with `~`.
     pub username: String,
@@ -231,10 +235,7 @@ pub(crate) fn whois(
     let mapping = isupport.casemapping();
     let nick = whois_user_nick(&response).unwrap_or_else(|| requested_nick.to_owned());
     let mut result = Whois {
-        user: crate::UserHandle::from_current_state(
-            origin.__nick(mapping, &nick),
-            Some(&client.state),
-        ),
+        user: reply_user(client, mapping, &nick),
         username: None,
         host: None,
         realname: None,
@@ -287,6 +288,19 @@ pub(crate) fn whois(
     Ok(Some(result))
 }
 
+// WHO and WHOIS answers are server numerics, not lines a person sent, so papo-core records no
+// arrival identity for their subjects; both resolve the nickname against the current state.
+fn reply_user(
+    client: &crate::Client,
+    mapping: papo_proto::Casemapping,
+    nick: &str,
+) -> crate::UserHandle {
+    crate::UserHandle::from_current_state(
+        client.origin().__nick(mapping, nick),
+        Some(&client.state),
+    )
+}
+
 fn whois_user_nick(response: &Response) -> Option<String> {
     response.lines.iter().find_map(|line| {
         let message = line.as_ref();
@@ -335,10 +349,7 @@ pub(crate) fn who(
                     channel: reply.channel.map(|channel| {
                         crate::ChannelHandle::new(client, origin.__channel(mapping, channel), false)
                     }),
-                    user: crate::UserHandle::from_current_state(
-                        origin.__nick(mapping, reply.nick?),
-                        Some(&client.state),
-                    ),
+                    user: reply_user(client, mapping, reply.nick?),
                     username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
                     account: reply.account.map_or(Account::LoggedOut, |account| {
@@ -390,10 +401,7 @@ fn plain_who(
             }),
         username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
-        user: crate::UserHandle::from_current_state(
-            origin.__nick(isupport.casemapping(), message.param(5)?),
-            Some(&client.state),
-        ),
+        user: reply_user(client, isupport.casemapping(), message.param(5)?),
         account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {
