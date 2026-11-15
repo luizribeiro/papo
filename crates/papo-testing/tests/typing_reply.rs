@@ -65,7 +65,7 @@ async fn retained_typers_reply_to_private_and_ops_only_audiences() {
         .await;
     assert!(matches!(
         next_active_event(&mut events).await,
-        Event::TypingChanged(_)
+        Event::Restricted(restricted) if restricted.line.as_typing_changed().is_some()
     ));
     let operators = {
         let state = client.snapshot();

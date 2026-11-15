@@ -5,10 +5,14 @@ use papo_testing::wire;
 
 const ID: &str = "z6apvbu245cpg8t9b48v5bdmqs";
 
-async fn next_message(events: &mut papo::Events) -> papo::Message {
+async fn next_restricted_message(events: &mut papo::Events) -> (papo::Prefix, papo::Message) {
     loop {
         match events.next().await.map(|(event, _)| event) {
-            Some(papo::Event::Message(message)) => return message,
+            Some(papo::Event::Restricted(papo::Restricted {
+                audience,
+                line: papo::RestrictedLine::Message(message),
+                ..
+            })) => return (audience, message),
             Some(papo::Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
             Some(_) => {}
             None => panic!("driver stopped while waiting for a message"),
@@ -44,8 +48,8 @@ async fn public_answers_to_an_ops_only_line_never_reach_the_wire() {
         "@time=2026-11-15T00:13:53.319Z;msgid={ID} :oppy!~u@87gpv5ftgihhq.irc PRIVMSG @#ops :deploy key rotated?"
     ))
     .await;
-    let message = next_message(&mut events).await;
-    assert_eq!(message.status().map(papo::Prefix::symbol), Some('@'));
+    let (audience, _) = next_restricted_message(&mut events).await;
+    assert_eq!(audience.symbol(), '@');
 
     let reply = client
         .privmsg("#ops", "rotated at 18:00")

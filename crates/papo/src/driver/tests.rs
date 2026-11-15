@@ -7374,11 +7374,8 @@ async fn message_accessors_report_the_wire_audience() {
         b":alice!~alice@cloak.example PRIVMSG @#review :operators approve\r\n@+channel-context=#review :alice!~alice@cloak.example PRIVMSG papo-driver :release ready\r\n",
     )
     .await;
-    let status_message = next_message(&mut events).await;
-    assert_eq!(
-        status_message.status().map(crate::Prefix::symbol),
-        Some('@')
-    );
+    let (audience, status_message) = next_restricted_message(&mut events).await;
+    assert_eq!(audience.symbol(), '@');
     let channel_message = next_message(&mut events).await;
     assert_eq!(
         channel_message.channel_context().map(ToString::to_string),

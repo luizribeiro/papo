@@ -90,3 +90,42 @@ impl RestrictedLine {
         }
     }
 }
+
+macro_rules! separate_restricted {
+    ($($variant:ident),+ $(,)?) => {
+        /// Moves a status-prefixed line into [`crate::Event::Restricted`], so that no plain arm
+        /// ever carries one. Every event an application receives passes through here.
+        pub(crate) fn separate(event: crate::Event) -> crate::Event {
+            let (audience, line) = match event {
+                $(crate::Event::$variant(mut line) => match line.status.take() {
+                    Some(audience) => (audience, RestrictedLine::$variant(line)),
+                    None => return crate::Event::$variant(line),
+                },)+
+                crate::Event::Incomplete(mut line) => {
+                    let status = match &mut line {
+                        Incomplete::Message(message) => message.status.take(),
+                        Incomplete::Notice(notice) => notice.status.take(),
+                    };
+                    match status {
+                        Some(audience) => (audience, RestrictedLine::Incomplete(line)),
+                        None => return crate::Event::Incomplete(line),
+                    }
+                }
+                event => return event,
+            };
+            crate::Event::Restricted(Restricted { audience, line })
+        }
+    };
+}
+
+separate_restricted!(
+    Message,
+    Notice,
+    ServerNotice,
+    CtcpQuery,
+    CtcpReply,
+    TagMsg,
+    Reacted,
+    Redacted,
+    TypingChanged,
+);

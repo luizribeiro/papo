@@ -666,6 +666,18 @@ pub(crate) async fn next_message_with_state(
     }
 }
 
+pub(crate) async fn next_restricted_message(
+    events: &mut super::Events,
+) -> (crate::Prefix, ChatMessage) {
+    match events.next().await.map(|(event, _)| event) {
+        Some(Event::Restricted(crate::Restricted {
+            audience,
+            line: crate::RestrictedLine::Message(message),
+        })) => (audience, message),
+        other => panic!("expected a restricted message, got {other:?}"),
+    }
+}
+
 pub(crate) async fn assert_connect_output(
     defaults: super::PostConnect,
     isupport: Option<&[u8]>,
@@ -767,8 +779,15 @@ pub(crate) async fn assert_reply_wire(
         }
     }
     server_line(&mut server, incoming).await;
-    let Some(Event::Message(message)) = events.next().await.map(|(event, _)| event) else {
-        panic!("expected message event")
+    let message = match events.next().await.map(|(event, _)| event) {
+        Some(
+            Event::Message(message)
+            | Event::Restricted(crate::Restricted {
+                line: crate::RestrictedLine::Message(message),
+                ..
+            }),
+        ) => message,
+        other => panic!("expected message event, got {other:?}"),
     };
     match kind {
         ReplyKind::Reply => {
@@ -850,7 +869,7 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
         b"@msgid=RfcBTzyxY120004 :emily!e@localhost PRIVMSG @#ops :ship it\r\n",
     )
     .await;
-    let message = next_message(&mut events).await;
+    let (_, message) = next_restricted_message(&mut events).await;
     let result = if remove {
         within(client.unreact(&message, "👍")).await
     } else {

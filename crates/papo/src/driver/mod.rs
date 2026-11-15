@@ -596,6 +596,15 @@ impl Events {
         &mut self,
         context: &mut task::Context<'_>,
     ) -> task::Poll<Option<(Event, Arc<State>)>> {
+        self.poll_queued(context).map(|item| {
+            item.map(|(event, state)| (crate::event_impl::separate_restricted(event), state))
+        })
+    }
+
+    fn poll_queued(
+        &mut self,
+        context: &mut task::Context<'_>,
+    ) -> task::Poll<Option<(Event, Arc<State>)>> {
         if let Some(item) = self.pending.pop_front() {
             return task::Poll::Ready(Some(item));
         }

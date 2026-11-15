@@ -1349,12 +1349,20 @@ async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
     }
     wire.server(":alice!~a@cloak.example NOTICE @#ops :release status")
         .await;
-    let papo::Event::Notice(notice) = next_active_event(&mut events).await else {
+    let papo::Event::Restricted(papo::Restricted {
+        line: papo::RestrictedLine::Notice(notice),
+        ..
+    }) = next_active_event(&mut events).await
+    else {
         panic!("expected an operators-only notice")
     };
     wire.server("@+typing=paused :alice!~a@cloak.example TAGMSG @#ops")
         .await;
-    let papo::Event::TypingChanged(typing) = next_active_event(&mut events).await else {
+    let papo::Event::Restricted(papo::Restricted {
+        line: papo::RestrictedLine::TypingChanged(typing),
+        ..
+    }) = next_active_event(&mut events).await
+    else {
         panic!("expected an operators-only typing notification")
     };
 
@@ -1393,7 +1401,11 @@ async fn ops_only_messages_can_only_answer_their_exact_audience() {
     }
     wire.server("@msgid=Rfc1 :alice!~a@cloak.example PRIVMSG @#ops :release status")
         .await;
-    let papo::Event::Message(message) = next_active_event(&mut events).await else {
+    let papo::Event::Restricted(papo::Restricted {
+        line: papo::RestrictedLine::Message(message),
+        ..
+    }) = next_active_event(&mut events).await
+    else {
         panic!("expected an operators-only message")
     };
 
@@ -2138,7 +2150,7 @@ async fn typing_status_change_preserves_the_latest_audience() {
         .await;
     assert!(matches!(
         next_active_event(&mut events).await,
-        papo::Event::TypingChanged(_)
+        papo::Event::Restricted(restricted) if restricted.line.as_typing_changed().is_some()
     ));
 
     let conversation = client

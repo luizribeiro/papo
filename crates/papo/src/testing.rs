@@ -38,6 +38,7 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
             false,
             SystemTime::UNIX_EPOCH,
         );
+        let mut observe = |event| observe(crate::event_impl::separate_restricted(event));
         match mapped {
             crate::event_impl::CoreEvent::Forward(event) => observe(event),
             crate::event_impl::CoreEvent::Line(line) => {

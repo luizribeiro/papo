@@ -618,6 +618,19 @@ mod tests {
         }
     }
 
+    async fn next_restricted_message(events: &mut papo::Events) -> Incoming {
+        loop {
+            let Some((event, state)) = events.next().await else {
+                panic!("driver stopped while waiting for a restricted message")
+            };
+            if let papo::Event::Restricted(restricted) = event
+                && let papo::RestrictedLine::Message(message) = restricted.line
+            {
+                return Incoming { message, state };
+            }
+        }
+    }
+
     fn parse(message: &papo::Message, config: &BotConfig) -> Option<Command> {
         let client = client(Casemapping::Rfc1459);
         config.command(&client, &client.snapshot(), message)
@@ -1043,7 +1056,7 @@ mod tests {
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
-        let incoming = next_message(&mut events).await;
+        let incoming = next_restricted_message(&mut events).await;
         let command = BotConfig::new("!")
             .command(&client, &incoming.state, &incoming)
             .unwrap();

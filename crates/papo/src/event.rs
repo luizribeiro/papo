@@ -51,6 +51,7 @@ pub use conversation::{
     Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use papo_core::{BatchAbandonReason, TypingReason};
+pub(crate) use restricted::separate as separate_restricted;
 pub use restricted::{Restricted, RestrictedLine};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;

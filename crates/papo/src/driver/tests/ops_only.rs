@@ -60,6 +60,13 @@ impl OpsChannel {
         next_message(&mut self.events).await
     }
 
+    async fn receive_restricted(&mut self, line: &[u8]) -> ChatMessage {
+        server_line(&mut self.server, line).await;
+        let (audience, message) = next_restricted_message(&mut self.events).await;
+        assert_eq!(audience.symbol(), '@');
+        message
+    }
+
     async fn finish(mut self) {
         within(self.server.shutdown()).await.unwrap();
         assert!(matches!(
@@ -79,7 +86,7 @@ const PUBLIC: &[u8] =
 #[tokio::test(flavor = "current_thread")]
 async fn ops_only_and_public_lines_file_under_the_plain_channel() {
     let mut ops = OpsChannel::joined().await;
-    let restricted = ops.receive(OPS_ONLY).await;
+    let restricted = ops.receive_restricted(OPS_ONLY).await;
     let public = ops.receive(PUBLIC).await;
 
     assert_eq!(restricted.conversation(), public.conversation());
@@ -239,7 +246,7 @@ async fn every_path_from_an_ops_only_line_reaches_the_audience_it_names() {
         crate::cap::MESSAGE_REDACTION,
     ])
     .await;
-    let line = ops.receive(OPS_ONLY).await;
+    let line = ops.receive_restricted(OPS_ONLY).await;
     for (path, wire) in cases {
         let sending = tokio::spawn(answer(path, &ops, &line));
         match wire {
