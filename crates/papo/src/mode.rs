@@ -213,7 +213,8 @@ impl ModesOutcome {
 #[non_exhaustive]
 pub struct KickbanOutcome {
     /// The ban as the server stored it, from its `MODE +b` echo or the channel's ban list, seen
-    /// before the kick was sent; Ergo stores `alice` as `alice!*@*`.
+    /// before the kick was sent; Ergo stores `alice` as `alice!*@*`. When the server says the
+    /// ban is already listed and papo has no ban list for the channel, this is the mask sent.
     ///
     /// A ban that cannot be set or seen fails the whole request instead, and no kick is sent.
     pub ban: Mask,

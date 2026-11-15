@@ -21,7 +21,7 @@ pub struct SubscribeOutcome {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum SyncOutcome {
-    /// The server sent the target's metadata, which is now in state.
+    /// The server answered without deferring; any metadata it sent is now in state.
     Synced,
     /// The server deferred the sync with `RPL_METADATASYNCLATER`.
     #[non_exhaustive]
