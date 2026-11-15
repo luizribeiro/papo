@@ -601,7 +601,7 @@ pub papo::event::Invited::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Invited::received_at: std::time::SystemTime
 pub papo::event::Invited::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::Invited::subject: papo::UserHandle
-pub papo::event::Invited::subject_authorship: papo::Party
+pub papo::event::Invited::subject_party: papo::Party
 impl core::clone::Clone for papo::event::Invited
 pub fn papo::event::Invited::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Invited
@@ -650,7 +650,7 @@ pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo::event::Kicked::received_at: std::time::SystemTime
 pub papo::event::Kicked::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::Kicked::subject: papo::UserHandle
-pub papo::event::Kicked::subject_authorship: papo::Party
+pub papo::event::Kicked::subject_party: papo::Party
 impl core::clone::Clone for papo::event::Kicked
 pub fn papo::event::Kicked::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Kicked
@@ -751,7 +751,7 @@ pub papo::event::ModeChanged::received_at: std::time::SystemTime
 pub papo::event::ModeChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::ModeChanged::subject: papo::Subject
 impl papo::event::ModeChanged
-pub fn papo::event::ModeChanged::about(&self, &papo::ModeChange) -> papo::Party
+pub fn papo::event::ModeChanged::subject_party(&self, &papo::ModeChange) -> papo::Party
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ModeChanged

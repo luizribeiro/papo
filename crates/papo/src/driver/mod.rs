@@ -2000,7 +2000,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                 .parted_while_disconnected
                 .retain(|channel| parted.channel != channel.as_str());
         }
-        Event::Kicked(kicked) if kicked.subject_authorship == crate::Party::Me => {
+        Event::Kicked(kicked) if kicked.subject_party == crate::Party::Me => {
             defaults
                 .channels
                 .retain(|entry| kicked.channel != entry.channel.as_str());

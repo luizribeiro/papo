@@ -713,14 +713,14 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(target.channel.name().as_str(), channel);
     assert_eq!(target.subject.nick(), carol_nick);
     assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_str()));
-    assert_eq!(target.subject_authorship, papo::Party::Me);
+    assert_eq!(target.subject_party, papo::Party::Me);
     assert_eq!(observer.channel.name().as_str(), channel);
     assert_eq!(observer.subject.nick(), carol_nick.as_str());
     assert_eq!(
         crate::source_nick(&observer.actor),
         Some(alice_nick.as_str())
     );
-    assert_eq!(observer.subject_authorship, papo::Party::Other);
+    assert_eq!(observer.subject_party, papo::Party::Other);
     assert!(
         alice
             .snapshot()
@@ -783,7 +783,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.channel.name().as_str(), channel);
     assert_eq!(invited.subject.nick(), carol_nick);
-    assert_eq!(invited.subject_authorship, papo::Party::Me);
+    assert_eq!(invited.subject_party, papo::Party::Me);
     match carol.join(&channel).await {
         Ok(_) => {
             let joined = alice
@@ -991,8 +991,8 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(crate::source_nick(&kicked.actor), Some(alice_nick.as_str()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
-    assert_eq!(observed.subject_authorship, papo::Party::Other);
-    assert_eq!(own.subject_authorship, papo::Party::Me);
+    assert_eq!(observed.subject_party, papo::Party::Other);
+    assert_eq!(own.subject_party, papo::Party::Me);
     assert!(
         alice
             .snapshot()
@@ -1134,8 +1134,8 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .is_some_and(|reason| !reason.is_empty())
         );
         assert_eq!(own.reason, observed.reason);
-        assert_eq!(observed.subject_authorship, papo::Party::Other);
-        assert_eq!(own.subject_authorship, papo::Party::Me);
+        assert_eq!(observed.subject_party, papo::Party::Other);
+        assert_eq!(own.subject_party, papo::Party::Me);
         assert!(
             alice
                 .snapshot()

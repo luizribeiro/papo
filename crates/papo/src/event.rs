@@ -2607,7 +2607,7 @@ pub(crate) fn from_core_with_receipt(
                 facts,
                 actor,
                 authorship: Party::from_core(authorship),
-                subject_authorship: Party::from_core(subject_authorship),
+                subject_party: Party::from_core(subject_authorship),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
@@ -2642,7 +2642,7 @@ pub(crate) fn from_core_with_receipt(
                 subject: user_at_arrival(subject, Account::Unknown, token),
                 actor,
                 authorship: Party::from_core(authorship),
-                subject_authorship: Party::from_core(subject_authorship),
+                subject_party: Party::from_core(subject_authorship),
                 receipt,
             })
         }
@@ -4773,7 +4773,7 @@ mod tests {
         assert_eq!(invited.channel, "#papo");
         assert_eq!(invited.subject, "papo");
         assert!(matches!(&invited.actor, Source::User(user) if user.nick() == "emily"));
-        assert_eq!(invited.subject_authorship, Party::Me);
+        assert_eq!(invited.subject_party, Party::Me);
     }
 
     #[test]
@@ -6066,7 +6066,7 @@ mod tests {
             "{:?}",
             mode.changes[0]
         );
-        assert_eq!(mode.about(&mode.changes[0]), Party::Me);
+        assert_eq!(mode.subject_party(&mode.changes[0]), Party::Me);
     }
 
     fn mode_event(subject: Subject, own_nick: Option<&str>) -> super::ModeChanged {
@@ -6109,14 +6109,14 @@ mod tests {
             Subject::Channel(channel_handle(mapping.channel("#papo"))),
             Some("emily"),
         );
-        assert_eq!(channel_mode.about(&own), Party::Me);
-        assert_eq!(channel_mode.about(&other), Party::Other);
+        assert_eq!(channel_mode.subject_party(&own), Party::Me);
+        assert_eq!(channel_mode.subject_party(&other), Party::Other);
         assert_eq!(
             mode_event(
                 Subject::Channel(channel_handle(mapping.channel("#papo"))),
                 None,
             )
-            .about(&own),
+            .subject_party(&own),
             Party::Unknown
         );
 
@@ -6128,11 +6128,11 @@ mod tests {
         ] {
             assert_eq!(
                 mode_event(Subject::User(user_handle(mapping.nick(subject))), own_nick,)
-                    .about(&user_mode),
+                    .subject_party(&user_mode),
                 expected
             );
         }
-        assert_eq!(channel_mode.about(&user_mode), Party::Other);
+        assert_eq!(channel_mode.subject_party(&user_mode), Party::Other);
     }
 
     #[test]
@@ -6711,7 +6711,7 @@ mod tests {
                 facts: None,
                 actor: actor.clone(),
                 authorship: Party::Other,
-                subject_authorship: Party::Me,
+                subject_party: Party::Me,
                 reason: None,
             }),
             Event::Invited(super::Invited {
@@ -6728,7 +6728,7 @@ mod tests {
                 ),
                 actor,
                 authorship: Party::Other,
-                subject_authorship: Party::Me,
+                subject_party: Party::Me,
             }),
             Event::NickChanged(super::NickChanged {
                 msgid: None,
@@ -6757,11 +6757,8 @@ mod tests {
 
         assert_eq!(events[0].as_joined().unwrap().authorship, Party::Me);
         assert_eq!(events[1].as_parted().unwrap().authorship, Party::Me);
-        assert_eq!(events[2].as_kicked().unwrap().subject_authorship, Party::Me);
-        assert_eq!(
-            events[3].as_invited().unwrap().subject_authorship,
-            Party::Me
-        );
+        assert_eq!(events[2].as_kicked().unwrap().subject_party, Party::Me);
+        assert_eq!(events[3].as_invited().unwrap().subject_party, Party::Me);
         assert_eq!(events[4].as_nick_changed().unwrap().authorship, Party::Me);
         assert_eq!(events[5].as_joined().unwrap().authorship, Party::Me);
         assert_eq!(

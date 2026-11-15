@@ -2072,7 +2072,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
                 papo_proto::Casemapping::default(),
             ),
             authorship: crate::Party::Other,
-            subject_authorship: crate::Party::Other,
+            subject_party: crate::Party::Other,
             reason: Some("idle".into()),
         }),
     );
@@ -2108,7 +2108,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
                 papo_proto::Casemapping::default(),
             ),
             authorship: crate::Party::Other,
-            subject_authorship: crate::Party::Me,
+            subject_party: crate::Party::Me,
             reason: Some("access removed".into()),
         }),
     );

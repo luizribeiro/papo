@@ -85,7 +85,7 @@ pub struct Kicked {
     /// Whether the actor is this client's user.
     pub authorship: Party,
     /// Whether the removed user is this client's user.
-    pub subject_authorship: Party,
+    pub subject_party: Party,
     /// The optional kick reason.
     pub reason: Option<String>,
 }
@@ -109,7 +109,7 @@ pub struct Invited {
     /// Whether the actor is this client's user.
     pub authorship: Party,
     /// Whether the invited user is this client's user.
-    pub subject_authorship: Party,
+    pub subject_party: Party,
     pub(crate) receipt: crate::message_ref::Receipt,
 }
 
@@ -155,13 +155,13 @@ pub struct ModeChanged {
 }
 
 impl ModeChanged {
-    /// Returns whether this mode change is about this client's user.
+    /// Returns who the user a mode change is about is relative to you.
     #[must_use]
-    pub fn about(&self, change: &crate::ModeChange) -> Party {
+    pub fn subject_party(&self, change: &crate::ModeChange) -> Party {
         let affected = match change.arg.as_ref() {
             Some(crate::ModeArg::Member { nick, .. }) => Some(nick),
             _ => match &self.subject {
-                Subject::User(user) => return self.about_nick(&user.nick()),
+                Subject::User(user) => return self.nick_party(&user.nick()),
                 Subject::Channel(_) => return Party::Other,
             },
         };
@@ -172,7 +172,7 @@ impl ModeChanged {
         }
     }
 
-    fn about_nick(&self, affected: &Nick) -> Party {
+    fn nick_party(&self, affected: &Nick) -> Party {
         match self.own_nick.as_ref() {
             Some(own) if own == affected => Party::Me,
             Some(_) => Party::Other,

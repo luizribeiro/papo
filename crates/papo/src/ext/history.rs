@@ -727,7 +727,7 @@ fn kicked(
         received_at: envelope.received_at,
         channel: client.channel(message.param(0)?).ok()?,
         authorship,
-        subject_authorship,
+        subject_party: subject_authorship,
         subject: crate::UserHandle::from_event(
             state.known_name_rules()?.nick(nick),
             crate::Account::Unknown,
@@ -2260,7 +2260,7 @@ mod tests {
                     && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
                     && matches!(event.actor, crate::Source::Server(ref name) if name == "irc.example")
-                    && event.subject_authorship == crate::Party::Unknown
+                    && event.subject_party == crate::Party::Unknown
         ));
 
         let renamed = map(papo_core::HistoryItem::NickChanged(core_item(
