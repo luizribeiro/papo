@@ -2485,12 +2485,13 @@ pub(crate) fn from_core_with_receipt(
             realname: _,
             channel,
             nick,
+            token,
             authorship,
             netjoin,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = crate::UserHandle::from_current_state(nick, handle_state);
+            let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2650,12 +2651,13 @@ pub(crate) fn from_core_with_receipt(
             actor: _,
             old,
             new,
+            token,
             channels,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = crate::UserHandle::from_current_state(new.clone(), handle_state);
+            let actor = user_at_arrival(new.clone(), envelope.account.clone(), token);
             Event::NickChanged(NickChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -6680,6 +6682,31 @@ mod tests {
                             .as_realname_changed()
                             .map(|changed| changed.actor.clone())
                     },
+                },
+            ] {
+                assert_person_at_arrival(&case);
+            }
+        }
+
+        #[test]
+        fn joins_and_renames_name_the_person_at_arrival() {
+            for case in [
+                Case {
+                    name: "JOIN",
+                    line: ":carol!~carol@cloak.example JOIN #review",
+                    subject: "carol",
+                    person: |event| {
+                        event
+                            .as_joined()
+                            .filter(|joined| joined.actor.nick() == "carol")
+                            .map(|joined| joined.actor.clone())
+                    },
+                },
+                Case {
+                    name: "NICK",
+                    line: ":alice!~alice@cloak.example NICK alicia",
+                    subject: "alicia",
+                    person: |event| event.as_nick_changed().map(|changed| changed.actor.clone()),
                 },
             ] {
                 assert_person_at_arrival(&case);
