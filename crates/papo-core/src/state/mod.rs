@@ -401,6 +401,16 @@ impl State {
         }
     }
 
+    pub(crate) fn conversation_token(
+        &self,
+        conversation: &crate::Conversation,
+    ) -> crate::ReplyToken {
+        match conversation {
+            crate::Conversation::Private(nick) => self.__reply_token_for(nick.as_str()),
+            _ => self.__reply_token(),
+        }
+    }
+
     pub(crate) fn source_token(&self, message: &LineRef<'_>) -> crate::ReplyToken {
         match message.source() {
             Some(ProtoSource::User { nick, .. }) => self.__reply_token_for(nick),

@@ -2269,6 +2269,8 @@ pub struct TagMessage {
     pub actor: String,
     #[doc(hidden)]
     pub actor_token: ReplyToken,
+    #[doc(hidden)]
+    pub peer_token: ReplyToken,
     /// Whether the actor is this session's user.
     pub authorship: Authorship,
     /// IRC conversation addressed by the message.
@@ -2302,6 +2304,8 @@ pub struct Redacted {
     pub actor: String,
     #[doc(hidden)]
     pub actor_token: ReplyToken,
+    #[doc(hidden)]
+    pub peer_token: ReplyToken,
     /// Whether the actor is this session's user.
     pub authorship: Authorship,
     /// IRC conversation containing the message.

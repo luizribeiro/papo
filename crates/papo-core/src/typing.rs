@@ -36,6 +36,7 @@ pub struct TypingChanged {
     /// The user prefix associated with the typing state.
     pub actor: String,
     actor_token: ReplyToken,
+    peer_token: ReplyToken,
     /// Whether the user is this session's user.
     pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
@@ -59,6 +60,13 @@ impl TypingChanged {
     #[must_use]
     pub const fn __actor_token(&self) -> ReplyToken {
         self.actor_token
+    }
+
+    /// Returns the private peer's identity when the typing notification arrived.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __peer_token(&self) -> ReplyToken {
+        self.peer_token
     }
 
     /// Returns the address that reaches the recipients of the typing notification.
@@ -153,6 +161,7 @@ struct Deadline {
     nick: Nick,
     actor: String,
     actor_token: ReplyToken,
+    peer_token: ReplyToken,
     status: Option<Prefix>,
     return_address: String,
     at: Instant,
@@ -160,6 +169,7 @@ struct Deadline {
 
 struct TypingAddress {
     actor_token: ReplyToken,
+    peer_token: ReplyToken,
     status: Option<Prefix>,
     return_address: String,
 }
@@ -203,6 +213,7 @@ impl TypingTable {
     ) -> Vec<Deadline> {
         let TypingAddress {
             actor_token,
+            peer_token,
             status,
             return_address,
         } = address;
@@ -248,6 +259,7 @@ impl TypingTable {
                 nick,
                 actor,
                 actor_token,
+                peer_token,
                 status,
                 return_address,
                 at,
@@ -468,6 +480,7 @@ impl Session {
         .to_owned();
         let authorship = self.authorship(message);
         let actor_token = self.state.source_token(message);
+        let peer_token = self.state.conversation_token(&conversation);
         let server_time = LineEnvelope::from_line(message).server_time();
         if authorship == Authorship::Other {
             let nick = self.names().nick(nick);
@@ -479,6 +492,7 @@ impl Session {
                 actor.to_owned(),
                 TypingAddress {
                     actor_token,
+                    peer_token,
                     status,
                     return_address: return_address.clone(),
                 },
@@ -496,6 +510,7 @@ impl Session {
             server_time,
             actor: actor.to_owned(),
             actor_token,
+            peer_token,
             authorship,
             conversation,
             status,
@@ -642,6 +657,7 @@ fn stopped(
         server_time,
         actor: deadline.actor,
         actor_token: deadline.actor_token,
+        peer_token: deadline.peer_token,
         authorship: Authorship::Other,
         conversation: deadline.conversation,
         status: deadline.status,

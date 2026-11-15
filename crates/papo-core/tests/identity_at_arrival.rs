@@ -368,3 +368,52 @@ fn an_own_private_message_records_the_own_user_as_its_source() {
     assert!(own.__is_known());
     assert_eq!(source, own);
 }
+
+#[test]
+fn private_tags_redactions_and_typing_record_the_peer_at_arrival() {
+    let cases = [
+        Case {
+            name: "own private reaction",
+            line: "@+draft/react=👍;+draft/reply=RfcBTzyxY120010 :papo!~papo@localhost TAGMSG alice",
+            subject: "alice",
+            token: |event| match event {
+                Event::TagMessage(message) => Some(message.peer_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "private redaction from alice",
+            line: ":alice!~alice@cloak.example REDACT papo RfcBTzyxY120010 :sent too early",
+            subject: "alice",
+            token: |event| match event {
+                Event::Redacted(redacted) => Some(redacted.peer_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "private typing from alice",
+            line: "@+typing=active :alice!~alice@cloak.example TAGMSG papo",
+            subject: "alice",
+            token: |event| match event {
+                Event::TypingChanged(change) if change.reason == TypingReason::Notified => {
+                    Some(change.__peer_token())
+                }
+                _ => None,
+            },
+        },
+        Case {
+            name: "private typing stopped by the departure",
+            line: "@+typing=active :alice!~alice@cloak.example TAGMSG papo",
+            subject: "alice",
+            token: |event| match event {
+                Event::TypingChanged(change) if change.reason == TypingReason::Departed => {
+                    Some(change.__peer_token())
+                }
+                _ => None,
+            },
+        },
+    ];
+    for case in &cases {
+        assert_identity_at_arrival(case);
+    }
+}
