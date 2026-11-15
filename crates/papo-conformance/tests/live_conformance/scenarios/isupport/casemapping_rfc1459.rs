@@ -81,7 +81,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(changed.old.as_str(), base);
     assert_eq!(changed.actor.nick().as_str(), alice_nick);
     assert_eq!(changed.new.as_str(), alice_nick);
-    assert_eq!(changed.authorship, papo::Authorship::Own);
+    assert_eq!(changed.authorship, papo::Party::Me);
 
     // ALICE-<n>{X} folds to the same name as alice-<n>[x], so this claim must collide.
     let collision = bob
@@ -99,7 +99,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&folded).await?;
     let bob_join = bob.wait_for(Event::as_joined).await?;
     assert_eq!(bob_join.channel.name().as_str(), chan);
-    assert_eq!(bob_join.authorship, papo::Authorship::Own);
+    assert_eq!(bob_join.authorship, papo::Party::Me);
     let observed_join = alice
         .wait_for(|event| {
             event
@@ -108,7 +108,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(observed_join.channel.name().as_str(), chan);
-    assert_eq!(observed_join.authorship, papo::Authorship::Other);
+    assert_eq!(observed_join.authorship, papo::Party::Other);
 
     assert_eq!(
         bob.snapshot()

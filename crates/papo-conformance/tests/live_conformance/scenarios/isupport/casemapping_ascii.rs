@@ -82,14 +82,14 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     let alice_changed = alice.wait_for(Event::as_nick_changed).await?;
     assert_eq!(alice_changed.old, base);
     assert_eq!(alice_changed.new.as_str(), alice_square_nick);
-    assert_eq!(alice_changed.authorship, papo::Authorship::Own);
+    assert_eq!(alice_changed.authorship, papo::Party::Me);
 
     let bob_curly_nick = format!("{}{{X}}", base.as_str().to_ascii_uppercase());
     bob.set_nick(bob_curly_nick.clone()).await?;
     let bob_changed = bob.wait_for(Event::as_nick_changed).await?;
     assert_eq!(bob_changed.old, bob_original);
     assert_eq!(bob_changed.new.as_str(), bob_curly_nick);
-    assert_eq!(bob_changed.authorship, papo::Authorship::Own);
+    assert_eq!(bob_changed.authorship, papo::Party::Me);
     assert_eq!(bob.snapshot().nick(), bob_curly_nick.as_str());
 
     let bob_square_attempt = format!("{}[X]", base.as_str().to_ascii_uppercase());
@@ -111,12 +111,12 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     let alice_joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(alice_joined.channel.name().as_str(), chan);
     assert_eq!(alice_joined.actor.nick().as_str(), alice_square_nick);
-    assert_eq!(alice_joined.authorship, papo::Authorship::Own);
+    assert_eq!(alice_joined.authorship, papo::Party::Me);
 
     let bob_joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(bob_joined.channel.name().as_str(), folded);
     assert_eq!(bob_joined.actor.nick().as_str(), bob_curly_nick);
-    assert_eq!(bob_joined.authorship, papo::Authorship::Own);
+    assert_eq!(bob_joined.authorship, papo::Party::Me);
 
     alice.expect_none(Event::as_joined).await?;
 

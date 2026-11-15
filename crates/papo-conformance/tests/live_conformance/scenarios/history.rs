@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use papo::{Account, Authorship, Client, Endpoint, Error, Event, Sasl, SendOutcome};
+use papo::{Account, Client, Endpoint, Error, Event, Party, Sasl, SendOutcome};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{confirmed_line, conversation_name};
@@ -105,7 +105,7 @@ async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
         .find(|message| message.raw_text == text)
         .expect("CHATHISTORY replays the assembled multiline message");
     assert_eq!(replayed.text, text);
-    assert_eq!(replayed.authorship, Authorship::Own);
+    assert_eq!(replayed.authorship, Party::Me);
     assert_eq!(
         super::user(&writer.snapshot(), &replayed.actor).map(papo::User::account),
         Some(&expected_account)

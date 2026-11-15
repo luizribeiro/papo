@@ -36,7 +36,7 @@ async fn fixture_pair_with(
         .await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), bob_nick.as_str());
-    assert_eq!(joined.authorship, papo::Authorship::Other);
+    assert_eq!(joined.authorship, papo::Party::Other);
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
         let members = state
@@ -453,7 +453,7 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     let other = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(other.authorship, papo::Authorship::Own);
+    assert_eq!(other.authorship, papo::Party::Me);
     desktop
         .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
@@ -488,7 +488,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
     let message = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(message.authorship, papo::Authorship::Own);
+    assert_eq!(message.authorship, papo::Party::Me);
     assert_eq!(
         conversation_name(message.conversation()),
         Some(channel.clone())

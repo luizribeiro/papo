@@ -359,8 +359,8 @@ pub use error::{
     ServerError,
 };
 pub use event_impl::{
-    Authorship, Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Source,
-    Tags, TagsIter,
+    Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Source, Tags,
+    TagsIter,
 };
 pub use ext::accounts::{AccountOutcome, NewAccount};
 pub use ext::extras::{RenameChannel, RenameChannelRequest};

@@ -101,18 +101,18 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), bob_nick);
-    assert_eq!(joined.authorship, papo::Authorship::Own);
+    assert_eq!(joined.authorship, papo::Party::Me);
 
     alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick);
-    assert_eq!(joined.authorship, papo::Authorship::Own);
+    assert_eq!(joined.authorship, papo::Party::Me);
     let joined = bob.wait_for(Event::as_joined).await?;
 
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick.as_str());
-    assert_eq!(joined.authorship, papo::Authorship::Other);
+    assert_eq!(joined.authorship, papo::Party::Other);
     let bob_state = bob.snapshot();
     let observed = super::user(&bob_state, alice_nick.as_str()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
@@ -295,7 +295,7 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let synced = alice.wait_for(Event::as_channel_synced).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick);
-    assert_eq!(joined.authorship, papo::Authorship::Own);
+    assert_eq!(joined.authorship, papo::Party::Me);
     assert_eq!(synced.channel.name().as_str(), channel);
     let state = alice.snapshot();
     let joined_channel = state.__channel_local(&channel).unwrap();
@@ -341,7 +341,7 @@ async fn server_forced_join(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(joined.authorship, papo::Authorship::Own);
+    assert_eq!(joined.authorship, papo::Party::Me);
     let synced = alice
         .wait_for(|event| {
             event
@@ -407,7 +407,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 })
             })
             .await?;
-        assert_eq!(joined.authorship, papo::Authorship::Other);
+        assert_eq!(joined.authorship, papo::Party::Other);
         assert!(bob.snapshot().__channel_local(channel).is_some());
         assert!(
             alice
@@ -456,8 +456,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(observed.channel.name().as_str(), channel);
         assert_eq!(own.actor.nick(), bob_nick);
         assert_eq!(observed.actor.nick(), bob_nick.as_str());
-        assert_eq!(own.authorship, papo::Authorship::Own);
-        assert_eq!(observed.authorship, papo::Authorship::Other);
+        assert_eq!(own.authorship, papo::Party::Me);
+        assert_eq!(observed.authorship, papo::Party::Other);
         assert!(bob.snapshot().__channel_local(channel).is_none());
         assert!(
             alice
@@ -713,14 +713,14 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(target.channel.name().as_str(), channel);
     assert_eq!(target.subject.nick(), carol_nick);
     assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_str()));
-    assert_eq!(target.subject_authorship, papo::Authorship::Own);
+    assert_eq!(target.subject_authorship, papo::Party::Me);
     assert_eq!(observer.channel.name().as_str(), channel);
     assert_eq!(observer.subject.nick(), carol_nick.as_str());
     assert_eq!(
         crate::source_nick(&observer.actor),
         Some(alice_nick.as_str())
     );
-    assert_eq!(observer.subject_authorship, papo::Authorship::Other);
+    assert_eq!(observer.subject_authorship, papo::Party::Other);
     assert!(
         alice
             .snapshot()
@@ -783,7 +783,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.channel.name().as_str(), channel);
     assert_eq!(invited.subject.nick(), carol_nick);
-    assert_eq!(invited.subject_authorship, papo::Authorship::Own);
+    assert_eq!(invited.subject_authorship, papo::Party::Me);
     match carol.join(&channel).await {
         Ok(_) => {
             let joined = alice
@@ -794,7 +794,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                 })
                 .await?;
             assert_eq!(joined.channel.name().as_str(), channel);
-            assert_eq!(joined.authorship, papo::Authorship::Other);
+            assert_eq!(joined.authorship, papo::Party::Other);
             assert!(
                 alice
                     .snapshot()
@@ -851,8 +851,8 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(departed.actor.nick(), alice_nick.as_str());
         assert_eq!(departed.reason.as_deref(), Some(reason));
     }
-    assert_eq!(own.authorship, papo::Authorship::Own);
-    assert_eq!(observed.authorship, papo::Authorship::Other);
+    assert_eq!(own.authorship, papo::Party::Me);
+    assert_eq!(observed.authorship, papo::Party::Other);
     assert!(own_state.__channel_local(&channel).is_none());
     assert!(
         observed_state
@@ -907,8 +907,8 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(observed.actor.nick(), alice_nick.as_str());
         assert_eq!(own.reason.as_deref(), Some(reason));
         assert_eq!(observed.reason.as_deref(), Some(reason));
-        assert_eq!(own.authorship, papo::Authorship::Own);
-        assert_eq!(observed.authorship, papo::Authorship::Other);
+        assert_eq!(own.authorship, papo::Party::Me);
+        assert_eq!(observed.authorship, papo::Party::Other);
         assert!(alice.snapshot().__channel_local(channel).is_none());
         assert!(
             bob.snapshot()
@@ -991,8 +991,8 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(crate::source_nick(&kicked.actor), Some(alice_nick.as_str()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
-    assert_eq!(observed.subject_authorship, papo::Authorship::Other);
-    assert_eq!(own.subject_authorship, papo::Authorship::Own);
+    assert_eq!(observed.subject_authorship, papo::Party::Other);
+    assert_eq!(own.subject_authorship, papo::Party::Me);
     assert!(
         alice
             .snapshot()
@@ -1134,8 +1134,8 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .is_some_and(|reason| !reason.is_empty())
         );
         assert_eq!(own.reason, observed.reason);
-        assert_eq!(observed.subject_authorship, papo::Authorship::Other);
-        assert_eq!(own.subject_authorship, papo::Authorship::Own);
+        assert_eq!(observed.subject_authorship, papo::Party::Other);
+        assert_eq!(own.subject_authorship, papo::Party::Me);
         assert!(
             alice
                 .snapshot()
@@ -1224,8 +1224,8 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.old.as_str(), old_nick.as_str());
         assert_eq!(changed.new.as_str(), new_nick);
     }
-    assert_eq!(own.authorship, papo::Authorship::Own);
-    assert_eq!(observed.authorship, papo::Authorship::Other);
+    assert_eq!(own.authorship, papo::Party::Me);
+    assert_eq!(observed.authorship, papo::Party::Other);
     assert_eq!(alice.snapshot().nick(), new_nick.as_str());
     assert!(
         alice

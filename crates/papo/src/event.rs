@@ -276,15 +276,6 @@ impl Party {
     }
 }
 
-#[doc(hidden)]
-pub type Authorship = Party;
-
-#[allow(non_upper_case_globals)]
-impl Party {
-    #[doc(hidden)]
-    pub const Own: Self = Self::Me;
-}
-
 /// An incoming `PRIVMSG` or CTCP `ACTION` in a channel or private conversation.
 ///
 /// This type cannot represent notices or server broadcasts. Inspect [`Self::authorship`] to
