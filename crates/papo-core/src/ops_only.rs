@@ -43,8 +43,11 @@ fn line_target<'a>(message: &LineRef<'a>) -> Option<&'a str> {
         .flatten()
 }
 
-/// The target and referenced id of a line that threads or reacts to a message.
+/// The target and referenced id of a line that threads, reacts to or redacts a message.
 fn reference<'a>(message: &LineRef<'a>) -> Option<(&'a str, String)> {
+    if message.command_is("REDACT") {
+        return Some((message.param(0)?, message.param(1)?.to_owned()));
+    }
     let id = message
         .tag("+reply")
         .or_else(|| message.tag("+draft/reply"))?;

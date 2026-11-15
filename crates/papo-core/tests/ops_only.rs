@@ -72,6 +72,9 @@ fn a_send_pointing_at_an_ops_only_line_may_only_narrow_its_audience() {
         ("@+draft/react=👀;+draft/reply=$id TAGMSG @#ops", None),
         ("@+draft/react=👀;+draft/reply=$id TAGMSG #ops", Some('@')),
         ("@+draft/unreact=👀;+reply=$id TAGMSG #ops", Some('@')),
+        ("REDACT @#ops $id :wrong channel", None),
+        ("REDACT #ops $id :wrong channel", Some('@')),
+        ("REDACT #ops $id", Some('@')),
         (
             "@+reply=4vd2d8wx3tgvc6dsrwkd7hzvsq PRIVMSG #ops :ok then",
             None,
