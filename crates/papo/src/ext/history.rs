@@ -2698,6 +2698,118 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::too_many_lines)]
+    async fn every_history_item_with_a_status_sign_is_restricted() {
+        type Item = fn(HistoryLine) -> papo_core::HistoryItem;
+        type IsLine = fn(&crate::RestrictedLine) -> bool;
+        type IsEvent = fn(&Event) -> bool;
+        let cases: [(&str, Item, IsLine, IsEvent); 10] = [
+            (
+                "@time=2026-11-14T04:39:08.956Z;msgid=mmaw5dbdbfcdtemfrdriw2pg5n :bnc!~u@3g9xu4jk52ewq.irc PRIVMSG {to} :bnc to ops",
+                papo_core::HistoryItem::Message,
+                |line| line.as_message().is_some(),
+                |event| event.as_message().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:19.957Z;msgid=w357a6w4tfq37sgcf8wjy7se56 :oppy!~u@3g9xu4jk52ewq.irc NOTICE {to} :ops notice",
+                papo_core::HistoryItem::Message,
+                |line| line.as_notice().is_some(),
+                |event| event.as_notice().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:59.001Z;msgid=11794631139001005666001AAAAABI29wcw== :irc.sol.test NOTICE {to} :KNOCK: #ops (bob[~bob@127.0.0.1] has asked for an invite)",
+                papo_core::HistoryItem::Message,
+                |line| line.as_server_notice().is_some(),
+                |event| event.as_server_notice().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:20.112Z;msgid=y8x3qqwqpfude6rbj6ausi76a6 :oppy!~u@3g9xu4jk52ewq.irc PRIVMSG {to} :\x01VERSION\x01",
+                papo_core::HistoryItem::Message,
+                |line| line.as_ctcp_query().is_some(),
+                |event| event.as_ctcp_query().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:21.310Z;msgid=k76eimq57iyyjvrsg57ewfc7ca :oppy!~u@3g9xu4jk52ewq.irc NOTICE {to} :\x01VERSION Ergo-2.17.0\x01",
+                papo_core::HistoryItem::Message,
+                |line| line.as_ctcp_reply().is_some(),
+                |event| event.as_ctcp_reply().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:39:13.558Z;msgid=sp4ei85cy8ukw26bhk3bdmujua :oppy!~u@3g9xu4jk52ewq.irc PRIVMSG {to} :deploy key rotated",
+                papo_core::HistoryItem::Incomplete,
+                |line| line.as_incomplete().is_some(),
+                |event| event.as_incomplete().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:28.964Z;msgid=taqae4ypz7h2dqbue32q3p4nti;+draft/reply=wuc392x3jbiymzdgd9d7ktuy6i;+draft/react=👀 :oppy!~u@3g9xu4jk52ewq.irc TAGMSG {to}",
+                papo_core::HistoryItem::Reacted,
+                |line| line.as_reacted().is_some(),
+                |event| event.as_reacted().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:31.002Z;msgid=kzhqp4zbpva7jvgd9gc223pdma :oppy!~u@3g9xu4jk52ewq.irc REDACT {to} wuc392x3jbiymzdgd9d7ktuy6i :wrong channel",
+                papo_core::HistoryItem::Redacted,
+                |line| line.as_redacted().is_some(),
+                |event| event.as_redacted().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:22.404Z;msgid=kve8g9qnm88ecsi5d95uz3b38w;+example/status=ready :oppy!~u@3g9xu4jk52ewq.irc TAGMSG {to}",
+                papo_core::HistoryItem::TagMsg,
+                |line| line.as_tag_msg().is_some(),
+                |event| event.as_tag_msg().is_some(),
+            ),
+            (
+                "@time=2026-11-14T04:38:33.870Z;msgid=97b979m6qw8cdht9ktjmyk4fjs :oppy!~u@3g9xu4jk52ewq.irc KNOCK {to} :let me in",
+                papo_core::HistoryItem::Other,
+                |line| line.as_other().is_some(),
+                |event| event.as_other().is_some(),
+            ),
+        ];
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_connect_history(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b":soju.test 005 papo-driver CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported\r\n",
+        )
+        .await;
+        while client.state().isupport().statusmsg() != Some("~&@%+") {
+            tokio::task::yield_now().await;
+        }
+        let conversation =
+            crate::Conversation::Channel(channel(client.state().casemapping().channel("#ops")));
+        for (template, item, is_line, is_event) in cases {
+            for to in ["@#ops", "#ops"] {
+                let line = template.replace("{to}", to);
+                let event = history_item(
+                    item(core_item(&line)),
+                    Some(&conversation),
+                    &client,
+                    UNIX_EPOCH,
+                );
+                match &event {
+                    Event::Restricted(restricted) => {
+                        assert_eq!(to, "@#ops", "{line}");
+                        assert_eq!(restricted.audience.symbol(), '@', "{line}");
+                        assert!(is_line(&restricted.line), "{line} -> {event:?}");
+                    }
+                    event => {
+                        assert_eq!(to, "#ops", "{line} arrived in a plain arm");
+                        assert!(is_event(event), "{line} -> {event:?}");
+                    }
+                }
+            }
+        }
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn reference_history_queries_reach_the_wire_and_resolve() {
         let config = config().wanted_caps([
             "draft/chathistory",
