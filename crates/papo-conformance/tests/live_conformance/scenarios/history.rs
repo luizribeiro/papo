@@ -190,6 +190,43 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// fetches single channel history messages by their identifiers
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["draft.chathistory.message-by-id"]
+)]
+async fn history_message_by_id(s: Scenario) -> papo_testing::Result<()> {
+    let texts = [
+        "canary deploy started",
+        "canary error rate is flat",
+        "canary promoted to all hosts",
+    ];
+    let (_, reader, channel, sent) = history_peers(&s, &texts).await?;
+    if !reader
+        .snapshot()
+        .isupport()
+        .msgreftypes()
+        .contains(&"msgid")
+    {
+        return s.skip("server does not advertise msgid history references");
+    }
+    for (sent, text) in sent.iter().zip(texts) {
+        let id = confirmed_line(sent).0;
+        let Some(Event::Message(message)) = reader.history(&channel).message(id.clone()).await?
+        else {
+            panic!("the server keeps {text:?} under its message ID");
+        };
+        assert_eq!(message.text, text);
+        assert_eq!(message.msgid(), Some(id));
+    }
+    let unknown = reader
+        .history(&channel)
+        .message("x5hqmz8cbtwfyi2ab4wbuxpn7c")
+        .await?;
+    assert_eq!(unknown, None);
+    Ok(())
+}
+
 /// pages backward until the server proves that no older messages remain
 #[scenario(
     requires(caps = ["batch", "draft/chathistory"]),
