@@ -83,6 +83,112 @@ fn an_unseen_nick_handoff_does_not_inherit_the_admins_identity_or_account() {
     );
 }
 
+struct Handoff {
+    name: &'static str,
+    caps: &'static str,
+    first: &'static str,
+    second: &'static str,
+    same_person: bool,
+    account: Option<&'static str>,
+}
+
+#[test]
+fn a_person_papo_cannot_follow_stays_the_same_only_while_every_fact_matches() {
+    for case in [
+        Handoff {
+            name: "same host, still logged in",
+            caps: "account-tag message-tags",
+            first: ALICE_ADMIN,
+            second: "@account=alice :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!status",
+            same_person: true,
+            account: Some("alice"),
+        },
+        Handoff {
+            name: "same host, now without the account tag",
+            caps: "account-tag message-tags",
+            first: ALICE_ADMIN,
+            second: ":alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!op alice",
+            same_person: false,
+            account: None,
+        },
+        Handoff {
+            name: "another host, same account",
+            caps: "account-tag message-tags",
+            first: ALICE_ADMIN,
+            second: "@account=alice :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :!status",
+            same_person: false,
+            account: Some("alice"),
+        },
+        Handoff {
+            name: "another username",
+            caps: "account-tag message-tags",
+            first: ALICE_ADMIN,
+            second: "@account=alice :alice!mallory@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!status",
+            same_person: false,
+            account: Some("alice"),
+        },
+        Handoff {
+            name: "another account",
+            caps: "account-tag message-tags",
+            first: ALICE_ADMIN,
+            second: "@account=mallory :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!status",
+            same_person: false,
+            account: Some("mallory"),
+        },
+        Handoff {
+            name: "logged out, then logged in",
+            caps: "account-tag message-tags",
+            first: ":guest!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :hello",
+            second: "@account=guest :guest!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :hello again",
+            same_person: false,
+            account: Some("guest"),
+        },
+        Handoff {
+            name: "logged out twice",
+            caps: "account-tag message-tags",
+            first: ":guest!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :hello",
+            second: ":guest!~u@8ajhv7kxgp7ag.irc NOTICE papo-admin :hello again",
+            same_person: true,
+            account: None,
+        },
+        Handoff {
+            name: "no account-tag, same host",
+            caps: "message-tags",
+            first: ":guest!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :hello",
+            second: "@+typing=active :guest!~u@8ajhv7kxgp7ag.irc TAGMSG papo-admin",
+            same_person: true,
+            account: Some(""),
+        },
+        Handoff {
+            name: "no account-tag, another host",
+            caps: "message-tags",
+            first: ":guest!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :hello",
+            second: ":guest!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :hello again",
+            same_person: false,
+            account: Some(""),
+        },
+    ] {
+        let mut session = registered(case.caps);
+        let nick = case.first.split_once(':').unwrap().1;
+        let nick = &nick[..nick.find('!').unwrap()];
+        server(&mut session, case.first);
+        let before = token(&session, nick);
+        server(&mut session, case.second);
+        let expected = match case.account {
+            Some("") => Account::Unknown,
+            Some(name) => logged_in(&session, name),
+            None => Account::LoggedOut,
+        };
+        assert_eq!(
+            token(&session, nick) == before,
+            case.same_person,
+            "{}",
+            case.name
+        );
+        assert_eq!(account(&session, nick), Some(expected), "{}", case.name);
+    }
+}
+
 #[test]
 fn a_channel_member_without_the_account_tag_logs_out_in_place() {
     let mut session = registered("account-tag extended-join message-tags");
