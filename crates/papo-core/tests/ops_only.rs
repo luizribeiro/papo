@@ -6,6 +6,8 @@ use papo_core::{Config, RateLimit, RequestError, Session};
 use papo_proto::{Line, LineRef};
 
 const ERGO_ISUPPORT: &str = ":ergo.test 005 papo CASEMAPPING=ascii CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server";
+const PUBLIC: &str = "@msgid=x8n4qz2kbtqe2nqrwg3hba7m5y;time=2026-11-14T18:02:15.873Z :oppy!~oppy@cloak.example PRIVMSG #ops :standup in five";
+const VOICED: &str = "@msgid=k3mz8w2qdvbe4iqx7hgufyn5ta;time=2026-11-14T18:03:40.112Z :vicky!~vicky@cloak.example PRIVMSG +#ops :can someone review?";
 const OPS_ONLY: &str = "@msgid=bc3fyyzsmb8ip7aiti6gakzmja;time=2026-11-14T18:02:11.204Z :oppy!~oppy@cloak.example PRIVMSG @#ops :deploy key rotated?";
 
 fn ergo(now: Instant, lines: &[&str]) -> Session {
@@ -59,6 +61,9 @@ fn a_send_pointing_at_an_ops_only_line_may_only_narrow_its_audience() {
     for (wire, refused) in [
         ("@+draft/reply=$id PRIVMSG @#ops :rotated, yes", None),
         ("@+reply=$id PRIVMSG @#OPS :rotated, yes", None),
+        ("@+reply=$id PRIVMSG ~#ops :owners: rotated", None),
+        ("@+reply=$id PRIVMSG &#ops :admins: rotated", None),
+        ("@+reply=$id PRIVMSG %#ops :halfops: rotated", Some('@')),
         ("@+draft/reply=$id PRIVMSG #ops :rotated, yes", Some('@')),
         ("@+draft/reply=$id PRIVMSG +#ops :rotated, yes", Some('@')),
         ("@+draft/reply=$id PRIVMSG @#other :rotated", Some('@')),
@@ -98,4 +103,42 @@ fn the_oldest_of_1025_ops_only_ids_is_forgotten() {
         let wider = format!("@+draft/reply={id} PRIVMSG #ops :rotated, yes");
         assert!(refused_as(&session.send(now, line(&wider)), '@'), "{id}");
     }
+}
+
+#[test]
+fn a_voiced_line_may_be_answered_to_any_higher_rank() {
+    for (wire, refused) in [
+        ("@+reply=$id PRIVMSG +#ops :on it", None),
+        ("@+reply=$id PRIVMSG %#ops :halfops: on it", None),
+        ("@+reply=$id PRIVMSG @#ops :ops: on it", None),
+        ("@+reply=$id PRIVMSG #ops :on it", Some('+')),
+    ] {
+        assert_send(VOICED, "k3mz8w2qdvbe4iqx7hgufyn5ta", wire, refused);
+    }
+}
+
+#[test]
+fn a_public_line_may_be_answered_publicly_or_to_its_ops() {
+    for wire in [
+        "@+draft/reply=$id PRIVMSG @#ops :ops: about standup",
+        "@+draft/reply=$id PRIVMSG #ops :joining now",
+    ] {
+        assert_send(PUBLIC, "x8n4qz2kbtqe2nqrwg3hba7m5y", wire, None);
+    }
+}
+
+#[test]
+fn a_sign_missing_from_prefix_matches_only_itself() {
+    let now = Instant::now();
+    let mut session = ergo(
+        now,
+        &[
+            ":irc.example 005 papo PREFIX=(ov)@+ STATUSMSG=@+% :are supported by this server",
+            "@msgid=Zq7Hk2Rp :hops!~h@cloak.example PRIVMSG %#ops :halfops, check the ban list",
+        ],
+    );
+    let same = "@+draft/reply=Zq7Hk2Rp PRIVMSG %#ops :checked, two stale bans";
+    assert_eq!(session.send(now, line(same)), Ok(()));
+    let ranked = "@+draft/reply=Zq7Hk2Rp PRIVMSG @#ops :checked, two stale bans";
+    assert!(refused_as(&session.send(now, line(ranked)), '%'));
 }

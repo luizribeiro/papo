@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-use papo_proto::{LineRef, Prefix};
+use papo_proto::{Isupport, LineRef, Prefix};
 
 use crate::{Conversation, RequestError, Session};
 
@@ -51,6 +51,23 @@ fn reference<'a>(message: &LineRef<'a>) -> Option<(&'a str, String)> {
     Some((line_target(message)?, id.into_owned()))
 }
 
+/// Whether `status` reaches only members ranked at least as high as `original`.
+///
+/// `PREFIX` lists signs from the highest rank down, and `X#chan` reaches every member ranked
+/// `X` or higher. A sign missing from `PREFIX` has no known rank, so only the same sign matches.
+fn within(isupport: &Isupport, original: Prefix, status: Prefix) -> bool {
+    let prefixes = isupport.prefix();
+    let rank = |prefix: Prefix| {
+        prefixes
+            .iter()
+            .position(|known| known.symbol() == prefix.symbol())
+    };
+    match (rank(status), rank(original)) {
+        (Some(new), Some(old)) => new <= old,
+        _ => status.symbol() == original.symbol(),
+    }
+}
+
 impl Session {
     pub(crate) fn remember_ops_only(&mut self, message: &LineRef<'_>) {
         let (Some(msgid), Some(target)) = (message.tag("msgid"), line_target(message)) else {
@@ -75,7 +92,8 @@ impl Session {
         };
         let narrower = match self.state.parse_target(target) {
             Ok((Some(status), channel)) => {
-                channel == original.channel && status.symbol() == original.status.symbol()
+                channel == original.channel
+                    && within(self.isupport.value(), original.status, status)
             }
             _ => false,
         };
