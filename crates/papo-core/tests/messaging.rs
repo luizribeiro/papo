@@ -232,6 +232,62 @@ fn rejects_invalid_channel_context_names() {
 }
 
 #[test]
+fn claims_a_private_channel_context_from_the_line_alone() {
+    let mut isupport = papo_proto::Isupport::default();
+    isupport.apply(
+        &papo_proto::LineRef::parse(
+            ":soju.test 005 papo CASEMAPPING=ascii CHANTYPES=# MSGREFTYPES=timestamp :are supported",
+        )
+        .unwrap(),
+    );
+    for (line, expected) in [
+        (
+            "@+channel-context=#review :emily!~emily@cloak.example PRIVMSG papo :ready",
+            Some("#review"),
+        ),
+        (
+            "@+draft/channel-context=#review :emily!~emily@cloak.example NOTICE papo :ready",
+            Some("#review"),
+        ),
+        (
+            "@+channel-context=#review;+draft/channel-context=#ops :emily!~emily@cloak.example PRIVMSG papo :ready",
+            Some("#review"),
+        ),
+        (
+            "@+channel-context=#ops :emily!~emily@cloak.example PRIVMSG #review :ready",
+            None,
+        ),
+        (
+            "@+channel-context=#review,ops :emily!~emily@cloak.example PRIVMSG papo :ready",
+            None,
+        ),
+        (
+            "@+channel-context=review :emily!~emily@cloak.example PRIVMSG papo :ready",
+            None,
+        ),
+        (
+            "@+channel-context=&review :emily!~emily@cloak.example PRIVMSG papo :ready",
+            None,
+        ),
+        (
+            "@msgid=RfcBTzyxY120004 :emily!~emily@cloak.example PRIVMSG papo :ready",
+            None,
+        ),
+    ] {
+        let line = papo_proto::LineRef::parse(line).unwrap();
+        let (_, conversation) = papo_core::classify_conversation(&line, "papo", &isupport).unwrap();
+        let claimed =
+            papo_core::claimed_channel_context(&line, &conversation, &isupport, Origin::NONE);
+        assert_eq!(
+            claimed.as_ref().map(papo_proto::ChannelName::as_str),
+            expected,
+            "{line:?}"
+        );
+        assert!(claimed.is_none_or(|name| name.casemapping() == papo_proto::Casemapping::Ascii));
+    }
+}
+
+#[test]
 fn reports_redactions_with_and_without_a_reason() {
     for (line, expected_reason) in [
         (

@@ -119,18 +119,38 @@ impl Session {
         message: &LineRef<'_>,
         conversation: Option<&crate::Conversation>,
     ) -> Option<crate::ChannelName> {
-        if !matches!(conversation, Some(crate::Conversation::Private(_))) {
-            return None;
-        }
-        let context = message
-            .tag("+channel-context")
-            .or_else(|| message.tag("+draft/channel-context"))?;
-        let context = self.names().channel(context);
-        context.check(self.isupport.value()).ok()?;
+        let context = claimed_channel_context(
+            message,
+            conversation?,
+            self.isupport.value(),
+            self.config.origin,
+        )?;
         let papo_proto::Source::User { nick, .. } = message.source()? else {
             return None;
         };
         self.state.channel(&context)?.member(nick)?;
         Some(context)
     }
+}
+
+/// Returns the valid channel a private message's `+channel-context` tag names.
+///
+/// It is only the line's claim: the sender's membership in that channel is not checked.
+#[doc(hidden)]
+#[must_use]
+pub fn claimed_channel_context(
+    message: &LineRef<'_>,
+    conversation: &crate::Conversation,
+    isupport: &papo_proto::Isupport,
+    origin: papo_proto::Origin,
+) -> Option<crate::ChannelName> {
+    if !matches!(conversation, crate::Conversation::Private(_)) {
+        return None;
+    }
+    let context = message
+        .tag("+channel-context")
+        .or_else(|| message.tag("+draft/channel-context"))?;
+    let context = crate::name::Names::new(isupport.casemapping(), origin).channel(context);
+    context.check(isupport).ok()?;
+    Some(context)
 }
