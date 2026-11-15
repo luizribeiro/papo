@@ -642,6 +642,10 @@ pub(crate) fn incoming_from_core(
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> Event {
     let reply_token = received.__reply_token();
+    let tokens = LineTokens {
+        actor: Some(reply_token),
+        peer: None,
+    };
     let channel_guard = received.__channel_guard().cloned().filter(|guard| {
         handle_state.is_some_and(|state| {
             state
@@ -684,7 +688,7 @@ pub(crate) fn incoming_from_core(
             received_at,
         ) {
             Ok(mut event) => {
-                attach_message_handles(&mut event, Some(reply_token), handle_state, false);
+                attach_message_handles(&mut event, tokens, handle_state, false);
                 return event;
             }
             Err(raw) => raw,
@@ -708,7 +712,7 @@ pub(crate) fn incoming_from_core(
             |line| unparsed_from_line(line, received_at),
             Event::ServerNotice,
         );
-        attach_message_handles(&mut event, Some(reply_token), handle_state, false);
+        attach_message_handles(&mut event, tokens, handle_state, false);
         return event;
     };
     let conversation =
@@ -726,7 +730,7 @@ pub(crate) fn incoming_from_core(
         received_at,
         Some(reply_token),
     );
-    attach_message_handles(&mut event, Some(reply_token), handle_state, false);
+    attach_message_handles(&mut event, tokens, handle_state, false);
     event
 }
 
@@ -1906,19 +1910,26 @@ fn event_handle(
     )
 }
 
+/// The identities papo-core recorded with a line for its actor and its private peer.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct LineTokens {
+    pub(crate) actor: Option<papo_core::ReplyToken>,
+    pub(crate) peer: Option<papo_core::ReplyToken>,
+}
+
 fn attach_user_message_handle(
     actor: &mut crate::UserHandle,
     authorship: Authorship,
     conversation: &mut Conversation,
     receipt: &mut crate::message_ref::Receipt,
-    token: Option<papo_core::ReplyToken>,
+    tokens: LineTokens,
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
 ) {
-    *actor = event_handle(actor, token, state, historical);
+    *actor = event_handle(actor, tokens.actor, state, historical);
     if let Conversation::Private(peer) = conversation {
         *peer = if authorship == Authorship::Own {
-            event_handle(peer, None, state, historical)
+            event_handle(peer, tokens.peer, state, historical)
         } else {
             actor.clone()
         };
@@ -1928,7 +1939,7 @@ fn attach_user_message_handle(
 
 pub(crate) fn attach_message_handles(
     event: &mut Event,
-    token: Option<papo_core::ReplyToken>,
+    tokens: LineTokens,
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
 ) {
@@ -1940,7 +1951,7 @@ pub(crate) fn attach_message_handles(
                 event.authorship,
                 &mut event.conversation,
                 &mut event.receipt,
-                token,
+                tokens,
                 state,
                 historical,
             );
@@ -1960,7 +1971,7 @@ pub(crate) fn attach_message_handles(
         Event::TypingChanged(event) => user_event!(event),
         Event::Redacted(event) => {
             if let Source::User(actor) = &mut event.actor {
-                *actor = event_handle(actor, token, state, historical);
+                *actor = event_handle(actor, tokens.actor, state, historical);
                 if let Conversation::Private(peer) = &mut event.conversation
                     && event.authorship != Authorship::Own
                 {
@@ -1973,7 +1984,7 @@ pub(crate) fn attach_message_handles(
         }
         Event::ServerNotice(event) => {
             if let Source::User(actor) = &mut event.actor {
-                *actor = event_handle(actor, token, state, historical);
+                *actor = event_handle(actor, tokens.actor, state, historical);
                 let conversation = match &event.to {
                     Audience::Channel(channel) => Conversation::Channel(channel.clone()),
                     Audience::Me | Audience::Broadcast(_) => return,
@@ -1984,10 +1995,10 @@ pub(crate) fn attach_message_handles(
             }
         }
         Event::BroadcastCtcp(event) => {
-            event.actor = event_handle(&event.actor, token, state, historical);
+            event.actor = event_handle(&event.actor, tokens.actor, state, historical);
         }
         Event::BroadcastTagMsg(event) => {
-            event.actor = event_handle(&event.actor, token, state, historical);
+            event.actor = event_handle(&event.actor, tokens.actor, state, historical);
         }
         _ => {}
     }
@@ -2874,7 +2885,15 @@ pub(crate) fn from_core_with_receipt(
         }
         _ => return CoreEvent::Unknown,
     };
-    attach_message_handles(&mut mapped, actor_token, handle_state, false);
+    attach_message_handles(
+        &mut mapped,
+        LineTokens {
+            actor: actor_token,
+            peer: None,
+        },
+        handle_state,
+        false,
+    );
     CoreEvent::Forward(mapped)
 }
 
@@ -5397,7 +5416,15 @@ mod tests {
         );
 
         let shared = std::sync::Arc::new(std::sync::RwLock::new(std::sync::Arc::new(state)));
-        super::attach_message_handles(&mut event, None, Some(&shared), false);
+        super::attach_message_handles(
+            &mut event,
+            super::LineTokens {
+                actor: None,
+                peer: None,
+            },
+            Some(&shared),
+            false,
+        );
         let actor = &event.as_message().unwrap().actor;
         assert_eq!(
             actor.key().as_verified_str(),
@@ -5539,7 +5566,15 @@ mod tests {
                         Conversation::Private(user_handle(Casemapping::default().nick("mallory")));
                 }
                 let token = state.read().unwrap().core.__reply_token_for("alice");
-                super::attach_message_handles(&mut event, Some(token), Some(&state), false);
+                super::attach_message_handles(
+                    &mut event,
+                    super::LineTokens {
+                        actor: Some(token),
+                        peer: None,
+                    },
+                    Some(&state),
+                    false,
+                );
                 (name, event)
             })
             .collect::<Vec<_>>();
@@ -5571,7 +5606,15 @@ mod tests {
                 _ => unreachable!(),
             };
             let token = state.read().unwrap().core.__reply_token_for("alice");
-            super::attach_message_handles(&mut event, Some(token), Some(&state), false);
+            super::attach_message_handles(
+                &mut event,
+                super::LineTokens {
+                    actor: Some(token),
+                    peer: None,
+                },
+                Some(&state),
+                false,
+            );
             cases.push((name, event));
         }
 

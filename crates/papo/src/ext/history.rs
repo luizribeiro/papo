@@ -307,7 +307,15 @@ pub(crate) fn history_item(
             other(raw, received_at)
         }
     };
-    crate::event_impl::attach_message_handles(&mut event, actor_token, Some(&client.state), true);
+    crate::event_impl::attach_message_handles(
+        &mut event,
+        crate::event_impl::LineTokens {
+            actor: actor_token,
+            peer: None,
+        },
+        Some(&client.state),
+        true,
+    );
     crate::event_impl::separate_restricted(event, state.nick().as_str(), state.isupport().inner())
 }
 
