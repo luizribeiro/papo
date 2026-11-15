@@ -54,6 +54,42 @@ pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&
         .filter(|message| message.raw_text == text)
 }
 
+/// Accepts a restricted message whose wire text is exactly `text`.
+pub(super) fn restricted_text<'event>(
+    event: &'event Event,
+    text: &str,
+) -> Option<&'event papo::Restricted> {
+    event.as_restricted().filter(|restricted| {
+        restricted
+            .line
+            .as_message()
+            .is_some_and(|message| message.raw_text == text)
+    })
+}
+
+/// Splits a restricted message into its audience sign and the message.
+pub(super) fn restricted_message(restricted: papo::Restricted) -> (char, Message) {
+    let papo::RestrictedLine::Message(message) = restricted.line else {
+        panic!("restricted line is not a message: {restricted:?}")
+    };
+    (restricted.audience.symbol(), message)
+}
+
+/// Accepts a message whose wire text is exactly `text`, whichever arm delivered it.
+pub(super) fn any_message_text<'event>(event: &'event Event, text: &str) -> Option<&'event Event> {
+    (message_text(event, text).is_some() || restricted_text(event, text).is_some()).then_some(event)
+}
+
+/// Accepts a restricted line whose payload `line` selects.
+pub(super) fn restricted_line<'event, T: 'event>(
+    event: &'event Event,
+    line: impl FnOnce(&'event papo::RestrictedLine) -> Option<&'event T>,
+) -> Option<&'event papo::Restricted> {
+    event
+        .as_restricted()
+        .filter(|restricted| line(&restricted.line).is_some())
+}
+
 /// Accepts a notice whose wire text is exactly `text`.
 pub(super) fn notice_text<'event>(
     event: &'event Event,

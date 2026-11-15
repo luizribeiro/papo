@@ -2,7 +2,8 @@ use papo::{ModeAction, ModeArg, Typing};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{
-    confirmed_line, join_seen_by, message_text, wait_channel_mode, wait_for_channel,
+    any_message_text, confirmed_line, join_seen_by, message_text, restricted_line,
+    restricted_message, restricted_text, wait_channel_mode, wait_for_channel,
 };
 use crate::{Peer, Scenario};
 
@@ -140,14 +141,15 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     let sent = alice
         .privmsg(format!("@{channel}"), "operators only")
         .await?;
-    let received = bob
-        .wait_for(|event| message_text(event, "operators only"))
-        .await?;
+    let (sign, received) = restricted_message(
+        bob.wait_for(|event| restricted_text(event, "operators only"))
+            .await?,
+    );
     assert_eq!(
         crate::scenarios::support::conversation_name(received.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(received.status().map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(sign, '@');
     assert_eq!(received.raw_text, "operators only");
     let (id, text, _) = confirmed_line(&sent);
     assert_eq!(text, "operators only");
@@ -158,7 +160,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     );
 
     for peer in [&mut carol, &mut dave] {
-        peer.expect_none(|event| message_text(event, "operators only"))
+        peer.expect_none(|event| any_message_text(event, "operators only"))
             .await?;
     }
     Ok(())
@@ -184,30 +186,33 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     alice
         .privmsg(format!("@{channel}"), "operators-only question")
         .await?;
-    let question = bob
-        .wait_for(|event| message_text(event, "operators-only question"))
-        .await?;
+    let (sign, question) = restricted_message(
+        bob.wait_for(|event| restricted_text(event, "operators-only question"))
+            .await?,
+    );
     assert_eq!(
         crate::scenarios::support::conversation_name(question.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(question.status().map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(sign, '@');
     for peer in [&mut carol, &mut dave] {
-        peer.expect_none(|event| message_text(event, "operators-only question"))
+        peer.expect_none(|event| any_message_text(event, "operators-only question"))
             .await?;
     }
 
     bob.reply(&question, "operators-only answer").await?;
-    let answer = alice
-        .wait_for(|event| message_text(event, "operators-only answer"))
-        .await?;
+    let (sign, answer) = restricted_message(
+        alice
+            .wait_for(|event| restricted_text(event, "operators-only answer"))
+            .await?,
+    );
     assert_eq!(
         crate::scenarios::support::conversation_name(answer.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(answer.status().map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(sign, '@');
     for peer in [&mut carol, &mut dave] {
-        peer.expect_none(|event| message_text(event, "operators-only answer"))
+        peer.expect_none(|event| any_message_text(event, "operators-only answer"))
             .await?;
     }
 
@@ -223,28 +228,40 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     bob.react(&question, "🛡️").await?;
     let reaction = alice
         .wait_for(|event| {
-            event
-                .as_reacted()
-                .filter(|reaction| reaction.reacts_to == question_id && reaction.reaction == "🛡️")
+            restricted_line(event, |line| {
+                line.as_reacted().filter(|reaction| {
+                    reaction.reacts_to == question_id && reaction.reaction == "🛡️"
+                })
+            })
         })
         .await?;
-    assert_eq!(reaction.status().map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(reaction.audience.symbol(), '@');
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| {
-            event
-                .as_reacted()
-                .filter(|reaction| reaction.reaction == "🛡️")
+            restricted_line(event, papo::RestrictedLine::as_reacted)
+                .map(|_| event)
+                .or_else(|| event.as_reacted().map(|_| event))
         })
         .await?;
     }
 
     bob.typing(question.return_address(), Typing::Active)
         .await?;
-    let typing = alice.wait_for(papo::Event::as_typing_changed).await?;
-    assert_eq!(typing.status.map(papo::Prefix::symbol), Some('@'));
-    assert_eq!(typing.state, Typing::Active);
+    let typing = alice
+        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
+        .await?;
+    assert_eq!(typing.audience.symbol(), '@');
+    assert_eq!(
+        typing.line.as_typing_changed().map(|typing| typing.state),
+        Some(Typing::Active)
+    );
     for peer in [&mut carol, &mut dave] {
-        peer.expect_none(papo::Event::as_typing_changed).await?;
+        peer.expect_none(|event| {
+            restricted_line(event, papo::RestrictedLine::as_typing_changed)
+                .map(|_| event)
+                .or_else(|| event.as_typing_changed().map(|_| event))
+        })
+        .await?;
     }
 
     Ok(())
@@ -270,9 +287,10 @@ async fn statusmsg_window_reaches_everyone(s: Scenario) -> papo_testing::Result<
     alice
         .privmsg(format!("@{channel}"), "operators-only question")
         .await?;
-    let question = bob
-        .wait_for(|event| message_text(event, "operators-only question"))
-        .await?;
+    let (_, question) = restricted_message(
+        bob.wait_for(|event| restricted_text(event, "operators-only question"))
+            .await?,
+    );
     let papo::Conversation::Channel(window) = question.conversation() else {
         panic!("a channel line files under its channel")
     };
@@ -298,7 +316,7 @@ async fn statusmsg_window_reaches_everyone(s: Scenario) -> papo_testing::Result<
         "stacked prefixes were not refused: {stacked:?}"
     );
     for peer in [&mut alice, &mut carol, &mut dave] {
-        peer.expect_none(|event| message_text(event, "stacked audience"))
+        peer.expect_none(|event| any_message_text(event, "stacked audience"))
             .await?;
     }
     Ok(())
