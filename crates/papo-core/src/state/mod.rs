@@ -1396,12 +1396,12 @@ impl State {
         };
         let changes = if isupport.is_channel(target) {
             ModeChanges::parse(modestring, message.params().skip(2), isupport)
-                .map(|change| typed_mode_change(change, self.casemapping))
+                .map(|change| typed_mode_change(change, self))
                 .collect()
         } else {
             let defaults = Isupport::default();
             ModeChanges::parse(modestring, message.params().skip(2), &defaults)
-                .map(|change| typed_mode_change(change, self.casemapping))
+                .map(|change| typed_mode_change(change, self))
                 .collect()
         };
         outbox.event(Event::ModeChanged {
@@ -1950,12 +1950,14 @@ impl State {
     }
 }
 
-fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
+fn typed_mode_change(change: ProtoModeChange<'_>, state: &State) -> ModeChange {
+    let names = state.casemapping;
     let arg = change.arg.map(|arg| match (change.mode, change.kind) {
         ('k', _) => ModeArg::Key(Secret::new(arg)),
         (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
             nick: names.nick(arg),
             prefix,
+            token: state.__reply_token_for(arg),
         },
         (_, ModeKind::List) => ModeArg::Mask(names.mask(arg)),
         _ => ModeArg::Value(arg.to_owned()),

@@ -1729,25 +1729,28 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
 
 #[test]
 fn reports_mixed_channel_and_user_mode_changes() {
+    let absent = papo_core::ReplyToken::__unknown(Origin::NONE);
+    let emily = Cell::new(absent);
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
+        .inspect(|session| emily.set(session.state().__reply_token_for("emily")))
         .server(":alice!alice@staff.example MODE #papo +ob-v alice *!*@spam.example bob")
         .event(|event| match event {
             Event::ModeChanged { subject, actor, changes, .. } => {
                 matches!(subject, Subject::Channel(channel) if channel == "#papo")
                     && actor.nick().is_some_and(|nick| nick == "alice")
                     && changes == &vec![
-                        ModeChange::__new('o', ModeAction::Add, Some(ModeArg::__member(Casemapping::Rfc1459.nick("alice"), papo_core::Prefix::__new('o', '@')))),
+                        ModeChange::__new('o', ModeAction::Add, Some(ModeArg::__member(Casemapping::Rfc1459.nick("alice"), papo_core::Prefix::__new('o', '@'), absent))),
                         ModeChange::__new('b', ModeAction::Add, Some(ModeArg::Mask(Casemapping::Rfc1459.mask("*!*@spam.example")))),
-                        ModeChange::__new('v', ModeAction::Remove, Some(ModeArg::__member(Casemapping::Rfc1459.nick("bob"), papo_core::Prefix::__new('v', '+')))),
+                        ModeChange::__new('v', ModeAction::Remove, Some(ModeArg::__member(Casemapping::Rfc1459.nick("bob"), papo_core::Prefix::__new('v', '+'), absent))),
                     ]
             }
             _ => false,
         })
         .server(":ChanServ!service@services.example MODE #papo +o emily")
-        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange::__new('o', ModeAction::Add, Some(ModeArg::__member(Casemapping::Rfc1459.nick("emily"), papo_core::Prefix::__new('o', '@'))))]))
+        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange::__new('o', ModeAction::Add, Some(ModeArg::__member(Casemapping::Rfc1459.nick("emily"), papo_core::Prefix::__new('o', '@'), emily.get())))]))
         .server(":alice!alice@staff.example MODE #papo +kl review-key-2026 50")
         .event(|event| {
             assert!(!format!("{event:?}").contains("review-key-2026"));
