@@ -34,13 +34,19 @@ impl OpsOnlyLines {
     }
 }
 
-/// Where a text or tag message goes.
+/// Where a line goes: a text or tag message's target, or a multiline batch's.
 fn line_target<'a>(message: &LineRef<'a>) -> Option<&'a str> {
-    ["PRIVMSG", "NOTICE", "TAGMSG"]
+    if ["PRIVMSG", "NOTICE", "TAGMSG"]
         .iter()
         .any(|command| message.command_is(command))
-        .then(|| message.param(0))
-        .flatten()
+    {
+        return message.param(0);
+    }
+    (message.command_is("BATCH")
+        && message.param(0).is_some_and(|id| id.starts_with('+'))
+        && message.param(1) == Some(crate::cap::MULTILINE.as_str()))
+    .then(|| message.param(2))
+    .flatten()
 }
 
 /// The target and referenced id of a line that threads, reacts to or redacts a message.

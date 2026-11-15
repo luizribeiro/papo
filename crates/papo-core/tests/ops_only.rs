@@ -200,3 +200,28 @@ fn every_way_to_queue_a_line_checks_its_audience() {
         }
     }
 }
+
+#[test]
+fn a_multiline_ops_only_message_is_remembered_by_its_batch_id() {
+    let now = Instant::now();
+    let mut session = ergo_with_caps(
+        now,
+        "batch draft/multiline=max-bytes=4096,max-lines=24",
+        &[
+            "@msgid=w7qk3nduhyr9e5zmtx2gpfa8cs;time=2026-11-14T18:05:02.310Z :oppy!~oppy@cloak.example BATCH +ml2 draft/multiline @#ops",
+            "@batch=ml2 :oppy!~oppy@cloak.example PRIVMSG @#ops :rotation plan:",
+            "@batch=ml2 :oppy!~oppy@cloak.example PRIVMSG @#ops :1. revoke the old key",
+            ":oppy!~oppy@cloak.example BATCH -ml2",
+        ],
+    );
+    for (target, allowed) in [("@#ops", true), ("#ops", false)] {
+        let open =
+            format!("@+draft/reply=w7qk3nduhyr9e5zmtx2gpfa8cs BATCH +r1 draft/multiline {target}");
+        let result = session.send(now, line(&open));
+        assert_eq!(result.is_ok(), allowed, "{target}: {result:?}");
+    }
+    let reaction = "@+draft/react=👍;+draft/reply=w7qk3nduhyr9e5zmtx2gpfa8cs TAGMSG #ops";
+    assert!(refused_as(&session.send(now, line(reaction)), '@'));
+    let history = "@+draft/reply=w7qk3nduhyr9e5zmtx2gpfa8cs BATCH +h1 chathistory #ops";
+    assert_eq!(session.send(now, line(history)), Ok(()));
+}
