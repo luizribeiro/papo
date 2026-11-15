@@ -626,7 +626,18 @@ mod tests {
                 .unwrap(),
                 server_time: Some(crate::ServerTime::from_stored_millis(0).unwrap()),
             },
-            lines: Vec::new(),
+            lines: [
+                ("RfcBTzyxY120005", "deploy complete"),
+                ("RfcBTzyxY120006", "deploy verified"),
+            ]
+            .map(|(msgid, text)| crate::SentLine {
+                text: text.into(),
+                confirmation: crate::Confirmation::Confirmed {
+                    msgid: msgid.into(),
+                    server_time: Some(crate::ServerTime::from_stored_millis(0).unwrap()),
+                },
+            })
+            .into(),
             fallbacks: Vec::new(),
         };
         sent.receipt.set_reference(

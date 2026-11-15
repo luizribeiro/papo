@@ -7930,7 +7930,15 @@ async fn chat_text_uses_multiline_when_negotiated() {
     let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
-    assert_eq!(sent.outcome(), &crate::SentOutcome::Unconfirmed);
+    assert_eq!(
+        sent.lines,
+        [crate::SentLine {
+            text: "a".repeat(600),
+            confirmation: crate::Confirmation::unconfirmed(
+                crate::UnconfirmedReason::NoLabeledResponse
+            ),
+        }]
+    );
     let batch = format!(
         "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo {}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
         "a".repeat(413),
@@ -7975,17 +7983,7 @@ async fn chat_text_preserves_an_automatically_split_multiline_batch() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    assert_eq!(
-        sent.outcome(),
-        &crate::SentOutcome::Confirmed {
-            lines: crate::ConfirmedLines::new(vec![(
-                crate::MessageId::from("RfcBTzyxY120004"),
-                text,
-            )])
-            .unwrap(),
-            server_time: None,
-        }
-    );
+    assert_eq!(sent.lines, [confirmed_line("RfcBTzyxY120004", None, text)]);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -8042,11 +8040,10 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         b"@label=0;msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG helper :fixed in 69876ec\r\n",
     )
     .await;
-    assert!(matches!(
-        within(sent).await.unwrap().unwrap().outcome(),
-        crate::SentOutcome::Confirmed { lines, .. }
-            if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120005" && text == "fixed in 69876ec")
-    ));
+    assert_eq!(
+        within(sent).await.unwrap().unwrap().lines,
+        [confirmed_line("RfcBTzyxY120005", None, "fixed in 69876ec")]
+    );
 
     let action_client = client.clone();
     let action = tokio::spawn(async move { action_client.action("#papo", "waves").await });
@@ -8060,11 +8057,14 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         b"@label=1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n",
     )
     .await;
-    assert!(matches!(
-        within(action).await.unwrap().unwrap().outcome(),
-        crate::SentOutcome::Confirmed { lines, .. }
-            if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120006" && text == "\u{1}ACTION waves\u{1}")
-    ));
+    assert_eq!(
+        within(action).await.unwrap().unwrap().lines,
+        [confirmed_line(
+            "RfcBTzyxY120006",
+            None,
+            "\u{1}ACTION waves\u{1}"
+        )]
+    );
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -8216,24 +8216,18 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    let crate::SentOutcome::Confirmed { lines, server_time } = sent.outcome() else {
-        panic!("labelled echo should confirm the message")
-    };
     assert_eq!(
-        lines.as_slice(),
-        &[(
-            crate::MessageId::from("RfcBTzyxY120004"),
-            "hello everyone".into()
+        sent.lines,
+        [confirmed_line(
+            "RfcBTzyxY120004",
+            Some("2026-02-03T04:05:06.789Z"),
+            "hello everyone"
         )]
     );
     assert!(
         matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
     assert_eq!(sent.status, None);
-    assert_eq!(
-        *server_time,
-        Some(crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap())
-    );
 
     let sender = client.clone();
     let split = tokio::spawn(async move { sender.notice("#papo", "a".repeat(600)).await });
@@ -8255,15 +8249,11 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let split = within(split).await.unwrap().unwrap();
-    let crate::SentOutcome::Confirmed { lines, server_time } = split.outcome() else {
-        panic!("every split line should be confirmed")
-    };
-    assert_eq!(server_time, &None);
     assert_eq!(
-        lines.as_slice(),
-        &[
-            (crate::MessageId::from("RfcBTzyxY120005"), "a".repeat(468)),
-            (crate::MessageId::from("RfcBTzyxY120006"), "a".repeat(132)),
+        split.lines,
+        [
+            confirmed_line("RfcBTzyxY120005", None, "a".repeat(468)),
+            confirmed_line("RfcBTzyxY120006", None, "a".repeat(132)),
         ]
     );
     let sender = client.clone();
@@ -9051,20 +9041,14 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
         receipt: client.state().sent_receipt(&conversation, "#papo".into()),
         conversation,
         status: None,
-        outcome: crate::SentOutcome::Confirmed {
-            lines: crate::ConfirmedLines::new(
-                [
-                    ("RfcBTzyxY120004", "first deployment line"),
-                    ("RfcBTzyxY120005", "second deployment line"),
-                    ("RfcBTzyxY120006", "third deployment line"),
-                ]
-                .map(|(id, text)| (crate::MessageId::from(id), text.into()))
-                .into(),
-            )
-            .unwrap(),
-            server_time: None,
-        },
-        lines: Vec::new(),
+        lines: [
+            ("RfcBTzyxY120004", "first deployment line"),
+            ("RfcBTzyxY120005", "second deployment line"),
+            ("RfcBTzyxY120006", "third deployment line"),
+        ]
+        .map(|(id, text)| confirmed_line(id, None, text))
+        .into(),
+        outcome: crate::SentOutcome::Unconfirmed,
         fallbacks: Vec::new(),
     };
     sent.receipt.set_reference(
@@ -9259,11 +9243,10 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
         b"@label=2;msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
     )
     .await;
-    assert!(matches!(
-        within(sent).await.unwrap().unwrap().outcome(),
-        crate::SentOutcome::Confirmed { lines, .. }
-            if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120007" && text == "remember this")
-    ));
+    assert_eq!(
+        within(sent).await.unwrap().unwrap().lines,
+        [confirmed_line("RfcBTzyxY120007", None, "remember this")]
+    );
     server_line(
         &mut server,
         b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",

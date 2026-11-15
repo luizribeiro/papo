@@ -279,6 +279,20 @@ pub(crate) fn scripted_with_failures(
     (server, client, events, driver)
 }
 
+pub(crate) fn confirmed_line(
+    msgid: &str,
+    server_time: Option<&str>,
+    text: impl Into<String>,
+) -> crate::SentLine {
+    crate::SentLine {
+        text: text.into(),
+        confirmation: crate::Confirmation::Confirmed {
+            msgid: msgid.into(),
+            server_time: server_time.map(|time| time.parse().unwrap()),
+        },
+    }
+}
+
 pub(crate) async fn welcome_burst(server: &mut DuplexStream) {
     let expected = b"CAP LS 302\r\nNICK papo-driver\r\nUSER papo 0 * :papo driver test\r\n";
     let mut actual = vec![0; expected.len()];
