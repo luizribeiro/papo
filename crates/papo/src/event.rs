@@ -6062,7 +6062,7 @@ mod tests {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             subject,
-            actor: Source::from_proto(
+            actor: crate::__testing::source(
                 papo_proto::Source::__user("ChanServ", Some("service"), Some("services.example")),
                 mapping,
             ),
@@ -6666,7 +6666,7 @@ mod tests {
     fn identifies_self_membership_and_nick_events_with_server_casemapping() {
         use crate::message_ref::Receipt;
         let mapping = Casemapping::Rfc1459;
-        let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
+        let actor = crate::__testing::source(papo_proto::Source::Server("ergo.test"), mapping);
         let own_handle = crate::__testing::user_handle(mapping.nick("Papo[Bot]"));
         let events = [
             Event::Joined(super::Joined {

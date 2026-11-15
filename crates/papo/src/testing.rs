@@ -158,6 +158,22 @@ pub fn user_handle(nick: impl Into<Nick>) -> crate::UserHandle {
     crate::UserHandle::from_nick(nick.into())
 }
 
+/// Constructs an event source from a parsed protocol prefix without line tags.
+#[must_use]
+pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate::Source {
+    match source {
+        papo_proto::Source::User { nick, .. } => {
+            crate::Source::User(crate::UserHandle::from_parts(
+                crate::Origin::NONE.__nick(casemapping, nick),
+                crate::Account::Unknown,
+                None,
+                None,
+            ))
+        }
+        papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
+    }
+}
+
 /// Constructs owned message tags in wire order.
 #[must_use]
 pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {

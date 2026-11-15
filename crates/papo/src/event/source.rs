@@ -30,13 +30,6 @@ impl Source {
             Self::Server(_) => None,
         }
     }
-
-    /// Builds a source from a parsed protocol prefix without line tags.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Self {
-        from_proto_with_origin(source, casemapping, crate::Origin::NONE)
-    }
 }
 
 impl fmt::Display for Source {
@@ -45,22 +38,6 @@ impl fmt::Display for Source {
             Self::User(user) => user.fmt(formatter),
             Self::Server(server) => server.fmt(formatter),
         }
-    }
-}
-
-pub(crate) fn from_proto_with_origin(
-    source: papo_proto::Source<'_>,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-) -> Source {
-    match source {
-        papo_proto::Source::User { nick, .. } => Source::User(crate::UserHandle::from_parts(
-            origin.__nick(casemapping, nick),
-            Account::Unknown,
-            None,
-            None,
-        )),
-        papo_proto::Source::Server(server) => Source::Server(server.into()),
     }
 }
 
@@ -121,17 +98,17 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
 mod tests {
     use papo_proto::Casemapping;
 
-    use super::Source;
-
     #[test]
     fn displays_user_nicks_and_server_names() {
         let mapping = Casemapping::Ascii;
-        let full = Source::from_proto(
+        let full = crate::__testing::source(
             papo_proto::Source::__user("emily", Some("~emily"), Some("localhost")),
             mapping,
         );
-        let bare = Source::from_proto(papo_proto::Source::__user("ChanServ", None, None), mapping);
-        let server = Source::from_proto(papo_proto::Source::Server("irc.example.net"), mapping);
+        let bare =
+            crate::__testing::source(papo_proto::Source::__user("ChanServ", None, None), mapping);
+        let server =
+            crate::__testing::source(papo_proto::Source::Server("irc.example.net"), mapping);
 
         assert_eq!(full.user().unwrap().to_string(), "emily");
         assert_eq!(full.to_string(), "emily");
