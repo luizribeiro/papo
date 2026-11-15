@@ -25,19 +25,37 @@ impl State {
         })
     }
 
-    fn line_account(&self, message: &LineRef<'_>) -> Option<Account> {
-        message
-            .tag("account")
-            .map(|account| Account::LoggedIn(self.casemapping.account(account.as_ref())))
+    /// The account a user's line attests. Under `account-tag`, "If the user is not identified to
+    /// any services account, the tag MUST NOT be sent", so another user's line without it means
+    /// logged out. Our own account follows the 900 and 901 numerics instead.
+    fn line_account(
+        &self,
+        message: &LineRef<'_>,
+        nick: &str,
+        enabled_caps: &crate::Capabilities,
+    ) -> Option<Account> {
+        match message.tag("account") {
+            Some(account) => Some(Account::LoggedIn(
+                self.casemapping.account(account.as_ref()),
+            )),
+            None => (enabled_caps.contains_key(&crate::cap::ACCOUNT_TAG)
+                && !crate::names_equal(self.casemapping, nick, self.nick.as_str()))
+            .then_some(Account::LoggedOut),
+        }
     }
 
-    fn apply_user_tags(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) {
+    fn apply_user_tags(
+        &mut self,
+        message: &LineRef<'_>,
+        enabled_caps: &crate::Capabilities,
+        outbox: &mut Outbox,
+    ) {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return;
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let actor_party = self.source_party(message);
-        let line_account = self.line_account(message);
+        let line_account = self.line_account(message, nick, enabled_caps);
         // NONSTANDARD(inspircd): InspIRCd sends a never-reused account ID in this vendor tag next to
         // `account`; it has no cap of its own, and without the tag pins fall back to the account name.
         let account_id = message
@@ -51,16 +69,20 @@ impl State {
             if let Some(account) = line_account
                 && user.account != account
             {
+                let learned_logged_out =
+                    user.account == Account::Unknown && account == Account::LoggedOut;
                 user.update_account(account.clone());
                 changed = true;
-                outbox.event(Event::AccountChanged {
-                    envelope: crate::LineEnvelope::from_line(message),
-                    actor,
-                    nick: self.casemapping.nick(nick),
-                    account,
-                    token,
-                    actor_party,
-                });
+                if !learned_logged_out {
+                    outbox.event(Event::AccountChanged {
+                        envelope: crate::LineEnvelope::from_line(message),
+                        actor,
+                        nick: self.casemapping.nick(nick),
+                        account,
+                        token,
+                        actor_party,
+                    });
+                }
             }
             if user.is_bot != Some(true) && message.tags().any(|(key, _)| key == "bot") {
                 user.is_bot = Some(true);
@@ -82,6 +104,7 @@ impl State {
         &mut self,
         message: &LineRef<'_>,
         own_nick: &str,
+        enabled_caps: &crate::Capabilities,
         outbox: &mut Outbox,
     ) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
@@ -89,7 +112,7 @@ impl State {
             self.rename_user(old_nick.as_str(), own_nick);
             self.nick = self.casemapping.nick(own_nick);
         }
-        self.apply_user_tags(message, outbox);
+        self.apply_user_tags(message, enabled_caps, outbox);
     }
 
     pub(super) fn prepare_message(
@@ -103,7 +126,7 @@ impl State {
         let mapping = isupport.casemapping();
         self.update_casemapping(mapping);
         self.track_message_user(message, isupport, enabled_caps);
-        self.apply_message_metadata(message, own_nick, outbox);
+        self.apply_message_metadata(message, own_nick, enabled_caps, outbox);
         self.casemapping
     }
 
