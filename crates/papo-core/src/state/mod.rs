@@ -1181,7 +1181,7 @@ impl State {
                 return Handled::No;
             };
             let authorship = self.source_party(message);
-            let subject_authorship = self.nick_party(nick);
+            let subject_party = self.nick_party(nick);
             let token = self.__reply_token_for(nick);
             let facts = self.user(nick).and_then(|user| {
                 self.departure_removes_user(user, Some(channel), user.monitored)
@@ -1196,7 +1196,7 @@ impl State {
                 actor: Source::from_proto_with_names(source, mapping),
                 actor_token: self.source_token(message),
                 authorship,
-                subject_authorship,
+                subject_party,
                 reason: message
                     .param(2)
                     .filter(|reason| !reason.is_empty())
@@ -1415,7 +1415,7 @@ impl State {
             actor: Source::from_proto_with_names(actor, self.casemapping),
             actor_token: self.source_token(message),
             authorship: self.source_party(message),
-            subject_authorship: match message.source() {
+            subject_party: match message.source() {
                 _ if isupport.is_channel(target) => Party::Other,
                 _ => self.nick_party(target),
             },

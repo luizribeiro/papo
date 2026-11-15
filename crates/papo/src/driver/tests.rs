@@ -2755,7 +2755,7 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
                         .with_tag("msgid", format!("RfcBTzyxY12{index:04}")),
                     context: false,
                     authorship: papo_core::Party::Other,
-                    subject_authorship: papo_core::Party::Unknown,
+                    subject_party: papo_core::Party::Unknown,
                 })
             }),
         );

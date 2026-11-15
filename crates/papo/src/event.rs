@@ -2563,7 +2563,7 @@ pub(crate) fn from_core_with_receipt(
             actor,
             actor_token,
             authorship,
-            subject_authorship,
+            subject_party: subject_authorship,
             reason,
             ..
         } => {
@@ -2605,7 +2605,7 @@ pub(crate) fn from_core_with_receipt(
             actor,
             actor_token,
             authorship,
-            subject_authorship,
+            subject_party: subject_authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
@@ -6598,13 +6598,13 @@ mod tests {
                     line: message.clone(),
                     context: false,
                     authorship: papo_core::Party::Other,
-                    subject_authorship: papo_core::Party::Unknown,
+                    subject_party: papo_core::Party::Unknown,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryLine {
                     line: Line::new("WALLOPS").with_params(["Network maintenance begins soon"]),
                     context: false,
                     authorship: papo_core::Party::Unknown,
-                    subject_authorship: papo_core::Party::Unknown,
+                    subject_party: papo_core::Party::Unknown,
                 }),
             ],
             true,

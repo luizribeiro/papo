@@ -257,7 +257,7 @@ pub(crate) fn history_item(
             kicked(
                 message,
                 crate::Authorship::from_core(item.authorship),
-                crate::Authorship::from_core(item.subject_authorship),
+                crate::Authorship::from_core(item.subject_party),
                 client,
                 received_at,
             )
@@ -291,7 +291,7 @@ pub(crate) fn history_item(
                 mode_changed(
                     message,
                     crate::Authorship::from_core(item.authorship),
-                    crate::Authorship::from_core(item.subject_authorship),
+                    crate::Authorship::from_core(item.subject_party),
                     client,
                     received_at,
                 )
@@ -1543,7 +1543,7 @@ mod tests {
             line: LineRef::parse(message).unwrap().to_owned(),
             context: false,
             authorship: papo_core::Party::Unknown,
-            subject_authorship: papo_core::Party::Unknown,
+            subject_party: papo_core::Party::Unknown,
         }
     }
 
@@ -1658,7 +1658,7 @@ mod tests {
                 line: LineRef::parse(raw).unwrap().to_owned(),
                 context: false,
                 authorship: papo_core::Party::Other,
-                subject_authorship: papo_core::Party::Unknown,
+                subject_party: papo_core::Party::Unknown,
             }),
             None,
             &crate::Client::disconnected_for_test(),

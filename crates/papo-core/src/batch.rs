@@ -934,7 +934,7 @@ fn history_items_with_indices(messages: Vec<Line>, incomplete: &[usize]) -> Vec<
                     line: message,
                     context,
                     authorship: crate::Party::Unknown,
-                    subject_authorship: crate::Party::Unknown,
+                    subject_party: crate::Party::Unknown,
                 };
                 if incomplete.contains(&index) {
                     HistoryItem::Incomplete(item)
@@ -961,7 +961,7 @@ fn history_items(messages: Vec<Line>) -> Vec<HistoryItem> {
                     line: message,
                     context,
                     authorship: crate::Party::Unknown,
-                    subject_authorship: crate::Party::Unknown,
+                    subject_party: crate::Party::Unknown,
                 })
             })
         })

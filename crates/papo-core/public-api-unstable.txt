@@ -555,7 +555,7 @@ pub papo_core::Event::Invited::authorship: papo_core::Party
 pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Invited::subject: papo::Nick
-pub papo_core::Event::Invited::subject_authorship: papo_core::Party
+pub papo_core::Event::Invited::subject_party: papo_core::Party
 pub papo_core::Event::Invited::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Joined
 pub papo_core::Event::Joined::actor: alloc::string::String
@@ -575,7 +575,7 @@ pub papo_core::Event::Kicked::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Kicked::facts: core::option::Option<papo_core::User>
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::Kicked::subject: papo::Nick
-pub papo_core::Event::Kicked::subject_authorship: papo_core::Party
+pub papo_core::Event::Kicked::subject_party: papo_core::Party
 pub papo_core::Event::Kicked::token: ReplyToken
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 #[non_exhaustive] pub papo_core::Event::Malformed
@@ -598,7 +598,7 @@ pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::ModeChang
 pub papo_core::Event::ModeChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ModeChanged::own_nick: core::option::Option<papo::Nick>
 pub papo_core::Event::ModeChanged::subject: papo_core::Subject
-pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Party
+pub papo_core::Event::ModeChanged::subject_party: papo_core::Party
 pub papo_core::Event::ModeChanged::subject_token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::MonitorListFull
 pub papo_core::Event::MonitorListFull::limit: usize
@@ -1757,7 +1757,7 @@ pub struct papo_core::HistoryLine
 pub papo_core::HistoryLine::authorship: papo_core::Party
 pub papo_core::HistoryLine::context: bool
 pub papo_core::HistoryLine::line: papo::Line
-pub papo_core::HistoryLine::subject_authorship: papo_core::Party
+pub papo_core::HistoryLine::subject_party: papo_core::Party
 impl core::clone::Clone for papo_core::HistoryLine
 pub fn papo_core::HistoryLine::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::HistoryLine

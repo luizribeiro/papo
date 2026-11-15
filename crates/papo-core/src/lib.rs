@@ -1993,7 +1993,7 @@ pub struct HistoryLine {
     /// Whether the line's actor is this session's user.
     pub authorship: Party,
     /// Whether the line's distinct subject is this session's user.
-    pub subject_authorship: Party,
+    pub subject_party: Party,
 }
 
 /// Tags carried by a server line that identify and contextualize its event.
@@ -2929,7 +2929,7 @@ pub enum Event {
         /// Whether the actor is this session's user.
         authorship: Party,
         /// Whether the removed user is this session's user.
-        subject_authorship: Party,
+        subject_party: Party,
         /// The optional kick reason.
         reason: Option<String>,
     },
@@ -2951,7 +2951,7 @@ pub enum Event {
         /// Whether the actor is this session's user.
         authorship: Party,
         /// Whether the invited user is this session's user.
-        subject_authorship: Party,
+        subject_party: Party,
     },
     /// A user sharing channels with the session disconnected.
     #[non_exhaustive]
@@ -3095,7 +3095,7 @@ pub enum Event {
         /// Whether the actor is this session's user.
         authorship: Party,
         /// Whether the distinct subject is this session's user.
-        subject_authorship: Party,
+        subject_party: Party,
         /// This session's nickname when the event was built.
         own_nick: Option<Nick>,
         /// Parsed mode operations in wire order.
@@ -3146,14 +3146,14 @@ hidden_event_constructors! {
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Party) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, authorship: Party, subject_authorship: Party, reason: Option<String>) => Kicked;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, authorship: Party, subject_party: Party, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Party, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Party) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Party) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Party) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Party) => HostChanged;
     __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Party) => RealnameChanged;
-    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Party, subject_authorship: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Party, subject_party: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, authorship: Party) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
@@ -3190,7 +3190,7 @@ impl Event {
         subject: Nick,
         actor: String,
         authorship: Party,
-        subject_authorship: Party,
+        subject_party: Party,
     ) -> Self {
         let unknown = ReplyToken::__unknown(subject.origin());
         Self::Invited {
@@ -3201,7 +3201,7 @@ impl Event {
             actor,
             actor_token: unknown,
             authorship,
-            subject_authorship,
+            subject_party,
         }
     }
 
@@ -6453,7 +6453,7 @@ impl Session {
 
     fn mark_history_parties(&self, items: &mut [HistoryItem]) {
         for item in items {
-            let subject_authorship = match item {
+            let subject_party = match item {
                 HistoryItem::ModeChanged(line)
                     if line
                         .line
@@ -6467,7 +6467,7 @@ impl Session {
             };
             let line = item.line_mut();
             line.authorship = self.history_actor_party(&line.line.as_ref());
-            line.subject_authorship = subject_authorship;
+            line.subject_party = subject_party;
         }
     }
 
