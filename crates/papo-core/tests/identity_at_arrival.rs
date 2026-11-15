@@ -96,6 +96,24 @@ fn presence_changes_record_the_subject_at_arrival() {
                 _ => None,
             },
         },
+        Case {
+            name: "CHGHOST",
+            line: ":alice!~alice@cloak.example CHGHOST ~alice staff.example",
+            subject: "alice",
+            token: |event| match event {
+                Event::HostChanged { token, .. } => Some(*token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "SETNAME",
+            line: ":alice!~alice@cloak.example SETNAME :Alice Liddell",
+            subject: "alice",
+            token: |event| match event {
+                Event::RealnameChanged { token, .. } => Some(*token),
+                _ => None,
+            },
+        },
     ] {
         assert_identity_at_arrival(&case);
     }

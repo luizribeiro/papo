@@ -561,6 +561,7 @@ pub papo_core::Event::HostChanged::authorship: papo_core::Authorship
 pub papo_core::Event::HostChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
+pub papo_core::Event::HostChanged::token: ReplyToken
 pub papo_core::Event::HostChanged::username: alloc::string::String
 pub papo_core::Event::Incomplete(papo_core::IncompleteMultiline)
 #[non_exhaustive] pub papo_core::Event::Invited
@@ -656,6 +657,7 @@ pub papo_core::Event::RealnameChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
 pub papo_core::Event::RealnameChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+pub papo_core::Event::RealnameChanged::token: ReplyToken
 pub papo_core::Event::Redacted(papo_core::Redacted)
 #[non_exhaustive] pub papo_core::Event::RequestAborted
 pub papo_core::Event::RequestAborted::id: papo_core::RequestId

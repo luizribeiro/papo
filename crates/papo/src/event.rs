@@ -5881,6 +5881,7 @@ mod tests {
                 Casemapping::default().nick("emily"),
                 "~em".into(),
                 "users/emily".into(),
+                papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
                 papo_core::Authorship::Other,
             )),
             Event::HostChanged(changed)

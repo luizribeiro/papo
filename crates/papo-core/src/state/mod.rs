@@ -1279,6 +1279,7 @@ impl State {
         let old_nick = self.nick.clone();
         self.rename_user(old_nick.as_str(), nick);
         self.nick = self.casemapping.nick(nick);
+        let token = self.__reply_token_for(nick);
         if let Some(own) = self.users.get_mut(self.nick.key()) {
             let realname_changed = own.realname.as_deref() != Some(change.realname);
             own.update_userhost(Some(user), Some(host));
@@ -1291,6 +1292,7 @@ impl State {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     realname: change.realname.to_owned(),
+                    token,
                     authorship: self.nick_authorship(nick),
                 });
             }

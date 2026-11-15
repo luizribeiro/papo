@@ -3025,6 +3025,8 @@ pub enum Event {
         username: String,
         /// The user's new hostname.
         host: String,
+        /// Identity of the affected user when the line arrived.
+        token: ReplyToken,
         /// Whether the affected user is this session's user.
         authorship: Authorship,
     },
@@ -3041,6 +3043,8 @@ pub enum Event {
         nick: Nick,
         /// The user's new real name.
         realname: String,
+        /// Identity of the affected user when the line arrived.
+        token: ReplyToken,
         /// Whether the affected user is this session's user.
         authorship: Authorship,
     },
@@ -3110,8 +3114,8 @@ hidden_event_constructors! {
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Authorship) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Authorship) => AwayChanged;
-    __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, authorship: Authorship) => HostChanged;
-    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
+    __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Authorship) => HostChanged;
+    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Authorship) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;

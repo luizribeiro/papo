@@ -410,7 +410,7 @@ impl Monitor {
                     return Handled::No;
                 };
                 let envelope = crate::LineEnvelope::from_line(message);
-                if !self.handle_online(entries, isupport, internal_nick, &envelope, outbox) {
+                if !self.handle_online(entries, isupport, internal_nick, &envelope, state, outbox) {
                     return Handled::No;
                 }
             }
@@ -486,6 +486,7 @@ impl Monitor {
         isupport: &Isupport,
         internal_nick: Option<&str>,
         envelope: &crate::LineEnvelope,
+        state: &crate::State,
         outbox: &mut Outbox,
     ) -> bool {
         let mut handled = false;
@@ -528,6 +529,7 @@ impl Monitor {
                     nick: self.casemapping.nick(nick),
                     username: user.to_owned(),
                     host: host.to_owned(),
+                    token: state.__reply_token_for(nick),
                     authorship: if internal_nick
                         .is_some_and(|own| crate::names_equal(isupport.casemapping(), own, nick))
                     {

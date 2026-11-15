@@ -319,6 +319,7 @@ impl State {
             return Some(Handled::No);
         }
         let fallback_username = self.nick.to_string();
+        let token = self.__reply_token_for(self.nick.as_str());
         let Some(own) = self.users.get_mut(self.nick.key()) else {
             return Some(Handled::No);
         };
@@ -329,6 +330,7 @@ impl State {
             nick: self.nick.clone(),
             username: own.username.clone().unwrap_or(fallback_username),
             host: host.to_owned(),
+            token,
             authorship: Authorship::Own,
         });
         Some(Handled::Yes)
@@ -342,6 +344,7 @@ impl State {
         let ProtoSource::User { nick, .. } = message.source()? else {
             return None;
         };
+        let token = self.__reply_token_for(nick);
         if let Some(change) = Chghost::parse(message) {
             if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                 user.update_userhost(Some(change.user), Some(change.host));
@@ -352,6 +355,7 @@ impl State {
                 nick: self.casemapping.nick(nick),
                 username: change.user.to_owned(),
                 host: change.host.to_owned(),
+                token,
                 authorship: self.source_authorship(message),
             });
             return Some(Handled::Yes);
@@ -375,6 +379,7 @@ impl State {
             actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
+            token,
             authorship: self.source_authorship(message),
         });
         Some(Handled::Yes)
