@@ -3346,7 +3346,6 @@ mod tests {
                 .unwrap();
             let text = parsed.to_string();
             assert_eq!(text, "2026-11-08T19:55:04.123Z");
-            assert_eq!(text.parse::<crate::ServerTime>(), Ok(parsed));
             assert_eq!(crate::ServerTime::from_stored(&text), Ok(parsed));
         }
     }

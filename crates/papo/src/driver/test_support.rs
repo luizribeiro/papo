@@ -288,7 +288,7 @@ pub(crate) fn confirmed_line(
         text: text.into(),
         confirmation: crate::Confirmation::Confirmed {
             msgid: msgid.into(),
-            server_time: server_time.map(|time| time.parse().unwrap()),
+            server_time: server_time.map(|time| crate::ServerTime::from_stored(time).unwrap()),
         },
     }
 }

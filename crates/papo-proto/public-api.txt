@@ -43,9 +43,6 @@ impl core::hash::Hash for papo_proto::time::ServerTime
 pub fn papo_proto::time::ServerTime::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::time::ServerTime
 impl core::marker::StructuralPartialEq for papo_proto::time::ServerTime
-impl core::str::traits::FromStr for papo_proto::time::ServerTime
-pub type papo_proto::time::ServerTime::Err = papo_proto::time::InvalidServerTime
-pub fn papo_proto::time::ServerTime::from_str(&str) -> core::result::Result<Self, Self::Err>
 impl core::marker::Freeze for papo_proto::time::ServerTime
 impl core::marker::Send for papo_proto::time::ServerTime
 impl core::marker::Sync for papo_proto::time::ServerTime
@@ -1798,9 +1795,6 @@ impl core::hash::Hash for papo_proto::time::ServerTime
 pub fn papo_proto::time::ServerTime::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::time::ServerTime
 impl core::marker::StructuralPartialEq for papo_proto::time::ServerTime
-impl core::str::traits::FromStr for papo_proto::time::ServerTime
-pub type papo_proto::time::ServerTime::Err = papo_proto::time::InvalidServerTime
-pub fn papo_proto::time::ServerTime::from_str(&str) -> core::result::Result<Self, Self::Err>
 impl core::marker::Freeze for papo_proto::time::ServerTime
 impl core::marker::Send for papo_proto::time::ServerTime
 impl core::marker::Sync for papo_proto::time::ServerTime

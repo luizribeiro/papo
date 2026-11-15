@@ -37,7 +37,7 @@ async fn react(caps: &str, tag: &str, address: &str, reply: &str) -> Result<Reac
 fn confirmed(msgid: &str, server_time: &str) -> Confirmation {
     Confirmation::Confirmed {
         msgid: msgid.into(),
-        server_time: Some(server_time.parse().unwrap()),
+        server_time: Some(crate::ServerTime::from_stored(server_time).unwrap()),
     }
 }
 

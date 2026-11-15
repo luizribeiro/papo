@@ -266,7 +266,9 @@ mod tests {
             within(relay).await.unwrap().unwrap().confirmation,
             crate::Confirmation::Confirmed {
                 msgid: "hvjgkknruzk58qrw89xh3v4spa".into(),
-                server_time: Some("2026-11-15T20:11:27.686Z".parse().unwrap()),
+                server_time: Some(
+                    crate::ServerTime::from_stored("2026-11-15T20:11:27.686Z").unwrap()
+                ),
             }
         );
         driver.abort();

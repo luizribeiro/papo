@@ -260,7 +260,8 @@ Explicit read-marker times wait for this connection's first server timestamp and
 values using a monotonic server-clock estimate rather than the device wall clock.
 
 Server-clock values now use `ServerTime`, preventing device receipt times from being used as
-history cursors, read markers, or other values sent back to the server.
+history cursors, read markers, or other values sent back to the server. Stored text becomes a
+`ServerTime` only through `ServerTime::from_stored`; `str::parse` is no longer offered.
 
 `UserHandle` equality and hashing identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain

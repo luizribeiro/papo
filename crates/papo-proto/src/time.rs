@@ -1,7 +1,6 @@
 //! Parsing and formatting for `IRCv3` server-time timestamps.
 
 use std::fmt;
-use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// A millisecond-precision timestamp from an IRC server's clock.
@@ -25,8 +24,15 @@ impl ServerTime {
     /// # Errors
     ///
     /// Returns [`InvalidServerTime`] when `value` is malformed or outside years `0000..=9999`.
+    ///
+    /// Stored text becomes a [`ServerTime`] only through this function, so a server time comes
+    /// from the server's clock or from text stored from it. `str::parse` is not offered:
+    ///
+    /// ```compile_fail,E0277
+    /// let restored: papo_proto::time::ServerTime = "2026-02-03T04:05:06.789Z".parse().unwrap();
+    /// ```
     pub fn from_stored(value: &str) -> Result<Self, InvalidServerTime> {
-        value.parse()
+        parse_millis(value).map(Self).ok_or(InvalidServerTime)
     }
 
     /// Restores milliseconds since the Unix epoch that originally came from this server.
@@ -62,14 +68,6 @@ impl ServerTime {
 impl fmt::Display for ServerTime {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&format_millis(self.0).expect("ServerTime invariant"))
-    }
-}
-
-impl FromStr for ServerTime {
-    type Err = InvalidServerTime;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        parse_millis(value).map(Self).ok_or(InvalidServerTime)
     }
 }
 

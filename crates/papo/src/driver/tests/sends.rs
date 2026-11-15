@@ -74,7 +74,7 @@ async fn each_line_of_a_send_carries_its_own_confirmation() {
     let second_without_msgid = "@label=0-1;time=2026-11-15T17:42:12.751Z :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG #papo :all checks green";
     let confirmed = |msgid: &str, time: &str| crate::Confirmation::Confirmed {
         msgid: msgid.into(),
-        server_time: Some(time.parse().unwrap()),
+        server_time: Some(crate::ServerTime::from_stored(time).unwrap()),
     };
     let unconfirmed = crate::Confirmation::unconfirmed;
     let cases = [
