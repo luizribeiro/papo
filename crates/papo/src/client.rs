@@ -1564,7 +1564,7 @@ impl Client {
         })
     }
 
-    /// Removes `nick` from `channel`.
+    /// Removes `nick` from `channel` and resolves to the server's echo of our `KICK`.
     ///
     /// A [`crate::UserHandle`] follows its proven identity; text or [`crate::Nick`] addresses
     /// whoever currently holds that nickname. An empty `reason` means no reason.
@@ -1581,13 +1581,14 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
+    /// Returns [`Error::NotVerified`] when the server answers without the echo, or a typed server
+    /// refusal, invalid-input error, timeout, or disconnect.
     pub fn kick(
         &self,
         channel: impl crate::AsChannel,
         nick: impl crate::AsNick,
         reason: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<crate::KickOutcome> {
         let client = self.clone();
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let nick = crate::AsNick::__parts(&nick).into_owned();
@@ -2055,7 +2056,7 @@ async fn kick_resolved(
     channel: crate::ChannelName,
     nick: crate::target::sealed::Parts<'static>,
     reason: String,
-) -> Result<(), Error> {
+) -> Result<crate::KickOutcome, Error> {
     let proven = crate::identity::prove_parts(client, nick, "kick: nick").await?;
     let state = client.state();
     let nick = proven.nick;
@@ -2074,7 +2075,10 @@ async fn kick_resolved(
             Some(papo_core::TargetGuard::ProvenAt(proven.core, 1)),
         )
         .await?;
-    crate::requests::empty(&response)
+    let echo = crate::requests::echo(&response, "KICK")?;
+    Ok(crate::KickOutcome {
+        confirmation: crate::Confirmation::from_echo(&echo),
+    })
 }
 
 pub(crate) fn validate_kick_reason(state: &State, reason: &str) -> Result<(), Error> {

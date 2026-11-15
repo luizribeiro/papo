@@ -45,7 +45,10 @@ async fn call_with_handed_off_person(
     match method {
         "papo::Client::action" => client.action(alice, "waves").await.map(drop),
         "papo::Client::invite" => client.invite(alice, "#review").await,
-        "papo::Client::kick" => client.kick("#review", alice, "repeated flooding").await,
+        "papo::Client::kick" => client
+            .kick("#review", alice, "repeated flooding")
+            .await
+            .map(drop),
         "papo::Client::notice" => client.notice(alice, "classified").await.map(drop),
         "papo::Client::privmsg" => client.privmsg(alice, "classified").await.map(drop),
         "papo::Client::typing" => client.typing(alice, papo::Typing::Active).await,

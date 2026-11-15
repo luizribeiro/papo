@@ -187,7 +187,7 @@ pub struct KickbanOutcome {
     /// A ban that cannot be set or seen fails the whole request instead, and no kick is sent.
     pub ban: Mask,
     /// Result of the kick; the confirmed ban remains set when this is an error.
-    pub kick: Result<(), Error>,
+    pub kick: Result<crate::KickOutcome, Error>,
 }
 
 impl SetModes {

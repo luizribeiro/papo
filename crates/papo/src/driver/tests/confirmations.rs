@@ -29,6 +29,19 @@ fn confirmed(msgid: &str, server_time: &str) -> Confirmation {
     }
 }
 
+/// `expected` is `Err(())` for an answer without the echo, which is never confirmed.
+fn assert_confirmation(
+    result: Result<Confirmation, Error>,
+    expected: Result<Confirmation, ()>,
+    reply: &str,
+) {
+    match (result, expected) {
+        (Ok(confirmation), Ok(expected)) => assert_eq!(confirmation, expected, "{reply}"),
+        (Err(Error::NotVerified), Err(())) => {}
+        (result, _) => panic!("{reply}: {result:?}"),
+    }
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn a_nickname_change_resolves_to_the_echoed_nickname() {
     let cases = [
@@ -200,10 +213,43 @@ async fn a_departure_resolves_to_the_echo_of_our_part() {
             &[reply],
         )
         .await;
-        match (result, expected) {
-            (Ok(outcome), Ok(confirmation)) => assert_eq!(outcome.confirmation, confirmation),
-            (Err(Error::NotVerified), Err(())) => {}
-            (result, _) => panic!("{reply}: {result:?}"),
-        }
+        assert_confirmation(result.map(|outcome| outcome.confirmation), expected, reply);
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_removal_resolves_to_the_echo_of_our_kick() {
+    let cases = [
+        (
+            LABELLED,
+            "@label=0 KICK #papo bob bye",
+            "@time=2026-11-15T20:07:22.160Z;label=0;msgid=k8gq9fd2udzi77ghui3v88y482 :papo-driver!~u@3t4fgnf9zitka.irc KICK #papo bob bye",
+            Ok(confirmed(
+                "k8gq9fd2udzi77ghui3v88y482",
+                "2026-11-15T20:07:22.160Z",
+            )),
+        ),
+        (
+            "message-tags",
+            "KICK #papo bob bye",
+            ":papo-driver!~papo@127.0.0.1 KICK #papo bob :bye",
+            Ok(Confirmation::unconfirmed(UnconfirmedReason::NoMessageId)),
+        ),
+        (
+            LABELLED,
+            "@label=0 KICK #papo bob bye",
+            "@time=2026-11-15T20:07:22.160Z;label=0 :ergo.test ACK",
+            Err(()),
+        ),
+    ];
+    for (caps, sent, reply, expected) in cases {
+        let result = answered(
+            caps,
+            |client| client.kick("#papo", "bob", "bye"),
+            sent,
+            &[reply],
+        )
+        .await;
+        assert_confirmation(result.map(|outcome| outcome.confirmation), expected, reply);
     }
 }

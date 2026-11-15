@@ -5710,8 +5710,8 @@ async fn every_name_taking_method_returns_invalid_name() {
             Method::Whois => client.whois(bad).await.map(drop),
             Method::Who => client.who(bad).await.map(drop),
             Method::Part => client.part(bad, "leaving").await.map(drop),
-            Method::KickChannel => client.kick(bad, "alice", "spam").await,
-            Method::KickNick => client.kick("#staff", bad, "spam").await,
+            Method::KickChannel => client.kick(bad, "alice", "spam").await.map(drop),
+            Method::KickNick => client.kick("#staff", bad, "spam").await.map(drop),
             Method::KickbanChannel => kickban(&client, bad, "alice", "*!*@host", "spam")
                 .await
                 .map(drop),

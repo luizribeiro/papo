@@ -183,7 +183,7 @@ impl Peer {
         channel: impl AsRef<str>,
         nick: impl AsRef<str>,
         reason: impl Into<String>,
-    ) -> papo::RequestFuture<()> {
+    ) -> papo::RequestFuture<papo::KickOutcome> {
         self.client.kick(
             self.with_name_rules(|names| names.channel(channel.as_ref())),
             self.with_name_rules(|names| names.nick(nick.as_ref())),
