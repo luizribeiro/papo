@@ -2600,3 +2600,54 @@ async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn a_who_proof_never_follows_its_nick_to_the_next_holder() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    wire.server(":papo-wire!~u@localhost JOIN #review").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Joined(_)
+    ));
+    let bob = client.query("bob").unwrap();
+    let first = tokio::spawn({
+        let client = client.clone();
+        let bob = bob.clone();
+        async move { client.privmsg(&bob, "release notes attached").await }
+    });
+    assert_eq!(wire.next_sent().await, "WHO bob %na");
+    wire.server(":offline.test 354 papo-wire bob bob-account")
+        .await;
+    wire.server(":offline.test 315 papo-wire bob :End of WHO list")
+        .await;
+    assert_eq!(
+        wire.next_sent().await,
+        "PRIVMSG bob :release notes attached"
+    );
+    first.await.unwrap().unwrap();
+
+    for line in [
+        ":bob!~u@8ajhv7kxgp7ag.irc JOIN #review",
+        ":bob!~u@8ajhv7kxgp7ag.irc QUIT :Quit: bye",
+        ":bob!~u@kq2ccwrbbbw6a.irc JOIN #review",
+    ] {
+        wire.server(line).await;
+        next_active_event(&mut events).await;
+    }
+
+    assert!(matches!(
+        client.privmsg(&bob, "payroll export").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
