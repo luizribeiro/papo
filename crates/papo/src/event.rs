@@ -8,7 +8,7 @@ use std::time::SystemTime;
 
 use papo_proto::{
     Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
-    Prefix, strip_formatting, time,
+    Prefix, strip_formatting,
 };
 
 use crate::{Client, Conversation, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
@@ -1413,8 +1413,8 @@ pub(crate) fn line_envelope_with_account_tag(
 ) -> EventEnvelope {
     // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so playback keeps its
     // original timestamps.
-    let server_time =
-        tag_owned(line, &["time", "znc.in/server-time-iso"]).and_then(|value| time::parse(&value));
+    let server_time = tag_owned(line, &["time", "znc.in/server-time-iso"])
+        .and_then(|value| ServerTime::from_stored(&value).ok());
     EventEnvelope {
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
         server_time,
@@ -1511,7 +1511,7 @@ pub(crate) fn unparsed_from_line(line: ProtoLine, received_at: SystemTime) -> Ev
     // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so unparsed playback
     // lines keep their original timestamps.
     let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
-        .and_then(|value| time::parse(&value));
+        .and_then(|value| ServerTime::from_stored(&value).ok());
     Event::Other(Unparsed {
         line,
         msgid,
@@ -2016,7 +2016,7 @@ fn tagged_from_tags(tags: &Tags) -> Option<ServerTime> {
     // their original timestamps.
     tags.get("time")
         .or_else(|| tags.get("znc.in/server-time-iso"))
-        .and_then(time::parse)
+        .and_then(|value| ServerTime::from_stored(value).ok())
 }
 
 #[cfg(feature = "unstable")]

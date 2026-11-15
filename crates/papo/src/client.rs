@@ -8,7 +8,7 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, Typing, time};
+use papo_proto::{Ctcp, Typing};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
@@ -478,9 +478,11 @@ impl Sent {
         mut receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
-        let server_time = confirmations
-            .iter()
-            .find_map(|sent| sent.server_time.as_deref().and_then(time::parse));
+        let server_time = confirmations.iter().find_map(|sent| {
+            sent.server_time
+                .as_deref()
+                .and_then(|value| ServerTime::from_stored(value).ok())
+        });
         let msgids = confirmations
             .iter()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))

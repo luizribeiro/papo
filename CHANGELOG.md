@@ -157,6 +157,8 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `WhoEntry` now exposes user and channel handles and reports the WHO operator flag as `is_oper`.
 
+`papo_proto::time::parse` is removed: `ServerTime::from_stored` is the one way to read text as a server time.
+
 `Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
 
 `NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.

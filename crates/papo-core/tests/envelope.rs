@@ -9,7 +9,7 @@ use support::Transcript;
 
 #[test]
 fn live_activity_retains_the_line_envelope() {
-    let expected = papo_proto::time::parse("2026-10-20T18:42:11.123Z").unwrap();
+    let expected = papo_proto::ServerTime::from_stored("2026-10-20T18:42:11.123Z").unwrap();
     Transcript::new(Config::default())
         .advance(Duration::from_secs(17))
         .server("@account=emily;bot;draft/oper=network-admin;time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120009 :emily!~e@cloak.example JOIN #papo")
@@ -35,7 +35,7 @@ fn ordinary_tags_do_not_invent_actor_facts() {
 
 #[test]
 fn derived_events_keep_their_causal_time() {
-    let expected = papo_proto::time::parse("2026-10-20T18:42:11.123Z").unwrap();
+    let expected = papo_proto::ServerTime::from_stored("2026-10-20T18:42:11.123Z").unwrap();
     let tagged = "time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120019";
     Transcript::new(Config::default().nick("papo"))
         .server(":papo!~papo@client.example JOIN #papo")

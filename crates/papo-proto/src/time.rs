@@ -80,12 +80,6 @@ impl fmt::Display for InvalidServerTime {
 
 impl std::error::Error for InvalidServerTime {}
 
-/// Parses a fixed-width UTC timestamp with up to nanosecond precision.
-#[must_use]
-pub fn parse(value: &str) -> Option<ServerTime> {
-    parse_millis(value).map(ServerTime)
-}
-
 fn parse_millis(value: &str) -> Option<i64> {
     let (seconds, nanos) = parse_parts(value)?;
     seconds
@@ -186,7 +180,10 @@ mod tests {
     #[test]
     fn parses_and_formats_millisecond_precision() {
         let time = ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
-        assert_eq!(super::parse("2026-02-03T04:05:06.789Z"), Some(time));
+        assert_eq!(
+            ServerTime::from_stored("2026-02-03T04:05:06.789Z"),
+            Ok(time)
+        );
         assert_eq!(time.to_string(), "2026-02-03T04:05:06.789Z");
     }
 }

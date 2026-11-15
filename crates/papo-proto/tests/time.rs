@@ -2,7 +2,7 @@
 
 use std::time::{Duration, UNIX_EPOCH};
 
-use papo_proto::{LineRef, ServerTime, time};
+use papo_proto::{LineRef, ServerTime};
 use proptest::prelude::*;
 
 #[test]
@@ -16,13 +16,13 @@ fn parses_fixed_utc_server_times() {
         ("2000-02-29T00:00:00Z", 951_782_400, 0),
     ] {
         assert_eq!(
-            time::parse(input),
+            ServerTime::from_stored(input).ok(),
             Some(ServerTime::from_stored_millis(seconds * 1_000 + nanos / 1_000_000).unwrap()),
             "{input}"
         );
     }
     assert_eq!(
-        time::parse("2016-12-31T23:59:60Z"),
+        ServerTime::from_stored("2016-12-31T23:59:60Z").ok(),
         Some(ServerTime::from_stored_millis(1_483_228_799_999).unwrap())
     );
 }
@@ -48,7 +48,7 @@ fn rejects_non_fixed_or_invalid_server_times() {
         "2026-02-03T04-05:06Z",
         "2026-02-03T04:05-06Z",
     ] {
-        assert_eq!(time::parse(input), None, "{input}");
+        assert_eq!(ServerTime::from_stored(input).ok(), None, "{input}");
     }
 }
 
@@ -61,7 +61,7 @@ fn accepts_the_last_day_of_thirty_day_months() {
         ("2026-11-30T00:00:00Z", 1_795_996_800),
     ] {
         assert_eq!(
-            time::parse(input),
+            ServerTime::from_stored(input).ok(),
             Some(ServerTime::from_stored_millis(seconds * 1_000).unwrap()),
             "{input}"
         );
@@ -77,9 +77,8 @@ fn edge_dates_round_trip_at_millisecond_precision() {
         "2100-03-01T00:00:00.000Z",
         "9999-12-31T23:59:59.999Z",
     ] {
-        let parsed = time::parse(input).unwrap();
+        let parsed = ServerTime::from_stored(input).unwrap();
         assert_eq!(parsed.to_string(), input, "{input}");
-        assert_eq!(ServerTime::from_stored(input), Ok(parsed), "{input}");
         assert_eq!(
             ServerTime::from_stored_millis(parsed.as_millis()),
             Ok(parsed),
@@ -175,6 +174,6 @@ proptest! {
     fn millisecond_aligned_times_round_trip(millis in 0_u64..=253_402_300_799_999) {
         let timestamp = ServerTime::from_stored_millis(i64::try_from(millis).unwrap()).unwrap();
         let formatted = timestamp.to_string();
-        prop_assert_eq!(time::parse(&formatted), Some(timestamp));
+        prop_assert_eq!(ServerTime::from_stored(&formatted).ok(), Some(timestamp));
     }
 }
