@@ -25,12 +25,19 @@ impl State {
         })
     }
 
+    fn line_account(&self, message: &LineRef<'_>) -> Option<Account> {
+        message
+            .tag("account")
+            .map(|account| Account::LoggedIn(self.casemapping.account(account.as_ref())))
+    }
+
     fn apply_user_tags(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return;
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let authorship = self.source_authorship(message);
+        let line_account = self.line_account(message);
         // NONSTANDARD(inspircd): InspIRCd sends a never-reused account ID in this vendor tag next to
         // `account`; it has no cap of its own, and without the tag pins fall back to the account name.
         let account_id = message
@@ -41,29 +48,23 @@ impl State {
         let token = self.__reply_token_for(nick);
         let mut changed = false;
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-            for (key, value) in message.tags() {
-                match (key, value) {
-                    ("account", Some(account)) => {
-                        let account = Account::LoggedIn(self.casemapping.account(account.as_ref()));
-                        if user.account != account {
-                            user.update_account(account.clone());
-                            changed = true;
-                            outbox.event(Event::AccountChanged {
-                                envelope: crate::LineEnvelope::from_line(message),
-                                actor: actor.clone(),
-                                nick: self.casemapping.nick(nick),
-                                account,
-                                token,
-                                authorship,
-                            });
-                        }
-                    }
-                    ("bot", _) if user.is_bot != Some(true) => {
-                        user.is_bot = Some(true);
-                        changed = true;
-                    }
-                    _ => {}
-                }
+            if let Some(account) = line_account
+                && user.account != account
+            {
+                user.update_account(account.clone());
+                changed = true;
+                outbox.event(Event::AccountChanged {
+                    envelope: crate::LineEnvelope::from_line(message),
+                    actor,
+                    nick: self.casemapping.nick(nick),
+                    account,
+                    token,
+                    authorship,
+                });
+            }
+            if user.is_bot != Some(true) && message.tags().any(|(key, _)| key == "bot") {
+                user.is_bot = Some(true);
+                changed = true;
             }
             if let Some(account_id) = account_id
                 && user.account_id.as_deref() != Some(account_id.as_str())
