@@ -145,14 +145,6 @@ macro_rules! feature_enum {
                     .find(|feature| feature.name() == name)
             }
 
-            #[doc(hidden)]
-            #[must_use]
-            pub fn __variant_name(self) -> &'static str {
-                match self {
-                    $($(#[$gate])* Self::$variant => stringify!($variant),)*
-                }
-            }
-
             pub(crate) fn caps(self) -> [Option<cap::Cap>; 2] {
                 match self {
                     $($(#[$gate])* Self::$variant => $caps,)*

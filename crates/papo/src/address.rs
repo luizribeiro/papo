@@ -19,13 +19,13 @@ pub enum InvalidInput {
     #[error("invalid TLS configuration: {0}")]
     TlsConfig(String),
     /// A known capability must be configured through its feature.
-    #[error("capability {capability:?} is known to papo; use enable(Feature::{feature})")]
+    #[error("capability {capability:?} is known to papo; use enable(Feature::{feature:?})")]
     #[non_exhaustive]
     KnownCapability {
         /// The rejected capability name.
         capability: crate::Cap,
-        /// The feature variant that controls it.
-        feature: &'static str,
+        /// The feature that controls it.
+        feature: crate::Feature,
     },
     /// A known capability is available only with papo's unstable Cargo feature.
     #[error("capability {0:?} requires papo's `unstable` feature")]

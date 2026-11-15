@@ -1848,7 +1848,7 @@ pub papo::InvalidInput::KickReasonTooLong::actual: usize
 pub papo::InvalidInput::KickReasonTooLong::maximum: usize
 #[non_exhaustive] pub papo::InvalidInput::KnownCapability
 pub papo::InvalidInput::KnownCapability::capability: papo_core::cap::Cap
-pub papo::InvalidInput::KnownCapability::feature: &'static str
+pub papo::InvalidInput::KnownCapability::feature: papo::Feature
 pub papo::InvalidInput::ManagedCapability(papo_core::cap::Cap)
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize

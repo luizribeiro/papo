@@ -375,7 +375,7 @@ impl Builder {
                 self.invalid_input
                     .get_or_insert(InvalidInput::KnownCapability {
                         capability,
-                        feature: feature.__variant_name(),
+                        feature,
                     });
                 continue;
             }
@@ -1204,10 +1204,20 @@ mod tests {
         let capability = crate::cap::CHATHISTORY;
         let known = Builder::new("ircs://irc.example.net").request_caps([capability.clone()]);
         assert_eq!(
+            known
+                .invalid_input
+                .as_ref()
+                .map(ToString::to_string)
+                .as_deref(),
+            Some(
+                "capability Cap(\"draft/chathistory\") is known to papo; use enable(Feature::History)"
+            )
+        );
+        assert_eq!(
             known.invalid_input,
             Some(InvalidInput::KnownCapability {
                 capability,
-                feature: "History",
+                feature: crate::Feature::History,
             })
         );
 
@@ -1249,7 +1259,7 @@ mod tests {
             known.invalid_input,
             Some(InvalidInput::KnownCapability {
                 capability: "draft/persistence".to_owned().into(),
-                feature: "Persistence",
+                feature: crate::Feature::Persistence,
             })
         );
 
@@ -1527,7 +1537,7 @@ mod tests {
                 Builder::new("ircs://irc.example.net").request_caps(["chathistory"]),
                 InvalidInput::KnownCapability {
                     capability: "chathistory".to_owned().into(),
-                    feature: "History",
+                    feature: crate::Feature::History,
                 },
             ),
             (
