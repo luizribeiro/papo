@@ -59,7 +59,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         };
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
+            matches!(change.arg.clone(), Some(ModeArg::Member { user, .. }) if user.nick() == bob_nick.as_str())
         );
 
         let state = peer.snapshot();
@@ -93,7 +93,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         };
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == carol_nick.as_str())
+            matches!(change.arg.clone(), Some(ModeArg::Member { user, .. }) if user.nick() == carol_nick.as_str())
         );
 
         let state = peer.snapshot();

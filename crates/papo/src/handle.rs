@@ -313,6 +313,12 @@ impl UserHandle {
         self.0.nick.origin()
     }
 
+    /// The nickname the line that created this handle named, which a mode echo or an
+    /// party check must compare even after the person renames.
+    pub(crate) fn reported_nick(&self) -> &crate::Nick {
+        &self.0.nick
+    }
+
     pub(crate) fn is_unproven_history(&self) -> bool {
         self.0.historical && self.proof().is_none()
     }

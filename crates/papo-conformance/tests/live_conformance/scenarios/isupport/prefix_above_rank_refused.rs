@@ -77,7 +77,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         let change = &promoted.changes[0];
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
+            matches!(change.arg.clone(), Some(ModeArg::Member { user, .. }) if user.nick() == bob_nick.as_str())
         );
     }
     for peer in [&alice, &bob, &carol] {

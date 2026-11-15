@@ -158,17 +158,10 @@ impl ModeChanged {
     /// Returns who the user a mode change is about is relative to you.
     #[must_use]
     pub fn subject_party(&self, change: &crate::ModeChange) -> Party {
-        let affected = match change.arg.as_ref() {
-            Some(crate::ModeArg::Member { nick, .. }) => Some(nick),
-            _ => match &self.subject {
-                Subject::User(user) => return self.nick_party(&user.nick()),
-                Subject::Channel(_) => return Party::Other,
-            },
-        };
-        match (self.own_nick.as_ref(), affected) {
-            (Some(own), Some(affected)) if own == affected => Party::Me,
-            (Some(_), Some(_)) => Party::Other,
-            _ => Party::Unknown,
+        match (&change.arg, &self.subject) {
+            (Some(crate::ModeArg::Member { user, .. }), _) => self.nick_party(user.reported_nick()),
+            (_, Subject::User(user)) => self.nick_party(&user.nick()),
+            (_, Subject::Channel(_)) => Party::Other,
         }
     }
 

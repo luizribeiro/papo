@@ -858,6 +858,15 @@ fn mode_changed(
             change.kind,
             mapping,
             client.origin(),
+            |nick| {
+                crate::UserHandle::from_event(
+                    nick,
+                    crate::Account::Unknown,
+                    None,
+                    Some(&client.state),
+                    true,
+                )
+            },
         )
     })
     .collect();
@@ -2654,9 +2663,9 @@ mod tests {
             [crate::ModeChange {
                 mode: 'o',
                 action: crate::ModeAction::Add,
-                arg: Some(crate::ModeArg::Member { nick, .. }),
+                arg: Some(crate::ModeArg::Member { user, .. }),
                 ..
-            }] if nick == "alice"
+            }] if user == "alice"
         ));
         let Event::ModeChanged(list_mode) = &page.items[4] else {
             panic!("expected replayed list mode")
