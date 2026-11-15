@@ -34,10 +34,31 @@ pub struct Restricted {
     pub line: RestrictedLine,
 }
 
-/// The payload of a [`Restricted`] line.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum RestrictedLine {
+macro_rules! line_types {
+    ($($(#[$doc:meta])* $variant:ident($ty:ty)),+ $(,)?) => {
+        /// The payload of a [`Restricted`] line.
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        #[non_exhaustive]
+        pub enum RestrictedLine {
+            $($(#[$doc])* $variant($ty),)+
+        }
+
+        /// Moves a status-prefixed line into [`crate::Event::Restricted`], so that no plain arm
+        /// ever carries one. The event stream and every history item both end here.
+        pub(crate) fn separate(event: crate::Event) -> crate::Event {
+            let (audience, line) = match event {
+                $(crate::Event::$variant(mut line) => match line.take_status() {
+                    Some(audience) => (audience, RestrictedLine::$variant(line)),
+                    None => return crate::Event::$variant(line),
+                },)+
+                event => return event,
+            };
+            crate::Event::Restricted(Restricted { audience, line })
+        }
+    };
+}
+
+line_types! {
     /// A `PRIVMSG` or `ACTION`.
     Message(Message),
     /// A `NOTICE` from a user.
@@ -136,36 +157,6 @@ impl RestrictedLine {
         }
     }
 }
-
-macro_rules! separate_restricted {
-    ($($variant:ident),+ $(,)?) => {
-        /// Moves a status-prefixed line into [`crate::Event::Restricted`], so that no plain arm
-        /// ever carries one. The event stream and every history item both end here.
-        pub(crate) fn separate(event: crate::Event) -> crate::Event {
-            let (audience, line) = match event {
-                $(crate::Event::$variant(mut line) => match line.take_status() {
-                    Some(audience) => (audience, RestrictedLine::$variant(line)),
-                    None => return crate::Event::$variant(line),
-                },)+
-                event => return event,
-            };
-            crate::Event::Restricted(Restricted { audience, line })
-        }
-    };
-}
-
-separate_restricted!(
-    Message,
-    Notice,
-    Incomplete,
-    ServerNotice,
-    CtcpQuery,
-    CtcpReply,
-    TagMsg,
-    Reacted,
-    Redacted,
-    TypingChanged,
-);
 
 trait TakeStatus {
     fn take_status(&mut self) -> Option<Prefix>;
