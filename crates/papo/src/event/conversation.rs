@@ -116,9 +116,8 @@ pub struct Reacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`super::Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// The message being reacted to.
@@ -149,9 +148,8 @@ pub struct Redacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`super::Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// The message removed from history.
@@ -181,10 +179,9 @@ pub struct TypingChanged {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`super::Restricted::audience`] before delivery.
+    pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// The new typing state.
     pub state: Typing,
@@ -210,9 +207,8 @@ pub struct TagMsg {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`super::Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Tags in wire order with last-wins lookup.
@@ -227,12 +223,6 @@ macro_rules! reference_accessors {
                 #[must_use]
                 pub const fn conversation(&self) -> &Conversation {
                     &self.conversation
-                }
-
-                /// Returns the lowest-ranked status prefix on the wire audience.
-                #[must_use]
-                pub const fn status(&self) -> Option<Prefix> {
-                    self.status
                 }
 
                 /// Returns the server-assigned message identifier, when supplied.

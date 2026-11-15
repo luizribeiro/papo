@@ -275,7 +275,6 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let removed = phone.wait_for(Event::as_redacted).await?;
     assert_eq!(&removed.redacts, id);
     assert_eq!(removed.reason.as_deref(), Some("deployment superseded"));
-    assert_eq!(removed.status(), None);
     assert_eq!(removed.return_address(), channel.as_str());
     Ok(())
 }

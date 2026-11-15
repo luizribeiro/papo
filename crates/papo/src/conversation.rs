@@ -7,9 +7,10 @@ use std::fmt;
 /// A line sent to a status-prefixed address such as `@#ops` reached only the channel's operators
 /// (`+#ops`: voiced members and up). Its conversation is still the plain channel `#ops`, so an
 /// ops-only line and a public line in `#ops` have equal conversations and share one buffer,
-/// history, read marker and member list. The audience stays on the line: read it with the line's
-/// `status()`, and answer it with [`crate::Client::reply`], [`crate::Client::react`],
-/// [`crate::Client::redact`] or the line's `return_address()`, which keep `@#ops`.
+/// history, read marker and member list. The audience stays with the line: such a line arrives
+/// only in [`crate::Event::Restricted`], whose `audience` names it. Answer it with
+/// [`crate::Client::reply`], [`crate::Client::react`], [`crate::Client::redact`] or the line's
+/// `return_address()`, which keep `@#ops`.
 ///
 /// Sending to the conversation's channel reaches everyone in it. That is what a composer typing
 /// in the `#ops` window wants, and never the answer to an ops-only line. [`crate::Client::channel`]

@@ -109,9 +109,8 @@ pub struct CtcpQuery {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
     /// The command with its original spelling.
     pub command: crate::Command,
@@ -143,9 +142,8 @@ pub struct CtcpReply {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
     /// The command with its original spelling.
     pub command: crate::Command,
@@ -225,12 +223,6 @@ macro_rules! ctcp_reference_accessors {
                     &self.conversation
                 }
 
-                /// Returns the lowest-ranked status prefix on the wire audience.
-                #[must_use]
-                pub const fn status(&self) -> Option<Prefix> {
-                    self.status
-                }
-
                 /// Returns the server-assigned message identifier, when supplied.
                 #[must_use]
                 pub const fn msgid(&self) -> Option<&MessageId> {
@@ -280,9 +272,8 @@ pub struct Message {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
@@ -326,10 +317,9 @@ pub struct Notice {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
+    /// [`Restricted::audience`] before delivery.
+    pub(crate) status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
@@ -427,10 +417,9 @@ pub struct ServerNotice {
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
     pub to: Audience,
-    /// The lowest-ranked `STATUSMSG` prefix on a channel audience.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    /// The lowest-ranked `STATUSMSG` prefix on a channel audience, moved to
+    /// [`Restricted::audience`] before delivery.
+    pub(crate) status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained.
@@ -753,12 +742,6 @@ impl Message {
     #[must_use]
     pub const fn conversation(&self) -> &Conversation {
         &self.conversation
-    }
-
-    /// Returns the lowest-ranked status prefix on the wire audience.
-    #[must_use]
-    pub const fn status(&self) -> Option<Prefix> {
-        self.status
     }
 
     /// Returns the server-assigned message identifier, when supplied.

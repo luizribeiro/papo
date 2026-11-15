@@ -296,10 +296,8 @@ async fn statusmsg_window_reaches_everyone(s: Scenario) -> papo_testing::Result<
     };
     bob.privmsg(window, "posted from the window").await?;
     for peer in [&mut alice, &mut carol, &mut dave] {
-        let posted = peer
-            .wait_for(|event| message_text(event, "posted from the window"))
+        peer.wait_for(|event| message_text(event, "posted from the window"))
             .await?;
-        assert_eq!(posted.status(), None);
     }
 
     let stacked = bob

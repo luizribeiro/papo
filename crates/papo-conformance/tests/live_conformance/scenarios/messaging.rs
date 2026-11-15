@@ -875,7 +875,6 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(added.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(added.status(), None);
     assert_eq!(added.reacts_to, original_id);
     assert_eq!(added.reaction, "👍");
     assert_eq!(added.action, papo::event::ReactionAction::Added);
@@ -887,7 +886,6 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(removed.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(removed.status(), None);
     assert_eq!(removed.reacts_to, original_id);
     assert_eq!(removed.reaction, "👍");
     assert_eq!(removed.action, papo::event::ReactionAction::Removed);
@@ -914,7 +912,6 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&typing.conversation),
         Some(alice_nick.to_string())
     );
-    assert_eq!(typing.status, None);
     assert_eq!(typing.state, Typing::Active);
 
     alice.typing(&bob_direct, Typing::Active).await?;
@@ -1053,7 +1050,6 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(redacted.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(redacted.status(), None);
     assert_eq!(redacted.redacts, id);
     assert_eq!(redacted.reason.as_deref(), Some("superseded"));
     assert_eq!(

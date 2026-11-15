@@ -116,7 +116,7 @@ async fn reactions_reach_another_client_with_reply_context() {
         );
         assert_ne!(reaction.conversation(), incoming.conversation());
         assert_eq!(reaction.origin(), client_a.origin());
-        assert_eq!(reaction.status(), incoming.status());
+        assert_eq!(reaction.return_address(), channel.as_str());
         assert_eq!(&reaction.reacts_to, id);
 
         client_b.quit("reaction test complete").await.unwrap();

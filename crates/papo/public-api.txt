@@ -504,7 +504,6 @@ pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
 pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpQuery::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub const fn papo::event::CtcpQuery::status(&self) -> core::option::Option<papo::Prefix>
 impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::origin(&self) -> papo::Origin
 impl papo::event::CtcpQuery
@@ -535,7 +534,6 @@ pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
 pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpReply::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub const fn papo::event::CtcpReply::status(&self) -> core::option::Option<papo::Prefix>
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
 impl papo::event::CtcpReply
@@ -856,7 +854,6 @@ pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime
 pub papo::event::Notice::server_time: core::option::Option<papo_proto::time::ServerTime>
-pub papo::event::Notice::status: core::option::Option<papo::Prefix>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
@@ -938,7 +935,6 @@ pub papo::event::Reacted::server_time: core::option::Option<papo_proto::time::Se
 impl papo::event::Reacted
 pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Reacted::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub const fn papo::event::Reacted::status(&self) -> core::option::Option<papo::Prefix>
 impl papo::event::Reacted
 pub fn papo::event::Reacted::origin(&self) -> papo::Origin
 impl papo::event::Reacted
@@ -1009,7 +1005,6 @@ pub papo::event::Redacted::server_time: core::option::Option<papo_proto::time::S
 impl papo::event::Redacted
 pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Redacted::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub const fn papo::event::Redacted::status(&self) -> core::option::Option<papo::Prefix>
 impl papo::event::Redacted
 pub fn papo::event::Redacted::origin(&self) -> papo::Origin
 impl papo::event::Redacted
@@ -1037,7 +1032,6 @@ pub papo::event::ServerNotice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ServerNotice::raw_text: alloc::string::String
 pub papo::event::ServerNotice::received_at: std::time::SystemTime
 pub papo::event::ServerNotice::server_time: core::option::Option<papo_proto::time::ServerTime>
-pub papo::event::ServerNotice::status: core::option::Option<papo::Prefix>
 pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
 pub papo::event::ServerNotice::to: papo::event::Audience
@@ -1108,7 +1102,6 @@ pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
 pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::TagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub const fn papo::event::TagMsg::status(&self) -> core::option::Option<papo::Prefix>
 impl papo::event::TagMsg
 pub fn papo::event::TagMsg::origin(&self) -> papo::Origin
 impl papo::event::TagMsg
@@ -1159,7 +1152,6 @@ pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::received_at: std::time::SystemTime
 pub papo::event::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TypingChanged::state: papo::Typing
-pub papo::event::TypingChanged::status: core::option::Option<papo::Prefix>
 impl papo::event::TypingChanged
 pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
 impl papo::event::TypingChanged
@@ -2876,7 +2868,6 @@ pub const fn papo::Message::msgid(&self) -> core::option::Option<&papo::MessageI
 pub fn papo::Message::origin(&self) -> papo::Origin
 pub fn papo::Message::return_address(&self) -> papo::MessageRef
 pub fn papo::Message::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
-pub const fn papo::Message::status(&self) -> core::option::Option<papo::Prefix>
 impl core::clone::Clone for papo::Message
 pub fn papo::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::Message
