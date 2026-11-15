@@ -250,6 +250,17 @@ impl UserHandle {
         Self::from_parts(nick, account, proof, Some(shared))
     }
 
+    /// Builds the handle for a person a live event names from the identity papo-core recorded
+    /// when the event's line arrived, never from a lookup when the event is mapped.
+    pub(crate) fn at_arrival(
+        nick: crate::Nick,
+        account: crate::Account,
+        token: papo_core::ReplyToken,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
+        Self::from_event(nick, account, Some(token), state, false)
+    }
+
     pub(crate) fn from_event(
         nick: crate::Nick,
         account: crate::Account,

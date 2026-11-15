@@ -2146,9 +2146,8 @@ pub(crate) fn from_core_with_receipt(
             prove_not_bot,
         )
     };
-    let user_at_arrival = |nick, account, token| {
-        crate::UserHandle::from_event(nick, account, Some(token), handle_state, false)
-    };
+    let user_at_arrival =
+        |nick, account, token| crate::UserHandle::at_arrival(nick, account, token, handle_state);
     let source_at_arrival = |source, token| match source {
         Source::User(user) => {
             Source::User(user_at_arrival(user.nick(), user.account().clone(), token))
@@ -2525,8 +2524,7 @@ pub(crate) fn from_core_with_receipt(
             let account = facts
                 .as_ref()
                 .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
-            let actor =
-                crate::UserHandle::from_event(nick, account, Some(token), handle_state, false);
+            let actor = user_at_arrival(nick, account, token);
             Event::Parted(Parted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2567,14 +2565,12 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel),
-                subject: crate::UserHandle::from_event(
+                subject: user_at_arrival(
                     subject,
                     facts
                         .as_ref()
                         .map_or(crate::Account::Unknown, |user| user.account().clone()),
-                    Some(token),
-                    handle_state,
-                    false,
+                    token,
                 ),
                 facts,
                 actor,
@@ -2634,8 +2630,7 @@ pub(crate) fn from_core_with_receipt(
             let account = facts
                 .as_ref()
                 .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
-            let actor =
-                crate::UserHandle::from_event(nick, account, Some(token), handle_state, false);
+            let actor = user_at_arrival(nick, account, token);
             Event::Quit(Quit {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2855,14 +2850,12 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::MonitorOffline {
             nick, token, facts, ..
         } => Event::MonitorOffline(MonitorOffline {
-            subject: crate::UserHandle::from_event(
+            subject: user_at_arrival(
                 nick,
                 facts
                     .as_ref()
                     .map_or(crate::Account::Unknown, |user| user.account().clone()),
-                Some(token),
-                handle_state,
-                false,
+                token,
             ),
             facts,
         }),
