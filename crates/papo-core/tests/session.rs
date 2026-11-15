@@ -238,7 +238,7 @@ fn sasl_and_account_registration_handlers_advance_state_generation() {
 }
 
 #[test]
-fn annotates_authorship_with_the_active_casemapping() {
+fn annotates_actor_party_with_the_active_casemapping() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("Papo[bot]"));
     session.handle_line(now, b":papo{bot}!~papo@localhost PRIVMSG #papo :sent");

@@ -2225,7 +2225,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = handle_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let authorship = Authorship::from_core(change.authorship);
+            let authorship = Authorship::from_core(change.actor_party);
             let receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
                 &conversation,

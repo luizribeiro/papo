@@ -655,7 +655,7 @@ fn recorded_ergo_multiline_history_preserves_text_metadata_and_order() {
 }
 
 #[test]
-fn recorded_ergo_own_multiline_history_preserves_blank_lines_and_authorship() {
+fn recorded_ergo_own_multiline_history_preserves_blank_lines_and_actor_party() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
     for line in [
@@ -1040,8 +1040,8 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Quit { nick, netsplit: Some(split), actor_party: authorship, .. })
-            if nick == "alice" && split.batch == "split" && authorship == Party::Other
+        Some(Event::Quit { nick, netsplit: Some(split), actor_party, .. })
+            if nick == "alice" && split.batch == "split" && actor_party == Party::Other
     ));
     let extra = line(&mut session);
     assert_eq!(extra.batch_type(), Some("netsplit"));
@@ -1099,18 +1099,18 @@ fn netsplit_followed_by_netjoin_becomes_individual_events() {
     );
     session.handle_line(now, b":irc.example BATCH -join");
 
-    for (nick, authorship) in [("papo", Party::Me), ("bob", Party::Other)] {
+    for (nick, actor_party) in [("papo", Party::Me), ("bob", Party::Other)] {
         assert!(matches!(
             session.poll_event(),
-            Some(Event::Quit { nick: actual, netsplit: Some(split), actor_party: actual_authorship, .. })
-                if actual == nick && actual_authorship == authorship && split.batch == "split"
+            Some(Event::Quit { nick: actual, netsplit: Some(split), actor_party: actual_party, .. })
+                if actual == nick && actual_party == actor_party && split.batch == "split"
         ));
     }
-    for (nick, authorship) in [("papo", Party::Me), ("bob", Party::Other)] {
+    for (nick, actor_party) in [("papo", Party::Me), ("bob", Party::Other)] {
         assert!(matches!(
             session.poll_event(),
-            Some(Event::Joined { nick: actual, netjoin: Some(split), actor_party: actual_authorship, .. })
-                if actual == nick && actual_authorship == authorship && split.batch == "join"
+            Some(Event::Joined { nick: actual, netjoin: Some(split), actor_party: actual_party, .. })
+                if actual == nick && actual_party == actor_party && split.batch == "join"
         ));
     }
     assert_eq!(session.poll_event(), None);

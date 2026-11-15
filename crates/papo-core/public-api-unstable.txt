@@ -2452,7 +2452,7 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_core::Typers<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_core::Typers<'a>
 #[non_exhaustive] pub struct papo_core::TypingChanged
 pub papo_core::TypingChanged::actor: alloc::string::String
-pub papo_core::TypingChanged::authorship: papo_core::Party
+pub papo_core::TypingChanged::actor_party: papo_core::Party
 pub papo_core::TypingChanged::conversation: papo::Conversation
 pub papo_core::TypingChanged::reason: papo_core::TypingReason
 pub papo_core::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>

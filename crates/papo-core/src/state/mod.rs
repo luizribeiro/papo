@@ -1147,7 +1147,7 @@ impl State {
                 return Handled::No;
             };
             for channel in channels.split(',') {
-                let authorship = self.nick_party(nick);
+                let actor_party = self.nick_party(nick);
                 let token = self.__reply_token_for(nick);
                 let facts = self.user(nick).and_then(|user| {
                     self.departure_removes_user(user, Some(channel), user.monitored)
@@ -1164,7 +1164,7 @@ impl State {
                         .param(1)
                         .filter(|reason| !reason.is_empty())
                         .map(str::to_owned),
-                    actor_party: authorship,
+                    actor_party,
                 });
                 if crate::names_equal(mapping, nick, self.nick.as_str()) {
                     self.remove_channel(channel);
@@ -1180,7 +1180,7 @@ impl State {
             else {
                 return Handled::No;
             };
-            let authorship = self.source_party(message);
+            let actor_party = self.source_party(message);
             let subject_party = self.nick_party(nick);
             let token = self.__reply_token_for(nick);
             let facts = self.user(nick).and_then(|user| {
@@ -1195,7 +1195,7 @@ impl State {
                 facts,
                 actor: Source::from_proto_with_names(source, mapping),
                 actor_token: self.source_token(message),
-                actor_party: authorship,
+                actor_party,
                 subject_party,
                 reason: message
                     .param(2)
@@ -1221,8 +1221,8 @@ impl State {
             let own_rename = crate::names_equal(mapping, nick, self.nick.as_str());
             let collides_with_own =
                 !own_rename && crate::names_equal(mapping, new_nick, self.nick.as_str());
-            let authorship = self.source_party(message);
-            let mut channels: Vec<_> = if authorship == Party::Me {
+            let actor_party = self.source_party(message);
+            let mut channels: Vec<_> = if actor_party == Party::Me {
                 self.channels
                     .values()
                     .map(|channel| channel.name.clone())
@@ -1253,7 +1253,7 @@ impl State {
                 new: mapping.nick(new_nick),
                 token,
                 channels,
-                actor_party: authorship,
+                actor_party,
             });
             return Handled::Yes;
         }

@@ -45,7 +45,7 @@ fn live_subject_facts_are_exact() {
 }
 
 #[test]
-fn queued_event_keeps_authorship_across_a_nick_change() {
+fn queued_event_keeps_its_party_across_a_nick_change() {
     Transcript::new(Config::default())
         .server(":papo!papo@localhost JOIN #papo")
         .server(":papo!papo@localhost NICK papo-away")
@@ -162,7 +162,7 @@ fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
 }
 
 #[test]
-fn history_authorship_requires_an_account_tag() {
+fn history_actor_party_requires_an_account_tag() {
     Transcript::new(Config::default().sasl(Sasl::plain("papo", papo_core::Secret::new("correct horse battery staple"))))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -194,7 +194,7 @@ fn history_authorship_requires_an_account_tag() {
 }
 
 #[test]
-fn history_mode_authorship_distinguishes_actor_and_subject() {
+fn history_mode_parties_distinguish_actor_and_subject() {
     Transcript::new(Config::default().sasl(Sasl::plain("papo", papo_core::Secret::new("correct horse battery staple"))))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -227,7 +227,7 @@ fn history_mode_authorship_distinguishes_actor_and_subject() {
 }
 
 #[test]
-fn live_mode_and_nick_authorship_distinguish_own_identity() {
+fn live_mode_and_nick_parties_distinguish_own_identity() {
     Transcript::new(Config::default())
         .server(":papo!~papo@localhost MODE papo +i")
         .event(|event| {
@@ -242,7 +242,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
             )
         })
         // A server may define a nonstandard channel prefix. When that prefix makes a
-        // channel name equal our nick, the target namespace still decides authorship.
+        // channel name equal our nick, the target namespace still decides the party.
         .server(":ergo.test 005 papo CHANTYPES=p :are supported by this server")
         .server(":papo!~papo@localhost MODE papo +m")
         .event(|event| {

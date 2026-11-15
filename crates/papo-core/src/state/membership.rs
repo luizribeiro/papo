@@ -16,7 +16,7 @@ impl State {
             return Handled::No;
         };
         let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
-        let authorship = self.nick_party(nick);
+        let actor_party = self.nick_party(nick);
         let token = self.__reply_token_for(nick);
         let facts = self.user(nick).cloned();
         let channels = if ours {
@@ -41,7 +41,7 @@ impl State {
                 .filter(|reason| !reason.is_empty())
                 .map(str::to_owned),
             channels,
-            actor_party: authorship,
+            actor_party,
             netsplit: None,
         });
         if !self.is_monitored(nick) {

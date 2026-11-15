@@ -3189,7 +3189,7 @@ impl Event {
         channel: ChannelName,
         subject: Nick,
         actor: String,
-        authorship: Party,
+        actor_party: Party,
         subject_party: Party,
     ) -> Self {
         let unknown = ReplyToken::__unknown(subject.origin());
@@ -3200,7 +3200,7 @@ impl Event {
             token: unknown,
             actor,
             actor_token: unknown,
-            actor_party: authorship,
+            actor_party,
             subject_party,
         }
     }
@@ -3211,7 +3211,7 @@ impl Event {
         old: ChannelName,
         new: ChannelName,
         actor: String,
-        authorship: Party,
+        actor_party: Party,
         reason: Option<String>,
     ) -> Self {
         let actor_token = ReplyToken::__unknown(new.origin());
@@ -3221,7 +3221,7 @@ impl Event {
             new,
             actor,
             actor_token,
-            actor_party: authorship,
+            actor_party,
             reason,
         }
     }

@@ -38,7 +38,7 @@ pub struct TypingChanged {
     actor_token: ReplyToken,
     peer_token: ReplyToken,
     /// Whether the user is this session's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation where typing is occurring.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -478,11 +478,11 @@ impl Session {
             Conversation::Private(_) => conversation.as_str(),
         }
         .to_owned();
-        let authorship = self.actor_party(message);
+        let actor_party = self.actor_party(message);
         let actor_token = self.state.source_token(message);
         let peer_token = self.state.conversation_token(&conversation);
         let server_time = LineEnvelope::from_line(message).server_time();
-        if authorship == Party::Other {
+        if actor_party == Party::Other {
             let nick = self.names().nick(nick);
             let evicted = TypingTable::notify(
                 &mut self.state.typing,
@@ -511,7 +511,7 @@ impl Session {
             actor: actor.to_owned(),
             actor_token,
             peer_token,
-            authorship,
+            actor_party,
             conversation,
             status,
             return_address,
@@ -658,7 +658,7 @@ fn stopped(
         actor: deadline.actor,
         actor_token: deadline.actor_token,
         peer_token: deadline.peer_token,
-        authorship: Party::Other,
+        actor_party: Party::Other,
         conversation: deadline.conversation,
         status: deadline.status,
         return_address: deadline.return_address,

@@ -47,7 +47,7 @@ fn reports_active_paused_and_done_typing() {
             panic!("expected typed notification")
         };
         assert_eq!(change.actor, "alice!~a@cloak");
-        assert_eq!(change.authorship, Party::Other);
+        assert_eq!(change.actor_party, Party::Other);
         assert!(
             matches!(change.conversation, Conversation::Channel(ref channel)
                 if channel == "#papo" && channel.origin() == origin)
@@ -152,7 +152,7 @@ fn classifies_status_and_private_tag_messages() {
     let Some(Event::TypingChanged(own)) = session.poll_event() else {
         panic!("expected own typing event")
     };
-    assert_eq!(own.authorship, Party::Me);
+    assert_eq!(own.actor_party, Party::Me);
 }
 
 #[test]
