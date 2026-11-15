@@ -185,14 +185,20 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "plain message with multiline enabled")
             .await
             .unwrap();
-        let papo::SentOutcome::Confirmed {
-            lines, server_time, ..
-        } = plain.outcome()
+        let [
+            papo::SentLine {
+                text: plain_text,
+                confirmation:
+                    papo::Confirmation::Confirmed {
+                        msgid: plain_id,
+                        server_time,
+                        ..
+                    },
+                ..
+            },
+        ] = plain.lines.as_slice()
         else {
-            panic!("plain echo should confirm the message")
-        };
-        let [(plain_id, plain_text)] = lines.as_slice() else {
-            panic!("the plain message should have one line")
+            panic!("plain echo should confirm the message as one line")
         };
         assert_eq!(plain_text, "plain message with multiline enabled");
         assert!(server_time.is_some());
@@ -206,14 +212,20 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "first deployment line\nsecond deployment line")
             .await
             .unwrap();
-        let papo::SentOutcome::Confirmed {
-            lines, server_time, ..
-        } = multiline.outcome()
+        let [
+            papo::SentLine {
+                text: multiline_text,
+                confirmation:
+                    papo::Confirmation::Confirmed {
+                        msgid: multiline_id,
+                        server_time,
+                        ..
+                    },
+                ..
+            },
+        ] = multiline.lines.as_slice()
         else {
-            panic!("multiline echo should confirm the message")
-        };
-        let [(multiline_id, multiline_text)] = lines.as_slice() else {
-            panic!("one multiline batch should have one logical line")
+            panic!("one multiline batch should be confirmed as one logical line")
         };
         assert_eq!(
             multiline_text,

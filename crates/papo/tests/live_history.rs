@@ -246,14 +246,20 @@ async fn cursor_pages_every_message_once() {
 }
 
 fn confirmed_line(sent: &papo::SendOutcome) -> (&papo::MessageId, &str, Option<papo::ServerTime>) {
-    let papo::SentOutcome::Confirmed {
-        lines, server_time, ..
-    } = sent.outcome()
+    let [
+        papo::SentLine {
+            text,
+            confirmation:
+                papo::Confirmation::Confirmed {
+                    msgid: id,
+                    server_time,
+                    ..
+                },
+            ..
+        },
+    ] = sent.lines.as_slice()
     else {
-        panic!("Ergo should confirm history seed messages")
-    };
-    let [(id, text)] = lines.as_slice() else {
-        panic!("each history seed should be sent as one line")
+        panic!("Ergo should confirm each history seed as one line")
     };
     (id, text, *server_time)
 }

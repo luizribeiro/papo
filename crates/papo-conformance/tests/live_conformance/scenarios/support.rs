@@ -9,14 +9,20 @@ pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 pub(super) fn confirmed_line(
     sent: &papo::SendOutcome,
 ) -> (&papo::MessageId, &str, Option<papo::ServerTime>) {
-    let papo::SentOutcome::Confirmed {
-        lines, server_time, ..
-    } = sent.outcome()
+    let [
+        papo::SentLine {
+            text,
+            confirmation:
+                papo::Confirmation::Confirmed {
+                    msgid: id,
+                    server_time,
+                    ..
+                },
+            ..
+        },
+    ] = sent.lines.as_slice()
     else {
-        panic!("server should confirm the sent message")
-    };
-    let [(id, text)] = lines.as_slice() else {
-        panic!("message should be sent as one logical line")
+        panic!("server should confirm the message as one logical line")
     };
     (id, text, *server_time)
 }

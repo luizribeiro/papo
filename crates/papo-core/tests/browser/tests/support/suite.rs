@@ -70,9 +70,12 @@ async fn high_level_client_uses_the_browser_websocket() {
         .await
         .unwrap();
     assert!(matches!(
-        sent.outcome(),
-        papo::SentOutcome::Confirmed { lines, .. }
-            if matches!(lines.as_slice(), [(_, text)] if text == "hello from the high-level browser driver")
+        sent.lines.as_slice(),
+        [papo::SentLine {
+            text,
+            confirmation: papo::Confirmation::Confirmed { .. },
+            ..
+        }] if text == "hello from the high-level browser driver"
     ));
 
     client
