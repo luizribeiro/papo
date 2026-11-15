@@ -256,6 +256,12 @@ fn mode_members_record_each_member_at_arrival() {
             subject: "alice",
             token: |event| member_token(event, 1),
         },
+        Case {
+            name: "MODE first of two members",
+            line: ":alice!~alice@cloak.example MODE #review +ov dave alice",
+            subject: "dave",
+            token: |event| member_token(event, 0),
+        },
     ] {
         let mut session = Session::new(Config::default().nick("papo"));
         server(
@@ -266,7 +272,7 @@ fn mode_members_record_each_member_at_arrival() {
         check_identity(
             &mut session,
             &case,
-            ":alice!~alice@cloak.example QUIT :Quit: bye",
+            &format!(":{}!~member@cloak.example QUIT :Quit: bye", case.subject),
         );
     }
 }
