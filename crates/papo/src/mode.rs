@@ -1126,6 +1126,13 @@ mod tests {
             Some("alice!*@*".to_owned())
         );
         assert_eq!(confirmed_ban(&[echo("-b")], &state, &channel, &ban), None);
+        let not_mode = papo_proto::Line::new("PRIVMSG").with_params(["#papo{", "+b", "alice!*@*"]);
+        assert_eq!(confirmed_ban(&[not_mode], &state, &channel, &ban), None);
+        let other_channel = papo_proto::Line::new("MODE").with_params(["#rust", "+b", "alice!*@*"]);
+        assert_eq!(
+            confirmed_ban(&[other_channel], &state, &channel, &ban),
+            None
+        );
     }
 
     #[test]
