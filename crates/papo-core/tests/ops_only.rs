@@ -76,3 +76,26 @@ fn a_send_pointing_at_an_ops_only_line_may_only_narrow_its_audience() {
         assert_send(OPS_ONLY, "bc3fyyzsmb8ip7aiti6gakzmja", wire, refused);
     }
 }
+
+fn ops_only_line(id: &str) -> String {
+    format!("@msgid={id} :oppy!~oppy@cloak.example PRIVMSG @#ops :rotating key {id}")
+}
+
+#[test]
+fn the_oldest_of_1025_ops_only_ids_is_forgotten() {
+    let ids: Vec<String> = (0..1025)
+        .map(|n| format!("bc3fyyzsmb8ip7aiti6g{n:06}"))
+        .collect();
+    let mut received: Vec<String> = ids.iter().map(|id| ops_only_line(id)).collect();
+    received.insert(1, ops_only_line(&ids[1]));
+    let received: Vec<&str> = received.iter().map(String::as_str).collect();
+    let now = Instant::now();
+    let mut session = ergo(now, &received);
+
+    let forgotten = format!("@+draft/reply={} PRIVMSG #ops :rotated, yes", ids[0]);
+    assert_eq!(session.send(now, line(&forgotten)), Ok(()));
+    for id in [&ids[1], &ids[1024]] {
+        let wider = format!("@+draft/reply={id} PRIVMSG #ops :rotated, yes");
+        assert!(refused_as(&session.send(now, line(&wider)), '@'), "{id}");
+    }
+}

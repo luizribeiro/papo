@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use papo_proto::{LineRef, Prefix};
 
 use crate::{Conversation, RequestError, Session};
+
+/// How many ops-only message ids one connection remembers.
+const REMEMBERED: usize = 1024;
 
 #[derive(Clone, Debug)]
 struct Audience {
@@ -13,7 +16,22 @@ struct Audience {
 /// The ids of recent status-prefixed lines and the audience each one reached.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OpsOnlyLines {
+    order: VecDeque<String>,
     audiences: HashMap<String, Audience>,
+}
+
+impl OpsOnlyLines {
+    fn remember(&mut self, msgid: String, audience: Audience) {
+        if self.audiences.insert(msgid.clone(), audience).is_some() {
+            return;
+        }
+        self.order.push_back(msgid);
+        if self.order.len() > REMEMBERED
+            && let Some(oldest) = self.order.pop_front()
+        {
+            self.audiences.remove(&oldest);
+        }
+    }
 }
 
 /// Where a text or tag message goes.
@@ -42,8 +60,7 @@ impl Session {
             self.state.parse_target(target)
         {
             self.ops_only
-                .audiences
-                .insert(msgid.into_owned(), Audience { channel, status });
+                .remember(msgid.into_owned(), Audience { channel, status });
         }
     }
 
