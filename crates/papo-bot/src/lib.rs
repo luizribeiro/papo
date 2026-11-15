@@ -16,6 +16,12 @@
 //! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
 //! reply; use [`ReplyRateLimiter`] to choose another budget.
 //!
+//! A command sent to a status-prefixed address such as `@#ops` arrives as
+//! [`papo::Event::Restricted`], which the message loop above never sees, so it is ignored. To
+//! accept one, pass the [`Restricted`] line to [`BotConfig::restricted_command`]: the command's
+//! [`Command::audience`] names the sign, and its replies keep the restricted address. See
+//! [`papo::Conversation`] for status-prefixed line guidance.
+//!
 //! Move slow asynchronous work out of the event loop so events keep being read. A [`Client`] is
 //! cheap to clone into a spawned task:
 //!
@@ -51,7 +57,7 @@ use web_time::Instant;
 
 use papo::{
     Account, AccountName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, State, UserHandle,
+    MessageKind, Prefix, Restricted, RestrictedLine, State, UserHandle,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -181,7 +187,26 @@ impl BotConfig {
         state: &State,
         message: &ChatMessage,
     ) -> Option<Command> {
-        Command::parse(client, state, message, self)
+        Command::parse(client, state, message, None, self)
+    }
+
+    /// Parses a live command from a line that reached only the members holding its audience's
+    /// sign or a higher rank, such as `@#ops`.
+    ///
+    /// The command's [`Command::audience`] is that sign, and its replies keep the restricted
+    /// address. Lines other than a [`RestrictedLine::Message`] are not commands. See
+    /// [`papo::Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn restricted_command(
+        &self,
+        client: &Client,
+        state: &State,
+        restricted: &Restricted,
+    ) -> Option<Command> {
+        let RestrictedLine::Message(message) = &restricted.line else {
+            return None;
+        };
+        Command::parse(client, state, message, Some(restricted.audience), self)
     }
 }
 
@@ -207,6 +232,7 @@ pub struct Command {
     args: Vec<String>,
     rest: String,
     account: Account,
+    audience: Option<Prefix>,
     replies: ReplyRateLimiter,
 }
 
@@ -215,6 +241,7 @@ impl Command {
         client: &Client,
         state: &State,
         message: &ChatMessage,
+        audience: Option<Prefix>,
         config: &BotConfig,
     ) -> Option<Self> {
         if message.authorship == papo::Authorship::Own
@@ -249,6 +276,7 @@ impl Command {
             args: split_args(rest),
             rest: rest.to_owned(),
             account,
+            audience,
             replies: config.replies.clone(),
         })
     }
@@ -279,6 +307,15 @@ impl Command {
     #[must_use]
     pub const fn message(&self) -> &ChatMessage {
         &self.message
+    }
+
+    /// Returns the status sign the command was sent to, or `None` when every member received it.
+    ///
+    /// Only [`BotConfig::restricted_command`] parses a command with an audience. See
+    /// [`papo::Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub const fn audience(&self) -> Option<Prefix> {
+        self.audience
     }
 
     /// Returns the account tag attached to this message.
@@ -618,15 +655,13 @@ mod tests {
         }
     }
 
-    async fn next_restricted_message(events: &mut papo::Events) -> Incoming {
+    async fn next_restricted(events: &mut papo::Events) -> (papo::Restricted, Arc<papo::State>) {
         loop {
             let Some((event, state)) = events.next().await else {
-                panic!("driver stopped while waiting for a restricted message")
+                panic!("driver stopped while waiting for a restricted line")
             };
-            if let papo::Event::Restricted(restricted) = event
-                && let papo::RestrictedLine::Message(message) = restricted.line
-            {
-                return Incoming { message, state };
+            if let papo::Event::Restricted(restricted) = event {
+                return (restricted, state);
             }
         }
     }
@@ -1039,31 +1074,55 @@ mod tests {
         assert_eq!(third.reply("pong").await.unwrap(), ReplyStatus::Dropped);
     }
 
+    const OPS_ONLY: &str = concat!(
+        ":ergo.test CAP * LS :message-tags\r\n",
+        ":ergo.test CAP papo{bot} ACK :message-tags\r\n",
+        ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+        ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported\r\n",
+        ":ergo.test 422 papo{bot} :MOTD File is missing\r\n",
+        ":papo{bot}!papo@localhost JOIN #ops\r\n",
+        ":emily!~emily@localhost JOIN #ops\r\n",
+        "@msgid=z6apvbu245cpg8t9b48v5bdmqs;time=2026-11-15T00:13:53.319Z :emily!~emily@localhost NOTICE @#ops :!deploy is next\r\n",
+        "@msgid=4bt6hmnb9a3z8zcw7ugyqrzbfe;time=2026-11-15T00:13:54.102Z :emily!~emily@localhost PRIVMSG @#ops :!deploy key rotated\r\n",
+        "@msgid=hy3tmqq4xbvbkez4rnmrbqkd2c;time=2026-11-15T00:13:55.840Z :emily!~emily@localhost PRIVMSG +#ops :!status\r\n",
+    );
+
     #[tokio::test(flavor = "current_thread")]
-    async fn say_keeps_the_command_return_address() {
-        let transcript = concat!(
-            ":ergo.test CAP * LS :\r\n",
-            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
-            ":ergo.test 001 papo{bot} :Welcome\r\n",
-            ":ergo.test 422 papo{bot} :MOTD missing\r\n",
-            ":papo{bot}!papo@localhost JOIN #ops\r\n",
-            ":emily!~emily@localhost JOIN #ops\r\n",
-            ":emily!~emily@localhost PRIVMSG @#ops :!ping\r\n",
-        );
-        let stream = TranscriptStream::new(transcript);
+    async fn an_opted_in_command_answers_its_restricted_audience() {
+        let stream = TranscriptStream::new(OPS_ONLY);
         let output = stream.output();
         let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
-        let incoming = next_restricted_message(&mut events).await;
-        let command = BotConfig::new("!")
-            .command(&client, &incoming.state, &incoming)
+        let config = BotConfig::new("!");
+        let (notice, state) = next_restricted(&mut events).await;
+        assert!(
+            config
+                .restricted_command(&client, &state, &notice)
+                .is_none()
+        );
+        let (restricted, state) = next_restricted(&mut events).await;
+        let command = config
+            .restricted_command(&client, &state, &restricted)
             .unwrap();
-        assert_eq!(command.say("pong").await.unwrap(), ReplyStatus::Sent);
+
+        assert_eq!(command.name(), "deploy");
+        assert_eq!(command.rest(), "key rotated");
+        assert_eq!(command.audience().map(papo::Prefix::symbol), Some('@'));
+        assert_eq!(command.reply("rotating").await.unwrap(), ReplyStatus::Sent);
+        assert_eq!(command.say("done").await.unwrap(), ReplyStatus::Sent);
         tokio::task::yield_now().await;
         let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
-        assert!(output.contains("PRIVMSG @#ops pong\r\n"), "{output:?}");
+        assert!(
+            output.contains("@+reply=4bt6hmnb9a3z8zcw7ugyqrzbfe PRIVMSG @#ops rotating\r\n"),
+            "{output:?}"
+        );
+        assert!(output.contains("PRIVMSG @#ops done\r\n"), "{output:?}");
+        assert!(!output.contains("PRIVMSG #ops"), "{output:?}");
+        let (voiced, state) = next_restricted(&mut events).await;
+        let status = config.restricted_command(&client, &state, &voiced).unwrap();
+        assert_eq!(status.audience().map(papo::Prefix::symbol), Some('+'));
         driver.abort();
     }
 
@@ -1079,8 +1138,10 @@ mod tests {
             ":emily!~emily@localhost PRIVMSG @#ops :!deploy key rotated\r\n",
             ":emily!~emily@localhost PRIVMSG #ops :!ping\r\n",
         );
+        let stream = TranscriptStream::new(transcript);
+        let output = stream.output();
         let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
-            .stream(TranscriptStream::new(transcript))
+            .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
         let incoming = next_message(&mut events).await;
@@ -1088,7 +1149,11 @@ mod tests {
             .command(&client, &incoming.state, &incoming)
             .unwrap();
         assert_eq!(command.name(), "ping");
-        assert_eq!(command.message().return_address(), "#ops");
+        assert_eq!(command.audience(), None);
+        assert_eq!(command.reply("pong").await.unwrap(), ReplyStatus::Sent);
+        tokio::task::yield_now().await;
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(output.contains("PRIVMSG #ops pong\r\n"), "{output:?}");
         driver.abort();
     }
 
