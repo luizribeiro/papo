@@ -57,6 +57,9 @@ usual payload in `Restricted::line` (`RestrictedLine::Other` for a line papo can
 payloads no longer have `status()`. Code that does not match the new arm no longer sees ops-only
 lines.
 
+`papo_bot` ignores ops-only commands unless the bot passes the `Restricted` line to
+`BotConfig::restricted_command`; `Command::audience` reports the sign and its replies keep it.
+
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
 
