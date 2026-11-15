@@ -79,3 +79,56 @@ async fn a_message_fetch_keeps_only_the_item_with_exactly_that_id() {
     }
     abort_task(task).await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_message_fetch_needs_negotiated_chathistory() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    assert!(matches!(
+        within(client.history("#papo").message(TARGET)).await,
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::History,
+            reason: crate::UnsupportedReason::NotOffered,
+            ..
+        }))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+    abort_task(task).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_refused_message_fetch_is_a_server_error() {
+    let config = config().wanted_caps([
+        "draft/chathistory",
+        "labeled-response",
+        "batch",
+        "server-time",
+    ]);
+    let (mut server, client, mut events, driver) = scripted(config);
+    let task = tokio::spawn(driver);
+    complete_connect_history(&mut server, &mut events).await;
+    let fetch = tokio::spawn({
+        let client = client.clone();
+        async move { client.history("#papo").message(TARGET).await }
+    });
+    client_line(
+        &mut server,
+        format!("@label=0 CHATHISTORY AROUND #papo msgid={TARGET} 3\r\n").as_bytes(),
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=0 :ergo.test FAIL CHATHISTORY INVALID_TARGET AROUND #papo :Messages could not be retrieved\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(fetch).await.unwrap(),
+        Err(Error::Server(error)) if error.code() == "INVALID_TARGET"
+    ));
+    abort_task(task).await;
+}
