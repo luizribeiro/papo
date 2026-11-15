@@ -514,32 +514,32 @@ impl SendOutcome {
         }
     }
 
-    pub(crate) fn from_confirmations(
-        confirmations: &[papo_core::SentInfo],
+    /// `echoes` holds one entry per logical line: the labelled echo, if its response was one.
+    pub(crate) fn from_echoes(
+        echoes: &[Option<papo_core::SentInfo>],
         texts: Vec<String>,
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
         mut receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
-        let server_time = confirmations
+        let server_time = echoes
             .iter()
+            .flatten()
             .find_map(crate::confirmation::echo_time);
-        let msgids = confirmations
+        let msgids = echoes
             .iter()
+            .flatten()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
-        let confirmed = confirmations.len() == texts.len();
-        let lines = ConfirmedLines::new(msgids.iter().cloned().zip(texts).collect());
-        let outcome = if confirmed {
-            lines.map_or(SentOutcome::Unconfirmed, |lines| SentOutcome::Confirmed {
+        let confirmed = msgids.len() == texts.len();
+        let outcome = ConfirmedLines::new(msgids.iter().cloned().zip(texts).collect())
+            .filter(|_| confirmed)
+            .map_or(SentOutcome::Unconfirmed, |lines| SentOutcome::Confirmed {
                 lines,
                 server_time,
-            })
-        } else {
-            SentOutcome::Unconfirmed
-        };
-        if matches!(outcome, SentOutcome::Confirmed { .. }) {
+            });
+        if confirmed {
             receipt.set_reference(msgids, None);
         }
         Self {

@@ -238,7 +238,7 @@ enum PendingRequest {
         fallbacks: Vec<crate::Fallback>,
         remaining: usize,
         texts: Vec<String>,
-        confirmations: Vec<papo_core::SentInfo>,
+        echoes: Vec<Option<papo_core::SentInfo>>,
         result: oneshot::Sender<Result<SendOutcome, Error>>,
     },
 }
@@ -270,14 +270,14 @@ impl PendingRequest {
                 fallbacks,
                 remaining,
                 texts,
-                mut confirmations,
+                mut echoes,
                 result,
             } => {
                 if let Some(error) = response.error() {
                     _ = result.send(Err(Error::server(error)));
                     return None;
                 }
-                confirmations.extend(response.sent());
+                echoes.push(response.sent());
                 if remaining > 1 {
                     return Some(Self::Text {
                         conversation,
@@ -286,13 +286,13 @@ impl PendingRequest {
                         fallbacks,
                         remaining: remaining - 1,
                         texts,
-                        confirmations,
+                        echoes,
                         result,
                     });
                 }
-                remember_resolved_sent(resolved_sent, &confirmations);
-                _ = result.send(Ok(SendOutcome::from_confirmations(
-                    &confirmations,
+                remember_resolved_sent(resolved_sent, echoes.iter().flatten());
+                _ = result.send(Ok(SendOutcome::from_echoes(
+                    &echoes,
                     texts,
                     conversation,
                     status,
@@ -1292,7 +1292,7 @@ where
                                     fallbacks,
                                     remaining: sent.confirmations,
                                     texts: sent.texts,
-                                    confirmations: Vec::new(),
+                                    echoes: Vec::new(),
                                     result,
                                 });
                             } else if let Some(token) = sent.transmit {
@@ -1819,7 +1819,10 @@ where
 
 const RESOLVED_SENT_CAPACITY: usize = 1_024;
 
-fn remember_resolved_sent(resolved: &mut VecDeque<String>, confirmations: &[papo_core::SentInfo]) {
+fn remember_resolved_sent<'a>(
+    resolved: &mut VecDeque<String>,
+    confirmations: impl IntoIterator<Item = &'a papo_core::SentInfo>,
+) {
     for confirmation in confirmations {
         if resolved.len() == RESOLVED_SENT_CAPACITY {
             resolved.pop_front();
