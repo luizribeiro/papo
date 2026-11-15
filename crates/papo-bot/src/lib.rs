@@ -1127,6 +1127,40 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn an_opted_in_command_cannot_thread_a_public_answer() {
+        let stream = TranscriptStream::new(OPS_ONLY);
+        let output = stream.output();
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
+            .stream(stream)
+            .build();
+        let driver = tokio::spawn(driver);
+        let config = BotConfig::new("!");
+        let _notice = next_restricted(&mut events).await;
+        let (restricted, state) = next_restricted(&mut events).await;
+        let command = config
+            .restricted_command(&client, &state, &restricted)
+            .unwrap();
+
+        let public = command
+            .client()
+            .privmsg("#ops", "rotated at 18:00")
+            .tag("+draft/reply", "4bt6hmnb9a3z8zcw7ugyqrzbfe")
+            .await;
+        assert!(
+            matches!(
+                public,
+                Err(papo::Error::InvalidInput(papo::InvalidInput::WiderThanReferenced { referenced, .. }))
+                    if referenced.symbol() == '@'
+            ),
+            "{public:?}"
+        );
+        tokio::task::yield_now().await;
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(!output.contains("rotated at 18:00"), "{output:?}");
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn ops_only_commands_never_reach_the_message_loop() {
         let transcript = concat!(
             ":ergo.test CAP * LS :\r\n",
