@@ -599,27 +599,20 @@ impl Change {
 
     fn typed(&self, state: &crate::State) -> Result<ModeChange, Error> {
         let mode = validate(state.isupport().inner(), self)?;
-        let kind = mode_kind(state.isupport().inner(), mode);
-        let names = state
+        state
             .known_name_rules()
             .ok_or(crate::InvalidInput::NameRulesUnknown)?;
-        let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
-            ('k', _) => ModeArg::Key(crate::Secret::new(argument.text())),
-            (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
-                nick: names.nick(argument.text()),
-                prefix,
-            },
-            (_, ModeKind::List) => ModeArg::Mask(names.mask(argument.text())),
-            _ => ModeArg::Value(argument.text().to_owned()),
-        });
-        Ok(ModeChange::new(
-            mode,
+        Ok(crate::event_impl::typed_mode_change(
             if self.set {
                 ModeAction::Add
             } else {
                 ModeAction::Remove
             },
-            arg,
+            mode,
+            self.arg.as_ref().map(Argument::text),
+            mode_kind(state.isupport().inner(), mode),
+            state.casemapping(),
+            state.nick().origin(),
         ))
     }
 }
