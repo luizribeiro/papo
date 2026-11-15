@@ -933,6 +933,29 @@ impl State {
         }
     }
 
+    /// Takes the WHO proof for `nick` when the line's account is the one WHO proved, so the
+    /// proven person's first line keeps the identity papo already handed out for them. Being
+    /// logged out names no one, so a logged-out proof never carries over.
+    pub(super) fn take_proven(
+        &mut self,
+        nick: &str,
+        account: Option<&Account>,
+    ) -> Option<crate::ReplyIdentity> {
+        let account @ Account::LoggedIn(_) = account? else {
+            return None;
+        };
+        let index = self
+            .proven_identities
+            .iter()
+            .position(|(_, proven, proven_account)| {
+                crate::names_equal(self.casemapping, proven.as_str(), nick)
+                    && proven_account == account
+            })?;
+        self.proven_identities
+            .remove(index)
+            .map(|(identity, _, _)| identity)
+    }
+
     fn user_with_identity(
         &self,
         nick: &str,

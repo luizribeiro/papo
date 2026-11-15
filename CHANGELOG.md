@@ -715,3 +715,5 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
   account or facts, and guarded sends to the earlier handle fail with `Error::TargetGone`.
 - A `WHO` proof of a person papo shares no channel with ends when papo sees that nick arrive,
   quit, change nick or go offline in MONITOR, so a guarded send never reaches the next holder.
+- A WHO-proven person's first private line keeps their proof when it carries the account WHO
+  proved; any other first line ends it.
