@@ -6314,6 +6314,66 @@ mod tests {
         }
 
         #[test]
+        fn every_person_a_late_mapped_event_names_is_who_they_were_at_arrival() {
+            use super::identity::{joined_review, mapped, server};
+
+            for line in [
+                ":alice!~alice@cloak.example ACCOUNT alice",
+                ":alice!~alice@cloak.example AWAY :Back in five",
+                ":alice!~alice@cloak.example CHGHOST ~alice staff.example",
+                ":alice!~alice@cloak.example SETNAME :Alice Liddell",
+                ":alice!~alice@cloak.example MODE #review +v papo",
+                ":alice!~alice@cloak.example MODE alice +i",
+                ":alice!~alice@cloak.example TOPIC #review :Release 0.1 review",
+                ":alice!~alice@cloak.example KICK #review papo :Flooding",
+                ":alice!~alice@cloak.example INVITE papo #ops",
+                ":alice!~alice@cloak.example RENAME #review #release :Release review",
+                ":ergo.test 761 papo alice display-name * :Alice Liddell",
+                "@msgid=RfcBTzyxY120010 :alice!~alice@cloak.example PRIVMSG papo :can you review 142?",
+                "@msgid=RfcBTzyxY120011 :papo!~papo@localhost PRIVMSG alice :looking now",
+                ":alice!~alice@cloak.example NOTICE papo :build 142 is green",
+                ":alice!~alice@cloak.example PRIVMSG papo :\x01VERSION\x01",
+                "@+example/status=ready :alice!~alice@cloak.example TAGMSG #review",
+                "@+draft/react=👍;+draft/reply=RfcBTzyxY120010 :papo!~papo@localhost TAGMSG alice",
+                ":alice!~alice@cloak.example REDACT papo RfcBTzyxY120010 :sent too early",
+                "@+typing=active :alice!~alice@cloak.example TAGMSG papo",
+            ] {
+                let (mut session, shared) = joined_review();
+                server(&mut session, &shared, line);
+                let current = |nick: &str| {
+                    crate::UserHandle::from_current_state(
+                        session.state().casemapping().nick(nick),
+                        Some(&shared),
+                    )
+                };
+                let alice = current("alice");
+                let own = current("papo");
+                let arrived: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+                server(
+                    &mut session,
+                    &shared,
+                    ":alice!~alice@cloak.example QUIT :Quit: bye",
+                );
+                server(
+                    &mut session,
+                    &shared,
+                    ":mallory!~mallory@users.example NICK alice",
+                );
+                while session.poll_event().is_some() {}
+
+                let named: Vec<_> = arrived
+                    .into_iter()
+                    .filter_map(|event| mapped(&session, &shared, event))
+                    .flat_map(|event| people(&event))
+                    .collect();
+                assert!(named.contains(&alice), "{line} named {named:?}");
+                for person in named {
+                    assert!(person == alice || person == own, "{line} named {person:?}");
+                }
+            }
+        }
+
+        #[test]
         fn people_are_a_line_actor_and_its_private_peer() {
             use super::identity::{joined_review, mapped, server};
 
