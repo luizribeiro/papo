@@ -376,3 +376,30 @@ async fn a_metadata_clear_resolves_to_the_keys_the_server_cleared() {
         assert_eq!(cleared, expected, "{replies:?}");
     }
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_subscription_refused_past_the_limit_still_subscribes_the_other_keys() {
+    let result = answered(
+        METADATA,
+        |client| client.metadata().subscribe([display_name(), crate::MetadataKey::new("avatar")]),
+        "@label=0 METADATA * SUB display-name avatar",
+        &[
+            "@label=0 :ergo.test BATCH +8 labeled-response",
+            "@time=2026-11-15T20:12:30.609Z;batch=8 :ergo.test FAIL METADATA LIMIT_REACHED avatar 100 :Too many subscriptions",
+            "@time=2026-11-15T20:12:30.609Z;batch=8 :ergo.test 770 papo-driver display-name",
+            "@time=2026-11-15T20:12:30.609Z;batch=8 :ergo.test 774 * *ALL 0 :Try again later",
+            ":ergo.test BATCH -8",
+        ],
+    )
+    .await;
+    assert!(result.is_ok(), "{result:?}");
+
+    let refused = answered(
+        METADATA,
+        |client| client.metadata().subscribe([display_name()]),
+        "@label=0 METADATA * SUB display-name",
+        &["@time=2026-11-15T20:12:33.612Z;label=0 :ergo.test FAIL METADATA LIMIT_REACHED display-name 100 :Too many subscriptions"],
+    )
+    .await;
+    assert!(matches!(refused, Err(Error::Server(_))), "{refused:?}");
+}

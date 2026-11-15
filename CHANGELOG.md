@@ -129,6 +129,9 @@ server echoed in `RENAME`.
 `Metadata::set` and `Metadata::set_on` resolve to the `MetadataValue` the server stored, and
 `Metadata::clear` and `Metadata::clear_on` to the keys it cleared.
 
+`Metadata::subscribe` succeeds when the server subscribed any key, even if it refused others past
+its limit with a `FAIL`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

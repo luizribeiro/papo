@@ -358,6 +358,9 @@ impl Metadata {
 
     /// Subscribes to metadata keys.
     ///
+    /// A server may refuse some keys, for example past its subscription limit, while it
+    /// subscribes the others; the request succeeds when any key was subscribed.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
@@ -371,12 +374,20 @@ impl Metadata {
         I: IntoIterator<Item = S>,
         S: Into<crate::MetadataKey>,
     {
-        self.action(MetadataCommand::__sub(
+        let client = self.client.clone();
+        let command = MetadataCommand::__sub(
             keys.into_iter()
                 .map(Into::into)
                 .map(crate::MetadataKey::into_string)
                 .collect(),
-        ))
+        );
+        crate::RequestFuture::new(async move {
+            let response = client.core_request(CoreRequest::Metadata(command)).await?;
+            if subscribed(&response).next().is_some() {
+                return Ok(());
+            }
+            crate::requests::empty(&response)
+        })
     }
 
     /// Unsubscribes from metadata keys.
@@ -427,6 +438,22 @@ impl Metadata {
                 .map(drop)
         })
     }
+}
+
+fn subscribed(response: &papo_core::Response) -> impl Iterator<Item = crate::MetadataKey> + '_ {
+    response
+        .lines
+        .iter()
+        .map(papo_proto::Line::as_ref)
+        .filter(|line| {
+            line.command() == papo_proto::Command::Numeric(papo_proto::Numeric::RPL_METADATASUBOK)
+        })
+        .flat_map(|line| {
+            line.params()
+                .skip(1)
+                .map(crate::MetadataKey::new)
+                .collect::<Vec<_>>()
+        })
 }
 
 #[cfg(all(test, not(browser)))]
