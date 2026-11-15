@@ -1,10 +1,8 @@
 pub(crate) mod accounts;
-#[cfg(feature = "unstable")]
-pub(crate) mod bouncer;
 pub(crate) mod extras;
 pub(crate) mod history;
 pub(crate) mod metadata;
 #[cfg(feature = "unstable")]
-pub(crate) mod persistence;
+mod unstable;
 #[cfg(feature = "unstable")]
-pub(crate) mod webpush;
+pub(crate) use unstable::{bouncer, persistence, webpush};
