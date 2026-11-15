@@ -269,3 +269,18 @@ async fn every_path_from_an_ops_only_line_reaches_the_audience_it_names() {
     }
     ops.finish().await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_loop_matching_only_messages_never_sees_an_ops_only_line() {
+    let mut ops = OpsChannel::joined().await;
+    server_line(&mut ops.server, OPS_ONLY).await;
+    server_line(&mut ops.server, PUBLIC).await;
+
+    let seen = loop {
+        if let Some(Event::Message(message)) = ops.events.next().await.map(|(event, _)| event) {
+            break message;
+        }
+    };
+    assert_eq!(seen.raw_text, "deploying now");
+    ops.finish().await;
+}
