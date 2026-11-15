@@ -1906,16 +1906,6 @@ fn event_handle(
     )
 }
 
-fn current_source(
-    source: Source,
-    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
-) -> Source {
-    match source {
-        Source::User(user) => Source::User(event_handle(&user, None, state, false)),
-        Source::Server(server) => Source::Server(server),
-    }
-}
-
 fn attach_user_message_handle(
     actor: &mut crate::UserHandle,
     authorship: Authorship,
@@ -2158,6 +2148,12 @@ pub(crate) fn from_core_with_receipt(
     };
     let user_at_arrival = |nick, account, token| {
         crate::UserHandle::from_event(nick, account, Some(token), handle_state, false)
+    };
+    let source_at_arrival = |source, token| match source {
+        Source::User(user) => {
+            Source::User(user_at_arrival(user.nick(), user.account().clone(), token))
+        }
+        Source::Server(server) => Source::Server(server),
     };
     let channel_handle = |channel: ChannelName| {
         let channel = origin.__channel(channel.casemapping(), channel.into_string());
@@ -2544,6 +2540,7 @@ pub(crate) fn from_core_with_receipt(
             token,
             facts,
             actor,
+            actor_token,
             authorship,
             subject_authorship,
             reason,
@@ -2559,7 +2556,7 @@ pub(crate) fn from_core_with_receipt(
             ) else {
                 return CoreEvent::Unknown;
             };
-            let actor = current_source(actor, handle_state);
+            let actor = source_at_arrival(actor, actor_token);
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2585,7 +2582,9 @@ pub(crate) fn from_core_with_receipt(
             envelope,
             channel,
             subject,
+            token,
             actor,
+            actor_token,
             authorship,
             subject_authorship,
             ..
@@ -2594,10 +2593,8 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = actor_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let actor = current_source(actor, handle_state);
-            let reply_token = actor.user().and_then(|user| {
-                reply_state.map(|state| state.__reply_token_for(user.nick().as_str()))
-            });
+            let actor = source_at_arrival(actor, actor_token);
+            let reply_token = actor.user().map(|_| actor_token);
             let receipt = crate::message_ref::Receipt::without_recipient(
                 actor.clone(),
                 reply_token,
@@ -2609,7 +2606,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel),
-                subject: crate::UserHandle::from_current_state(subject, handle_state),
+                subject: user_at_arrival(subject, Account::Unknown, token),
                 actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
@@ -2771,7 +2768,9 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::ModeChanged {
             envelope,
             subject,
+            subject_token,
             actor,
+            actor_token,
             authorship,
             own_nick,
             changes,
@@ -2787,7 +2786,7 @@ pub(crate) fn from_core_with_receipt(
             ) else {
                 return CoreEvent::Unknown;
             };
-            let actor = current_source(actor, handle_state);
+            let actor = source_at_arrival(actor, actor_token);
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2796,9 +2795,9 @@ pub(crate) fn from_core_with_receipt(
                     papo_core::Subject::Channel(channel) => {
                         crate::Subject::Channel(channel_handle(channel))
                     }
-                    papo_core::Subject::User(nick) => crate::Subject::User(
-                        crate::UserHandle::from_current_state(nick, handle_state),
-                    ),
+                    papo_core::Subject::User(nick) => {
+                        crate::Subject::User(user_at_arrival(nick, Account::Unknown, subject_token))
+                    }
                     _ => return CoreEvent::Unknown,
                 },
                 actor,
@@ -6594,6 +6593,7 @@ mod tests {
                 ":papo!~papo@localhost JOIN #review",
                 ":alice!~alice@cloak.example JOIN #review",
                 ":mallory!~mallory@users.example JOIN #review",
+                ":dave!~dave@users.example JOIN #review",
             ] {
                 server(&mut session, &shared, line);
             }
@@ -6709,6 +6709,63 @@ mod tests {
                     line: ":alice!~alice@cloak.example NICK alicia",
                     subject: "alicia",
                     person: |event| event.as_nick_changed().map(|changed| changed.actor.clone()),
+                },
+            ] {
+                assert_person_at_arrival(&case);
+            }
+        }
+
+        fn user_source(source: &crate::Source) -> Option<UserHandle> {
+            source.user().cloned()
+        }
+
+        #[test]
+        fn actors_and_subjects_name_the_person_at_arrival() {
+            for case in [
+                Case {
+                    name: "KICK actor",
+                    line: ":alice!~alice@cloak.example KICK #review dave :Flooding",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_kicked()
+                            .and_then(|kicked| user_source(&kicked.actor))
+                    },
+                },
+                Case {
+                    name: "MODE actor",
+                    line: ":alice!~alice@cloak.example MODE #review +v dave",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_mode_changed()
+                            .and_then(|changed| user_source(&changed.actor))
+                    },
+                },
+                Case {
+                    name: "user MODE subject",
+                    line: ":alice!~alice@cloak.example MODE alice +i",
+                    subject: "alice",
+                    person: |event| match event.as_mode_changed().map(|changed| &changed.subject) {
+                        Some(crate::Subject::User(user)) => Some(user.clone()),
+                        _ => None,
+                    },
+                },
+                Case {
+                    name: "INVITE actor",
+                    line: ":alice!~alice@cloak.example INVITE papo #ops",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_invited()
+                            .and_then(|invited| user_source(&invited.actor))
+                    },
+                },
+                Case {
+                    name: "INVITE subject",
+                    line: ":dave!~dave@users.example INVITE alice #review",
+                    subject: "alice",
+                    person: |event| event.as_invited().map(|invited| invited.subject.clone()),
                 },
             ] {
                 assert_person_at_arrival(&case);
