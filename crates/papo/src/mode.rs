@@ -861,16 +861,9 @@ fn same_change(state: &crate::State, left: &ModeChange, right: &ModeChange) -> b
         (Some(ModeArg::Mask(left)), Some(ModeArg::Mask(right))) => {
             state.same_list_entry(left, right.as_str())
         }
-        (
-            Some(ModeArg::Member {
-                user: left,
-                prefix: left_prefix,
-            }),
-            Some(ModeArg::Member {
-                user: right,
-                prefix: right_prefix,
-            }),
-        ) => left_prefix == right_prefix && left.reported_nick() == right.reported_nick(),
+        (Some(ModeArg::Member { user: left, .. }), Some(ModeArg::Member { user: right, .. })) => {
+            left.reported_nick() == right.reported_nick()
+        }
         (left, right) => left == right,
     }
 }
@@ -1095,6 +1088,43 @@ mod tests {
             )
             .is_empty()
         );
+    }
+
+    #[test]
+    fn member_echo_confirms_only_the_named_member() {
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            ":ergo.test 005 papo CHANMODES=beI,k,l,imnst PREFIX=(ov)@+ CASEMAPPING=rfc1459 :supported",
+            ":papo!papo@localhost JOIN #papo",
+            ":Alice!~alice@cloak.example JOIN #papo",
+        ] {
+            session.handle_line(crate::rt::now_mono(), line.as_bytes());
+        }
+        let client = crate::driver::test_support::client_with_commands(&session).0;
+        let state = client.state();
+        let alice = client.query("alice").unwrap();
+        assert!(alice.proof().is_some());
+        let op = crate::ModeChange::new(
+            'o',
+            crate::ModeAction::Add,
+            Some(crate::ModeArg::Member {
+                user: alice,
+                prefix: crate::Prefix::__new('o', '@'),
+            }),
+        );
+        for (line, confirms) in [
+            (":papo!papo@localhost MODE #papo +o bob", false),
+            (":papo!papo@localhost MODE #papo +v alice", false),
+            (":papo!papo@localhost MODE #papo +o alice", true),
+        ] {
+            let applied = confirmed(
+                &response_with(&[line]),
+                &state,
+                "#papo",
+                std::slice::from_ref(&op),
+            );
+            assert_eq!(applied.len(), usize::from(confirms), "{line}");
+        }
     }
 
     #[test]
