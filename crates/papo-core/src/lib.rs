@@ -4027,6 +4027,7 @@ impl Session {
         self.isupport.handle_connected();
         self.sasl.handle_connected();
         self.nick_regain.reset();
+        self.ops_only.clear();
         self.state
             .reset(&self.config, Casemapping::default(), self.isupport.value());
         self.state_generation = self.state_generation.wrapping_add(1);

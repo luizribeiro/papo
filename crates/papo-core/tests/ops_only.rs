@@ -20,6 +20,11 @@ fn ergo_with_caps(now: Instant, caps: &str, lines: &[&str]) -> Session {
     let mut config = Config::default();
     config.rate_limit = RateLimit::unlimited();
     let mut session = Session::new(config);
+    connect(&mut session, now, caps, lines);
+    session
+}
+
+fn connect(session: &mut Session, now: Instant, caps: &str, lines: &[&str]) {
     session.handle_connected(now);
     let ls = format!(":ergo.test CAP * LS :{caps}");
     let ack = format!(":ergo.test CAP * ACK :{caps}");
@@ -36,7 +41,6 @@ fn ergo_with_caps(now: Instant, caps: &str, lines: &[&str]) -> Session {
     }
     while session.poll_transmit().is_some() {}
     while session.poll_event().is_some() {}
-    session
 }
 
 fn line(wire: &str) -> Line {
@@ -224,4 +228,16 @@ fn a_multiline_ops_only_message_is_remembered_by_its_batch_id() {
     assert!(refused_as(&session.send(now, line(reaction)), '@'));
     let history = "@+draft/reply=w7qk3nduhyr9e5zmtx2gpfa8cs BATCH +h1 chathistory #ops";
     assert_eq!(session.send(now, line(history)), Ok(()));
+}
+
+#[test]
+fn a_reconnect_forgets_the_previous_connections_ops_only_ids() {
+    let now = Instant::now();
+    let mut session = ergo(now, &[OPS_ONLY]);
+    let public = "@+draft/reply=bc3fyyzsmb8ip7aiti6gakzmja PRIVMSG #ops :rotated, yes";
+    assert!(refused_as(&session.send(now, line(public)), '@'));
+
+    session.handle_disconnected(now);
+    connect(&mut session, now, "", &[]);
+    assert_eq!(session.send(now, line(public)), Ok(()));
 }

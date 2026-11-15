@@ -32,6 +32,11 @@ impl OpsOnlyLines {
             self.audiences.remove(&oldest);
         }
     }
+
+    pub(crate) fn clear(&mut self) {
+        self.order.clear();
+        self.audiences.clear();
+    }
 }
 
 /// Where a line goes: a text or tag message's target, or a multiline batch's.
