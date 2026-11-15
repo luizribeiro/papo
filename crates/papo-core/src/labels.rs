@@ -427,7 +427,7 @@ impl Session {
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
             && matches!(
                 message.as_ref().command(),
-                Command::Privmsg | Command::Notice
+                Command::Privmsg | Command::Notice | Command::Tagmsg
             );
         let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE);
         let label = labelled.then(|| encode_label(id.0));

@@ -1824,7 +1824,7 @@ pub struct Response {
 }
 
 impl Response {
-    /// Returns identifiers assigned to an echoed `PRIVMSG` or `NOTICE`.
+    /// Returns identifiers assigned to an echoed `PRIVMSG`, `NOTICE` or `TAGMSG`.
     #[must_use]
     pub fn sent(&self) -> Option<SentInfo> {
         self.sent.clone()
