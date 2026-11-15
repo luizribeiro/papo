@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 mod history_message;
 mod ops_only;
 mod reactions;
+mod sends;
 
 macro_rules! disconnected {
     () => {
