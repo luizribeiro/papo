@@ -69,11 +69,9 @@ impl Session {
             let enabled_features = self.supported_features();
             self.outbox.event(Event::Response(Response {
                 id,
-                sent: if request.sent {
-                    sent_info(message)
-                } else {
-                    None
-                },
+                sent: (request.sent && is_echoed(message.command()))
+                    .then(|| sent_info(message))
+                    .flatten(),
                 lines,
                 history: None,
                 history_targets: None,
@@ -425,10 +423,7 @@ impl Session {
         self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
-            && matches!(
-                message.as_ref().command(),
-                Command::Privmsg | Command::Notice | Command::Tagmsg
-            );
+            && is_echoed(message.as_ref().command());
         let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE);
         let label = labelled.then(|| encode_label(id.0));
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
@@ -474,6 +469,13 @@ pub(super) fn encode_label(mut value: u64) -> String {
             return String::from_utf8(buffer[index..].to_vec()).expect("labels are ASCII");
         }
     }
+}
+
+fn is_echoed(command: Command) -> bool {
+    matches!(
+        command,
+        Command::Privmsg | Command::Notice | Command::Tagmsg
+    )
 }
 
 #[cfg(test)]

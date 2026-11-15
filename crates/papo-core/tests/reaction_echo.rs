@@ -140,3 +140,18 @@ fn a_dropped_reaction_times_out() {
         Some(Event::RequestTimedOut { id: timed_out, .. }) if timed_out == id
     ));
 }
+
+#[test]
+fn only_our_echo_carries_a_reaction_identity() {
+    let now = Instant::now();
+    let mut session = ergo(now, ECHO_CAPS);
+    session
+        .request_silent(now, reaction("#papo", "+draft/react", "👍"))
+        .unwrap();
+    let response = respond(
+        &mut session,
+        now,
+        "@msgid=ripxp4ezdb76is6ep47ic7rexa;time=2026-11-15T17:42:12.749Z;label=0 :ergo.test ACK",
+    );
+    assert_eq!(response.sent(), None);
+}
