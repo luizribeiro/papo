@@ -26,6 +26,10 @@ fn person(event: &Event) -> Option<(&'static str, UserHandle)> {
         Event::ModeChanged(changed) => Some(("MODE", user(&changed.actor)?)),
         Event::TopicChanged(changed) => Some(("TOPIC", user(&changed.actor)?)),
         Event::Kicked(kicked) => Some(("KICK", user(&kicked.actor)?)),
+        Event::ReadMarkerChanged(marker) => match &marker.conversation {
+            papo::Conversation::Private(peer) => Some(("MARKREAD peer", peer.clone())),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -42,6 +46,7 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
         "away-notify",
         "batch",
         "chghost",
+        "draft/read-marker",
         "labeled-response",
         "setname",
     ])
@@ -76,6 +81,7 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
         "@batch=whois :alice!~alice@staff.example MODE #review +v dave".to_owned(),
         "@batch=whois :alice!~alice@staff.example TOPIC #review :Release 0.1 review".to_owned(),
         "@batch=whois :alice!~alice@staff.example KICK #review dave :Flooding".to_owned(),
+        "@batch=whois MARKREAD alice timestamp=2026-11-15T09:30:00.000Z".to_owned(),
         "@batch=whois :alice!~alice@staff.example QUIT :Quit: bye".to_owned(),
         "@batch=whois :mallory!~mallory@users.example NICK alice".to_owned(),
         "@batch=whois :offline.test 318 papo-wire alice :End of /WHOIS list".to_owned(),
@@ -88,7 +94,7 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
     let newcomer = client.query("alice").unwrap();
     assert_ne!(alice, newcomer);
     let mut seen = Vec::new();
-    while seen.len() < 7 {
+    while seen.len() < 8 {
         let event = next_event(&mut events).await;
         let Some((line, user)) = person(&event) else {
             continue;
@@ -103,7 +109,14 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
     assert_eq!(
         seen,
         [
-            "ACCOUNT", "AWAY", "CHGHOST", "SETNAME", "MODE", "TOPIC", "KICK"
+            "ACCOUNT",
+            "AWAY",
+            "CHGHOST",
+            "SETNAME",
+            "MODE",
+            "TOPIC",
+            "KICK",
+            "MARKREAD peer"
         ]
     );
     assert!(matches!(
