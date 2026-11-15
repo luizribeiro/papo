@@ -57,6 +57,12 @@ the line's own audience. `papo_bot::Command::private_notice` no longer threads i
 `Message::channel_context()` and `Notice::channel_context` are a `Conversation` to file a private
 line under, not a sendable `ChannelHandle`, so answering a DM cannot reach the whole channel.
 
+papo remembers the ids of the last 1024 status-prefixed lines each connection received, including
+echoes of its own, and refuses a reply, reaction or `REDACT` that points at one of them with
+`InvalidInput::WiderThanReferenced` unless it goes to the same sign or a higher-ranked one on the
+same channel. Nothing is written and nothing is retried. In `papo-core`, `Session::send` and its
+tracked variants now fail with `RequestError` instead of `BuildError`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
