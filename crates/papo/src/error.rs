@@ -1192,7 +1192,7 @@ mod tests {
             InvalidInput::TlsConfig("invalid PEM".into()),
             InvalidInput::KnownCapability {
                 capability: "chathistory".into(),
-                feature: "History",
+                feature: crate::Feature::History,
             },
             InvalidInput::UnstableCapability("draft/persistence".into()),
             InvalidInput::ManagedCapability("sts".into()),
