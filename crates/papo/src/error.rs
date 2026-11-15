@@ -9,6 +9,8 @@ mod connect_display;
 #[cfg_attr(browser, path = "error/classify_browser.rs")]
 #[cfg_attr(sockets, path = "error/classify_sockets.rs")]
 mod transport_classify;
+#[cfg(feature = "unstable")]
+mod unstable;
 
 /// Broad classification of a connection or login failure.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -625,6 +627,10 @@ impl Error {
 
     pub(crate) fn request(error: papo_core::RequestError) -> Self {
         use papo_core::RequestError as Request;
+        #[cfg(feature = "unstable")]
+        if let Some(input) = unstable::invalid_input(&error) {
+            return Self::InvalidInput(input);
+        }
         match error {
             Request::Build(error) => Self::InvalidInput(InvalidInput::WireMessage(error)),
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
@@ -661,14 +667,6 @@ impl Error {
             Request::TooManyMetadataSubscriptions {
                 maximum, actual, ..
             } => Self::InvalidInput(InvalidInput::TooManyMetadataSubscriptions { maximum, actual }),
-            #[cfg(feature = "unstable")]
-            Request::InvalidRelayNickname => Self::InvalidInput(InvalidInput::InvalidRelayNickname),
-            #[cfg(feature = "unstable")]
-            Request::InvalidWebPushEndpoint => {
-                Self::InvalidInput(InvalidInput::InvalidWebPushEndpoint)
-            }
-            #[cfg(feature = "unstable")]
-            Request::InvalidWebPushKey => Self::InvalidInput(InvalidInput::InvalidWebPushKey),
             _ => Self::InvalidInput(InvalidInput::InvalidRequest(error.to_string())),
         }
     }
@@ -751,26 +749,6 @@ mod tests {
         assert_eq!(standard.numeric(), None);
         assert_eq!(standard.code(), "INVALID_PARAMS");
         assert_eq!(standard.params(), ["LATEST"]);
-    }
-
-    #[cfg(feature = "unstable")]
-    #[test]
-    fn unscoped_bouncer_network_failures_remain_other() {
-        for code in [
-            "INVALID_NETID",
-            "INVALID_ATTRIBUTE",
-            "READ_ONLY_ATTRIBUTE",
-            "UNKNOWN_ATTRIBUTE",
-            "NEED_ATTRIBUTE",
-        ] {
-            let error = ServerError::from_core(papo_core::ServerError::__standard(
-                "BOUNCER".into(),
-                code.into(),
-                vec!["CHANGENETWORK".into(), "42".into()],
-                "Network request rejected".into(),
-            ));
-            assert_eq!(error.refusal(), Refusal::Other);
-        }
     }
 
     #[test]
@@ -1112,24 +1090,6 @@ mod tests {
                 actual: 11,
             })
         ));
-
-        #[cfg(feature = "unstable")]
-        for (request, expected) in [
-            (
-                Request::InvalidRelayNickname,
-                InvalidInput::InvalidRelayNickname,
-            ),
-            (
-                Request::InvalidWebPushEndpoint,
-                InvalidInput::InvalidWebPushEndpoint,
-            ),
-            (Request::InvalidWebPushKey, InvalidInput::InvalidWebPushKey),
-        ] {
-            assert!(matches!(
-                Error::request(request),
-                Error::InvalidInput(actual) if actual == expected
-            ));
-        }
     }
 
     #[test]
@@ -1336,15 +1296,6 @@ mod tests {
         ];
         for (error, expected) in cases {
             assert_eq!(error.to_string(), expected, "{error:?}");
-        }
-
-        #[cfg(feature = "unstable")]
-        for error in [
-            InvalidInput::InvalidRelayNickname,
-            InvalidInput::InvalidWebPushEndpoint,
-            InvalidInput::InvalidWebPushKey,
-        ] {
-            assert!(!error.to_string().is_empty());
         }
     }
 
