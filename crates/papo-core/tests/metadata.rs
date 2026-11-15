@@ -888,3 +888,78 @@ fn encodes_list_remove_clear_and_sync() {
         .client("METADATA alice CLEAR")
         .client("METADATA #papo SYNC");
 }
+
+fn labelled_metadata_session(now: std::time::Instant) -> papo_core::Session {
+    let caps = "batch draft/metadata-2 labeled-response message-tags server-time";
+    let mut session = papo_core::Session::new(
+        Config::default()
+            .nick("alice")
+            .wanted_caps(caps.split(' '))
+            .rate_limit(papo_core::RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, format!(":ergo.test CAP * LS :{caps}").as_bytes());
+    session.handle_line(now, format!(":ergo.test CAP * ACK :{caps}").as_bytes());
+    session.handle_line(now, b":ergo.test 001 alice :Welcome to Ergo");
+    session.handle_line(now, b":ergo.test 422 alice :MOTD File is missing");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session
+}
+
+fn metadata_reply(
+    command: MetadataCommand,
+    lines: &[&str],
+) -> Vec<(MetadataKey, Option<papo_core::MetadataValue>)> {
+    let now = std::time::Instant::now();
+    let mut session = labelled_metadata_session(now);
+    session.metadata(now, command).unwrap();
+    for line in lines {
+        session.handle_line(now, line.as_bytes());
+    }
+    std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response.metadata()),
+            _ => None,
+        })
+        .expect("the reply ends the request")
+}
+
+#[test]
+fn a_response_reports_the_metadata_values_ergo_stored_or_cleared() {
+    let stored = metadata_reply(
+        MetadataCommand::__set("*".into(), "display-name".into(), Some("Alice A".into())),
+        &[
+            "@time=2026-11-15T20:11:32.195Z;label=0 :ergo.test 761 alice alice display-name * :Alice A",
+        ],
+    );
+    let [(stored_key, Some(stored_value))] = stored.as_slice() else {
+        panic!("one stored value expected, got {stored:?}");
+    };
+    assert_eq!(*stored_key, key("display-name"));
+    assert_eq!(stored_value.value, "Alice A");
+    assert_eq!(stored_value.visibility, papo_core::Visibility::Public);
+
+    let cleared = metadata_reply(
+        MetadataCommand::__clear("*".into()),
+        &[
+            "@time=2026-11-15T20:11:38.200Z;label=0 :ergo.test BATCH +5 metadata alice",
+            "@time=2026-11-15T20:11:38.200Z;batch=5 :ergo.test 766 alice alice avatar :Metadata value cleared",
+            "@time=2026-11-15T20:11:38.200Z;batch=5 :ergo.test 766 alice alice display-name :Metadata value cleared",
+            "@time=2026-11-15T20:11:38.200Z :ergo.test BATCH -5",
+        ],
+    );
+    assert_eq!(
+        cleared,
+        [(key("avatar"), None), (key("display-name"), None)]
+    );
+
+    let nothing_set = metadata_reply(
+        MetadataCommand::__clear("*".into()),
+        &[
+            "@label=0;time=2026-11-15T20:11:39.703Z :ergo.test BATCH +6 metadata alice",
+            "@time=2026-11-15T20:11:39.703Z :ergo.test BATCH -6",
+        ],
+    );
+    assert_eq!(nothing_set, []);
+}

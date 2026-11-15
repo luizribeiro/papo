@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::{Line, MetadataKey};
+use papo_proto::{Command, Line, MetadataKey, Numeric};
 
 use crate::{Capabilities, Feature, RequestError, RequestId, Session, cap, state::StateGrowth};
 
@@ -31,6 +31,32 @@ impl Visibility {
         } else {
             Self::Restricted(value.to_owned())
         }
+    }
+}
+
+impl crate::Response {
+    /// Returns each key this response reports, with its stored value, or `None` for a key the
+    /// server reported as not set (`RPL_KEYNOTSET`).
+    #[must_use]
+    pub fn metadata(&self) -> Vec<(MetadataKey, Option<MetadataValue>)> {
+        self.lines
+            .iter()
+            .filter_map(|line| {
+                let line = line.as_ref();
+                let key = MetadataKey::new(line.param(2)?);
+                match line.command() {
+                    Command::Numeric(Numeric::RPL_KEYVALUE) => Some((
+                        key,
+                        Some(MetadataValue {
+                            visibility: Visibility::from_wire(line.param(3)?),
+                            value: line.param(4)?.to_owned(),
+                        }),
+                    )),
+                    Command::Numeric(Numeric::RPL_KEYNOTSET) => Some((key, None)),
+                    _ => None,
+                }
+            })
+            .collect()
     }
 }
 

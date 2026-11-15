@@ -2180,6 +2180,8 @@ impl papo_core::Response
 pub fn papo_core::Response::error(&self) -> core::option::Option<papo_core::ServerError>
 pub fn papo_core::Response::refusal(&self) -> core::option::Option<papo_core::Refusal>
 pub fn papo_core::Response::sent(&self) -> core::option::Option<papo_core::SentInfo>
+impl papo_core::Response
+pub fn papo_core::Response::metadata(&self) -> alloc::vec::Vec<(papo::MetadataKey, core::option::Option<papo_core::MetadataValue>)>
 impl core::clone::Clone for papo_core::Response
 pub fn papo_core::Response::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Response
