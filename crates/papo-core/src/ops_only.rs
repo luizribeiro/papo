@@ -22,9 +22,10 @@ pub(crate) struct OpsOnlyLines {
 
 impl OpsOnlyLines {
     fn remember(&mut self, msgid: String, audience: Audience) {
-        if self.audiences.insert(msgid.clone(), audience).is_some() {
+        if self.audiences.contains_key(&msgid) {
             return;
         }
+        self.audiences.insert(msgid.clone(), audience);
         self.order.push_back(msgid);
         if self.order.len() > REMEMBERED
             && let Some(oldest) = self.order.pop_front()

@@ -297,3 +297,13 @@ fn a_refused_ops_only_redaction_is_reported_and_never_retried() {
         assert_eq!(session.poll_transmit(), None, "{refusal}");
     }
 }
+
+#[test]
+fn a_repeated_id_keeps_the_audience_it_first_reached() {
+    let now = Instant::now();
+    let repeat =
+        "@msgid=bc3fyyzsmb8ip7aiti6gakzmja :oppy!~oppy@cloak.example PRIVMSG +#ops :key rotated";
+    let mut session = ergo(now, &[OPS_ONLY, repeat]);
+    let voiced = "@+draft/reply=bc3fyyzsmb8ip7aiti6gakzmja PRIVMSG +#ops :rotated, yes";
+    assert!(refused_as(&session.send(now, line(voiced)), '@'));
+}
