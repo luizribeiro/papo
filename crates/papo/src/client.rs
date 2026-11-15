@@ -1704,6 +1704,7 @@ impl Client {
                             })
                         {
                             return Ok(crate::KickbanOutcome {
+                                ban,
                                 kick: Err(Error::TargetGone),
                             });
                         }
@@ -1711,6 +1712,7 @@ impl Client {
 
                     Ok(crate::KickbanOutcome {
                         kick: kick_resolved(&client, channel, nick, reason).await,
+                        ban,
                     })
                 }
                 .await;

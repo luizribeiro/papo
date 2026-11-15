@@ -6304,7 +6304,9 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
         b"@label=1 :papo-driver!papo@localhost KICK #papo alice :repeated flooding\r\n",
     )
     .await;
-    assert!(within(success).await.unwrap().unwrap().kick.is_ok());
+    let outcome = within(success).await.unwrap().unwrap();
+    assert_eq!(outcome.ban.as_str(), "alice");
+    assert!(outcome.kick.is_ok());
 
     let refused = tokio::spawn({
         let client = client.clone();
@@ -6339,6 +6341,7 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
     )
     .await;
     let outcome = within(duplicate).await.unwrap().unwrap();
+    assert_eq!(outcome.ban.as_str(), "bob!*@*");
     assert!(matches!(
         outcome.kick,
         Err(Error::Server(error)) if error.refusal() == crate::Refusal::CannotKickProtected
@@ -6381,7 +6384,9 @@ async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
         b"@label=2 :papo-driver!papo@localhost KICK #papo alice :flooding\r\n",
     )
     .await;
-    assert!(within(fetched).await.unwrap().unwrap().kick.is_ok());
+    let outcome = within(fetched).await.unwrap().unwrap();
+    assert_eq!(outcome.ban.as_str(), "alice");
+    assert!(outcome.kick.is_ok());
 
     server_line(
         &mut server,
@@ -6410,7 +6415,9 @@ async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
         b"@label=4 :papo-driver!papo@localhost KICK #papo bob :flooding\r\n",
     )
     .await;
-    assert!(within(tracked).await.unwrap().unwrap().kick.is_ok());
+    let outcome = within(tracked).await.unwrap().unwrap();
+    assert_eq!(outcome.ban.as_str(), "bob");
+    assert!(outcome.kick.is_ok());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -6480,6 +6487,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
     )
     .await;
     let outcome = within(departed).await.unwrap().unwrap();
+    assert_eq!(outcome.ban.as_str(), "carol");
     assert!(matches!(outcome.kick, Err(Error::TargetGone)));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
