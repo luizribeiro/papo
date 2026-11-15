@@ -643,8 +643,8 @@ pub(crate) fn incoming_from_core(
 ) -> Event {
     let reply_token = received.__reply_token();
     let tokens = LineTokens {
-        actor: Some(reply_token),
-        peer: None,
+        actor: Some(received.__source_token()),
+        peer: Some(reply_token),
     };
     let channel_guard = received.__channel_guard().cloned().filter(|guard| {
         handle_state.is_some_and(|state| {
@@ -715,8 +715,13 @@ pub(crate) fn incoming_from_core(
         attach_message_handles(&mut event, tokens, handle_state, false);
         return event;
     };
-    let conversation =
-        Conversation::from_core(conversation, origin, handle_state, channel_guard.clone());
+    let conversation = Conversation::at_arrival(
+        conversation,
+        origin,
+        handle_state,
+        channel_guard.clone(),
+        reply_token,
+    );
     let mut event = message_event_from_line(
         raw,
         batch_type.as_deref(),
@@ -1972,10 +1977,12 @@ pub(crate) fn attach_message_handles(
         Event::Redacted(event) => {
             if let Source::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
-                if let Conversation::Private(peer) = &mut event.conversation
-                    && event.authorship != Authorship::Own
-                {
-                    *peer = actor.clone();
+                if let Conversation::Private(peer) = &mut event.conversation {
+                    *peer = if event.authorship == Authorship::Own {
+                        event_handle(peer, tokens.peer, state, historical)
+                    } else {
+                        actor.clone()
+                    };
                 }
                 event
                     .receipt
@@ -6667,6 +6674,17 @@ mod tests {
                 Some(shared),
             ) {
                 CoreEvent::Forward(event) => Some(event),
+                CoreEvent::Line(super::super::CoreLine::Complete(line)) => {
+                    Some(super::super::incoming_from_core(
+                        line,
+                        session.state().nick().origin(),
+                        session.isupport(),
+                        false,
+                        false,
+                        UNIX_EPOCH,
+                        Some(shared),
+                    ))
+                }
                 _ => None,
             }
         }
@@ -6909,6 +6927,60 @@ mod tests {
             ] {
                 assert_person_at_arrival(&case);
             }
+        }
+
+        fn private_peer(conversation: &crate::Conversation) -> Option<UserHandle> {
+            match conversation {
+                crate::Conversation::Private(peer) => Some(peer.clone()),
+                crate::Conversation::Channel(_) => None,
+            }
+        }
+
+        #[test]
+        fn private_peers_are_the_person_at_arrival() {
+            for case in [
+                Case {
+                    name: "DM from alice",
+                    line: "@msgid=RfcBTzyxY120010 :alice!~alice@cloak.example PRIVMSG papo :can you review 142?",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_message()
+                            .and_then(|message| private_peer(&message.conversation))
+                    },
+                },
+                Case {
+                    name: "own DM to alice",
+                    line: "@msgid=RfcBTzyxY120011 :papo!~papo@localhost PRIVMSG alice :looking now",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_message()
+                            .and_then(|message| private_peer(&message.conversation))
+                    },
+                },
+            ] {
+                assert_person_at_arrival(&case);
+            }
+        }
+
+        #[test]
+        fn an_own_private_message_is_sent_by_the_own_user() {
+            let (mut session, shared) = joined_review();
+            server(
+                &mut session,
+                &shared,
+                "@msgid=RfcBTzyxY120011 :papo!~papo@localhost PRIVMSG alice :looking now",
+            );
+            let own = UserHandle::from_current_state(session.state().nick().clone(), Some(&shared));
+            let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+            let message = events
+                .into_iter()
+                .filter_map(|event| mapped(&session, &shared, event))
+                .find_map(|event| event.as_message().cloned())
+                .expect("own private message");
+            assert_eq!(message.actor, own);
+            assert_eq!(message.actor.nick(), "papo");
         }
     }
 }

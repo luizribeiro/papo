@@ -58,6 +58,26 @@ impl Conversation {
         Self::from_core(value, origin, Some(state), guard)
     }
 
+    /// Builds a live line's conversation; a private peer comes from the identity recorded
+    /// when the line arrived.
+    pub(crate) fn at_arrival(
+        value: papo_core::Conversation,
+        origin: crate::Origin,
+        state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+        guard: Option<papo_core::ChannelGuard>,
+        peer_token: papo_core::ReplyToken,
+    ) -> Self {
+        match value {
+            papo_core::Conversation::Private(nick) => Self::Private(crate::UserHandle::at_arrival(
+                origin.__nick(nick.casemapping(), nick.into_string()),
+                crate::Account::Unknown,
+                peer_token,
+                state,
+            )),
+            channel => Self::from_core(channel, origin, state, guard),
+        }
+    }
+
     pub(crate) fn from_core(
         value: papo_core::Conversation,
         origin: crate::Origin,
