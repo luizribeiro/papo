@@ -4,7 +4,7 @@ use papo_proto::{ChannelName, Command, LineRef, Nick, Prefix, Source, Typing};
 use web_time::Instant;
 
 use crate::{
-    Authorship, Conversation, Event, LineEnvelope, Session,
+    Authorship, Conversation, Event, LineEnvelope, ReplyToken, Session,
     conversation::{LineTarget, classify_line_with_names},
 };
 
@@ -35,6 +35,7 @@ pub struct TypingChanged {
     pub server_time: Option<papo_proto::ServerTime>,
     /// The user prefix associated with the typing state.
     pub actor: String,
+    actor_token: ReplyToken,
     /// Whether the user is this session's user.
     pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
@@ -53,6 +54,13 @@ pub struct TypingChanged {
 }
 
 impl TypingChanged {
+    /// Returns the typer's identity when their notification arrived.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __actor_token(&self) -> ReplyToken {
+        self.actor_token
+    }
+
     /// Returns the address that reaches the recipients of the typing notification.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -144,12 +152,14 @@ struct Deadline {
     conversation: Conversation,
     nick: Nick,
     actor: String,
+    actor_token: ReplyToken,
     status: Option<Prefix>,
     return_address: String,
     at: Instant,
 }
 
 struct TypingAddress {
+    actor_token: ReplyToken,
     status: Option<Prefix>,
     return_address: String,
 }
@@ -192,6 +202,7 @@ impl TypingTable {
         state: Typing,
     ) -> Vec<Deadline> {
         let TypingAddress {
+            actor_token,
             status,
             return_address,
         } = address;
@@ -236,6 +247,7 @@ impl TypingTable {
                 conversation: conversation.clone(),
                 nick,
                 actor,
+                actor_token,
                 status,
                 return_address,
                 at,
@@ -455,6 +467,7 @@ impl Session {
         }
         .to_owned();
         let authorship = self.authorship(message);
+        let actor_token = self.state.source_token(message);
         let server_time = LineEnvelope::from_line(message).server_time();
         if authorship == Authorship::Other {
             let nick = self.names().nick(nick);
@@ -465,6 +478,7 @@ impl Session {
                 nick,
                 actor.to_owned(),
                 TypingAddress {
+                    actor_token,
                     status,
                     return_address: return_address.clone(),
                 },
@@ -481,6 +495,7 @@ impl Session {
         self.outbox.event(Event::TypingChanged(TypingChanged {
             server_time,
             actor: actor.to_owned(),
+            actor_token,
             authorship,
             conversation,
             status,
@@ -626,6 +641,7 @@ fn stopped(
     TypingChanged {
         server_time,
         actor: deadline.actor,
+        actor_token: deadline.actor_token,
         authorship: Authorship::Other,
         conversation: deadline.conversation,
         status: deadline.status,

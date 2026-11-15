@@ -24,6 +24,7 @@ impl Session {
         self.outbox.event(Event::TagMessage(TagMessage {
             envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
+            actor_token: self.state.source_token(message),
             authorship: self.authorship(message),
             conversation,
             status,
@@ -52,6 +53,7 @@ impl Session {
         self.outbox.event(Event::Redacted(Redacted {
             envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
+            actor_token: self.state.source_token(message),
             authorship: self.authorship(message),
             conversation,
             status,

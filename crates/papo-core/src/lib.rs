@@ -2267,6 +2267,8 @@ pub struct TagMessage {
     pub envelope: LineEnvelope,
     /// Actor prefix without its leading colon.
     pub actor: String,
+    #[doc(hidden)]
+    pub actor_token: ReplyToken,
     /// Whether the actor is this session's user.
     pub authorship: Authorship,
     /// IRC conversation addressed by the message.
@@ -2298,6 +2300,8 @@ pub struct Redacted {
     pub envelope: LineEnvelope,
     /// Actor prefix without its leading colon.
     pub actor: String,
+    #[doc(hidden)]
+    pub actor_token: ReplyToken,
     /// Whether the actor is this session's user.
     pub authorship: Authorship,
     /// IRC conversation containing the message.

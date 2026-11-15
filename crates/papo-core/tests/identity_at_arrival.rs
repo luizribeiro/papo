@@ -5,7 +5,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, ReplyToken, Session};
+use papo_core::{Config, Event, ReplyToken, Session, TypingReason};
 
 struct Case {
     name: &'static str,
@@ -227,6 +227,54 @@ fn metadata_and_monitor_record_the_subject_at_arrival() {
             subject: "carol",
             token: |event| match event {
                 Event::MonitorOnline { token, .. } => Some(*token),
+                _ => None,
+            },
+        },
+    ] {
+        assert_identity_at_arrival(&case);
+    }
+}
+
+#[test]
+fn tags_redactions_and_typing_record_the_actor_at_arrival() {
+    for case in [
+        Case {
+            name: "TAGMSG",
+            line: "@+draft/react=👍;+draft/reply=RfcBTzyxY120001 :alice!~alice@cloak.example TAGMSG #review",
+            subject: "alice",
+            token: |event| match event {
+                Event::TagMessage(message) => Some(message.actor_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "REDACT",
+            line: ":alice!~alice@cloak.example REDACT #review RfcBTzyxY120001 :off-topic",
+            subject: "alice",
+            token: |event| match event {
+                Event::Redacted(redacted) => Some(redacted.actor_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "typing",
+            line: "@+typing=active :alice!~alice@cloak.example TAGMSG #review",
+            subject: "alice",
+            token: |event| match event {
+                Event::TypingChanged(change) if change.reason == TypingReason::Notified => {
+                    Some(change.__actor_token())
+                }
+                _ => None,
+            },
+        },
+        Case {
+            name: "typing stopped by the departure",
+            line: "@+typing=active :alice!~alice@cloak.example TAGMSG #review",
+            subject: "alice",
+            token: |event| match event {
+                Event::TypingChanged(change) if change.reason == TypingReason::Departed => {
+                    Some(change.__actor_token())
+                }
                 _ => None,
             },
         },

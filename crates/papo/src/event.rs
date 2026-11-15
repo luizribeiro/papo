@@ -4091,6 +4091,7 @@ mod tests {
         let redacted = papo_core::Redacted {
             envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~alice@cloak.example".into(),
+            actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
@@ -4979,6 +4980,7 @@ mod tests {
             let tag = papo_core::TagMessage {
                 envelope: papo_core::LineEnvelope::default(),
                 actor: "alice!~a@cloak".into(),
+                actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
                 authorship: papo_core::Authorship::Other,
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#ops"),
@@ -5007,6 +5009,7 @@ mod tests {
         let tag = papo_core::TagMessage {
             envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
+            actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
@@ -5020,6 +5023,7 @@ mod tests {
         let tag = papo_core::TagMessage {
             envelope: papo_core::LineEnvelope::default(),
             actor: "papo!~p@cloak".into(),
+            actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             authorship: papo_core::Authorship::Own,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: None,
@@ -5049,6 +5053,7 @@ mod tests {
         let redacted = papo_core::Redacted {
             envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
+            actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
