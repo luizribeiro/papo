@@ -65,6 +65,7 @@ impl ServerTime {
     }
 }
 
+/// Writes the RFC 3339 form at millisecond precision, which [`ServerTime::from_stored`] reads back.
 impl fmt::Display for ServerTime {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&format_millis(self.0).expect("ServerTime invariant"))
@@ -142,12 +143,6 @@ fn parse_parts(value: &str) -> Option<(i64, u32)> {
         - 719_468;
     let seconds = days * 86_400 + hour * 3_600 + minute * 60 + second.min(59);
     Some((seconds, nanos))
-}
-
-/// Formats a server timestamp as RFC 3339 at millisecond precision.
-#[must_use]
-pub fn format(time: ServerTime) -> String {
-    time.to_string()
 }
 
 fn format_millis(millis: i64) -> Option<String> {
