@@ -401,6 +401,13 @@ impl State {
         }
     }
 
+    pub(crate) fn source_token(&self, message: &LineRef<'_>) -> crate::ReplyToken {
+        match message.source() {
+            Some(ProtoSource::User { nick, .. }) => self.__reply_token_for(nick),
+            _ => self.__reply_token(),
+        }
+    }
+
     pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Authorship {
         match message.source() {
             Some(ProtoSource::User { nick, .. })
@@ -1155,6 +1162,7 @@ impl State {
                 token,
                 facts,
                 actor: Source::from_proto_with_names(source, mapping),
+                actor_token: self.source_token(message),
                 authorship,
                 subject_authorship,
                 reason: message
@@ -1371,7 +1379,9 @@ impl State {
             } else {
                 Subject::User(self.casemapping.nick(target))
             },
+            subject_token: self.__reply_token_for(target),
             actor: Source::from_proto_with_names(actor, self.casemapping),
+            actor_token: self.source_token(message),
             authorship: self.source_authorship(message),
             subject_authorship: match message.source() {
                 _ if isupport.is_channel(target) => Authorship::Other,

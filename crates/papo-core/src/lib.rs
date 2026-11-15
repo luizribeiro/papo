@@ -2905,6 +2905,8 @@ pub enum Event {
         facts: Option<User>,
         /// The user or server that issued the kick.
         actor: Source,
+        /// Identity of a user actor when the line arrived.
+        actor_token: ReplyToken,
         /// Whether the actor is this session's user.
         authorship: Authorship,
         /// Whether the removed user is this session's user.
@@ -2921,8 +2923,12 @@ pub enum Event {
         channel: ChannelName,
         /// The invited user.
         subject: Nick,
+        /// Identity of the invited user when the line arrived.
+        token: ReplyToken,
         /// The user or server prefix that sent the invitation.
         actor: String,
+        /// Identity of a user actor when the line arrived.
+        actor_token: ReplyToken,
         /// Whether the actor is this session's user.
         authorship: Authorship,
         /// Whether the invited user is this session's user.
@@ -3059,8 +3065,12 @@ pub enum Event {
         envelope: LineEnvelope,
         /// User or channel whose modes changed.
         subject: Subject,
+        /// Identity of a user subject when the line arrived.
+        subject_token: ReplyToken,
         /// The user or server that changed the modes.
         actor: Source,
+        /// Identity of a user actor when the line arrived.
+        actor_token: ReplyToken,
         /// Whether the actor is this session's user.
         authorship: Authorship,
         /// Whether the distinct subject is this session's user.
@@ -3113,14 +3123,14 @@ hidden_event_constructors! {
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Authorship) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Authorship) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Authorship) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Authorship) => HostChanged;
     __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Authorship) => RealnameChanged;
-    __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>) => MonitorOnline;
@@ -3157,11 +3167,14 @@ impl Event {
         authorship: Authorship,
         subject_authorship: Authorship,
     ) -> Self {
+        let unknown = ReplyToken::__unknown(subject.origin());
         Self::Invited {
             envelope: LineEnvelope::default(),
             channel,
             subject,
+            token: unknown,
             actor,
+            actor_token: unknown,
             authorship,
             subject_authorship,
         }

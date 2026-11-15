@@ -575,11 +575,13 @@ pub papo_core::Event::HostChanged::username: alloc::string::String
 pub papo_core::Event::Incomplete(papo_core::IncompleteMultiline)
 #[non_exhaustive] pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
+pub papo_core::Event::Invited::actor_token: ReplyToken
 pub papo_core::Event::Invited::authorship: papo_core::Authorship
 pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Invited::subject: papo::Nick
 pub papo_core::Event::Invited::subject_authorship: papo_core::Authorship
+pub papo_core::Event::Invited::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Joined
 pub papo_core::Event::Joined::actor: alloc::string::String
 pub papo_core::Event::Joined::authorship: papo_core::Authorship
@@ -591,6 +593,7 @@ pub papo_core::Event::Joined::realname: core::option::Option<alloc::string::Stri
 pub papo_core::Event::Joined::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Kicked
 pub papo_core::Event::Kicked::actor: papo_core::Source
+pub papo_core::Event::Kicked::actor_token: ReplyToken
 pub papo_core::Event::Kicked::authorship: papo_core::Authorship
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::envelope: papo_core::LineEnvelope
@@ -613,12 +616,14 @@ pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core:
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::ModeChanged
 pub papo_core::Event::ModeChanged::actor: papo_core::Source
+pub papo_core::Event::ModeChanged::actor_token: ReplyToken
 pub papo_core::Event::ModeChanged::authorship: papo_core::Authorship
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::ModeChange>
 pub papo_core::Event::ModeChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ModeChanged::own_nick: core::option::Option<papo::Nick>
 pub papo_core::Event::ModeChanged::subject: papo_core::Subject
 pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Authorship
+pub papo_core::Event::ModeChanged::subject_token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::MonitorListFull
 pub papo_core::Event::MonitorListFull::limit: usize
 pub papo_core::Event::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>

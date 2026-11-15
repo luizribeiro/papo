@@ -75,7 +75,9 @@ impl Session {
             envelope: crate::LineEnvelope::from_line(message),
             channel: casemapping.channel(channel),
             subject: casemapping.nick(nick),
+            token: self.state.__reply_token_for(nick),
             actor: by.to_owned(),
+            actor_token: self.state.source_token(message),
             authorship: self.authorship(message),
             subject_authorship: if crate::names_equal(casemapping, nick, self.nick()) {
                 Authorship::Own

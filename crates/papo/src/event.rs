@@ -4052,6 +4052,7 @@ mod tests {
                 papo_proto::Source::Server("ergo.test"),
                 Casemapping::default(),
             ),
+            papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
             papo_core::Authorship::Other,
             papo_core::Authorship::Other,
             Some(payload.into()),
@@ -5743,6 +5744,7 @@ mod tests {
                     ),
                     Casemapping::default(),
                 ),
+                papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
                 papo_core::Authorship::Other,
                 papo_core::Authorship::Other,
                 Some("Flooding".into()),
@@ -5927,7 +5929,7 @@ mod tests {
             )),
         )];
         assert!(matches!(
-            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other, papo_core::Authorship::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
+            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Authorship::Other, papo_core::Authorship::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")

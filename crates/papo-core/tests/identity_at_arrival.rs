@@ -28,6 +28,7 @@ fn joined_review() -> Session {
         ":papo!~papo@localhost JOIN #review",
         ":alice!~alice@cloak.example JOIN #review",
         ":mallory!~mallory@users.example JOIN #review",
+        ":dave!~dave@users.example JOIN #review",
     ] {
         server(&mut session, line);
     }
@@ -146,6 +147,59 @@ fn joins_and_renames_record_the_subject_at_arrival() {
             subject: "alicia",
             token: |event| match event {
                 Event::NickChanged { token, .. } => Some(*token),
+                _ => None,
+            },
+        },
+    ] {
+        assert_identity_at_arrival(&case);
+    }
+}
+
+#[test]
+fn actors_and_subjects_record_the_person_at_arrival() {
+    for case in [
+        Case {
+            name: "KICK actor",
+            line: ":alice!~alice@cloak.example KICK #review dave :Flooding",
+            subject: "alice",
+            token: |event| match event {
+                Event::Kicked { actor_token, .. } => Some(*actor_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "MODE actor",
+            line: ":alice!~alice@cloak.example MODE #review +v dave",
+            subject: "alice",
+            token: |event| match event {
+                Event::ModeChanged { actor_token, .. } => Some(*actor_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "user MODE subject",
+            line: ":alice!~alice@cloak.example MODE alice +i",
+            subject: "alice",
+            token: |event| match event {
+                Event::ModeChanged { subject_token, .. } => Some(*subject_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "INVITE actor",
+            line: ":alice!~alice@cloak.example INVITE papo #ops",
+            subject: "alice",
+            token: |event| match event {
+                Event::Invited { actor_token, .. } => Some(*actor_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "INVITE subject",
+            line: ":dave!~dave@users.example INVITE alice #review",
+            subject: "alice",
+            token: |event| match event {
+                Event::Invited { token, .. } => Some(*token),
                 _ => None,
             },
         },
