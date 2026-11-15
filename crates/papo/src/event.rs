@@ -2156,6 +2156,9 @@ pub(crate) fn from_core_with_receipt(
             prove_not_bot,
         )
     };
+    let user_at_arrival = |nick, account, token| {
+        crate::UserHandle::from_event(nick, account, Some(token), handle_state, false)
+    };
     let channel_handle = |channel: ChannelName| {
         let channel = origin.__channel(channel.casemapping(), channel.into_string());
         let guard = reply_state.and_then(|state| {
@@ -2693,11 +2696,12 @@ pub(crate) fn from_core_with_receipt(
             envelope,
             nick,
             account,
+            token,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = crate::UserHandle::from_current_state(nick, handle_state);
+            let actor = user_at_arrival(nick, account.clone(), token);
             Event::AccountChanged(AccountChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2710,11 +2714,12 @@ pub(crate) fn from_core_with_receipt(
             envelope,
             nick,
             away,
+            token,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = crate::UserHandle::from_current_state(nick, handle_state);
+            let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::AwayChanged(AwayChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2728,11 +2733,12 @@ pub(crate) fn from_core_with_receipt(
             nick,
             username,
             host,
+            token,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = crate::UserHandle::from_current_state(nick, handle_state);
+            let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::HostChanged(HostChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2746,11 +2752,12 @@ pub(crate) fn from_core_with_receipt(
             envelope,
             nick,
             realname,
+            token,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = crate::UserHandle::from_current_state(nick, handle_state);
+            let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::RealnameChanged(RealnameChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -6543,6 +6550,137 @@ mod tests {
             assert_eq!(id, "history42");
             assert_eq!(batch_type, "chathistory");
             assert_eq!(reason, public);
+        }
+    }
+
+    mod identity {
+        use std::{
+            sync::{Arc, RwLock},
+            time::{Instant, UNIX_EPOCH},
+        };
+
+        use papo_core::{Config, Session};
+
+        use super::super::{CoreEvent, Event, from_core_with_receipt};
+        use crate::UserHandle;
+
+        struct Case {
+            name: &'static str,
+            line: &'static str,
+            subject: &'static str,
+            person: fn(&Event) -> Option<UserHandle>,
+        }
+
+        type Shared = Arc<RwLock<Arc<crate::State>>>;
+
+        fn server(session: &mut Session, shared: &Shared, line: &str) {
+            session.handle_line(Instant::now(), line.as_bytes());
+            *shared.write().unwrap() = Arc::new(crate::State::from_session(session, true));
+        }
+
+        fn joined_review() -> (Session, Shared) {
+            let mut session = Session::new(Config::default().nick("papo"));
+            let shared = Arc::new(RwLock::new(Arc::new(crate::State::from_session(
+                &session, true,
+            ))));
+            for line in [
+                ":papo!~papo@localhost JOIN #review",
+                ":alice!~alice@cloak.example JOIN #review",
+                ":mallory!~mallory@users.example JOIN #review",
+            ] {
+                server(&mut session, &shared, line);
+            }
+            while session.poll_event().is_some() {}
+            (session, shared)
+        }
+
+        fn mapped(session: &Session, shared: &Shared, event: papo_core::Event) -> Option<Event> {
+            match from_core_with_receipt(
+                event,
+                session.isupport().casemapping(),
+                session.state().nick().origin(),
+                false,
+                false,
+                UNIX_EPOCH,
+                Some(session.state()),
+                Some(shared),
+            ) {
+                CoreEvent::Forward(event) => Some(event),
+                _ => None,
+            }
+        }
+
+        fn assert_person_at_arrival(case: &Case) {
+            let (mut session, shared) = joined_review();
+            server(&mut session, &shared, case.line);
+            let at_arrival = UserHandle::from_current_state(
+                session.state().casemapping().nick(case.subject),
+                Some(&shared),
+            );
+            server(
+                &mut session,
+                &shared,
+                &format!(":{}!~alice@cloak.example QUIT :Quit: bye", case.subject),
+            );
+            server(
+                &mut session,
+                &shared,
+                &format!(":mallory!~mallory@users.example NICK {}", case.subject),
+            );
+            let newcomer = UserHandle::from_current_state(
+                session.state().casemapping().nick(case.subject),
+                Some(&shared),
+            );
+            assert_ne!(at_arrival, newcomer, "{}: no handoff happened", case.name);
+
+            let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+            let person = events
+                .into_iter()
+                .filter_map(|event| mapped(&session, &shared, event))
+                .find_map(|event| (case.person)(&event))
+                .unwrap_or_else(|| panic!("{}: no event", case.name));
+            assert_eq!(person, at_arrival, "{}", case.name);
+            assert_eq!(person.nick(), case.subject, "{}", case.name);
+        }
+
+        #[test]
+        fn presence_changes_name_the_person_at_arrival() {
+            for case in [
+                Case {
+                    name: "account-notify",
+                    line: ":alice!~alice@cloak.example ACCOUNT alice",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_account_changed()
+                            .map(|changed| changed.actor.clone())
+                    },
+                },
+                Case {
+                    name: "away-notify",
+                    line: ":alice!~alice@cloak.example AWAY :Back in five",
+                    subject: "alice",
+                    person: |event| event.as_away_changed().map(|changed| changed.actor.clone()),
+                },
+                Case {
+                    name: "CHGHOST",
+                    line: ":alice!~alice@cloak.example CHGHOST ~alice staff.example",
+                    subject: "alice",
+                    person: |event| event.as_host_changed().map(|changed| changed.actor.clone()),
+                },
+                Case {
+                    name: "SETNAME",
+                    line: ":alice!~alice@cloak.example SETNAME :Alice Liddell",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_realname_changed()
+                            .map(|changed| changed.actor.clone())
+                    },
+                },
+            ] {
+                assert_person_at_arrival(&case);
+            }
         }
     }
 }
