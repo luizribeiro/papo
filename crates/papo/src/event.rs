@@ -2179,6 +2179,7 @@ pub(crate) fn from_core_with_receipt(
             Some(Source::User(user)) => Some(user),
             Some(Source::Server(_)) | None => None,
         };
+    let mut actor_token = None;
     let mut mapped = match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
         papo_core::Event::Motd { lines, .. } => Event::Motd(Motd { lines }),
@@ -2195,6 +2196,7 @@ pub(crate) fn from_core_with_receipt(
             return CoreEvent::Line(CoreLine::Incomplete(message.message));
         }
         papo_core::Event::TypingChanged(change) => {
+            actor_token = Some(change.__actor_token());
             let return_address = change.return_address();
             let reply_token = conversation_reply_token(reply_state, &change.conversation);
             let conversation = conversation_handle(change.conversation);
@@ -2227,6 +2229,7 @@ pub(crate) fn from_core_with_receipt(
             })
         }
         papo_core::Event::TagMessage(message) => {
+            actor_token = Some(message.actor_token);
             let return_address = message.__return_address().to_owned();
             let reply_token = conversation_reply_token(reply_state, &message.conversation);
             let envelope = map_envelope(&message.envelope);
@@ -2309,6 +2312,7 @@ pub(crate) fn from_core_with_receipt(
             }
         }
         papo_core::Event::Redacted(redacted) => {
+            actor_token = Some(redacted.actor_token);
             let return_address = redacted.__return_address().to_owned();
             let reply_token = conversation_reply_token(reply_state, &redacted.conversation);
             let envelope = map_envelope(&redacted.envelope);
@@ -2873,7 +2877,7 @@ pub(crate) fn from_core_with_receipt(
         }
         _ => return CoreEvent::Unknown,
     };
-    attach_message_handles(&mut mapped, None, handle_state, false);
+    attach_message_handles(&mut mapped, actor_token, handle_state, false);
     CoreEvent::Forward(mapped)
 }
 
@@ -6798,6 +6802,41 @@ mod tests {
                         event
                             .as_monitor_online()
                             .map(|online| online.subject.clone())
+                    },
+                },
+            ] {
+                assert_person_at_arrival(&case);
+            }
+        }
+
+        #[test]
+        fn tags_redactions_and_typing_name_the_actor_at_arrival() {
+            for case in [
+                Case {
+                    name: "reaction",
+                    line: "@+draft/react=👍;+draft/reply=RfcBTzyxY120001 :alice!~alice@cloak.example TAGMSG #review",
+                    subject: "alice",
+                    person: |event| event.as_reacted().map(|reacted| reacted.actor.clone()),
+                },
+                Case {
+                    name: "REDACT",
+                    line: ":alice!~alice@cloak.example REDACT #review RfcBTzyxY120001 :off-topic",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_redacted()
+                            .and_then(|redacted| user_source(&redacted.actor))
+                    },
+                },
+                Case {
+                    name: "typing stopped by the departure",
+                    line: "@+typing=active :alice!~alice@cloak.example TAGMSG #review",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_typing_changed()
+                            .filter(|change| change.state == crate::Typing::Done)
+                            .map(|change| change.actor.clone())
                     },
                 },
             ] {
