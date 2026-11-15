@@ -1,6 +1,8 @@
+use std::time::SystemTime;
+
 use super::{
     Audience, CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, Reacted, Redacted,
-    ServerNotice, TagMsg, TypingChanged,
+    ServerNotice, ServerTime, TagMsg, TypingChanged,
 };
 use crate::{Conversation, Prefix};
 
@@ -103,6 +105,34 @@ impl RestrictedLine {
             Self::Reacted(line) => line.msgid.as_ref(),
             Self::Redacted(line) => line.msgid.as_ref(),
             Self::TypingChanged(_) => None,
+        }
+    }
+
+    pub(crate) fn server_time(&self) -> Option<ServerTime> {
+        match self {
+            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => line.server_time,
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.server_time,
+            Self::ServerNotice(line) => line.server_time,
+            Self::CtcpQuery(line) => line.server_time,
+            Self::CtcpReply(line) => line.server_time,
+            Self::TagMsg(line) => super::tagged_from_tags(&line.tags),
+            Self::Reacted(line) => line.server_time,
+            Self::Redacted(line) => line.server_time,
+            Self::TypingChanged(line) => line.server_time,
+        }
+    }
+
+    pub(crate) const fn received_at(&self) -> SystemTime {
+        match self {
+            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => line.received_at,
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.received_at,
+            Self::ServerNotice(line) => line.received_at,
+            Self::CtcpQuery(line) => line.received_at,
+            Self::CtcpReply(line) => line.received_at,
+            Self::TagMsg(line) => line.received_at,
+            Self::Reacted(line) => line.received_at,
+            Self::Redacted(line) => line.received_at,
+            Self::TypingChanged(line) => line.received_at,
         }
     }
 }

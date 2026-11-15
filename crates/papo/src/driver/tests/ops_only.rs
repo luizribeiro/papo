@@ -395,6 +395,12 @@ async fn every_line_type_with_a_status_sign_arrives_restricted() {
                 has_msgid.then_some(id),
                 "{line}"
             );
+            let time = line[line.find("time=").unwrap() + 5..]
+                .split([';', ' '])
+                .next()
+                .unwrap();
+            assert_eq!(event.server_time().unwrap().to_string(), time, "{line}");
+            assert!(event.received_at().is_some(), "{line}");
         }
     }
     ops.finish().await;

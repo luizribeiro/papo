@@ -1877,6 +1877,7 @@ impl Event {
             }
             Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => event.server_time,
             Self::ServerNotice(event) => event.server_time,
+            Self::Restricted(event) => event.line.server_time(),
             Self::CtcpQuery(event) => event.server_time,
             Self::CtcpReply(event) => event.server_time,
             Self::BroadcastCtcp(event) => event.server_time,
@@ -1914,6 +1915,7 @@ impl Event {
                 Some(event.received_at)
             }
             Self::ServerNotice(event) => Some(event.received_at),
+            Self::Restricted(event) => Some(event.line.received_at()),
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
             Self::BroadcastCtcp(event) => Some(event.received_at),
