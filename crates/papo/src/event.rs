@@ -2125,14 +2125,11 @@ pub(crate) fn from_core(
     )
 }
 
-fn conversation_reply_token(
-    state: Option<&papo_core::State>,
+fn private_reply_token(
     conversation: &papo_core::Conversation,
+    peer_token: papo_core::ReplyToken,
 ) -> Option<papo_core::ReplyToken> {
-    state.and_then(|state| match conversation {
-        papo_core::Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
-        _ => None,
-    })
+    matches!(conversation, papo_core::Conversation::Private(_)).then_some(peer_token)
 }
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -2181,14 +2178,13 @@ pub(crate) fn from_core_with_receipt(
         });
         crate::ChannelHandle::from_parts(channel, guard, handle_state)
     };
-    let conversation_handle = |conversation| match conversation {
+    let conversation_handle = |conversation, peer_token| match conversation {
         papo_core::Conversation::Channel(channel) => Conversation::Channel(channel_handle(channel)),
-        papo_core::Conversation::Private(nick) => {
-            Conversation::Private(crate::UserHandle::from_current_state(
-                origin.__nick(nick.casemapping(), nick.into_string()),
-                handle_state,
-            ))
-        }
+        papo_core::Conversation::Private(nick) => Conversation::Private(user_at_arrival(
+            origin.__nick(nick.casemapping(), nick.into_string()),
+            Account::Unknown,
+            peer_token,
+        )),
         _ => unreachable!("core conversations have channel and private variants"),
     };
     let handle_from_raw =
@@ -2197,6 +2193,7 @@ pub(crate) fn from_core_with_receipt(
             Some(Source::Server(_)) | None => None,
         };
     let mut actor_token = None;
+    let mut peer_token = None;
     let mut mapped = match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
         papo_core::Event::Motd { lines, .. } => Event::Motd(Motd { lines }),
@@ -2214,9 +2211,11 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::TypingChanged(change) => {
             actor_token = Some(change.__actor_token());
+            let change_peer = change.__peer_token();
+            peer_token = Some(change_peer);
             let return_address = change.return_address();
-            let reply_token = conversation_reply_token(reply_state, &change.conversation);
-            let conversation = conversation_handle(change.conversation);
+            let reply_token = private_reply_token(&change.conversation, change_peer);
+            let conversation = conversation_handle(change.conversation, change_peer);
             let envelope = EventEnvelope {
                 msgid: None,
                 server_time: change.server_time,
@@ -2247,15 +2246,16 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::TagMessage(message) => {
             actor_token = Some(message.actor_token);
+            peer_token = Some(message.peer_token);
             let return_address = message.__return_address().to_owned();
-            let reply_token = conversation_reply_token(reply_state, &message.conversation);
+            let reply_token = private_reply_token(&message.conversation, message.peer_token);
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
             let Some(actor) = handle_from_raw(&message.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(message.authorship);
-            let conversation = conversation_handle(message.conversation);
+            let conversation = conversation_handle(message.conversation, message.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
                 &conversation,
@@ -2330,14 +2330,15 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::Redacted(redacted) => {
             actor_token = Some(redacted.actor_token);
+            peer_token = Some(redacted.peer_token);
             let return_address = redacted.__return_address().to_owned();
-            let reply_token = conversation_reply_token(reply_state, &redacted.conversation);
+            let reply_token = private_reply_token(&redacted.conversation, redacted.peer_token);
             let envelope = map_envelope(&redacted.envelope);
             let Some(actor) = actor_from_raw(&redacted.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(redacted.authorship);
-            let conversation = conversation_handle(redacted.conversation);
+            let conversation = conversation_handle(redacted.conversation, redacted.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
                 actor.clone(),
                 &conversation,
@@ -2452,7 +2453,7 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::ReadMarkerChanged(marker) => {
             Event::ReadMarkerChanged(ReadMarkerChanged {
-                conversation: conversation_handle(marker.conversation),
+                conversation: conversation_handle(marker.conversation, marker.peer_token),
                 marker: crate::ReadMarker::reported(marker.read_until),
             })
         }
@@ -2896,7 +2897,7 @@ pub(crate) fn from_core_with_receipt(
         &mut mapped,
         LineTokens {
             actor: actor_token,
-            peer: None,
+            peer: peer_token,
         },
         handle_state,
         false,
@@ -3494,15 +3495,9 @@ mod tests {
         let channel =
             papo_core::Conversation::Channel(crate::Origin::NONE.__channel(mapping, "#review"));
 
-        assert_eq!(
-            super::conversation_reply_token(Some(session.state()), &private),
-            Some(session.state().__reply_token_for("alice"))
-        );
-        assert_eq!(
-            super::conversation_reply_token(Some(session.state()), &channel),
-            None
-        );
-        assert_eq!(super::conversation_reply_token(None, &private), None);
+        let alice = session.state().__reply_token_for("alice");
+        assert_eq!(super::private_reply_token(&private, alice), Some(alice));
+        assert_eq!(super::private_reply_token(&channel, alice), None);
     }
 
     #[test]
@@ -6957,6 +6952,37 @@ mod tests {
                         event
                             .as_message()
                             .and_then(|message| private_peer(&message.conversation))
+                    },
+                },
+                Case {
+                    name: "own private reaction",
+                    line: "@+draft/react=👍;+draft/reply=RfcBTzyxY120010 :papo!~papo@localhost TAGMSG alice",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_reacted()
+                            .and_then(|reacted| private_peer(&reacted.conversation))
+                    },
+                },
+                Case {
+                    name: "private redaction",
+                    line: ":alice!~alice@cloak.example REDACT papo RfcBTzyxY120010 :sent too early",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_redacted()
+                            .and_then(|redacted| private_peer(&redacted.conversation))
+                    },
+                },
+                Case {
+                    name: "private typing",
+                    line: "@+typing=active :alice!~alice@cloak.example TAGMSG papo",
+                    subject: "alice",
+                    person: |event| {
+                        event
+                            .as_typing_changed()
+                            .filter(|change| change.state == crate::Typing::Active)
+                            .and_then(|change| private_peer(&change.conversation))
                     },
                 },
             ] {
