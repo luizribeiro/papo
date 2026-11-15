@@ -2993,6 +2993,8 @@ pub enum Event {
         new: ChannelName,
         /// The user or server prefix that renamed the channel.
         actor: String,
+        /// Identity of a user actor when the line arrived.
+        actor_token: ReplyToken,
         /// Whether the actor is this session's user.
         authorship: Authorship,
         /// The server-supplied reason, when present and non-empty.
@@ -3099,6 +3101,8 @@ pub enum Event {
         topic: Option<String>,
         /// The user or server that changed the topic.
         actor: Source,
+        /// Identity of a user actor when the line arrived.
+        actor_token: ReplyToken,
         /// Whether the actor is this session's user.
         authorship: Authorship,
     },
@@ -3139,7 +3143,7 @@ hidden_event_constructors! {
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Authorship) => HostChanged;
     __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Authorship) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
-    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
+    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
     __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;
@@ -3199,11 +3203,13 @@ impl Event {
         authorship: Authorship,
         reason: Option<String>,
     ) -> Self {
+        let actor_token = ReplyToken::__unknown(new.origin());
         Self::ChannelRenamed {
             envelope: LineEnvelope::default(),
             old,
             new,
             actor,
+            actor_token,
             authorship,
             reason,
         }

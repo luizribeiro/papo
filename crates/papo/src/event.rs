@@ -4088,6 +4088,7 @@ mod tests {
                 papo_proto::Source::Server("ergo.test"),
                 Casemapping::default(),
             ),
+            papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             papo_core::Authorship::Other,
         )) else {
             panic!("expected topic")
@@ -6110,7 +6111,7 @@ mod tests {
     #[test]
     fn maps_topic_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other)),
+            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(crate::Origin::NONE), papo_core::Authorship::Other)),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")

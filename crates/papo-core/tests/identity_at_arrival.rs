@@ -204,6 +204,24 @@ fn actors_and_subjects_record_the_person_at_arrival() {
                 _ => None,
             },
         },
+        Case {
+            name: "TOPIC actor",
+            line: ":alice!~alice@cloak.example TOPIC #review :Release 0.1 review",
+            subject: "alice",
+            token: |event| match event {
+                Event::TopicChanged { actor_token, .. } => Some(*actor_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "RENAME actor",
+            line: ":alice!~alice@cloak.example RENAME #review #release :Release review",
+            subject: "alice",
+            token: |event| match event {
+                Event::ChannelRenamed { actor_token, .. } => Some(*actor_token),
+                _ => None,
+            },
+        },
     ] {
         assert_identity_at_arrival(&case);
     }

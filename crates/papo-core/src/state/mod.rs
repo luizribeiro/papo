@@ -1496,6 +1496,7 @@ impl State {
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 actor: Source::from_proto_with_names(actor, self.casemapping),
+                actor_token: self.source_token(message),
                 authorship: self.source_authorship(message),
             });
         }
