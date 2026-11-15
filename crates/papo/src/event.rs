@@ -694,17 +694,10 @@ pub(crate) fn incoming_from_core(
     }
     let conversation = received.conversation().cloned();
     let status = received.status();
-    let channel_context = received.channel_context().cloned().map(|channel| {
-        let channel = origin.__channel(channel.casemapping(), channel.into_string());
-        let guard = handle_state.map(|state| {
-            state
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .core
-                .__channel_guard(&channel)
-        });
-        crate::ChannelHandle::from_parts(channel, guard, handle_state)
-    });
+    let channel_context = received
+        .channel_context()
+        .cloned()
+        .map(|channel| channel_context_handle(channel, origin, handle_state));
     let actor_party = Party::from_core(received.actor_party());
     let (raw, batch_type) = received.into_parts();
     let Some(conversation) = conversation else {
@@ -767,6 +760,22 @@ pub(crate) fn incoming_from_core(
     );
     attach_message_handles(&mut event, tokens, handle_state, false);
     event
+}
+
+fn channel_context_handle(
+    channel: ChannelName,
+    origin: crate::Origin,
+    handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+) -> crate::ChannelHandle {
+    let channel = origin.__channel(channel.casemapping(), channel.into_string());
+    let guard = handle_state.map(|state| {
+        state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .core
+            .__channel_guard(&channel)
+    });
+    crate::ChannelHandle::from_parts(channel, guard, handle_state)
 }
 
 pub(crate) fn mark_incomplete(event: Event) -> Option<Event> {
