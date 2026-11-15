@@ -448,3 +448,61 @@ async fn an_untyped_line_with_a_status_sign_arrives_restricted() {
     }
     ops.finish().await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_soju_ops_only_line_fetched_by_id_keeps_its_audience_for_a_reaction() {
+    let mut ops = OpsChannel::joined_with([
+        crate::cap::LABELED_RESPONSE,
+        crate::cap::MESSAGE_TAGS,
+        crate::cap::BATCH,
+        crate::cap::SERVER_TIME,
+        crate::cap::CHATHISTORY,
+    ])
+    .await;
+    let fetch = tokio::spawn({
+        let client = ops.client.clone();
+        async move {
+            client
+                .history("#ops")
+                .message("sp4ei85cy8ukw26bhk3bdmujua")
+                .await
+        }
+    });
+    client_line(
+        &mut ops.server,
+        b"@label=0 CHATHISTORY AROUND #ops msgid=sp4ei85cy8ukw26bhk3bdmujua 3\r\n",
+    )
+    .await;
+    server_line(
+        &mut ops.server,
+        concat!(
+            "@label=0 :soju.test BATCH +reply labeled-response\r\n",
+            "@batch=reply :soju.test BATCH +2 chathistory #ops\r\n",
+            "@time=2026-11-14T04:39:08.956Z;msgid=mmaw5dbdbfcdtemfrdriw2pg5n;batch=2 :bnc!~u@3g9xu4jk52ewq.irc PRIVMSG #ops :bnc to everyone\r\n",
+            "@batch=2;time=2026-11-14T04:39:13.558Z;msgid=sp4ei85cy8ukw26bhk3bdmujua :oppy!~u@3g9xu4jk52ewq.irc PRIVMSG @#ops :soju-ops-only-stored?\r\n",
+            "@batch=reply :soju.test BATCH -2\r\n",
+            ":soju.test BATCH -reply\r\n",
+        )
+        .as_bytes(),
+    )
+    .await;
+    let Some(Event::Restricted(restricted)) = within(fetch).await.unwrap().unwrap() else {
+        panic!("an ops-only history line is restricted");
+    };
+    assert_eq!(restricted.audience.symbol(), '@');
+    let message = restricted.line.as_message().expect("a restricted message");
+    assert_eq!(message.raw_text, "soju-ops-only-stored?");
+
+    let reacting = tokio::spawn({
+        let client = ops.client.clone();
+        let message = message.clone();
+        async move { client.react(&message, "👀").await }
+    });
+    client_line(
+        &mut ops.server,
+        "@+reply=sp4ei85cy8ukw26bhk3bdmujua;+draft/react=👀;label=1 TAGMSG @#ops\r\n".as_bytes(),
+    )
+    .await;
+    reacting.abort();
+    ops.finish().await;
+}
