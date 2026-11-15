@@ -53,8 +53,9 @@ message identifier (`("#papo", id)`, `(&channel, id)`): a reference comes from a
 
 A line sent to a status-prefixed channel address such as `@#ops` now arrives only as
 `Event::Restricted`, live and in history pages, with the sign in `Restricted::audience` and the
-usual payload in `Restricted::line`; the line payloads no longer have `status()`. Code that does
-not match the new arm no longer sees ops-only lines.
+usual payload in `Restricted::line` (`RestrictedLine::Other` for a line papo cannot type); the line
+payloads no longer have `status()`. Code that does not match the new arm no longer sees ops-only
+lines.
 
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
