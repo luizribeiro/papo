@@ -250,7 +250,7 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
 
     assert!(matches!(
         registration.await?,
-        papo::AccountCreation::Created { .. }
+        papo::AccountOutcome::Created { .. }
     ));
     wire.server(":offline.test 001 papo-wire :Welcome to the offline test network")
         .await;

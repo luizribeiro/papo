@@ -48,10 +48,14 @@ impl NewAccount {
     }
 }
 
-/// Outcome of an account creation request.
+/// Outcome of [`Client::create_account`] or [`Client::verify_account`].
+///
+/// An account the builder creates while connecting arrives as
+/// [`crate::Event::AccountCreation`] with this same outcome, since no request future exists to
+/// return it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum AccountCreation {
+pub enum AccountOutcome {
     /// The account was created and authenticated.
     #[non_exhaustive]
     Created {
@@ -79,7 +83,7 @@ impl Client {
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
-    pub fn create_account(&self, account: NewAccount) -> crate::RequestFuture<AccountCreation> {
+    pub fn create_account(&self, account: NewAccount) -> crate::RequestFuture<AccountOutcome> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let NewAccount {
@@ -129,7 +133,7 @@ impl Client {
         &self,
         account: impl crate::AsAccount,
         code: crate::Secret,
-    ) -> crate::RequestFuture<AccountCreation> {
+    ) -> crate::RequestFuture<AccountOutcome> {
         let client = self.clone();
         let account = crate::AsAccount::__parts(&account).into_owned();
         crate::RequestFuture::new(async move {
@@ -155,7 +159,7 @@ fn account_registration_result(
     command: &'static str,
     casemapping: crate::Casemapping,
     origin: crate::Origin,
-) -> Result<AccountCreation, Error> {
+) -> Result<AccountOutcome, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
@@ -171,8 +175,8 @@ fn account_registration_result(
             .ok_or_else(|| Error::unexpected_reply(command))?,
     );
     match message.param(0) {
-        Some("SUCCESS") => Ok(AccountCreation::Created { account }),
-        Some("VERIFICATION_REQUIRED") => Ok(AccountCreation::VerificationRequired {
+        Some("SUCCESS") => Ok(AccountOutcome::Created { account }),
+        Some("VERIFICATION_REQUIRED") => Ok(AccountOutcome::VerificationRequired {
             account,
             message: message.param(2).unwrap_or_default().to_owned(),
         }),
@@ -239,7 +243,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(register).await.unwrap().unwrap(), super::AccountCreation::VerificationRequired { account, .. } if account == "alice" && account.origin() == client.origin())
+            matches!(within(register).await.unwrap().unwrap(), super::AccountOutcome::VerificationRequired { account, .. } if account == "alice" && account.origin() == client.origin())
         );
 
         let verify = tokio::spawn({
@@ -256,7 +260,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(verify).await.unwrap().unwrap(), super::AccountCreation::Created { account } if account == "alice" && account.origin() == client.origin())
+            matches!(within(verify).await.unwrap().unwrap(), super::AccountOutcome::Created { account } if account == "alice" && account.origin() == client.origin())
         );
 
         let verify = tokio::spawn({

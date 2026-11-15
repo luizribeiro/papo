@@ -95,6 +95,8 @@ lines were confirmed.
 
 `KickbanOutcome` reports each part: `ban` is the mask seen on the ban list, beside `kick`.
 
+`AccountCreation` is renamed `AccountOutcome`; the `Event::AccountCreation` arm keeps its name.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

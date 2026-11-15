@@ -3,7 +3,7 @@
 use std::{env, error::Error, fmt};
 
 use papo::{
-    AccountCreation, Client, Error as PapoError, Event, Feature, Line, NewAccount,
+    AccountOutcome, Client, Error as PapoError, Event, Feature, Line, NewAccount,
     PersistenceSetting, PushKeys, Refusal, Sasl, Secret,
 };
 
@@ -101,7 +101,7 @@ async fn create(url: &str, account: &str, password: &str) -> Result<(), Box<dyn 
     let outcome = client
         .create_account(NewAccount::new(Secret::new(password)).account(account))
         .await?;
-    assert!(matches!(outcome, AccountCreation::Created { .. }));
+    assert!(matches!(outcome, AccountOutcome::Created { .. }));
     println!("CREATED");
     Ok(())
 }

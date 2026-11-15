@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, io};
 
-use papo::{AccountCreation, Client, Event, NewAccount, Secret};
+use papo::{AccountOutcome, Client, Event, NewAccount, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -20,8 +20,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     while let Some((event, _)) = events.next().await {
         let created = match event {
-            Event::AccountCreation(AccountCreation::Created { account, .. }) => account,
-            Event::AccountCreation(AccountCreation::VerificationRequired {
+            Event::AccountCreation(AccountOutcome::Created { account, .. }) => account,
+            Event::AccountCreation(AccountOutcome::VerificationRequired {
                 account,
                 message,
                 ..
@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .verify_account(account, Secret::new(code.trim()))
                     .await
                 {
-                    Ok(AccountCreation::Created { account, .. }) => account,
+                    Ok(AccountOutcome::Created { account, .. }) => account,
                     Ok(_) => continue,
                     Err(error) => {
                         eprintln!("could not verify the account: {error}");

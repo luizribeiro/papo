@@ -1,4 +1,4 @@
-use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Refusal};
+use papo::{Account, AccountOutcome, Away, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::{assert_delivery_tags, confirmed_line, subject_name};
@@ -92,7 +92,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         outcome,
-        AccountCreation::Created {
+        AccountOutcome::Created {
             account: ref registered,
             ..
         } if registered == &account

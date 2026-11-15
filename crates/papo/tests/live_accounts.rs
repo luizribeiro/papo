@@ -6,7 +6,7 @@ mod support;
 
 use support::within;
 
-use papo::{AccountCreation, Client, Endpoint, Event, NewAccount, Sasl};
+use papo::{AccountOutcome, Client, Endpoint, Event, NewAccount, Sasl};
 use papo_test_server::{create_account, from_env, unique};
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -36,7 +36,7 @@ async fn registers_then_logs_in_with_sasl() {
                 )
                 .await
                 .unwrap(),
-            AccountCreation::Created {
+            AccountOutcome::Created {
                 account: registered,
                 ..
             } if registered == account

@@ -1391,27 +1391,27 @@ pub const papo::tags::keys::TYPING: &str
 pub mod papo::time
 pub use papo::time::format
 pub fn papo::time::now() -> std::time::SystemTime
-#[non_exhaustive] pub enum papo::AccountCreation
-#[non_exhaustive] pub papo::AccountCreation::Created
-pub papo::AccountCreation::Created::account: papo::AccountName
-#[non_exhaustive] pub papo::AccountCreation::VerificationRequired
-pub papo::AccountCreation::VerificationRequired::account: papo::AccountName
-pub papo::AccountCreation::VerificationRequired::message: alloc::string::String
-impl core::clone::Clone for papo::AccountCreation
-pub fn papo::AccountCreation::clone(&self) -> Self
-impl core::cmp::Eq for papo::AccountCreation
-impl core::cmp::PartialEq for papo::AccountCreation
-pub fn papo::AccountCreation::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::AccountCreation
-pub fn papo::AccountCreation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::AccountCreation
-impl core::marker::Freeze for papo::AccountCreation
-impl core::marker::Send for papo::AccountCreation
-impl core::marker::Sync for papo::AccountCreation
-impl core::marker::Unpin for papo::AccountCreation
-impl core::marker::UnsafeUnpin for papo::AccountCreation
-impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountCreation
-impl core::panic::unwind_safe::UnwindSafe for papo::AccountCreation
+#[non_exhaustive] pub enum papo::AccountOutcome
+#[non_exhaustive] pub papo::AccountOutcome::Created
+pub papo::AccountOutcome::Created::account: papo::AccountName
+#[non_exhaustive] pub papo::AccountOutcome::VerificationRequired
+pub papo::AccountOutcome::VerificationRequired::account: papo::AccountName
+pub papo::AccountOutcome::VerificationRequired::message: alloc::string::String
+impl core::clone::Clone for papo::AccountOutcome
+pub fn papo::AccountOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::AccountOutcome
+impl core::cmp::PartialEq for papo::AccountOutcome
+pub fn papo::AccountOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::AccountOutcome
+pub fn papo::AccountOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::AccountOutcome
+impl core::marker::Freeze for papo::AccountOutcome
+impl core::marker::Send for papo::AccountOutcome
+impl core::marker::Sync for papo::AccountOutcome
+impl core::marker::Unpin for papo::AccountOutcome
+impl core::marker::UnsafeUnpin for papo::AccountOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::AccountOutcome
 #[non_exhaustive] pub enum papo::Authorship
 pub papo::Authorship::Other
 pub papo::Authorship::Own
@@ -1621,7 +1621,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::Error
 impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
-pub papo::Event::AccountCreation(papo::AccountCreation)
+pub papo::Event::AccountCreation(papo::AccountOutcome)
 pub papo::Event::AutoJoinFailed(papo::event::AutoJoinFailed)
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::BouncerNetworkChanged(papo::event::BouncerNetworkChanged)
@@ -1671,7 +1671,7 @@ pub papo::Event::Warning(papo::event::Warning)
 impl papo::Event
 pub const fn papo::Event::as_account_changed(&self) -> core::option::Option<&papo::event::AccountChanged>
 impl papo::Event
-pub const fn papo::Event::as_account_creation(&self) -> core::option::Option<&papo::AccountCreation>
+pub const fn papo::Event::as_account_creation(&self) -> core::option::Option<&papo::AccountOutcome>
 impl papo::Event
 pub const fn papo::Event::as_auto_join_failed(&self) -> core::option::Option<&papo::event::AutoJoinFailed>
 impl papo::Event
@@ -2473,8 +2473,8 @@ pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Resul
 pub fn papo::Client::open(&self, &papo::PeerKey) -> papo::RequestFuture<papo::UserHandle>
 pub fn papo::Client::query(&self, impl papo::AsNick) -> core::result::Result<papo::UserHandle, papo::Error>
 impl papo::Client
-pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
-pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountCreation>
+pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountOutcome>
+pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountOutcome>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<papo::ReadMarker>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History

@@ -1607,7 +1607,7 @@ where
                 }
                 let completes_registration = matches!(
                     event,
-                    Event::AccountCreation(crate::AccountCreation::VerificationRequired { .. })
+                    Event::AccountCreation(crate::AccountOutcome::VerificationRequired { .. })
                 );
                 enqueue_event(events, pending_events, event);
                 if completes_registration {

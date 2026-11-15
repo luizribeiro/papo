@@ -4581,7 +4581,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::AccountCreation(crate::AccountCreation::VerificationRequired { account, message }))
+        Some(Event::AccountCreation(crate::AccountOutcome::VerificationRequired { account, message }))
             if account == "alice" && message == "Verification code sent"
     ));
     within(server.shutdown()).await.unwrap();
