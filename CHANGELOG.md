@@ -159,6 +159,8 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `papo_proto::time::parse` is removed: `ServerTime::from_stored` is the one way to read text as a server time.
 
+papo's hidden test-construction hooks are compiled only with its internal `__testing` feature, which `papo-testing` enables; a plain `papo` build no longer contains them.
+
 `Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
 
 `NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.

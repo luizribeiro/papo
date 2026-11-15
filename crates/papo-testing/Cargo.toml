@@ -16,7 +16,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-papo = { path = "../papo", version = "=0.1.0", default-features = false }
+papo = { path = "../papo", version = "=0.1.0", default-features = false, features = ["__testing"] }
 tokio = { version = "1.53.3", features = ["io-util", "macros", "rt", "sync", "test-util", "time"] }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]

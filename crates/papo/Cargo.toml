@@ -28,6 +28,8 @@ tls-ring = [
   "rustls/ring",
 ]
 unstable = ["papo-core/unstable"]
+# Construction hooks for the version-matched papo-testing crate; not a supported API.
+__testing = []
 
 [package.metadata.docs.rs]
 all-features = true
@@ -63,6 +65,7 @@ web-sys = { version = "0.3.106", features = ["BinaryType", "CloseEvent", "ErrorE
 wasm-bindgen-test = "=0.3.79"
 
 [dev-dependencies]
+papo = { path = ".", default-features = false, features = ["__testing"] }
 papo-test-server = { path = "../papo-test-server", version = "=0.1.0" }
 proptest = { version = "1.9", default-features = false, features = ["std"] }
 tokio = { version = "1.53.3", features = ["test-util"] }
