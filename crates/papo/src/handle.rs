@@ -251,7 +251,7 @@ impl UserHandle {
     }
 
     /// Builds the handle for a person a live event names from the identity papo-core recorded
-    /// when the event's line arrived, never from a lookup when the event is mapped.
+    /// when the event's line arrived, so a later holder of the nickname is never adopted.
     pub(crate) fn at_arrival(
         nick: crate::Nick,
         account: crate::Account,
