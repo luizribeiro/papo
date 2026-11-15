@@ -11,7 +11,7 @@ use papo_proto::{
     Prefix, strip_formatting, time,
 };
 
-use crate::{Client, Conversation, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
+use crate::{Client, Conversation, Disconnected, ModeAction, ModeChange, ServerTime};
 
 pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
     message_tags && bot_mode
@@ -2824,7 +2824,14 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 authorship: Authorship::from_core(authorship),
                 own_nick,
-                changes: changes.into_iter().map(ModeChange::from_core).collect(),
+                changes: changes
+                    .into_iter()
+                    .map(|change| {
+                        ModeChange::from_core(change, |nick| {
+                            crate::UserHandle::from_current_state(nick, handle_state)
+                        })
+                    })
+                    .collect(),
             })
         }
         papo_core::Event::TopicChanged {
@@ -2912,17 +2919,19 @@ pub(crate) fn typed_mode_change(
     kind: papo_proto::ModeKind,
     casemapping: Casemapping,
     origin: crate::Origin,
+    member: impl FnOnce(crate::Nick) -> crate::UserHandle,
 ) -> ModeChange {
     let arg = arg.map(|arg| match (mode, kind) {
-        ('k', _) => ModeArg::Key(crate::Secret::new(arg)),
-        (_, papo_proto::ModeKind::Prefix(prefix)) => ModeArg::Member {
-            nick: origin.__nick(casemapping, arg),
-            prefix,
-        },
-        (_, papo_proto::ModeKind::List) => ModeArg::Mask(origin.__mask(casemapping, arg)),
-        _ => ModeArg::Value(arg.to_owned()),
+        ('k', _) => papo_core::ModeArg::Key(crate::Secret::new(arg)),
+        (_, papo_proto::ModeKind::Prefix(prefix)) => {
+            papo_core::ModeArg::__member(origin.__nick(casemapping, arg), prefix)
+        }
+        (_, papo_proto::ModeKind::List) => {
+            papo_core::ModeArg::Mask(origin.__mask(casemapping, arg))
+        }
+        _ => papo_core::ModeArg::Value(arg.to_owned()),
     });
-    ModeChange::new(mode, action, arg)
+    ModeChange::from_core(papo_core::ModeChange::__new(mode, action, arg), member)
 }
 
 #[cfg(all(test, not(browser)))]
@@ -2935,11 +2944,11 @@ mod tests {
     use super::{
         Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
         Event, Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged,
-        ModeAction, ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags,
-        Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
+        ModeAction, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags, Warning,
+        ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
         message_event_from_line,
     };
-    use crate::{Subject, Visibility};
+    use crate::{ModeArg, Subject, Visibility};
     use papo_core::{
         Account, Away, BatchAbandonReason, Config, Connection, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit, sts::ConnectionSecurity,
@@ -5990,7 +5999,7 @@ mod tests {
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'
-                    && matches!(&mode.changes[0].arg, Some(ModeArg::Member { nick, .. }) if nick == "emily")
+                    && matches!(&mode.changes[0].arg, Some(ModeArg::Member { user, .. }) if user == "emily")
         ));
     }
 
@@ -6050,7 +6059,7 @@ mod tests {
             Some("emily")
         );
         assert!(
-            matches!(&mode.changes[0].arg, Some(ModeArg::Member { nick, .. }) if nick == "emily"),
+            matches!(&mode.changes[0].arg, Some(ModeArg::Member { user, .. }) if user == "emily"),
             "{:?}",
             mode.changes[0]
         );
@@ -6081,7 +6090,7 @@ mod tests {
             'o',
             ModeAction::Add,
             Some(ModeArg::Member {
-                nick: mapping.nick("emily"),
+                user: user_handle(mapping.nick("emily")),
                 prefix: crate::Prefix::__new('o', '@'),
             }),
         );
@@ -6089,7 +6098,7 @@ mod tests {
             'v',
             ModeAction::Add,
             Some(ModeArg::Member {
-                nick: mapping.nick("alice"),
+                user: user_handle(mapping.nick("alice")),
                 prefix: crate::Prefix::__new('v', '+'),
             }),
         );
@@ -6150,11 +6159,11 @@ mod tests {
         ];
         let mapped: Vec<_> = cases
             .into_iter()
-            .map(crate::ModeChange::from_core)
+            .map(|change| crate::ModeChange::from_core(change, user_handle))
             .collect();
 
         assert!(
-            matches!(&mapped[0].arg, Some(ModeArg::Member { nick, prefix }) if nick == "alice" && prefix.symbol() == '@')
+            matches!(&mapped[0].arg, Some(ModeArg::Member { user, prefix }) if user == "alice" && prefix.symbol() == '@')
         );
         assert!(matches!(&mapped[1].arg, Some(ModeArg::Mask(mask)) if mask == "*!*@spam.example"));
         assert!(
@@ -6189,10 +6198,11 @@ mod tests {
                 kind,
                 Casemapping::default(),
                 origin,
+                crate::UserHandle::from_nick,
             );
             match (expected, change.arg) {
-                ("nick", Some(ModeArg::Member { nick: value, .. })) => {
-                    assert_eq!(value.origin(), origin);
+                ("nick", Some(ModeArg::Member { user, .. })) => {
+                    assert_eq!(user.nick().origin(), origin);
                 }
                 ("mask", Some(ModeArg::Mask(value))) => assert_eq!(value.origin(), origin),
                 ("key", Some(ModeArg::Key(value))) => assert_eq!(value.expose(), "alice"),

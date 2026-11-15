@@ -158,17 +158,10 @@ impl ModeChanged {
     /// Returns whether this mode change is about this client's user.
     #[must_use]
     pub fn about(&self, change: &crate::ModeChange) -> Authorship {
-        let affected = match change.arg.as_ref() {
-            Some(crate::ModeArg::Member { nick, .. }) => Some(nick),
-            _ => match &self.subject {
-                Subject::User(user) => return self.about_nick(&user.nick()),
-                Subject::Channel(_) => return Authorship::Other,
-            },
-        };
-        match (self.own_nick.as_ref(), affected) {
-            (Some(own), Some(affected)) if own == affected => Authorship::Own,
-            (Some(_), Some(_)) => Authorship::Other,
-            _ => Authorship::Unknown,
+        match (&change.arg, &self.subject) {
+            (Some(crate::ModeArg::Member { user, .. }), _) => self.about_nick(user.reported_nick()),
+            (_, Subject::User(user)) => self.about_nick(&user.nick()),
+            (_, Subject::Channel(_)) => Authorship::Other,
         }
     }
 

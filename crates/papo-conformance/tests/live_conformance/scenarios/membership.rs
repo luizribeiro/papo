@@ -622,7 +622,9 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         .find(|change| change.mode == 'v')
         .unwrap();
     assert_eq!(voice.action, ModeAction::Add);
-    assert!(matches!(voice.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == alice_nick));
+    assert!(
+        matches!(voice.arg.clone(), Some(ModeArg::Member { user, .. }) if user.nick() == alice_nick)
+    );
     bob.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
@@ -693,7 +695,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         .unwrap();
     assert_eq!(operator.action, ModeAction::Add);
     assert!(
-        matches!(operator.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
+        matches!(operator.arg.clone(), Some(ModeArg::Member { user, .. }) if user.nick() == bob_nick.as_str())
     );
     assert!(
         bob.snapshot()

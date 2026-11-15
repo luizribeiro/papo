@@ -146,7 +146,7 @@ async fn grant_rank(
     assert_eq!(change.action, ModeAction::Add);
     assert_eq!(change.mode, prefix.mode());
     assert!(
-        matches!(change.arg.clone(), Some(ModeArg::Member { nick, prefix: changed, .. }) if nick == bob_nick.as_str() && changed == prefix)
+        matches!(change.arg.clone(), Some(ModeArg::Member { user, prefix: changed, .. }) if user.nick() == bob_nick.as_str() && changed == prefix)
     );
     Ok(())
 }

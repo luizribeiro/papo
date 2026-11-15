@@ -1905,8 +1905,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
 pub papo::ModeArg::Key(papo::Secret)
 pub papo::ModeArg::Mask(papo::Mask)
 #[non_exhaustive] pub papo::ModeArg::Member
-pub papo::ModeArg::Member::nick: papo::Nick
 pub papo::ModeArg::Member::prefix: papo::Prefix
+pub papo::ModeArg::Member::user: papo::UserHandle
 pub papo::ModeArg::Value(alloc::string::String)
 impl core::clone::Clone for papo::ModeArg
 pub fn papo::ModeArg::clone(&self) -> Self

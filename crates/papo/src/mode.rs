@@ -409,7 +409,7 @@ impl IntoFuture for SetModes {
             let guards = mode_guards(&changes, maximum);
             let requested = changes
                 .iter()
-                .map(|change| change.typed(&state))
+                .map(|change| change.typed(&self.client, &state))
                 .collect::<Result<Vec<_>, _>>()?;
             let commands = self.client.commands.clone();
             let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
@@ -597,7 +597,7 @@ impl Change {
         Ok(Self { mode, arg, ..self })
     }
 
-    fn typed(&self, state: &crate::State) -> Result<ModeChange, Error> {
+    fn typed(&self, client: &Client, state: &crate::State) -> Result<ModeChange, Error> {
         let mode = validate(state.isupport().inner(), self)?;
         state
             .known_name_rules()
@@ -613,6 +613,18 @@ impl Change {
             mode_kind(state.isupport().inner(), mode),
             state.casemapping(),
             state.nick().origin(),
+            |nick| {
+                let proof = match &self.arg {
+                    Some(Argument::ProvenNick(_, proof)) => Some(proof.clone()),
+                    _ => None,
+                };
+                crate::UserHandle::from_parts(
+                    nick,
+                    crate::Account::Unknown,
+                    proof,
+                    Some(&client.state),
+                )
+            },
         ))
     }
 }
@@ -818,6 +830,7 @@ fn confirmed(
                 change.kind,
                 state.casemapping(),
                 state.nick().origin(),
+                crate::UserHandle::from_nick,
             );
             if let Some(index) = remaining
                 .iter()
@@ -848,6 +861,16 @@ fn same_change(state: &crate::State, left: &ModeChange, right: &ModeChange) -> b
         (Some(ModeArg::Mask(left)), Some(ModeArg::Mask(right))) => {
             state.same_list_entry(left, right.as_str())
         }
+        (
+            Some(ModeArg::Member {
+                user: left,
+                prefix: left_prefix,
+            }),
+            Some(ModeArg::Member {
+                user: right,
+                prefix: right_prefix,
+            }),
+        ) => left_prefix == right_prefix && left.reported_nick() == right.reported_nick(),
         (left, right) => left == right,
     }
 }

@@ -159,6 +159,9 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `Whois::nick` is now `Whois::user`, a `UserHandle` for the person the reply describes.
 
+`ModeArg::Member` now carries `user: UserHandle` instead of `nick`, so the subject of `+o bob` can be passed
+straight to `SetModes::op`; mode changes now compare members by identity, like `UserHandle`.
+
 `Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
 
 `NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.
