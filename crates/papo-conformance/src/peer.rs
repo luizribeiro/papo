@@ -214,7 +214,7 @@ impl Peer {
     /// Changes this peer's nickname using its server rules.
     ///
     /// An empty nickname is invalid input.
-    pub fn set_nick(&self, nick: impl AsRef<str>) -> papo::RequestFuture<()> {
+    pub fn set_nick(&self, nick: impl AsRef<str>) -> papo::RequestFuture<papo::NickOutcome> {
         self.client
             .set_nick(self.with_name_rules(|names| names.nick(nick.as_ref())))
     }

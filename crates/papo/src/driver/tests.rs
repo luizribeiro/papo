@@ -2,6 +2,7 @@ use super::test_support::*;
 use crate::{Client, KickbanRequest};
 use std::fmt::Write as _;
 
+mod confirmations;
 mod history_message;
 mod ops_only;
 mod reactions;
@@ -5718,7 +5719,7 @@ async fn every_name_taking_method_returns_invalid_name() {
                 .await
                 .map(drop),
             Method::InviteChannel => client.invite(&user, bad).await,
-            Method::SetNick => client.set_nick(bad).await,
+            Method::SetNick => client.set_nick(bad).await.map(drop),
             Method::Topic => client.set_topic(bad, "Release planning").await,
             Method::Metadata => client
                 .metadata()

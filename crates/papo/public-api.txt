@@ -2353,7 +2353,7 @@ pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc
 pub fn papo::Client::resume_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<()>
+pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<papo::NickOutcome>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
@@ -3027,6 +3027,24 @@ impl core::marker::Unpin for papo::NewAccount
 impl core::marker::UnsafeUnpin for papo::NewAccount
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NewAccount
 impl core::panic::unwind_safe::UnwindSafe for papo::NewAccount
+#[non_exhaustive] pub struct papo::NickOutcome
+pub papo::NickOutcome::confirmation: papo::Confirmation
+pub papo::NickOutcome::nick: papo::Nick
+impl core::clone::Clone for papo::NickOutcome
+pub fn papo::NickOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::NickOutcome
+impl core::cmp::PartialEq for papo::NickOutcome
+pub fn papo::NickOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::NickOutcome
+pub fn papo::NickOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::NickOutcome
+impl core::marker::Freeze for papo::NickOutcome
+impl core::marker::Send for papo::NickOutcome
+impl core::marker::Sync for papo::NickOutcome
+impl core::marker::Unpin for papo::NickOutcome
+impl core::marker::UnsafeUnpin for papo::NickOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::NickOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::NickOutcome
 pub struct papo::NotSamePerson
 impl papo::NotSamePerson
 pub const fn papo::NotSamePerson::current_key(&self) -> &papo::PeerKey

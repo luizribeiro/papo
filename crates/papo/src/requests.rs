@@ -2,12 +2,23 @@ use std::{future::IntoFuture, time::Duration};
 
 use papo_core::{Account, Away, Response, ResponseMatcher};
 use papo_proto::{
-    ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence, WhoxReply,
+    ChannelName, Command, Isupport, Line, LineRef, Nick, Numeric, ServerName, WhoxPresence,
+    WhoxReply,
 };
 
 use crate::{Error, Prefix, Rank};
 
 pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
+
+/// The nickname change the server confirmed by echoing `NICK`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct NickOutcome {
+    /// The new nickname, spelled as the server echoed it.
+    pub nick: Nick,
+    /// The echo's `msgid` and server time, which Ergo assigns to a nickname change.
+    pub confirmation: crate::Confirmation,
+}
 
 /// Information returned by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -376,6 +387,20 @@ pub(crate) fn empty(response: &Response) -> Result<(), Error> {
     response
         .error()
         .map_or(Ok(()), |error| Err(Error::server(error)))
+}
+
+/// Returns our command's echo in `response`, which confirms the request.
+///
+/// A response that ends without the echo, such as a bare `ACK`, did not change anything papo can
+/// see, so it is [`Error::NotVerified`].
+pub(crate) fn echo<'a>(response: &'a Response, command: &str) -> Result<LineRef<'a>, Error> {
+    empty(response)?;
+    response
+        .lines
+        .iter()
+        .map(Line::as_ref)
+        .find(|line| line.command_is(command))
+        .ok_or(Error::NotVerified)
 }
 
 pub(crate) fn list(

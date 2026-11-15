@@ -100,6 +100,9 @@ lines were confirmed.
 `Error::Unconfirmed` is renamed `Error::NotVerified`: the server answered but papo could not see
 the change take effect.
 
+`Client::set_nick` resolves to a `NickOutcome` with the nickname as the server echoed it and the
+echo's `Confirmation`; an answer without the echo fails with `Error::NotVerified`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

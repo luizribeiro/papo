@@ -54,6 +54,19 @@ impl Confirmation {
             None => Self::unconfirmed(UnconfirmedReason::NoEchoMessage),
         }
     }
+
+    pub(crate) fn from_echo(echo: &papo_proto::LineRef<'_>) -> Self {
+        match echo.tag("msgid") {
+            Some(msgid) => Self::Confirmed {
+                msgid: MessageId::from(msgid.into_owned()),
+                server_time: echo
+                    .tag("time")
+                    .as_deref()
+                    .and_then(papo_proto::time::parse),
+            },
+            None => Self::unconfirmed(UnconfirmedReason::NoMessageId),
+        }
+    }
 }
 
 pub(crate) fn echo_time(echo: &papo_core::SentInfo) -> Option<ServerTime> {

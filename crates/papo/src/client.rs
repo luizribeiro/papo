@@ -1773,35 +1773,41 @@ impl Client {
         })
     }
 
-    /// Changes this client's nickname.
+    /// Changes this client's nickname and resolves to the server's `NICK` echo.
     ///
     /// An empty nickname is invalid input.
     ///
     /// # Errors
     ///
-    /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
+    /// Returns [`Error::NotVerified`] when the server answers without the echo, as Ergo does for
+    /// the current nickname, or a typed server refusal, invalid-input error, timeout, or
+    /// disconnect.
     /// ```compile_fail
     /// # fn swapped(client: &papo::Client, channel: &papo::ChannelName) {
     /// let _ = client.set_nick(channel);
     /// # }
     /// ```
-    pub fn set_nick(&self, nick: impl crate::AsNick) -> crate::RequestFuture<()> {
+    pub fn set_nick(&self, nick: impl crate::AsNick) -> crate::RequestFuture<crate::NickOutcome> {
         let client = self.clone();
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("set_nick: nick"), nick)?;
-            let nick = client
-                .state()
+            let state = client.state();
+            let names = state
                 .known_name_rules()
-                .ok_or(InvalidInput::NameRulesUnknown)?
-                .nick(nick);
+                .ok_or(InvalidInput::NameRulesUnknown)?;
+            let nick = names.nick(nick);
             let response = client
                 .correlated(
                     Line::new("NICK").with_params([nick.to_string()]),
                     Some(ResponseMatcher::Nick(nick.to_string())),
                 )
                 .await?;
-            crate::requests::empty(&response)
+            let echo = crate::requests::echo(&response, "NICK")?;
+            Ok(crate::NickOutcome {
+                nick: echo.param(0).map_or(nick, |echoed| names.nick(echoed)),
+                confirmation: crate::Confirmation::from_echo(&echo),
+            })
         })
     }
 
