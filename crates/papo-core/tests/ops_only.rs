@@ -103,6 +103,7 @@ fn a_send_pointing_at_an_ops_only_line_may_only_narrow_its_audience() {
             None,
         ),
         ("PRIVMSG #ops :deploy finished", None),
+        ("@+example.org/quote=$id PRIVMSG #ops :see above", None),
     ] {
         assert_send(OPS_ONLY, "bc3fyyzsmb8ip7aiti6gakzmja", wire, refused);
     }
