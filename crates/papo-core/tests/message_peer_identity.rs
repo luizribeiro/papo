@@ -1,0 +1,109 @@
+//! Transcript coverage for the account a user's line attests, and for people papo knows only from
+//! their private lines, who can leave and be replaced under the same nick without papo seeing it.
+
+use std::time::Instant;
+
+use papo_core::{Account, Config, Event, ReplyToken, Session};
+
+fn server(session: &mut Session, line: &str) {
+    session.handle_line(Instant::now(), line.as_bytes());
+}
+
+fn drain(session: &mut Session) -> Vec<Event> {
+    while session.poll_transmit().is_some() {}
+    std::iter::from_fn(|| session.poll_event()).collect()
+}
+
+fn registered(caps: &str) -> Session {
+    let mut session = Session::new(Config::default().nick("papo-admin"));
+    session.handle_connected(Instant::now());
+    drain(&mut session);
+    server(&mut session, &format!(":ergo.test CAP * LS :{caps}"));
+    drain(&mut session);
+    server(&mut session, &format!(":ergo.test CAP * ACK :{caps}"));
+    for line in [
+        ":ergo.test 001 papo-admin :Welcome to the ErgoTest IRC Network papo-admin",
+        ":ergo.test 005 papo-admin CASEMAPPING=rfc1459 CHANTYPES=# :are supported by this server",
+        ":ergo.test 422 papo-admin :MOTD File is missing",
+    ] {
+        server(&mut session, line);
+    }
+    drain(&mut session);
+    session
+}
+
+fn account(session: &Session, nick: &str) -> Option<Account> {
+    session
+        .state()
+        .user(nick)
+        .map(|user| user.account().clone())
+}
+
+fn logged_in(session: &Session, name: &str) -> Account {
+    Account::LoggedIn(session.state().casemapping().account(name))
+}
+
+fn token(session: &Session, nick: &str) -> ReplyToken {
+    session.state().__reply_token_for(nick)
+}
+
+#[test]
+fn a_channel_member_without_the_account_tag_logs_out_in_place() {
+    let mut session = registered("account-tag extended-join message-tags");
+    for line in [
+        "@account=papo-admin :papo-admin!~u@localhost JOIN #ops papo-admin :papo",
+        "@account=alice :alice!~u@8ajhv7kxgp7ag.irc JOIN #ops alice :Alice Admin",
+        ":ergo.test 353 papo-admin = #ops :papo-admin alice carol",
+        ":ergo.test 366 papo-admin #ops :End of NAMES list",
+    ] {
+        server(&mut session, line);
+    }
+    drain(&mut session);
+    let alice = token(&session, "alice");
+    assert_eq!(
+        account(&session, "alice"),
+        Some(logged_in(&session, "alice"))
+    );
+    assert_eq!(account(&session, "carol"), Some(Account::Unknown));
+    server(
+        &mut session,
+        ":carol!~u@3fx9z1q8yk2pa.irc PRIVMSG #ops :morning",
+    );
+    let spoke = drain(&mut session);
+    assert_eq!(account(&session, "carol"), Some(Account::LoggedOut));
+    assert!(
+        !spoke
+            .iter()
+            .any(|event| matches!(event, Event::AccountChanged { .. })),
+        "learning that carol is logged out is not a change: {spoke:?}"
+    );
+
+    server(
+        &mut session,
+        ":alice!~u@8ajhv7kxgp7ag.irc PRIVMSG #ops :brb",
+    );
+    let events = drain(&mut session);
+
+    assert_eq!(account(&session, "alice"), Some(Account::LoggedOut));
+    assert_eq!(token(&session, "alice"), alice);
+    assert!(events.iter().any(|event| matches!(
+        event,
+        Event::AccountChanged { nick, account: Account::LoggedOut, .. } if nick == "alice"
+    )));
+}
+
+#[test]
+fn our_own_untagged_line_keeps_the_account_from_sasl() {
+    let mut session = registered("account-tag message-tags");
+    server(
+        &mut session,
+        ":ergo.test 900 papo-admin papo-admin!~u@localhost papo-admin :You are now logged in as papo-admin",
+    );
+    server(&mut session, ":papo-admin!~u@localhost JOIN #ops");
+    drain(&mut session);
+
+    assert_eq!(
+        session.state().account(),
+        &logged_in(&session, "papo-admin")
+    );
+}

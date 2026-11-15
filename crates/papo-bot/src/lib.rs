@@ -704,8 +704,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn account_tag_absence_never_falls_back_to_state() {
         let transcript = concat!(
-            ":ergo.test CAP * LS :account-notify account-tag\r\n",
-            ":ergo.test CAP papo{bot} ACK :account-notify account-tag\r\n",
+            ":ergo.test CAP * LS :account-notify\r\n",
+            ":ergo.test CAP papo{bot} ACK :account-notify\r\n",
             ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
             ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
             ":papo{bot}!papo@localhost JOIN #papo\r\n",

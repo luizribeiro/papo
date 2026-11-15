@@ -613,3 +613,6 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - The `WHO nick %na` proof behind `Client::open` and first sends to a `UserHandle` matches the
   reply's nickname under the server's casemapping, so `Alice` or `{bot}` (for `[bot]` under
   rfc1459) is proven instead of failing with `Error::TargetGone`.
+- With `account-tag`, another user's line without an `account` tag marks them logged out, as the
+  specification requires; `Event::AccountChanged` reports it when they were logged in. Our own
+  account still follows the 900 and 901 numerics.
