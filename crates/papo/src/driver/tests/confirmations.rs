@@ -253,3 +253,46 @@ async fn a_removal_resolves_to_the_echo_of_our_kick() {
         assert_confirmation(result.map(|outcome| outcome.confirmation), expected, reply);
     }
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_ctcp_reply_resolves_to_its_labelled_echo() {
+    let caps = "echo-message labeled-response message-tags";
+    let (mut server, client, mut events, driver) = scripted(
+        config()
+            .ctcp(crate::CtcpReplies::off())
+            .wanted_caps(caps.split(' ')),
+    );
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, caps, caps).await;
+    server_line(
+        &mut server,
+        b"@msgid=eqsesk7xf4feeedyqpjcpmkixa;time=2026-11-15T20:11:24.183Z :emily!~e@t86kzv775fsaw.irc PRIVMSG papo-driver :\x01VERSION\x01\r\n",
+    )
+    .await;
+    let query = next_event(&mut events).await.unwrap();
+    let query = query.as_ctcp_query().unwrap().clone();
+    let reply = tokio::spawn({
+        let client = client.clone();
+        async move { client.ctcp_reply(&query, "ferrobot 2.3").await }
+    });
+    client_line(
+        &mut server,
+        b"@label=0 NOTICE emily :\x01VERSION ferrobot 2.3\x01\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@msgid=hvjgkknruzk58qrw89xh3v4spa;time=2026-11-15T20:11:27.686Z;label=0 :papo-driver!~u@t86kzv775fsaw.irc NOTICE emily :\x01VERSION ferrobot 2.3\x01\r\n",
+    )
+    .await;
+    let outcome = within(reply).await.unwrap().unwrap();
+    assert_eq!(outcome.conversation.to_string(), "emily");
+    assert_eq!(
+        outcome.lines,
+        [crate::SentLine {
+            text: "\x01VERSION ferrobot 2.3\x01".into(),
+            confirmation: confirmed("hvjgkknruzk58qrw89xh3v4spa", "2026-11-15T20:11:27.686Z"),
+        }]
+    );
+    task.abort();
+}

@@ -117,6 +117,9 @@ kept, which may be cut to `TOPICLEN`, and the echo's `Confirmation`.
 `Client::kick` resolves to a `KickOutcome` with the `Confirmation` of its `KICK` echo, and
 `KickbanOutcome::kick` holds the same outcome.
 
+`Client::ctcp_reply` resolves to a `SendOutcome` like `Client::notice`, with its labelled echo's
+`Confirmation` when the server has `echo-message` and `labeled-response`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

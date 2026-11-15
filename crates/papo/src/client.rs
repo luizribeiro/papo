@@ -472,7 +472,7 @@ impl SendOutcome {
         crate::MessageRef::from(self)
     }
 
-    pub(crate) fn unconfirmed(
+    pub(crate) fn new(
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
@@ -797,12 +797,13 @@ impl Client {
     ///
     /// Returns [`Error::InvalidInput`] when the command or text contains a CTCP or IRC line
     /// delimiter. It returns [`Error::TargetGone`] when the query sender can no longer be
-    /// verified, or [`Error::Disconnected`] if the driver stops before writing the reply.
+    /// verified, a typed server refusal of the `NOTICE`, or [`Error::Disconnected`] if the
+    /// driver stops before writing the reply.
     pub fn ctcp_reply(
         &self,
         query: &crate::event::CtcpQuery,
         text: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<SendOutcome> {
         let target = crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(query.conversation()),
@@ -821,8 +822,23 @@ impl Client {
             let target = client
                 .resolve_send("ctcp_reply: query", target.into_owned())
                 .await?;
-            let reply = Line::notice(&target.text, body);
-            client.send_chat_message(target, reply).await
+            let state = client.state();
+            let (status, conversation) = target.conversation(&client, &state)?;
+            let receipt = state.sent_receipt(&conversation, target.text.clone());
+            drop(state);
+            let reply = Line::notice(&target.text, &body);
+            let confirmation = client.send_one_line(target, reply).await?;
+            let line = SentLine {
+                text: body,
+                confirmation,
+            };
+            Ok(SendOutcome::new(
+                conversation,
+                status,
+                receipt,
+                Vec::new(),
+                vec![line],
+            ))
         })
     }
 
@@ -872,6 +888,26 @@ impl Client {
             .await
             .map_err(|_| Error::connection_lost())?;
         receiver.await.map_err(|_| Error::connection_lost())?
+    }
+
+    async fn send_one_line(
+        &self,
+        target: ResolvedSend,
+        line: Line,
+    ) -> Result<crate::Confirmation, Error> {
+        if !self.state().supports(Feature::LabeledResponse) {
+            self.send_chat_message(target, line).await?;
+            return Ok(crate::Confirmation::unconfirmed(
+                crate::UnconfirmedReason::NoLabeledResponse,
+            ));
+        }
+        let response = self.correlated_chat(&target, line).await?;
+        crate::requests::empty(&response)?;
+        let echo_message = self.state().caps().contains_key(&crate::cap::ECHO_MESSAGE);
+        Ok(crate::Confirmation::from_labelled_echo(
+            echo_message,
+            response.sent(),
+        ))
     }
 
     async fn send_chat_message(&self, target: ResolvedSend, message: Line) -> Result<(), Error> {
@@ -1194,18 +1230,7 @@ impl Client {
                 .with_tag(reply_tag, message_id.as_ref())
                 .with_tag(reaction_tag, emoji);
             let (status, conversation) = target.conversation(&client, &state)?;
-            let confirmation = if state.supports(Feature::LabeledResponse) {
-                let response = client.correlated_chat(&target, line).await?;
-                crate::requests::empty(&response)?;
-                let echo_message = client
-                    .state()
-                    .caps()
-                    .contains_key(&crate::cap::ECHO_MESSAGE);
-                crate::Confirmation::from_labelled_echo(echo_message, response.sent())
-            } else {
-                client.send_chat_message(target, line).await?;
-                crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoLabeledResponse)
-            };
+            let confirmation = client.send_one_line(target, line).await?;
             Ok(ReactOutcome {
                 conversation,
                 status,
@@ -1348,7 +1373,7 @@ impl Client {
             self.send_chat_message(target, message).await?;
             let lines =
                 SentLine::unconfirmed(vec![text], crate::UnconfirmedReason::NoLabeledResponse);
-            return Ok(SendOutcome::unconfirmed(
+            return Ok(SendOutcome::new(
                 conversation,
                 status,
                 receipt,

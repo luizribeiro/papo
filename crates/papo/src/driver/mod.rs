@@ -337,7 +337,7 @@ impl PendingTransmit {
                 lines,
                 result,
             } => {
-                _ = result.send(Ok(SendOutcome::unconfirmed(
+                _ = result.send(Ok(SendOutcome::new(
                     conversation,
                     status,
                     receipt,

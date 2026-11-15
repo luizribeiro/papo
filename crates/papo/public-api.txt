@@ -2329,7 +2329,7 @@ pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<a
 pub fn papo::Client::builder(impl papo::IntoEndpoint, impl papo::AsNick) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<papo::TopicOutcome>
-pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::SendOutcome>
 pub fn papo::Client::invite(&self, &papo::UserHandle, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::is_current(&self, &papo::State) -> bool
 pub fn papo::Client::join(&self, impl papo::AsChannel) -> papo::JoinChannel
