@@ -92,6 +92,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::State,
     ),
     (
+        "pub papo::ReactOutcome::conversation: papo::Conversation",
+        ConversationClass::Outgoing,
+    ),
+    (
         "pub papo::RecentConversation::conversation: papo::Conversation",
         ConversationClass::History,
     ),

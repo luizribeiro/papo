@@ -3151,6 +3151,25 @@ impl core::marker::Unpin for papo::PrivateKey
 impl core::marker::UnsafeUnpin for papo::PrivateKey
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PrivateKey
 impl core::panic::unwind_safe::UnwindSafe for papo::PrivateKey
+#[non_exhaustive] pub struct papo::ReactOutcome
+pub papo::ReactOutcome::confirmation: papo::Confirmation
+pub papo::ReactOutcome::conversation: papo::Conversation
+pub papo::ReactOutcome::status: core::option::Option<papo::Prefix>
+impl core::clone::Clone for papo::ReactOutcome
+pub fn papo::ReactOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::ReactOutcome
+impl core::cmp::PartialEq for papo::ReactOutcome
+pub fn papo::ReactOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ReactOutcome
+pub fn papo::ReactOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::ReactOutcome
+impl core::marker::Freeze for papo::ReactOutcome
+impl core::marker::Send for papo::ReactOutcome
+impl core::marker::Sync for papo::ReactOutcome
+impl core::marker::Unpin for papo::ReactOutcome
+impl core::marker::UnsafeUnpin for papo::ReactOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ReactOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::ReactOutcome
 #[non_exhaustive] pub struct papo::RecentConversation
 pub papo::RecentConversation::conversation: papo::Conversation
 pub papo::RecentConversation::latest_server_time: papo_proto::time::ServerTime

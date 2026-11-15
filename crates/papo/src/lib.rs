@@ -349,7 +349,7 @@ pub use builder::Builder;
 pub use builder::StreamSecurity;
 pub use client::{
     Client, ConfirmedLines, Fallback, JoinChannel, Kickban, KickbanNick, KickbanRequest,
-    SendMessage, Sent, SentOutcome,
+    ReactOutcome, SendMessage, Sent, SentOutcome,
 };
 pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;

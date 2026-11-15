@@ -93,6 +93,24 @@ pub enum SentOutcome {
     Unconfirmed,
 }
 
+/// The result of adding or removing a reaction with [`Client::react`] or [`Client::unreact`].
+///
+/// The labelled echo of the reaction is consumed here and is not also emitted as an event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ReactOutcome {
+    /// IRC conversation to which the reaction was sent.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    pub conversation: crate::Conversation,
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    pub status: Option<crate::Prefix>,
+    /// Whether the server confirmed the reaction, with the identity it assigned when it did.
+    pub confirmation: crate::Confirmation,
+}
+
 /// The non-empty logical lines in a confirmed send.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfirmedLines {
