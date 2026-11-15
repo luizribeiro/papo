@@ -198,6 +198,7 @@ pub use self::bouncer::{__bouncer_attributes, BouncerNetwork, NetworkId, Network
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
+pub use echo::claimed_channel_context;
 pub use features::{Feature, Unsupported, UnsupportedReason};
 use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
