@@ -415,7 +415,7 @@ impl State {
         self.users.get(nick).expect("own user is always present")
     }
 
-    pub(super) fn nick_authorship(&self, nick: &str) -> Party {
+    pub(super) fn nick_party(&self, nick: &str) -> Party {
         if crate::names_equal(self.casemapping.casemapping(), nick, self.nick.as_str()) {
             Party::Me
         } else {
@@ -440,10 +440,10 @@ impl State {
         }
     }
 
-    pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Party {
+    pub(super) fn source_party(&self, message: &LineRef<'_>) -> Party {
         match message.source() {
             Some(ProtoSource::User { nick, .. })
-                if self.nick_authorship(nick) == Party::Me
+                if self.nick_party(nick) == Party::Me
                     || message.tag("account").is_some_and(|actor| {
                         self.account()
                             .name()
@@ -1147,7 +1147,7 @@ impl State {
                 return Handled::No;
             };
             for channel in channels.split(',') {
-                let authorship = self.nick_authorship(nick);
+                let authorship = self.nick_party(nick);
                 let token = self.__reply_token_for(nick);
                 let facts = self.user(nick).and_then(|user| {
                     self.departure_removes_user(user, Some(channel), user.monitored)
@@ -1180,8 +1180,8 @@ impl State {
             else {
                 return Handled::No;
             };
-            let authorship = self.source_authorship(message);
-            let subject_authorship = self.nick_authorship(nick);
+            let authorship = self.source_party(message);
+            let subject_authorship = self.nick_party(nick);
             let token = self.__reply_token_for(nick);
             let facts = self.user(nick).and_then(|user| {
                 self.departure_removes_user(user, Some(channel), user.monitored)
@@ -1221,7 +1221,7 @@ impl State {
             let own_rename = crate::names_equal(mapping, nick, self.nick.as_str());
             let collides_with_own =
                 !own_rename && crate::names_equal(mapping, new_nick, self.nick.as_str());
-            let authorship = self.source_authorship(message);
+            let authorship = self.source_party(message);
             let mut channels: Vec<_> = if authorship == Party::Me {
                 self.channels
                     .values()
@@ -1335,7 +1335,7 @@ impl State {
                     nick: self.casemapping.nick(nick),
                     realname: change.realname.to_owned(),
                     token,
-                    authorship: self.nick_authorship(nick),
+                    authorship: self.nick_party(nick),
                 });
             }
         }
@@ -1414,10 +1414,10 @@ impl State {
             subject_token: self.__reply_token_for(target),
             actor: Source::from_proto_with_names(actor, self.casemapping),
             actor_token: self.source_token(message),
-            authorship: self.source_authorship(message),
+            authorship: self.source_party(message),
             subject_authorship: match message.source() {
                 _ if isupport.is_channel(target) => Party::Other,
-                _ => self.nick_authorship(target),
+                _ => self.nick_party(target),
             },
             own_nick: Some(self.nick.clone()),
             changes,
@@ -1529,7 +1529,7 @@ impl State {
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 actor: Source::from_proto_with_names(actor, self.casemapping),
                 actor_token: self.source_token(message),
-                authorship: self.source_authorship(message),
+                authorship: self.source_party(message),
             });
         }
         let Some(channel) = channel_name.and_then(|name| self.channel_mut(name)) else {

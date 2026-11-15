@@ -16,7 +16,7 @@ impl State {
             return Handled::No;
         };
         let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
-        let authorship = self.nick_authorship(nick);
+        let authorship = self.nick_party(nick);
         let token = self.__reply_token_for(nick);
         let facts = self.user(nick).cloned();
         let channels = if ours {
@@ -95,7 +95,7 @@ impl State {
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
             token: self.__reply_token_for(nick),
-            authorship: self.nick_authorship(nick),
+            authorship: self.nick_party(nick),
             netjoin: None,
         });
         let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());

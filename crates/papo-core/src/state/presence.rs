@@ -10,7 +10,7 @@ impl State {
             return;
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
-        let authorship = self.source_authorship(message);
+        let authorship = self.source_party(message);
         // NONSTANDARD(inspircd): InspIRCd sends a never-reused account ID in this vendor tag next to
         // `account`; it has no cap of its own, and without the tag pins fall back to the account name.
         let account_id = message
@@ -165,7 +165,7 @@ impl State {
                 nick: self.casemapping.nick(nick),
                 account,
                 token,
-                authorship: self.source_authorship(message),
+                authorship: self.source_party(message),
             });
         }
         Some(Handled::Yes)
@@ -207,7 +207,7 @@ impl State {
                     nick: self.casemapping.nick(nick),
                     away: next,
                     token,
-                    authorship: self.source_authorship(message),
+                    authorship: self.source_party(message),
                 });
             }
             return Some(Handled::Yes);
@@ -232,7 +232,7 @@ impl State {
                             nick: self.casemapping.nick(nick),
                             away: next,
                             token,
-                            authorship: self.nick_authorship(nick),
+                            authorship: self.nick_party(nick),
                         });
                     }
                 }
@@ -356,7 +356,7 @@ impl State {
                 username: change.user.to_owned(),
                 host: change.host.to_owned(),
                 token,
-                authorship: self.source_authorship(message),
+                authorship: self.source_party(message),
             });
             return Some(Handled::Yes);
         }
@@ -380,7 +380,7 @@ impl State {
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
             token,
-            authorship: self.source_authorship(message),
+            authorship: self.source_party(message),
         });
         Some(Handled::Yes)
     }

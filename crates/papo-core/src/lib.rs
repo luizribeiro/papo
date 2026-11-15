@@ -3951,7 +3951,7 @@ impl Session {
         Names::new(self.isupport.value().casemapping(), self.config.origin)
     }
 
-    fn authorship(&self, message: &LineRef<'_>) -> Party {
+    fn actor_party(&self, message: &LineRef<'_>) -> Party {
         let same_account = message.tag("account").is_some_and(|actor| {
             self.account().is_some_and(|own| {
                 let mapping = self.isupport.value().casemapping();
@@ -6301,7 +6301,7 @@ impl Session {
             } => {
                 if let Some(conversation) = self.history_conversation(&target) {
                     self.remember_history_server_time(&target, &items);
-                    self.mark_history_authorship(&mut items);
+                    self.mark_history_parties(&mut items);
                     self.outbox.event(Event::History {
                         conversation,
                         items,
@@ -6451,7 +6451,7 @@ impl Session {
         }
     }
 
-    fn mark_history_authorship(&self, items: &mut [HistoryItem]) {
+    fn mark_history_parties(&self, items: &mut [HistoryItem]) {
         for item in items {
             let subject_authorship = match item {
                 HistoryItem::ModeChanged(line)
@@ -6466,12 +6466,12 @@ impl Session {
                 _ => Party::Unknown,
             };
             let line = item.line_mut();
-            line.authorship = self.history_authorship(&line.line.as_ref());
+            line.authorship = self.history_actor_party(&line.line.as_ref());
             line.subject_authorship = subject_authorship;
         }
     }
 
-    fn history_authorship(&self, message: &LineRef<'_>) -> Party {
+    fn history_actor_party(&self, message: &LineRef<'_>) -> Party {
         let Some(papo_proto::Source::User { .. }) = message.source() else {
             return Party::Unknown;
         };
@@ -6623,7 +6623,7 @@ impl Session {
             self.remember_history_server_time(target, items);
         }
         if let Some((_, items, _)) = &mut history {
-            self.mark_history_authorship(items);
+            self.mark_history_parties(items);
         }
         if deferred && let Some(request) = &request {
             self.resolve_deferred(request.id);

@@ -478,7 +478,7 @@ impl Session {
             Conversation::Private(_) => conversation.as_str(),
         }
         .to_owned();
-        let authorship = self.authorship(message);
+        let authorship = self.actor_party(message);
         let actor_token = self.state.source_token(message);
         let peer_token = self.state.conversation_token(&conversation);
         let server_time = LineEnvelope::from_line(message).server_time();
@@ -564,7 +564,7 @@ impl Session {
                 else {
                     return;
                 };
-                let own = self.authorship(message) == Party::Me;
+                let own = self.actor_party(message) == Party::Me;
                 let nick = mapping.nick(nick);
                 let mut removed = Vec::new();
                 for channel in channels.split(',') {
@@ -602,7 +602,7 @@ impl Session {
                 let Some(Source::User { nick, .. }) = message.source() else {
                     return;
                 };
-                let own = self.authorship(message) == Party::Me;
+                let own = self.actor_party(message) == Party::Me;
                 let nick = mapping.nick(nick);
                 (
                     TypingTable::stop_where(&mut self.state.typing, |_, typer| {

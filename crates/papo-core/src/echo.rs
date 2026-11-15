@@ -33,7 +33,7 @@ impl Session {
 
     pub(super) fn received_line(&self, mut line: Line, batch_type: Option<String>) -> ReceivedLine {
         self.mark_channel_key(&mut line);
-        let authorship = self.authorship(&line.as_ref());
+        let authorship = self.actor_party(&line.as_ref());
         let (status, conversation) = classify_line_with_names(
             &line.as_ref(),
             self.nick(),

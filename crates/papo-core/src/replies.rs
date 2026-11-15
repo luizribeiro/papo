@@ -26,7 +26,7 @@ impl Session {
             actor: actor.to_owned(),
             actor_token: self.state.source_token(message),
             peer_token: self.state.conversation_token(&conversation),
-            authorship: self.authorship(message),
+            authorship: self.actor_party(message),
             conversation,
             status,
             return_address,
@@ -56,7 +56,7 @@ impl Session {
             actor: actor.to_owned(),
             actor_token: self.state.source_token(message),
             peer_token: self.state.conversation_token(&conversation),
-            authorship: self.authorship(message),
+            authorship: self.actor_party(message),
             conversation,
             status,
             return_address,
@@ -82,7 +82,7 @@ impl Session {
             token: self.state.__reply_token_for(nick),
             actor: by.to_owned(),
             actor_token: self.state.source_token(message),
-            authorship: self.authorship(message),
+            authorship: self.actor_party(message),
             subject_authorship: if crate::names_equal(casemapping, nick, self.nick()) {
                 Party::Me
             } else {
