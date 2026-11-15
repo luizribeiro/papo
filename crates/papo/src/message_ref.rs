@@ -619,14 +619,24 @@ mod tests {
                 "@#ops".into(),
             ),
             lines: [
-                ("RfcBTzyxY120005", "deploy complete"),
-                ("RfcBTzyxY120006", "deploy verified"),
+                ("RfcBTzyxY120005", "deploy complete", None),
+                (
+                    "RfcBTzyxY120006",
+                    "deploy verified",
+                    Some(1_763_228_532_749),
+                ),
+                (
+                    "RfcBTzyxY120007",
+                    "deploy archived",
+                    Some(1_763_228_532_751),
+                ),
             ]
-            .map(|(msgid, text)| crate::SentLine {
+            .map(|(msgid, text, millis)| crate::SentLine {
                 text: text.into(),
                 confirmation: crate::Confirmation::Confirmed {
                     msgid: msgid.into(),
-                    server_time: Some(crate::ServerTime::from_stored_millis(0).unwrap()),
+                    server_time: millis
+                        .map(|millis| crate::ServerTime::from_stored_millis(millis).unwrap()),
                 },
             })
             .into(),
@@ -640,6 +650,10 @@ mod tests {
         assert_eq!(reference, "@#ops");
         assert_eq!(reference.msgids.len(), 2);
         assert_eq!(reference.origin(), origin);
+        assert_eq!(
+            reference.server_time(),
+            crate::ServerTime::from_stored_millis(1_763_228_532_749).ok()
+        );
     }
 
     #[test]

@@ -505,6 +505,7 @@ impl SendOutcome {
         if msgids.len() == texts.len() {
             receipt.set_reference(msgids, None);
         }
+        debug_assert_eq!(echoes.len(), texts.len(), "one response per logical line");
         // papo labels a send only when echo-message is on as well.
         let lines = texts
             .into_iter()
