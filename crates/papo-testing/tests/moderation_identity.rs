@@ -64,7 +64,10 @@ async fn call_with_handed_off_person(
         "papo::Metadata::get" => metadata.get(alice, [display_name]).await.map(drop),
         "papo::Metadata::list" => metadata.list(alice).await.map(drop),
         "papo::Metadata::remove_on" => metadata.remove_on(alice, display_name).await,
-        "papo::Metadata::set_on" => metadata.set_on(alice, display_name, "Mallory").await,
+        "papo::Metadata::set_on" => metadata
+            .set_on(alice, display_name, "Mallory")
+            .await
+            .map(drop),
         "papo::Metadata::sync" => metadata.sync(alice).await,
         "papo::SetModes::dehalfop" => modes.dehalfop(alice).await.map(drop),
         "papo::SetModes::deop" => modes.deop(alice).await.map(drop),

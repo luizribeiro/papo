@@ -828,7 +828,8 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
             "metadata.set_on",
             metadata
                 .set_on(channel, avatar(), "https://example.org/a.png")
-                .await,
+                .await
+                .map(drop),
         ),
         (
             "verify_account",
@@ -2485,7 +2486,8 @@ async fn assert_stale_channel_requests_fail(
             "metadata.set_on",
             metadata
                 .set_on(stale, avatar(), "https://example.org/a.png")
-                .await,
+                .await
+                .map(drop),
         ),
         (
             "metadata.remove_on",

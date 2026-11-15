@@ -1171,7 +1171,8 @@ mod tests {
                 "metadata.set_on",
                 metadata
                     .set_on(&channel, avatar(), "https://example.org/a.png")
-                    .await,
+                    .await
+                    .map(|_| ()),
             ),
             (
                 "metadata.remove_on",

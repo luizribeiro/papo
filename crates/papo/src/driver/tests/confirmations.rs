@@ -296,3 +296,45 @@ async fn a_ctcp_reply_resolves_to_its_labelled_echo() {
     );
     task.abort();
 }
+
+const METADATA: &str = "batch draft/metadata-2 labeled-response message-tags";
+
+fn display_name() -> crate::MetadataKey {
+    crate::MetadataKey::new("display-name")
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_metadata_set_resolves_to_the_value_the_server_stored() {
+    let stored = answered(
+        METADATA,
+        |client| client.metadata().set(display_name(), "Alice A"),
+        "@label=0 METADATA * SET display-name :Alice A",
+        &["@time=2026-11-15T20:11:32.195Z;label=0 :ergo.test 761 papo-driver papo-driver display-name * :Alice A"],
+    )
+    .await
+    .unwrap();
+    assert_eq!(stored.value, "Alice A");
+    assert_eq!(stored.visibility, crate::Visibility::Public);
+
+    let channel = answered(
+        METADATA,
+        |client| client.metadata().set_on("#papo2", display_name(), "chan"),
+        "@label=0 METADATA #papo2 SET display-name chan",
+        &["@time=2026-11-15T20:12:35.113Z;label=0 :ergo.test 761 papo-driver #papo2 display-name * chan"],
+    )
+    .await
+    .unwrap();
+    assert_eq!(channel.value, "chan");
+
+    let unverified = answered(
+        METADATA,
+        |client| client.metadata().set(display_name(), "Alice A"),
+        "@label=0 METADATA * SET display-name :Alice A",
+        &["@time=2026-11-15T20:11:32.195Z;label=0 :ergo.test 766 papo-driver papo-driver display-name :Key deleted"],
+    )
+    .await;
+    assert!(
+        matches!(unverified, Err(Error::NotVerified)),
+        "{unverified:?}"
+    );
+}

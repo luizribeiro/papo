@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future};
 
 use papo_core::MetadataCommand;
 
@@ -43,15 +43,14 @@ impl Metadata {
         &self,
         command: MetadataCommand,
         proof: Option<papo_core::Proven>,
-    ) -> Result<(), Error> {
+    ) -> Result<papo_core::Response, Error> {
         let request = match proof {
             Some(proof) => CoreRequest::MetadataPerson { command, proof },
             None => CoreRequest::Metadata(command),
         };
         let response = self.client.core_request(request).await?;
-        response
-            .error()
-            .map_or(Ok(()), |error| Err(Error::server(error)))
+        crate::requests::empty(&response)?;
+        Ok(response)
     }
 
     async fn prove_target(
@@ -78,7 +77,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        crate::RequestFuture::new(async move { metadata.request(command, None).await })
+        crate::RequestFuture::new(async move { metadata.request(command, None).await.map(drop) })
     }
 
     fn set_target(
@@ -87,12 +86,12 @@ impl Metadata {
         user: Option<crate::UserHandle>,
         key: crate::MetadataKey,
         value: Option<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> impl Future<Output = Result<papo_core::Response, Error>> + Send + 'static {
         let metadata = Self {
             client: self.client.clone(),
         };
         let key = key.into_string();
-        crate::RequestFuture::new(async move {
+        async move {
             let target = target?;
             if value.as_ref().is_some_and(String::is_empty) {
                 return Err(crate::InvalidInput::EmptyText.into());
@@ -103,7 +102,35 @@ impl Metadata {
             metadata
                 .request(MetadataCommand::__set(target, key, value), proof)
                 .await
+        }
+    }
+
+    fn store(
+        &self,
+        target: Result<String, Error>,
+        user: Option<crate::UserHandle>,
+        key: crate::MetadataKey,
+        value: String,
+    ) -> crate::RequestFuture<MetadataValue> {
+        let response = self.set_target(target, user, key.clone(), Some(value));
+        crate::RequestFuture::new(async move {
+            response
+                .await?
+                .metadata()
+                .into_iter()
+                .find_map(|(stored, value)| (stored == key).then_some(value).flatten())
+                .ok_or(Error::NotVerified)
         })
+    }
+
+    fn unset(
+        &self,
+        target: Result<String, Error>,
+        user: Option<crate::UserHandle>,
+        key: crate::MetadataKey,
+    ) -> crate::RequestFuture<()> {
+        let response = self.set_target(target, user, key, None);
+        crate::RequestFuture::new(async move { response.await.map(drop) })
     }
 
     fn clear_target(
@@ -122,6 +149,7 @@ impl Metadata {
             metadata
                 .request(MetadataCommand::__clear(target), proof)
                 .await
+                .map(drop)
         })
     }
 
@@ -234,11 +262,14 @@ impl Metadata {
         })
     }
 
-    /// Sets one metadata key for the current nickname.
+    /// Sets one metadata key for the current nickname and resolves to the value the server
+    /// stored, which may differ from the one sent.
     ///
     /// An empty value is invalid input. Use [`Metadata::remove`] to remove the key.
     ///
     /// # Errors
+    ///
+    /// Returns [`Error::NotVerified`] when the server answers without the stored value.
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
@@ -251,20 +282,24 @@ impl Metadata {
         &self,
         key: crate::MetadataKey,
         value: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
-        self.set_target(Ok("*".into()), None, key, Some(value.into()))
+    ) -> crate::RequestFuture<MetadataValue> {
+        self.store(Ok("*".into()), None, key, value.into())
     }
 
     /// Removes one metadata key for the current nickname.
+    ///
+    /// The server's `RPL_KEYNOTSET` repeats only the key, so this resolves to `()`.
     pub fn remove(&self, key: crate::MetadataKey) -> crate::RequestFuture<()> {
-        self.set_target(Ok("*".into()), None, key, None)
+        self.unset(Ok("*".into()), None, key)
     }
 
-    /// Sets one metadata key on a user or channel.
+    /// Sets one metadata key on a user or channel and resolves to the value the server stored.
     ///
     /// An empty value is invalid input. Use [`Metadata::remove_on`] to remove the key.
     ///
     /// # Errors
+    ///
+    /// Returns [`Error::NotVerified`] when the server answers without the stored value.
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
@@ -278,19 +313,21 @@ impl Metadata {
         target: impl crate::AsConversation,
         key: crate::MetadataKey,
         value: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<MetadataValue> {
         let (target, user) = self.target(target, "metadata.set_on: target");
-        self.set_target(target, user, key, Some(value.into()))
+        self.store(target, user, key, value.into())
     }
 
     /// Removes one metadata key from a user or channel.
+    ///
+    /// The server's `RPL_KEYNOTSET` repeats only the key, so this resolves to `()`.
     pub fn remove_on(
         &self,
         target: impl crate::AsConversation,
         key: crate::MetadataKey,
     ) -> crate::RequestFuture<()> {
         let (target, user) = self.target(target, "metadata.remove_on: target");
-        self.set_target(target, user, key, None)
+        self.unset(target, user, key)
     }
 
     /// Clears all metadata for the current nickname.
@@ -380,6 +417,7 @@ impl Metadata {
             metadata
                 .request(MetadataCommand::__sync(target), proof)
                 .await
+                .map(drop)
         })
     }
 }
