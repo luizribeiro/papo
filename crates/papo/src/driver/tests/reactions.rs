@@ -16,7 +16,8 @@ async fn react(caps: &str, tag: &str, address: &str, reply: &str) -> Result<Reac
     let message = line_reference(address, ORIGINAL);
     let reacted = tokio::spawn(match tag {
         "react" => client.react(message, "👍"),
-        _ => client.unreact(message, "👍"),
+        "unreact" => client.unreact(message, "👍"),
+        other => panic!("{other} is not a reaction tag"),
     });
     let label = if caps.contains(crate::cap::LABELED_RESPONSE.as_str()) {
         ";label=0"
