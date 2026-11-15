@@ -159,11 +159,13 @@ fn invalid_server_time_message_is_stable_and_safe() {
 #[test]
 fn formats_times_before_the_unix_epoch() {
     assert_eq!(
-        time::format(ServerTime::from_stored_millis(-1).unwrap()),
+        ServerTime::from_stored_millis(-1).unwrap().to_string(),
         "1969-12-31T23:59:59.999Z"
     );
     assert_eq!(
-        time::format(ServerTime::from_stored("1969-01-01T00:00:00.000Z").unwrap()),
+        ServerTime::from_stored("1969-01-01T00:00:00.000Z")
+            .unwrap()
+            .to_string(),
         "1969-01-01T00:00:00.000Z"
     );
 }

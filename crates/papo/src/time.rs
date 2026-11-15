@@ -1,4 +1,6 @@
-//! IRC timestamp formatting helpers.
+//! Device wall-clock time.
+//!
+//! Server times are [`crate::ServerTime`]; format one with its `Display` impl.
 
 use std::time::SystemTime;
 
@@ -11,9 +13,6 @@ pub fn now() -> SystemTime {
     crate::rt::now_wall()
 }
 
-/// Formats a server timestamp as RFC 3339 with millisecond precision.
-pub use papo_proto::time::format;
-
 #[cfg(all(test, not(browser)))]
 mod tests {
     use std::time::SystemTime;
@@ -25,11 +24,5 @@ mod tests {
         let after = SystemTime::now();
         assert!(actual >= before);
         assert!(actual <= after);
-    }
-
-    #[test]
-    fn formats_rfc3339_at_millisecond_precision() {
-        let time = crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
-        assert_eq!(super::format(time), "2026-02-03T04:05:06.789Z");
     }
 }
