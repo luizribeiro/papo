@@ -65,6 +65,7 @@ lines.
 
 `papo_bot` ignores ops-only commands unless the bot passes the `Restricted` line to
 `BotConfig::restricted_command`; `Command::audience` reports the sign and its replies keep it.
+`BotConfig::command` returns `None` for a restricted line's inner message.
 
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.

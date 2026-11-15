@@ -19,7 +19,8 @@
 //! A command sent to a status-prefixed address such as `@#ops` arrives as
 //! [`papo::Event::Restricted`], which the message loop above never sees, so it is ignored. To
 //! accept one, pass the [`Restricted`] line to [`BotConfig::restricted_command`]: the command's
-//! [`Command::audience`] names the sign, and its replies keep the restricted address. See
+//! [`Command::audience`] names the sign, and its replies keep the restricted address.
+//! [`BotConfig::command`] ignores the line's inner message, so this opt-in is the only way in. See
 //! [`papo::Conversation`] for status-prefixed line guidance.
 //!
 //! Move slow asynchronous work out of the event loop so events keep being read. A [`Client`] is
@@ -179,7 +180,11 @@ impl BotConfig {
 
     /// Parses `message` as a live command using its event's `state`.
     ///
-    /// Replayed messages and messages produced by another client are ignored.
+    /// Replayed messages and messages produced by another client are ignored. So is the message
+    /// inside a [`papo::Event::Restricted`] line, such as one sent to `@#ops`: its command would
+    /// report no [`Command::audience`] while its replies reach only that audience, so the one way
+    /// to accept it is [`BotConfig::restricted_command`]. See [`papo::Conversation`] for
+    /// status-prefixed line guidance.
     #[must_use]
     pub fn command(
         &self,
@@ -187,6 +192,9 @@ impl BotConfig {
         state: &State,
         message: &ChatMessage,
     ) -> Option<Command> {
+        if reaches_a_status_audience(state, message) {
+            return None;
+        }
         Command::parse(client, state, message, None, self)
     }
 
@@ -208,6 +216,15 @@ impl BotConfig {
         };
         Command::parse(client, state, message, Some(restricted.audience), self)
     }
+}
+
+// A channel message's return address is its wire target, which names the channel itself unless
+// status signs precede it.
+fn reaches_a_status_audience(state: &State, message: &ChatMessage) -> bool {
+    matches!(message.conversation(), Conversation::Channel(_))
+        && !state
+            .isupport()
+            .is_channel(message.return_address().as_ref())
 }
 
 /// The outcome of attempting a bot response.
@@ -1122,6 +1139,62 @@ mod tests {
         let (voiced, state) = next_restricted(&mut events).await;
         let status = config.restricted_command(&client, &state, &voiced).unwrap();
         assert_eq!(status.audience().map(papo::Prefix::symbol), Some('+'));
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_restricted_lines_message_is_not_a_public_command() {
+        let stream = TranscriptStream::new(OPS_ONLY);
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
+            .stream(stream)
+            .build();
+        let driver = tokio::spawn(driver);
+        let config = BotConfig::new("!");
+        let _notice = next_restricted(&mut events).await;
+        for sign in ['@', '+'] {
+            let (restricted, state) = next_restricted(&mut events).await;
+            let papo::RestrictedLine::Message(message) = &restricted.line else {
+                panic!("{restricted:?}")
+            };
+            assert_eq!(message.return_address().as_ref().chars().next(), Some(sign));
+            assert!(config.command(&client, &state, message).is_none());
+            let opted_in = config.restricted_command(&client, &state, &restricted);
+            assert_eq!(
+                opted_in
+                    .and_then(|command| command.audience())
+                    .map(papo::Prefix::symbol),
+                Some(sign)
+            );
+        }
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn an_ampersand_channel_is_public_where_it_is_a_channel_type() {
+        let transcript = concat!(
+            ":solanum.test CAP * LS :\r\n",
+            ":solanum.test 001 papo{bot} :Welcome to the Solanum test network\r\n",
+            ":solanum.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=&# PREFIX=(ov)@+ STATUSMSG=@+ :are supported by this server\r\n",
+            ":solanum.test 422 papo{bot} :MOTD File is missing\r\n",
+            ":papo{bot}!papo@localhost JOIN &ops\r\n",
+            ":emily!~emily@localhost JOIN &ops\r\n",
+            ":emily!~emily@localhost PRIVMSG @&ops :!deploy key rotated\r\n",
+            ":emily!~emily@localhost PRIVMSG &ops :!ping\r\n",
+        );
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
+            .stream(TranscriptStream::new(transcript))
+            .build();
+        let driver = tokio::spawn(driver);
+        let config = BotConfig::new("!");
+        let (restricted, state) = next_restricted(&mut events).await;
+        let papo::RestrictedLine::Message(message) = &restricted.line else {
+            panic!("{restricted:?}")
+        };
+        assert!(config.command(&client, &state, message).is_none());
+        let incoming = next_message(&mut events).await;
+        let public = config.command(&client, &incoming.state, &incoming).unwrap();
+        assert_eq!(public.name(), "ping");
+        assert_eq!(public.audience(), None);
         driver.abort();
     }
 
