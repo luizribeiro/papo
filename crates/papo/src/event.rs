@@ -23,6 +23,8 @@ mod channel;
 mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
+#[path = "event/restricted.rs"]
+mod restricted;
 #[path = "event/server.rs"]
 mod server;
 #[path = "event/source.rs"]
@@ -49,6 +51,7 @@ pub use conversation::{
     Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use papo_core::{BatchAbandonReason, TypingReason};
+pub use restricted::{Restricted, RestrictedLine};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;
 pub use server::{AutoJoinFailed, MetadataChanged, Warning};
@@ -1561,6 +1564,11 @@ pub enum Event {
     Incomplete(Incomplete),
     /// A server notice, broadcast, `*` message, or `WALLOPS`.
     ServerNotice(ServerNotice),
+    /// A line sent to a status-prefixed channel address, such as `@#ops`.
+    ///
+    /// Such a line never arrives in another arm. See [`Conversation`] for status-prefixed line
+    /// guidance.
+    Restricted(Restricted),
     /// An incoming Client-to-Client Protocol query.
     CtcpQuery(CtcpQuery),
     /// An incoming Client-to-Client Protocol reply.
@@ -1668,6 +1676,7 @@ variant_accessors! { Event;
     (Notice, as_notice, Notice),
     (Incomplete, as_incomplete, Incomplete),
     (ServerNotice, as_server_notice, ServerNotice),
+    (Restricted, as_restricted, Restricted),
     (CtcpQuery, as_ctcp_query, CtcpQuery),
     (CtcpReply, as_ctcp_reply, CtcpReply),
     (BroadcastCtcp, as_broadcast_ctcp, BroadcastCtcp),
@@ -1728,6 +1737,7 @@ impl Event {
                 Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 Audience::Me | Audience::Broadcast(_) => None,
             },
+            Self::Restricted(event) => event.line.conversation(),
             Self::CtcpQuery(event) => Some(event.conversation.clone()),
             Self::CtcpReply(event) => Some(event.conversation.clone()),
             Self::TagMsg(event) => Some(event.conversation.clone()),
@@ -3279,6 +3289,21 @@ mod tests {
             ),
             _ => panic!("line did not produce a public event"),
         }
+    }
+
+    #[test]
+    fn a_restricted_line_files_under_its_plain_channel() {
+        let actor = crate::__testing::user_handle(Casemapping::default().nick("oppy"));
+        let message = crate::__testing::message(Some(actor), "#ops", "deploy key rotated?", false);
+        let event = Event::Restricted(crate::Restricted {
+            audience: crate::Prefix::__new('o', '@'),
+            line: crate::RestrictedLine::Message(message.clone()),
+        });
+
+        assert_eq!(event.conversation().as_ref(), Some(message.conversation()));
+        let restricted = event.as_restricted().expect("restricted arm");
+        assert_eq!(restricted.audience.symbol(), '@');
+        assert_eq!(restricted.line.as_message(), Some(&message));
     }
 
     #[test]

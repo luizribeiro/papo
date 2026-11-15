@@ -356,7 +356,10 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ForeignReference,
     ServerError,
 };
-pub use event_impl::{Authorship, Event, Incomplete, Message, MessageKind, Source, Tags, TagsIter};
+pub use event_impl::{
+    Authorship, Event, Incomplete, Message, MessageKind, Restricted, RestrictedLine, Source, Tags,
+    TagsIter,
+};
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::extras::{RenameChannel, RenameChannelRequest};
 pub use ext::history::{
