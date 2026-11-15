@@ -17,7 +17,7 @@ fn reports_extended_and_plain_join_facts() {
                     envelope,
                     realname: Some(realname),
                     channel,
-                    authorship: Party::Other,
+                    actor_party: Party::Other,
                     ..
                 } if actor == "alice!~a@host"
                     && envelope.account() == Some("alice")

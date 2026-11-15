@@ -2504,7 +2504,7 @@ pub(crate) fn from_core_with_receipt(
             channel,
             nick,
             token,
-            authorship,
+            actor_party: authorship,
             netjoin,
             ..
         } => {
@@ -2535,7 +2535,7 @@ pub(crate) fn from_core_with_receipt(
             facts,
             channel,
             reason,
-            authorship,
+            actor_party: authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
@@ -2562,7 +2562,7 @@ pub(crate) fn from_core_with_receipt(
             facts,
             actor,
             actor_token,
-            authorship,
+            actor_party: authorship,
             subject_party: subject_authorship,
             reason,
             ..
@@ -2604,7 +2604,7 @@ pub(crate) fn from_core_with_receipt(
             token,
             actor,
             actor_token,
-            authorship,
+            actor_party: authorship,
             subject_party: subject_authorship,
             ..
         } => {
@@ -2640,7 +2640,7 @@ pub(crate) fn from_core_with_receipt(
             facts,
             reason,
             channels,
-            authorship,
+            actor_party: authorship,
             netsplit,
             ..
         } => {
@@ -2690,7 +2690,7 @@ pub(crate) fn from_core_with_receipt(
             new,
             actor,
             actor_token,
-            authorship,
+            actor_party: authorship,
             reason,
             ..
         } => {

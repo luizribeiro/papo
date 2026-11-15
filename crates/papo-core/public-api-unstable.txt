@@ -519,8 +519,8 @@ pub papo_core::Event::ChannelRecreated::created_at: papo_proto::time::ServerTime
 pub papo_core::Event::ChannelRecreated::previous_created_at: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo_core::Event::ChannelRenamed
 pub papo_core::Event::ChannelRenamed::actor: alloc::string::String
+pub papo_core::Event::ChannelRenamed::actor_party: papo_core::Party
 pub papo_core::Event::ChannelRenamed::actor_token: ReplyToken
-pub papo_core::Event::ChannelRenamed::authorship: papo_core::Party
 pub papo_core::Event::ChannelRenamed::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ChannelRenamed::new: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
@@ -550,8 +550,8 @@ pub papo_core::Event::HostChanged::username: alloc::string::String
 pub papo_core::Event::Incomplete(papo_core::IncompleteMultiline)
 #[non_exhaustive] pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
+pub papo_core::Event::Invited::actor_party: papo_core::Party
 pub papo_core::Event::Invited::actor_token: ReplyToken
-pub papo_core::Event::Invited::authorship: papo_core::Party
 pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Invited::subject: papo::Nick
@@ -559,7 +559,7 @@ pub papo_core::Event::Invited::subject_party: papo_core::Party
 pub papo_core::Event::Invited::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Joined
 pub papo_core::Event::Joined::actor: alloc::string::String
-pub papo_core::Event::Joined::authorship: papo_core::Party
+pub papo_core::Event::Joined::actor_party: papo_core::Party
 pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Joined::netjoin: core::option::Option<papo_core::SplitServers>
@@ -568,8 +568,8 @@ pub papo_core::Event::Joined::realname: core::option::Option<alloc::string::Stri
 pub papo_core::Event::Joined::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Kicked
 pub papo_core::Event::Kicked::actor: papo_core::Source
+pub papo_core::Event::Kicked::actor_party: papo_core::Party
 pub papo_core::Event::Kicked::actor_token: ReplyToken
-pub papo_core::Event::Kicked::authorship: papo_core::Party
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Kicked::facts: core::option::Option<papo_core::User>
@@ -625,7 +625,7 @@ pub papo_core::Event::NickChanged::old: papo::Nick
 pub papo_core::Event::NickChanged::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Parted
 pub papo_core::Event::Parted::actor: alloc::string::String
-pub papo_core::Event::Parted::authorship: papo_core::Party
+pub papo_core::Event::Parted::actor_party: papo_core::Party
 pub papo_core::Event::Parted::channel: papo::ChannelName
 pub papo_core::Event::Parted::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Parted::facts: core::option::Option<papo_core::User>
@@ -635,7 +635,7 @@ pub papo_core::Event::Parted::token: ReplyToken
 pub papo_core::Event::PersistenceStatus(papo_core::PersistenceStatus)
 #[non_exhaustive] pub papo_core::Event::Quit
 pub papo_core::Event::Quit::actor: alloc::string::String
-pub papo_core::Event::Quit::authorship: papo_core::Party
+pub papo_core::Event::Quit::actor_party: papo_core::Party
 pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::Quit::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Quit::facts: core::option::Option<papo_core::User>

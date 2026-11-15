@@ -82,7 +82,7 @@ impl Session {
             token: self.state.__reply_token_for(nick),
             actor: by.to_owned(),
             actor_token: self.state.source_token(message),
-            authorship: self.actor_party(message),
+            actor_party: self.actor_party(message),
             subject_party: if crate::names_equal(casemapping, nick, self.nick()) {
                 Party::Me
             } else {

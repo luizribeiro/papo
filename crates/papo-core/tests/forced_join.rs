@@ -44,7 +44,7 @@ fn unrequested_own_join_builds_a_normal_membership() {
             Event::Joined {
                 channel,
                 nick,
-                authorship: Party::Me,
+                actor_party: Party::Me,
                 ..
             } if channel == "#release" && nick == "papo"
         )

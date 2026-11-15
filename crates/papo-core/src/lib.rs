@@ -2873,7 +2873,7 @@ pub enum Event {
         /// Identity of the joining user once the join was applied.
         token: ReplyToken,
         /// Whether the joining user is this session's user.
-        authorship: Party,
+        actor_party: Party,
         /// The netjoin batch that carried this join, when applicable.
         netjoin: Option<SplitServers>,
     },
@@ -2907,7 +2907,7 @@ pub enum Event {
         /// The optional part reason.
         reason: Option<String>,
         /// Whether the departing user is this session's user.
-        authorship: Party,
+        actor_party: Party,
     },
     /// A user was removed from a shared channel with `KICK`.
     #[non_exhaustive]
@@ -2927,7 +2927,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Party,
+        actor_party: Party,
         /// Whether the removed user is this session's user.
         subject_party: Party,
         /// The optional kick reason.
@@ -2949,7 +2949,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Party,
+        actor_party: Party,
         /// Whether the invited user is this session's user.
         subject_party: Party,
     },
@@ -2971,7 +2971,7 @@ pub enum Event {
         /// Shared channels captured before the user was removed.
         channels: Vec<ChannelName>,
         /// Whether the disconnected user is this session's user.
-        authorship: Party,
+        actor_party: Party,
         /// The netsplit batch that carried this quit, when applicable.
         netsplit: Option<SplitServers>,
     },
@@ -3007,7 +3007,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Party,
+        actor_party: Party,
         /// The server-supplied reason, when present and non-empty.
         reason: Option<String>,
     },
@@ -3139,15 +3139,15 @@ hidden_event_constructors! {
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
     __channel_recreated(channel: ChannelName, previous_created_at: papo_proto::ServerTime, created_at: papo_proto::ServerTime) => ChannelRecreated;
-    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, authorship: Party, netjoin: Option<SplitServers>) => Joined;
+    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, actor_party: Party, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
-    __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Party) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, authorship: Party, subject_party: Party, reason: Option<String>) => Kicked;
-    __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Party, netsplit: Option<SplitServers>) => Quit;
+    __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, actor_party: Party) => Parted;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, reason: Option<String>) => Kicked;
+    __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, actor_party: Party, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Party) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Party) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Party) => AwayChanged;
@@ -3200,7 +3200,7 @@ impl Event {
             token: unknown,
             actor,
             actor_token: unknown,
-            authorship,
+            actor_party: authorship,
             subject_party,
         }
     }
@@ -3221,7 +3221,7 @@ impl Event {
             new,
             actor,
             actor_token,
-            authorship,
+            actor_party: authorship,
             reason,
         }
     }

@@ -13,7 +13,7 @@ fn live_subject_facts_are_exact() {
             matches!(
                 event,
                 Event::Kicked {
-                    authorship: Party::Other,
+                    actor_party: Party::Other,
                     subject_party: Party::Me,
                     ..
                 }
@@ -24,7 +24,7 @@ fn live_subject_facts_are_exact() {
             matches!(
                 event,
                 Event::Invited {
-                    authorship: Party::Other,
+                    actor_party: Party::Other,
                     subject_party: Party::Me,
                     ..
                 }
@@ -54,7 +54,7 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
                 event,
                 Event::Joined {
                     nick,
-                    authorship: Party::Me,
+                    actor_party: Party::Me,
                     ..
                 } if nick == "papo"
             )

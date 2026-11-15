@@ -1164,7 +1164,7 @@ impl State {
                         .param(1)
                         .filter(|reason| !reason.is_empty())
                         .map(str::to_owned),
-                    authorship,
+                    actor_party: authorship,
                 });
                 if crate::names_equal(mapping, nick, self.nick.as_str()) {
                     self.remove_channel(channel);
@@ -1195,7 +1195,7 @@ impl State {
                 facts,
                 actor: Source::from_proto_with_names(source, mapping),
                 actor_token: self.source_token(message),
-                authorship,
+                actor_party: authorship,
                 subject_party,
                 reason: message
                     .param(2)

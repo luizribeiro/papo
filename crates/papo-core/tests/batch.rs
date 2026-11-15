@@ -1040,7 +1040,7 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Quit { nick, netsplit: Some(split), authorship, .. })
+        Some(Event::Quit { nick, netsplit: Some(split), actor_party: authorship, .. })
             if nick == "alice" && split.batch == "split" && authorship == Party::Other
     ));
     let extra = line(&mut session);
@@ -1102,14 +1102,14 @@ fn netsplit_followed_by_netjoin_becomes_individual_events() {
     for (nick, authorship) in [("papo", Party::Me), ("bob", Party::Other)] {
         assert!(matches!(
             session.poll_event(),
-            Some(Event::Quit { nick: actual, netsplit: Some(split), authorship: actual_authorship, .. })
+            Some(Event::Quit { nick: actual, netsplit: Some(split), actor_party: actual_authorship, .. })
                 if actual == nick && actual_authorship == authorship && split.batch == "split"
         ));
     }
     for (nick, authorship) in [("papo", Party::Me), ("bob", Party::Other)] {
         assert!(matches!(
             session.poll_event(),
-            Some(Event::Joined { nick: actual, netjoin: Some(split), authorship: actual_authorship, .. })
+            Some(Event::Joined { nick: actual, netjoin: Some(split), actor_party: actual_authorship, .. })
                 if actual == nick && actual_authorship == authorship && split.batch == "join"
         ));
     }

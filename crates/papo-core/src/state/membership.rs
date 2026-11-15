@@ -41,7 +41,7 @@ impl State {
                 .filter(|reason| !reason.is_empty())
                 .map(str::to_owned),
             channels,
-            authorship,
+            actor_party: authorship,
             netsplit: None,
         });
         if !self.is_monitored(nick) {
@@ -95,7 +95,7 @@ impl State {
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
             token: self.__reply_token_for(nick),
-            authorship: self.nick_party(nick),
+            actor_party: self.nick_party(nick),
             netjoin: None,
         });
         let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
