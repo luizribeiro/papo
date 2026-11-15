@@ -1068,6 +1068,31 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn ops_only_commands_never_reach_the_message_loop() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
+            ":ergo.test 001 papo{bot} :Welcome\r\n",
+            ":ergo.test 422 papo{bot} :MOTD missing\r\n",
+            ":papo{bot}!papo@localhost JOIN #ops\r\n",
+            ":emily!~emily@localhost JOIN #ops\r\n",
+            ":emily!~emily@localhost PRIVMSG @#ops :!deploy key rotated\r\n",
+            ":emily!~emily@localhost PRIVMSG #ops :!ping\r\n",
+        );
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
+            .stream(TranscriptStream::new(transcript))
+            .build();
+        let driver = tokio::spawn(driver);
+        let incoming = next_message(&mut events).await;
+        let command = BotConfig::new("!")
+            .command(&client, &incoming.state, &incoming)
+            .unwrap();
+        assert_eq!(command.name(), "ping");
+        assert_eq!(command.message().return_address(), "#ops");
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn private_notices_handle_users() {
         let user = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
         assert!(user.private_notice("pong").await.is_err());
