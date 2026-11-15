@@ -2827,8 +2827,8 @@ pub(crate) fn from_core_with_receipt(
                 changes: changes
                     .into_iter()
                     .map(|change| {
-                        ModeChange::from_core(change, |nick| {
-                            crate::UserHandle::from_current_state(nick, handle_state)
+                        ModeChange::from_core(change, |nick, token| {
+                            user_at_arrival(nick, Account::Unknown, token)
                         })
                     })
                     .collect(),
@@ -6160,7 +6160,7 @@ mod tests {
         ];
         let mapped: Vec<_> = cases
             .into_iter()
-            .map(|change| crate::ModeChange::from_core(change, user_handle))
+            .map(|change| crate::ModeChange::from_core(change, |nick, _| user_handle(nick)))
             .collect();
 
         assert!(
@@ -6340,9 +6340,19 @@ mod tests {
                 }
                 Event::TopicChanged(event) => source_person(&event.actor),
                 Event::ChannelRenamed(event) => source_person(&event.actor),
-                Event::ModeChanged(event) => {
-                    [source_person(&event.actor), subject_person(&event.subject)].concat()
-                }
+                Event::ModeChanged(event) => [
+                    source_person(&event.actor),
+                    subject_person(&event.subject),
+                    event
+                        .changes
+                        .iter()
+                        .filter_map(|change| match &change.arg {
+                            Some(crate::ModeArg::Member { user, .. }) => Some(user.clone()),
+                            _ => None,
+                        })
+                        .collect(),
+                ]
+                .concat(),
                 Event::MetadataChanged(event) => subject_person(&event.subject),
                 Event::ReadMarkerChanged(event) => conversation_person(&event.conversation),
                 Event::Lagged(event) => event
@@ -6382,6 +6392,7 @@ mod tests {
                 ":alice!~alice@cloak.example SETNAME :Alice Liddell",
                 ":alice!~alice@cloak.example MODE #review +v papo",
                 ":alice!~alice@cloak.example MODE alice +i",
+                ":papo!~papo@localhost MODE #review +o alice",
                 ":alice!~alice@cloak.example TOPIC #review :Release 0.1 review",
                 ":alice!~alice@cloak.example KICK #review papo :Flooding",
                 ":alice!~alice@cloak.example INVITE papo #ops",
@@ -6897,6 +6908,7 @@ mod tests {
                 &session, true,
             ))));
             for line in [
+                ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu CHANTYPES=# PREFIX=(qaohv)~&@%+ :are supported by this server",
                 ":papo!~papo@localhost JOIN #review",
                 ":alice!~alice@cloak.example JOIN #review",
                 ":mallory!~mallory@users.example JOIN #review",
