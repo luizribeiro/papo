@@ -49,6 +49,26 @@ fn sends_rename_and_types_failures() {
 }
 
 #[test]
+fn a_rename_response_keeps_the_ergo_echo_with_the_new_name() {
+    registered()
+        .update(|session| {
+            session
+                .rename(std::time::Instant::now(), "#papo", "#papo-new", "moving")
+                .unwrap();
+        })
+        .client("@label=0 RENAME #papo #papo-new moving")
+        .server(
+            "@time=2026-11-15T20:11:30.693Z;label=0 :alice!~u@t86kzv775fsaw.irc RENAME #papo #papo-new moving",
+        )
+        .event_until(|event| {
+            matches!(event, Event::Response(response)
+                if response.lines.len() == 1
+                    && response.lines[0].as_ref().command_is("RENAME")
+                    && response.lines[0].as_ref().param(1) == Some("#papo-new"))
+        });
+}
+
+#[test]
 fn omits_an_empty_rename_reason() {
     registered()
         .update(|session| {
