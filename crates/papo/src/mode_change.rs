@@ -23,8 +23,9 @@ pub enum ModeArg {
         /// helpers.
         ///
         /// From a live line it names whoever held the nickname when the line arrived, follows
-        /// their later nickname changes, and refuses whoever takes the nickname after they leave. From history it proves nothing about who holds
-        /// the nickname now, so member helpers refuse it with [`crate::Error::TargetGone`].
+        /// their later nickname changes, and refuses whoever takes the nickname after they
+        /// leave. From history it proves nothing about who holds the nickname now, so member
+        /// helpers refuse it with [`crate::Error::TargetGone`].
         user: UserHandle,
         /// The membership prefix corresponding to the mode.
         prefix: Prefix,
