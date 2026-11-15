@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{Authorship, ChannelHandle, ChannelName, MessageId, Nick, Subject};
+use crate::{ChannelHandle, ChannelName, MessageId, Nick, Party, Subject};
 
 use super::Source;
 
@@ -21,7 +21,7 @@ pub struct Joined {
     /// The joining user.
     pub actor: crate::UserHandle,
     /// Whether the joining user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The netjoin batch that carried this join, when applicable.
     pub netjoin: Option<super::SplitServers>,
 }
@@ -61,7 +61,7 @@ pub struct Parted {
     /// The optional part reason.
     pub reason: Option<String>,
     /// Whether the departing user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A user was removed from a shared channel with `KICK`.
@@ -83,9 +83,9 @@ pub struct Kicked {
     /// The user or server that issued the kick.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// Whether the removed user is this client's user.
-    pub subject_authorship: Authorship,
+    pub subject_authorship: Party,
     /// The optional kick reason.
     pub reason: Option<String>,
 }
@@ -107,9 +107,9 @@ pub struct Invited {
     /// The user or server that sent the invitation.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// Whether the invited user is this client's user.
-    pub subject_authorship: Authorship,
+    pub subject_authorship: Party,
     pub(crate) receipt: crate::message_ref::Receipt,
 }
 
@@ -130,7 +130,7 @@ pub struct TopicChanged {
     /// The user or server that changed the topic.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A user or channel mode changed.
@@ -148,7 +148,7 @@ pub struct ModeChanged {
     /// The user or server that changed the modes.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// Parsed mode operations in wire order.
     pub changes: Vec<crate::ModeChange>,
     pub(crate) own_nick: Option<Nick>,
@@ -157,26 +157,26 @@ pub struct ModeChanged {
 impl ModeChanged {
     /// Returns whether this mode change is about this client's user.
     #[must_use]
-    pub fn about(&self, change: &crate::ModeChange) -> Authorship {
+    pub fn about(&self, change: &crate::ModeChange) -> Party {
         let affected = match change.arg.as_ref() {
             Some(crate::ModeArg::Member { nick, .. }) => Some(nick),
             _ => match &self.subject {
                 Subject::User(user) => return self.about_nick(&user.nick()),
-                Subject::Channel(_) => return Authorship::Other,
+                Subject::Channel(_) => return Party::Other,
             },
         };
         match (self.own_nick.as_ref(), affected) {
-            (Some(own), Some(affected)) if own == affected => Authorship::Own,
-            (Some(_), Some(_)) => Authorship::Other,
-            _ => Authorship::Unknown,
+            (Some(own), Some(affected)) if own == affected => Party::Me,
+            (Some(_), Some(_)) => Party::Other,
+            _ => Party::Unknown,
         }
     }
 
-    fn about_nick(&self, affected: &Nick) -> Authorship {
+    fn about_nick(&self, affected: &Nick) -> Party {
         match self.own_nick.as_ref() {
-            Some(own) if own == affected => Authorship::Own,
-            Some(_) => Authorship::Other,
-            None => Authorship::Unknown,
+            Some(own) if own == affected => Party::Me,
+            Some(_) => Party::Other,
+            None => Party::Unknown,
         }
     }
 }
@@ -201,7 +201,7 @@ pub struct ChannelRenamed {
     /// The user or server that renamed the channel.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,
 }

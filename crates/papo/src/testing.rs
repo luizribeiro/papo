@@ -6,8 +6,8 @@ use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
-    AccountName, Authorship, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind,
-    Nick, State, Tags, UserHandle,
+    AccountName, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind, Nick, Party,
+    State, Tags, UserHandle,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -198,7 +198,7 @@ pub fn message(
     );
     Message {
         actor,
-        authorship: Authorship::Other,
+        authorship: Party::Other,
         conversation,
         status: None,
         raw_text: text.clone(),
@@ -278,11 +278,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         received_at: SystemTime::UNIX_EPOCH,
         channel: crate::ChannelHandle::from_parts(channel.into(), None, None),
         actor: user_handle(nick),
-        authorship: if own {
-            Authorship::Own
-        } else {
-            Authorship::Other
-        },
+        authorship: if own { Party::Me } else { Party::Other },
         netjoin: None,
     }
 }
@@ -295,7 +291,7 @@ pub fn away_changed(nick: impl Into<Nick>, away: crate::Away) -> AwayChanged {
         received_at: SystemTime::UNIX_EPOCH,
         actor: user_handle(nick),
         new: away,
-        authorship: Authorship::Other,
+        authorship: Party::Other,
     }
 }
 
@@ -448,7 +444,7 @@ mod tests {
             true,
         );
         assert_eq!(joined.channel.name().as_str(), "#papo");
-        assert_eq!(joined.authorship, crate::Authorship::Own);
+        assert_eq!(joined.authorship, crate::Party::Me);
 
         let connected = connected(crate::Casemapping::default().nick("bob"));
         assert_eq!(connected.nick, "bob");

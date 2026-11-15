@@ -175,7 +175,7 @@ pub(crate) fn history_item(
     );
     let mut event = match item {
         papo_core::HistoryItem::Message(item) => {
-            let authorship = crate::Authorship::from_core(item.actor_party);
+            let authorship = crate::Party::from_core(item.actor_party);
             crate::event_impl::historical_message_event(
                 item.line,
                 authorship,
@@ -185,7 +185,7 @@ pub(crate) fn history_item(
             )
         }
         papo_core::HistoryItem::Incomplete(item) => {
-            let authorship = crate::Authorship::from_core(item.actor_party);
+            let authorship = crate::Party::from_core(item.actor_party);
             let raw = item.line.clone();
             let event = crate::event_impl::historical_message_event(
                 item.line,
@@ -199,7 +199,7 @@ pub(crate) fn history_item(
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, received_at, |message| {
             reaction(
                 message,
-                crate::Authorship::from_core(item.actor_party),
+                crate::Party::from_core(item.actor_party),
                 mapping,
                 origin,
                 state.nick(),
@@ -215,7 +215,7 @@ pub(crate) fn history_item(
             typed_or_raw(&item.line, received_at, |message| {
                 redaction(
                     message,
-                    crate::Authorship::from_core(item.actor_party),
+                    crate::Party::from_core(item.actor_party),
                     mapping,
                     origin,
                     state.nick(),
@@ -231,7 +231,7 @@ pub(crate) fn history_item(
         papo_core::HistoryItem::Joined(item) => typed_or_raw(&item.line, received_at, |message| {
             joined(
                 message,
-                crate::Authorship::from_core(item.actor_party),
+                crate::Party::from_core(item.actor_party),
                 client,
                 received_at,
             )
@@ -239,7 +239,7 @@ pub(crate) fn history_item(
         papo_core::HistoryItem::Parted(item) => typed_or_raw(&item.line, received_at, |message| {
             parted(
                 message,
-                crate::Authorship::from_core(item.actor_party),
+                crate::Party::from_core(item.actor_party),
                 client,
                 received_at,
             )
@@ -247,7 +247,7 @@ pub(crate) fn history_item(
         papo_core::HistoryItem::Quit(item) => typed_or_raw(&item.line, received_at, |message| {
             quit(
                 message,
-                crate::Authorship::from_core(item.actor_party),
+                crate::Party::from_core(item.actor_party),
                 history_conversation,
                 client,
                 received_at,
@@ -256,8 +256,8 @@ pub(crate) fn history_item(
         papo_core::HistoryItem::Kicked(item) => typed_or_raw(&item.line, received_at, |message| {
             kicked(
                 message,
-                crate::Authorship::from_core(item.actor_party),
-                crate::Authorship::from_core(item.subject_party),
+                crate::Party::from_core(item.actor_party),
+                crate::Party::from_core(item.subject_party),
                 client,
                 received_at,
             )
@@ -266,7 +266,7 @@ pub(crate) fn history_item(
             typed_or_raw(&item.line, received_at, |message| {
                 nick_changed(
                     message,
-                    crate::Authorship::from_core(item.actor_party),
+                    crate::Party::from_core(item.actor_party),
                     client,
                     history_conversation,
                     received_at,
@@ -277,7 +277,7 @@ pub(crate) fn history_item(
             typed_or_raw(&item.line, received_at, |message| {
                 topic_changed(
                     message,
-                    crate::Authorship::from_core(item.actor_party),
+                    crate::Party::from_core(item.actor_party),
                     mapping,
                     origin,
                     account_tag_enabled,
@@ -290,8 +290,8 @@ pub(crate) fn history_item(
             typed_or_raw(&item.line, received_at, |message| {
                 mode_changed(
                     message,
-                    crate::Authorship::from_core(item.actor_party),
-                    crate::Authorship::from_core(item.subject_party),
+                    crate::Party::from_core(item.actor_party),
+                    crate::Party::from_core(item.subject_party),
                     client,
                     received_at,
                 )
@@ -300,7 +300,7 @@ pub(crate) fn history_item(
         papo_core::HistoryItem::TagMsg(item) => typed_or_raw(&item.line, received_at, |message| {
             historical_tagmsg(
                 message,
-                crate::Authorship::from_core(item.actor_party),
+                crate::Party::from_core(item.actor_party),
                 history_conversation,
                 client,
                 received_at,
@@ -347,7 +347,7 @@ fn shared_history_actor_token(
 
 fn historical_tagmsg(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
@@ -441,7 +441,7 @@ fn user_from_line(
 #[allow(clippy::too_many_arguments)]
 fn reaction(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     mapping: crate::Casemapping,
     origin: crate::Origin,
     own_nick: &crate::Nick,
@@ -510,7 +510,7 @@ fn reaction(
 #[allow(clippy::too_many_arguments)]
 fn redaction(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     mapping: crate::Casemapping,
     origin: crate::Origin,
     own_nick: &crate::Nick,
@@ -570,7 +570,7 @@ fn redaction(
 
 fn joined(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -593,7 +593,7 @@ fn joined(
 
 fn parted(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -640,7 +640,7 @@ fn parted(
 
 fn quit(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
@@ -686,8 +686,8 @@ fn quit(
 
 fn kicked(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
-    subject_authorship: crate::Authorship,
+    authorship: crate::Party,
+    subject_authorship: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -746,7 +746,7 @@ fn kicked(
 
 fn nick_changed(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     client: &Client,
     history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
@@ -796,7 +796,7 @@ fn nick_changed(
 
 fn topic_changed(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
+    authorship: crate::Party,
     mapping: crate::Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
@@ -831,8 +831,8 @@ fn topic_changed(
 
 fn mode_changed(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Authorship,
-    _subject_authorship: crate::Authorship,
+    authorship: crate::Party,
+    _subject_authorship: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -1550,7 +1550,7 @@ mod tests {
     fn historical_message(line: Line, received_at: SystemTime) -> crate::Message {
         let PageEvent::Message(message) = crate::event_impl::historical_message_event(
             line,
-            crate::Authorship::Unknown,
+            crate::Party::Unknown,
             None,
             &crate::Client::disconnected_for_test(),
             received_at,
@@ -1967,19 +1967,19 @@ mod tests {
             .collect();
 
         assert!(matches!(&items[0], PageEvent::Message(message)
-            if message.authorship == crate::Authorship::Own && message.is_own()));
+            if message.authorship == crate::Party::Me && message.is_own()));
         assert!(matches!(&items[1], PageEvent::Message(message)
-            if message.authorship == crate::Authorship::Other && !message.is_own()));
+            if message.authorship == crate::Party::Other && !message.is_own()));
         assert!(matches!(&items[2], PageEvent::Message(message)
-            if message.authorship == crate::Authorship::Unknown && !message.is_own()));
+            if message.authorship == crate::Party::Unknown && !message.is_own()));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.actor.nick() == "papo" && changed.old == "papo-old"
                 && changed.new == "papo"
                 && changed.channels == ["#papo"]
-                && changed.authorship == crate::Authorship::Own));
+                && changed.authorship == crate::Party::Me));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"]
-                && quit.authorship == crate::Authorship::Other
+                && quit.authorship == crate::Party::Other
                 && matches!(quit.actor.account(), crate::Account::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::Message(message)
@@ -2130,7 +2130,7 @@ mod tests {
         let own_nick = Casemapping::Ascii.nick("papo");
         let Some(PageEvent::Reacted(event)) = reaction(
             &line,
-            crate::Authorship::Unknown,
+            crate::Party::Unknown,
             Casemapping::Ascii,
             own_nick.origin(),
             &own_nick,
@@ -2197,7 +2197,7 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
-                    && event.authorship == crate::Authorship::Unknown
+                    && event.authorship == crate::Party::Unknown
         ));
 
         let joined = history_item(
@@ -2234,7 +2234,7 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && event.reason.as_deref() == Some("Leaving for lunch")
-                    && event.authorship == crate::Authorship::Unknown
+                    && event.authorship == crate::Party::Unknown
         ));
 
         let quit = map(papo_core::HistoryItem::Quit(core_item(
@@ -2260,7 +2260,7 @@ mod tests {
                     && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
                     && matches!(event.actor, crate::Source::Server(ref name) if name == "irc.example")
-                    && event.subject_authorship == crate::Authorship::Unknown
+                    && event.subject_authorship == crate::Party::Unknown
         ));
 
         let renamed = map(papo_core::HistoryItem::NickChanged(core_item(
@@ -2274,7 +2274,7 @@ mod tests {
                     && event.actor.nick().origin() == client.origin()
                     && event.old.origin() == client.origin()
                     && event.new.origin() == client.origin()
-                    && event.authorship == crate::Authorship::Unknown
+                    && event.authorship == crate::Party::Unknown
         ));
     }
 

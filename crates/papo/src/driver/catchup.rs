@@ -306,7 +306,7 @@ mod tests {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             actor,
-            authorship: crate::Authorship::Other,
+            authorship: crate::Party::Other,
             conversation,
             status: None,
             receipt,

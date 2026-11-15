@@ -1859,12 +1859,10 @@ fn should_hold_sent_candidate(
 
 fn own_line_msgid(event: &Event) -> Option<&str> {
     match event {
-        Event::Message(message) if message.authorship == crate::Authorship::Own => {
+        Event::Message(message) if message.authorship == crate::Party::Me => {
             message.msgid().map(AsRef::as_ref)
         }
-        Event::Notice(notice) if notice.authorship == crate::Authorship::Own => {
-            notice.msgid.as_deref()
-        }
+        Event::Notice(notice) if notice.authorship == crate::Party::Me => notice.msgid.as_deref(),
         _ => None,
     }
 }
@@ -1982,7 +1980,7 @@ where
 
 fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event: &Event) {
     match event {
-        Event::Joined(joined) if joined.authorship == crate::Authorship::Own => {
+        Event::Joined(joined) if joined.authorship == crate::Party::Me => {
             if !defaults
                 .channels
                 .iter()
@@ -1994,7 +1992,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                     .push(Autojoin::new(joined.channel.name().into_string(), None));
             }
         }
-        Event::Parted(parted) if parted.authorship == crate::Authorship::Own => {
+        Event::Parted(parted) if parted.authorship == crate::Party::Me => {
             defaults
                 .channels
                 .retain(|entry| parted.channel != entry.channel.as_str());
@@ -2002,7 +2000,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                 .parted_while_disconnected
                 .retain(|channel| parted.channel != channel.as_str());
         }
-        Event::Kicked(kicked) if kicked.subject_authorship == crate::Authorship::Own => {
+        Event::Kicked(kicked) if kicked.subject_authorship == crate::Party::Me => {
             defaults
                 .channels
                 .retain(|entry| kicked.channel != entry.channel.as_str());
@@ -2031,7 +2029,7 @@ fn part_restored_channel(
     let Event::Joined(joined) = event else {
         return Ok(false);
     };
-    if joined.authorship != crate::Authorship::Own
+    if joined.authorship != crate::Party::Me
         || !defaults
             .parted_while_disconnected
             .iter()
