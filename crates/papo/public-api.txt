@@ -2328,7 +2328,7 @@ impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint, impl papo::AsNick) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<()>
+pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<papo::TopicOutcome>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, &papo::UserHandle, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::is_current(&self, &papo::State) -> bool
@@ -2355,7 +2355,7 @@ pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<papo::NickOutcome>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::RealnameOutcome>
-pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::TopicOutcome>
 pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::ReactOutcome>
@@ -3512,6 +3512,24 @@ impl<'a> core::marker::Unpin for papo::TagsIter<'a>
 impl<'a> core::marker::UnsafeUnpin for papo::TagsIter<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::TagsIter<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::TagsIter<'a>
+#[non_exhaustive] pub struct papo::TopicOutcome
+pub papo::TopicOutcome::confirmation: papo::Confirmation
+pub papo::TopicOutcome::topic: alloc::string::String
+impl core::clone::Clone for papo::TopicOutcome
+pub fn papo::TopicOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::TopicOutcome
+impl core::cmp::PartialEq for papo::TopicOutcome
+pub fn papo::TopicOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::TopicOutcome
+pub fn papo::TopicOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::TopicOutcome
+impl core::marker::Freeze for papo::TopicOutcome
+impl core::marker::Send for papo::TopicOutcome
+impl core::marker::Sync for papo::TopicOutcome
+impl core::marker::Unpin for papo::TopicOutcome
+impl core::marker::UnsafeUnpin for papo::TopicOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::TopicOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::TopicOutcome
 #[non_exhaustive] pub struct papo::Typer
 impl papo::Typer
 pub const fn papo::Typer::is_paused(&self) -> bool

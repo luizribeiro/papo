@@ -5720,7 +5720,7 @@ async fn every_name_taking_method_returns_invalid_name() {
                 .map(drop),
             Method::InviteChannel => client.invite(&user, bad).await,
             Method::SetNick => client.set_nick(bad).await.map(drop),
-            Method::Topic => client.set_topic(bad, "Release planning").await,
+            Method::Topic => client.set_topic(bad, "Release planning").await.map(drop),
             Method::Metadata => client
                 .metadata()
                 .get(bad, std::iter::empty::<crate::MetadataKey>())

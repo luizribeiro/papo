@@ -106,3 +106,63 @@ async fn a_realname_change_resolves_to_the_echoed_realname() {
         assert_eq!(outcome.confirmation, confirmation, "{echo}");
     }
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_topic_change_resolves_to_the_topic_the_server_kept() {
+    let long = "z".repeat(400);
+    let kept = "z".repeat(390);
+    let set = answered(
+        LABELLED,
+        {
+            let long = long.clone();
+            move |client| client.set_topic("#papo", long)
+        },
+        &format!("@label=0 TOPIC #papo {long}"),
+        &[&format!("@msgid=6dq4ki5e6bs4cmfegyiiqzk99a;time=2026-11-15T20:07:17.656Z;label=0 :papo-driver!~u@3t4fgnf9zitka.irc TOPIC #papo {kept}")],
+    )
+    .await
+    .unwrap();
+    assert_eq!(set.topic, kept);
+    assert_eq!(
+        set.confirmation,
+        confirmed("6dq4ki5e6bs4cmfegyiiqzk99a", "2026-11-15T20:07:17.656Z")
+    );
+
+    let cleared = answered(
+        "message-tags",
+        |client| client.clear_topic("#papo"),
+        "TOPIC #papo :",
+        &["@msgid=de779r68yyb5wza2pjqeu9c9n6;time=2026-11-15T20:07:19.158Z :papo-driver!~u@3t4fgnf9zitka.irc TOPIC #papo :"],
+    )
+    .await
+    .unwrap();
+    assert_eq!(cleared.topic, "");
+    assert_eq!(
+        cleared.confirmation,
+        confirmed("de779r68yyb5wza2pjqeu9c9n6", "2026-11-15T20:07:19.158Z")
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_topic_change_without_its_echo_fails() {
+    let cases = [
+        "@time=2026-11-15T20:07:16.155Z;label=0 :ergo.test ACK",
+        "@time=2026-11-15T20:07:16.155Z;label=0 :ergo.test 482 papo-driver #papo :You're not a channel operator",
+    ];
+    for reply in cases {
+        let result = answered(
+            LABELLED,
+            |client| client.set_topic("#papo", "hello topic"),
+            "@label=0 TOPIC #papo :hello topic",
+            &[reply],
+        )
+        .await;
+        assert!(
+            matches!(
+                (&result, reply.contains("ACK")),
+                (Err(Error::NotVerified), true) | (Err(Error::Server(_)), false)
+            ),
+            "{reply}: {result:?}"
+        );
+    }
+}

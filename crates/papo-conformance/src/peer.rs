@@ -226,7 +226,7 @@ impl Peer {
         &self,
         channel: impl AsRef<str>,
         topic: impl Into<String>,
-    ) -> papo::RequestFuture<()> {
+    ) -> papo::RequestFuture<papo::TopicOutcome> {
         self.client.set_topic(
             self.with_name_rules(|names| names.channel(channel.as_ref())),
             topic,

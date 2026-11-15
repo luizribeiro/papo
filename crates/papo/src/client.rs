@@ -1925,13 +1925,14 @@ impl Client {
         })
     }
 
-    /// Sets the topic for `channel`.
+    /// Sets the topic for `channel` and resolves to the topic the server echoed.
     ///
     /// An empty `topic` is invalid input. Use [`Client::clear_topic`] to clear it.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
+    /// Returns [`Error::NotVerified`] when the server answers without the echo, or
+    /// [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::ChannelOperatorPrivilegesNeeded`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
     /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
@@ -1940,7 +1941,7 @@ impl Client {
         &self,
         channel: impl crate::AsChannel,
         topic: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<crate::TopicOutcome> {
         self.change_topic(
             crate::AsChannel::__parts(&channel).into_owned(),
             topic.into(),
@@ -1953,7 +1954,10 @@ impl Client {
     /// # Errors
     ///
     /// Returns the same errors as [`Client::set_topic`].
-    pub fn clear_topic(&self, channel: impl crate::AsChannel) -> crate::RequestFuture<()> {
+    pub fn clear_topic(
+        &self,
+        channel: impl crate::AsChannel,
+    ) -> crate::RequestFuture<crate::TopicOutcome> {
         self.change_topic(
             crate::AsChannel::__parts(&channel).into_owned(),
             String::new(),
@@ -1966,7 +1970,7 @@ impl Client {
         channel: crate::target::sealed::Parts<'static>,
         topic: String,
         clear: bool,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<crate::TopicOutcome> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let channel =
@@ -1985,7 +1989,11 @@ impl Client {
                     Some(ResponseMatcher::Topic(channel.to_string())),
                 )
                 .await?;
-            crate::requests::empty(&response)
+            let echo = crate::requests::echo(&response, "TOPIC")?;
+            Ok(crate::TopicOutcome {
+                topic: echo.param(1).unwrap_or_default().to_owned(),
+                confirmation: crate::Confirmation::from_echo(&echo),
+            })
         })
     }
 

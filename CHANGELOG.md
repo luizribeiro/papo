@@ -109,6 +109,9 @@ echo's `Confirmation`; an answer without the echo fails with `Error::NotVerified
 `Client::set_realname` resolves to a `RealnameOutcome` with the realname the server accepted, which
 may differ from the one sent.
 
+`Client::set_topic` and `Client::clear_topic` resolve to a `TopicOutcome` with the topic the server
+kept, which may be cut to `TOPICLEN`, and the echo's `Confirmation`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

@@ -793,8 +793,11 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
             second.rename_channel(channel).to("#papo-release").await,
         ),
         ("set_nick", done(second.set_nick(nick).await)),
-        ("set_topic", second.set_topic(channel, "Release 0.1").await),
-        ("clear_topic", second.clear_topic(channel).await),
+        (
+            "set_topic",
+            done(second.set_topic(channel, "Release 0.1").await),
+        ),
+        ("clear_topic", done(second.clear_topic(channel).await)),
         ("whois", done(second.whois(nick).await)),
         ("mode", done(second.mode(channel).add('m').await)),
         (

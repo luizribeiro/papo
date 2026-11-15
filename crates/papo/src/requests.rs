@@ -30,6 +30,16 @@ pub struct RealnameOutcome {
     pub confirmation: crate::Confirmation,
 }
 
+/// The topic change the server confirmed by echoing `TOPIC`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct TopicOutcome {
+    /// The topic the server accepted, which may be cut to `TOPICLEN`; empty when cleared.
+    pub topic: String,
+    /// The echo's `msgid` and server time, which Ergo assigns to a topic change.
+    pub confirmation: crate::Confirmation,
+}
+
 /// Information returned by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
