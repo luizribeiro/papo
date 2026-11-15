@@ -48,7 +48,7 @@ pub struct Client {
     pub(crate) network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
 }
 
-/// Server-assigned metadata for a sent chat message.
+/// What papo sent for a chat message, line by line, and what the server confirmed of it.
 ///
 /// Applications that log every chat message must log their own sends from this value. The
 /// correlated server copy is consumed and is not also emitted as a [`crate::Message`] event.
@@ -961,8 +961,8 @@ impl Client {
     ///
     /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
     /// which is not also emitted as an event. Applications that log every message must log their
-    /// own sends from the returned [`SendOutcome`]. Without both capabilities, it resolves after the last
-    /// line is written and has no server-assigned metadata.
+    /// own sends from the returned [`SendOutcome`]. Without both capabilities, it resolves after
+    /// the last line is written, and every [`SentLine::confirmation`] says why it is unconfirmed.
     ///
     /// A conversation is deliberately not a send target because it does not retain a received
     /// line's status-prefixed audience:

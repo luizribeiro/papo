@@ -29,6 +29,8 @@ pub enum UnconfirmedReason {
     /// `echo-message` is not enabled, so the server does not echo our writes.
     NoEchoMessage,
     /// `labeled-response` is not enabled, so an echo cannot be tied to its request.
+    ///
+    /// A message queued before the connection registered is also written without a label.
     NoLabeledResponse,
     /// The echo arrived without a `msgid` tag.
     NoMessageId,
