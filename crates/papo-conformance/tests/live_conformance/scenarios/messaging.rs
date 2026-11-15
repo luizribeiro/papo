@@ -3,8 +3,9 @@ use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
 use super::support::{
-    assert_delivery_tags, confirmed_line, conversation_is_private, conversation_name, message_text,
-    notice_text,
+    any_message_text, assert_delivery_tags, confirmed_line, conversation_is_private,
+    conversation_name, message_text, notice_text, restricted_line, restricted_message,
+    restricted_text,
 };
 use crate::{Peer, Scenario};
 
@@ -524,14 +525,15 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     let sent = alice
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
-    let received = bob
-        .wait_for(|event| message_text(event, "voiced members only"))
-        .await?;
+    let (sign, received) = restricted_message(
+        bob.wait_for(|event| restricted_text(event, "voiced members only"))
+            .await?,
+    );
     assert_eq!(
         conversation_name(received.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(received.status().map(papo::Prefix::symbol), Some('+'));
+    assert_eq!(sign, '+');
     assert_eq!(received.raw_text, "voiced members only");
     assert_eq!(received.msgid(), Some(confirmed_line(&sent).0));
     assert!(
@@ -544,7 +546,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
                 .any(|prefix| prefix.symbol() == '+'))
     );
     charlie
-        .expect_none(|event| message_text(event, "voiced members only"))
+        .expect_none(|event| any_message_text(event, "voiced members only"))
         .await?;
     Ok(())
 }
@@ -577,24 +579,25 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
     let received_by_bob = bob
-        .wait_for(|event| message_text(event, "voiced members only"))
+        .wait_for(|event| restricted_text(event, "voiced members only"))
         .await?;
     let received_by_alice = alice
-        .wait_for(|event| message_text(event, "voiced members only"))
+        .wait_for(|event| restricted_text(event, "voiced members only"))
         .await?;
-    for message in [&received_by_bob, &received_by_alice] {
+    for restricted in [received_by_bob, received_by_alice] {
+        let (sign, message) = restricted_message(restricted);
         assert_eq!(
             conversation_name(message.conversation()),
             Some(channel.to_string())
         );
-        assert_eq!(message.status().map(papo::Prefix::symbol), Some('+'));
+        assert_eq!(sign, '+');
         assert_eq!(message.raw_text, "voiced members only");
         assert_eq!(message.msgid(), Some(confirmed_line(&sent).0));
     }
-    dave.expect_none(|event| message_text(event, "voiced members only"))
+    dave.expect_none(|event| any_message_text(event, "voiced members only"))
         .await?;
     carol
-        .expect_none(|event| message_text(event, "voiced members only"))
+        .expect_none(|event| any_message_text(event, "voiced members only"))
         .await?;
     Ok(())
 }
@@ -950,7 +953,11 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
 
     let target = format!("@{channel}");
     alice.typing(&target, Typing::Active).await?;
-    let typing = bob.wait_for(Event::as_typing_changed).await?;
+    let restricted = bob
+        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
+        .await?;
+    assert_eq!(restricted.audience.symbol(), '@');
+    let typing = restricted.line.as_typing_changed().expect("typing line");
     assert_eq!(
         crate::source_nick(&typing.actor),
         Some(alice.nick().as_str())
@@ -959,10 +966,15 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&typing.conversation),
         Some(channel.to_string())
     );
-    assert_eq!(typing.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(typing.state, Typing::Active);
-    carol.expect_none(Event::as_typing_changed).await?;
-    dave.expect_none(Event::as_typing_changed).await?;
+    for peer in [&mut carol, &mut dave] {
+        peer.expect_none(|event| {
+            restricted_line(event, papo::RestrictedLine::as_typing_changed)
+                .map(|_| event)
+                .or_else(|| event.as_typing_changed().map(|_| event))
+        })
+        .await?;
+    }
     Ok(())
 }
 

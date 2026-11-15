@@ -1,7 +1,10 @@
 use papo::{Authorship, Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::{confirmed_line, conversation_name, join_seen_by, wait_for_channel};
+use super::support::{
+    any_message_text, confirmed_line, conversation_name, join_seen_by, restricted_line,
+    restricted_message, restricted_text, wait_for_channel,
+};
 use crate::Scenario;
 
 fn has_account_sessions() -> bool {
@@ -199,54 +202,51 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let sent = desktop
         .privmsg(&target, "operators reviewing the deployment")
         .await?;
-    let original = phone
-        .wait_for(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text == "operators reviewing the deployment")
-        })
-        .await?;
+    let (sign, original) = restricted_message(
+        phone
+            .wait_for(|event| restricted_text(event, "operators reviewing the deployment"))
+            .await?,
+    );
     let (id, sent_text, _) = confirmed_line(&sent);
     assert_eq!(sent_text, "operators reviewing the deployment");
     assert_eq!(original.msgid(), Some(id));
-    assert_eq!(original.status().map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(sign, '@');
     assert_eq!(original.return_address(), target.as_str());
     observer
-        .expect_none(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text == "operators reviewing the deployment")
-        })
+        .expect_none(|event| any_message_text(event, "operators reviewing the deployment"))
         .await?;
 
     desktop
         .reply(&sent, "operators approve the deployment")
         .await?;
-    let reply = phone
-        .wait_for(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text == "operators approve the deployment")
-        })
-        .await?;
+    let (sign, reply) = restricted_message(
+        phone
+            .wait_for(|event| restricted_text(event, "operators approve the deployment"))
+            .await?,
+    );
     assert_eq!(reply.in_reply_to.as_ref(), Some(id));
-    assert_eq!(reply.status().map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(sign, '@');
     assert_eq!(reply.return_address(), target.as_str());
     observer
-        .expect_none(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text == "operators approve the deployment")
-        })
+        .expect_none(|event| any_message_text(event, "operators approve the deployment"))
         .await?;
 
     desktop.react(&sent, "🛡️").await?;
-    let added = phone.wait_for(Event::as_reacted).await?;
+    let added = phone
+        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_reacted))
+        .await?;
+    assert_eq!(added.audience.symbol(), '@');
+    let added = added.line.as_reacted().expect("reaction line");
     assert_eq!(&added.reacts_to, id);
     assert_eq!(added.reaction, "🛡️");
-    assert_eq!(added.status().map(papo::Prefix::symbol), Some('@'));
     assert_eq!(added.return_address(), target.as_str());
-    observer.expect_none(Event::as_reacted).await?;
+    observer
+        .expect_none(|event| {
+            restricted_line(event, papo::RestrictedLine::as_reacted)
+                .map(|_| event)
+                .or_else(|| event.as_reacted().map(|_| event))
+        })
+        .await?;
 
     let Error::Server(refusal) = desktop
         .redact(&sent, "deployment superseded")
