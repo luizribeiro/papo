@@ -91,14 +91,14 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         }
         wait_synced(&mut events, &channel).await;
         let restored = papo::ServerTime::from_stored(&stored).unwrap();
-        assert_eq!(
+        assert!(matches!(
             client
                 .mark_read(&channel)
                 .up_to_time(restored)
                 .await
                 .unwrap(),
-            papo::MarkReadOutcome::Advanced(restored)
-        );
+            papo::MarkReadOutcome::Advanced { marker, .. } if marker == restored
+        ));
         assert_eq!(
             client.fetch_read_marker(&channel).await.unwrap(),
             papo::ReadMarker::ReadUntil(newest)

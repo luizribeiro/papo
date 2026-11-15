@@ -1929,7 +1929,8 @@ impl core::marker::UnsafeUnpin for papo::InvalidInput
 impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
 #[non_exhaustive] pub enum papo::MarkReadOutcome
-pub papo::MarkReadOutcome::Advanced(papo_proto::time::ServerTime)
+#[non_exhaustive] pub papo::MarkReadOutcome::Advanced
+pub papo::MarkReadOutcome::Advanced::marker: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo::MarkReadOutcome::BehindLatest
 pub papo::MarkReadOutcome::BehindLatest::latest: papo_proto::time::ServerTime
 pub papo::MarkReadOutcome::BehindLatest::stored: papo_proto::time::ServerTime

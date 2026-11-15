@@ -91,6 +91,8 @@ lines were confirmed.
 
 `ModesApplied` is renamed `ModesOutcome`, and its `unconfirmed` field is renamed `failed`.
 
+`MarkReadOutcome::Advanced(time)` becomes `MarkReadOutcome::Advanced { marker }`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

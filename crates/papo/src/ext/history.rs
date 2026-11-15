@@ -16,8 +16,12 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum MarkReadOutcome {
-    /// The marker advanced to this server timestamp.
-    Advanced(ServerTime),
+    /// The marker advanced.
+    #[non_exhaustive]
+    Advanced {
+        /// The marker the server now holds.
+        marker: ServerTime,
+    },
     /// The marker was already at or beyond the requested timestamp.
     #[non_exhaustive]
     Unchanged {
@@ -137,7 +141,7 @@ impl IntoFuture for MarkReadRequest {
             } else if previous.is_some_and(|previous| previous >= latest) {
                 Ok(MarkReadOutcome::Unchanged { stored })
             } else {
-                Ok(MarkReadOutcome::Advanced(stored))
+                Ok(MarkReadOutcome::Advanced { marker: stored })
             }
         })
     }
@@ -3104,7 +3108,9 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            MarkReadOutcome::Advanced(server_time(1_760_529_342, 123))
+            MarkReadOutcome::Advanced {
+                marker: server_time(1_760_529_342, 123),
+            }
         );
         assert!(
             matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
@@ -3253,7 +3259,9 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            MarkReadOutcome::Advanced(server_time(1_760_529_346, 0))
+            MarkReadOutcome::Advanced {
+                marker: server_time(1_760_529_346, 0),
+            }
         );
         abort_task(task).await;
     }
@@ -3294,7 +3302,9 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            MarkReadOutcome::Advanced(server_time(1_760_529_347, 0))
+            MarkReadOutcome::Advanced {
+                marker: server_time(1_760_529_347, 0),
+            }
         );
         abort_task(task).await;
     }

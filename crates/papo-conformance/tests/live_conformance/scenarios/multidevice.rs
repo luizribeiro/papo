@@ -149,10 +149,10 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
     let time = message
         .server_time
         .expect("read markers require server time");
-    assert_eq!(
+    assert!(matches!(
         desktop.mark_read(&channel).await?,
-        papo::MarkReadOutcome::Advanced(time)
-    );
+        papo::MarkReadOutcome::Advanced { marker, .. } if marker == time
+    ));
     let marker = phone
         .wait_for(|event| {
             event.as_read_marker_changed().filter(|marker| {

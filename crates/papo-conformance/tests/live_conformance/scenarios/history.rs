@@ -456,10 +456,10 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
     let time = newest
         .server_time
         .expect("read markers require server time");
-    assert_eq!(
+    assert!(matches!(
         alice.mark_read(&channel).await?,
-        papo::MarkReadOutcome::Advanced(time)
-    );
+        papo::MarkReadOutcome::Advanced { marker, .. } if marker == time
+    ));
     assert_eq!(
         alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
