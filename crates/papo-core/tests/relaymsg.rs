@@ -158,3 +158,43 @@ fn types_a_labelled_relaymsg_failure() {
             if response.refusal() == Some(Refusal::BannedRelaySender))
         });
 }
+
+#[test]
+fn the_labelled_privmsg_echo_confirms_a_relayed_message() {
+    let now = std::time::Instant::now();
+    let caps = "draft/relaymsg=/ echo-message labeled-response message-tags server-time";
+    let mut session = papo_core::Session::new(
+        Config::default()
+            .nick("bridge")
+            .enable(Feature::Relay)
+            .rate_limit(papo_core::RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, format!(":ergo.test CAP * LS :{caps}").as_bytes());
+    session.handle_line(now, format!(":ergo.test CAP * ACK :{caps}").as_bytes());
+    session.handle_line(now, b":ergo.test 001 bridge :Welcome to Ergo");
+    session.handle_line(now, b":ergo.test 422 bridge :MOTD File is missing");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    let id = session
+        .relay(now, "#papo", "bridge/discord", "hello from discord")
+        .unwrap();
+    session.handle_line(
+        now,
+        b"@draft/relaymsg=bridge;msgid=hvjgkknruzk58qrw89xh3v4spa;time=2026-11-15T20:11:27.686Z;label=0 :bridge/discord!~u@i3umsc6kjrw38.irc PRIVMSG #papo :hello from discord",
+    );
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(response.id, id);
+    assert_eq!(
+        response.sent(),
+        Some(papo_core::SentInfo {
+            msgid: "hvjgkknruzk58qrw89xh3v4spa".into(),
+            server_time: Some("2026-11-15T20:11:27.686Z".into()),
+        })
+    );
+}
