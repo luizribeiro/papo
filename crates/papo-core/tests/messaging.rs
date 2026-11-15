@@ -246,7 +246,7 @@ fn reports_redactions_with_and_without_a_reason() {
             panic!("expected redaction")
         };
         assert_eq!(redacted.actor, "alice!~a@cloak");
-        assert_eq!(redacted.authorship, Party::Other);
+        assert_eq!(redacted.actor_party, Party::Other);
         assert!(
             matches!(redacted.conversation, Conversation::Channel(ref channel) if channel == "#papo")
         );

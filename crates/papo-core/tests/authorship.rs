@@ -88,7 +88,7 @@ fn live_message_from_another_session_of_our_account_is_own() {
         .server("@account=papo;msgid=RfcBTzyxY120004 :papo-phone!~papo@localhost PRIVMSG #papo :deployment finished")
         .event(|event| {
             matches!(event, Event::Line(message)
-                if message.authorship() == Party::Me
+                if message.actor_party() == Party::Me
                     && message.as_ref().param(1) == Some("deployment finished"))
         });
 }
@@ -186,10 +186,10 @@ fn history_authorship_requires_an_account_tag() {
             };
             matches!(&items[..],
                 [HistoryItem::Message(own), HistoryItem::Message(other), HistoryItem::Message(unknown), HistoryItem::NickChanged(changed)]
-                if own.authorship == Party::Me
-                    && other.authorship == Party::Other
-                    && unknown.authorship == Party::Unknown
-                    && changed.authorship == Party::Me)
+                if own.actor_party == Party::Me
+                    && other.actor_party == Party::Other
+                    && unknown.actor_party == Party::Unknown
+                    && changed.actor_party == Party::Me)
         });
 }
 
@@ -217,11 +217,11 @@ fn history_mode_authorship_distinguishes_actor_and_subject() {
             };
             matches!(&items[..],
                 [HistoryItem::ModeChanged(own_channel), HistoryItem::ModeChanged(other_user), HistoryItem::ModeChanged(unknown_channel)]
-                if own_channel.authorship == Party::Me
+                if own_channel.actor_party == Party::Me
                     && own_channel.subject_party == Party::Other
-                    && other_user.authorship == Party::Other
+                    && other_user.actor_party == Party::Other
                     && other_user.subject_party == Party::Unknown
-                    && unknown_channel.authorship == Party::Unknown
+                    && unknown_channel.actor_party == Party::Unknown
                     && unknown_channel.subject_party == Party::Other)
         });
 }

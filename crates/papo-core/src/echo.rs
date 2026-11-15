@@ -67,7 +67,7 @@ impl Session {
         ReceivedLine {
             line,
             batch_type,
-            authorship,
+            actor_party: authorship,
             conversation,
             status,
             channel_context,

@@ -341,7 +341,7 @@ mod tests {
         papo_core::HistoryLine {
             line: LineRef::parse(line).unwrap().to_owned(),
             context: false,
-            authorship: papo_core::Party::Unknown,
+            actor_party: papo_core::Party::Unknown,
             subject_party: papo_core::Party::Unknown,
         }
     }
@@ -500,7 +500,7 @@ mod tests {
                 .unwrap()
                 .to_owned(),
             context: false,
-            authorship: papo_core::Party::Me,
+            actor_party: papo_core::Party::Me,
             subject_party: papo_core::Party::Unknown,
         });
         let cursor = super::newest_cursor(&[item]).unwrap();

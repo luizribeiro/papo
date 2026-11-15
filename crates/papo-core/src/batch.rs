@@ -933,7 +933,7 @@ fn history_items_with_indices(messages: Vec<Line>, incomplete: &[usize]) -> Vec<
                 let item = HistoryLine {
                     line: message,
                     context,
-                    authorship: crate::Party::Unknown,
+                    actor_party: crate::Party::Unknown,
                     subject_party: crate::Party::Unknown,
                 };
                 if incomplete.contains(&index) {
@@ -960,7 +960,7 @@ fn history_items(messages: Vec<Line>) -> Vec<HistoryItem> {
                 classify_history_item(HistoryLine {
                     line: message,
                     context,
-                    authorship: crate::Party::Unknown,
+                    actor_party: crate::Party::Unknown,
                     subject_party: crate::Party::Unknown,
                 })
             })

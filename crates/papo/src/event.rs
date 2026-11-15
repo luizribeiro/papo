@@ -675,7 +675,7 @@ pub(crate) fn incoming_from_core(
         });
         crate::ChannelHandle::from_parts(channel, guard, handle_state)
     });
-    let authorship = Authorship::from_core(received.authorship());
+    let authorship = Authorship::from_core(received.actor_party());
     let (raw, batch_type) = received.into_parts();
     let Some(conversation) = conversation else {
         let raw = match broadcast_from_line(
@@ -2254,7 +2254,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = handle_from_raw(&message.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let authorship = Authorship::from_core(message.authorship);
+            let authorship = Authorship::from_core(message.actor_party);
             let conversation = conversation_handle(message.conversation, message.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
@@ -2337,7 +2337,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = actor_from_raw(&redacted.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let authorship = Authorship::from_core(redacted.authorship);
+            let authorship = Authorship::from_core(redacted.actor_party);
             let conversation = conversation_handle(redacted.conversation, redacted.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
                 actor.clone(),
@@ -4115,7 +4115,7 @@ mod tests {
             actor: "alice!~alice@cloak.example".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Party::Other,
+            actor_party: papo_core::Party::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             return_address: "#papo".into(),
@@ -5005,7 +5005,7 @@ mod tests {
                 actor: "alice!~a@cloak".into(),
                 actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
                 peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-                authorship: papo_core::Party::Other,
+                actor_party: papo_core::Party::Other,
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#ops"),
                 ),
@@ -5035,7 +5035,7 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Party::Other,
+            actor_party: papo_core::Party::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
             return_address: "@#ops".into(),
@@ -5050,7 +5050,7 @@ mod tests {
             actor: "papo!~p@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Party::Me,
+            actor_party: papo_core::Party::Me,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: None,
             return_address: "#ops".into(),
@@ -5081,7 +5081,7 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Party::Other,
+            actor_party: papo_core::Party::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
             return_address: "@#ops".into(),
@@ -6597,13 +6597,13 @@ mod tests {
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),
                     context: false,
-                    authorship: papo_core::Party::Other,
+                    actor_party: papo_core::Party::Other,
                     subject_party: papo_core::Party::Unknown,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryLine {
                     line: Line::new("WALLOPS").with_params(["Network maintenance begins soon"]),
                     context: false,
-                    authorship: papo_core::Party::Unknown,
+                    actor_party: papo_core::Party::Unknown,
                     subject_party: papo_core::Party::Unknown,
                 }),
             ],

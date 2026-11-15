@@ -1643,7 +1643,7 @@ impl core::marker::UnsafeUnpin for papo_core::CtcpReplies
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::CtcpReplies
 impl core::panic::unwind_safe::UnwindSafe for papo_core::CtcpReplies
 pub struct papo_core::HistoryLine
-pub papo_core::HistoryLine::authorship: papo_core::Party
+pub papo_core::HistoryLine::actor_party: papo_core::Party
 pub papo_core::HistoryLine::context: bool
 pub papo_core::HistoryLine::line: papo::Line
 pub papo_core::HistoryLine::subject_party: papo_core::Party
@@ -1923,8 +1923,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReadMarker
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReadMarker
 pub struct papo_core::ReceivedLine
 impl papo_core::ReceivedLine
+pub const fn papo_core::ReceivedLine::actor_party(&self) -> papo_core::Party
 pub fn papo_core::ReceivedLine::as_ref(&self) -> papo::LineRef<'_>
-pub const fn papo_core::ReceivedLine::authorship(&self) -> papo_core::Party
 pub fn papo_core::ReceivedLine::batch_type(&self) -> core::option::Option<&str>
 pub const fn papo_core::ReceivedLine::channel_context(&self) -> core::option::Option<&papo::ChannelName>
 pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo::Conversation>
@@ -1951,7 +1951,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReceivedLine
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReceivedLine
 pub struct papo_core::Redacted
 pub papo_core::Redacted::actor: alloc::string::String
-pub papo_core::Redacted::authorship: papo_core::Party
+pub papo_core::Redacted::actor_party: papo_core::Party
 pub papo_core::Redacted::conversation: papo::Conversation
 pub papo_core::Redacted::envelope: papo_core::LineEnvelope
 pub papo_core::Redacted::msgid: alloc::string::String
@@ -2206,7 +2206,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::State
 impl core::panic::unwind_safe::UnwindSafe for papo_core::State
 pub struct papo_core::TagMessage
 pub papo_core::TagMessage::actor: alloc::string::String
-pub papo_core::TagMessage::authorship: papo_core::Party
+pub papo_core::TagMessage::actor_party: papo_core::Party
 pub papo_core::TagMessage::conversation: papo::Conversation
 pub papo_core::TagMessage::envelope: papo_core::LineEnvelope
 pub papo_core::TagMessage::status: core::option::Option<papo::isupport::Prefix>

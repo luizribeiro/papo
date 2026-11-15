@@ -250,8 +250,8 @@ fn annotates_authorship_with_the_active_casemapping() {
     let Some(Event::Line(received)) = session.poll_event() else {
         panic!("expected received message")
     };
-    assert_eq!(echo.authorship(), Party::Me);
-    assert_eq!(received.authorship(), Party::Other);
+    assert_eq!(echo.actor_party(), Party::Me);
+    assert_eq!(received.actor_party(), Party::Other);
 }
 
 #[test]
@@ -287,7 +287,7 @@ fn labelled_echo_is_consumed_before_an_own_live_line() {
         .collect();
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].as_ref().param(1), Some("from another device"));
-    assert_eq!(messages[0].authorship(), Party::Me);
+    assert_eq!(messages[0].actor_party(), Party::Me);
 }
 
 #[test]

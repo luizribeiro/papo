@@ -1991,7 +1991,7 @@ pub struct HistoryLine {
     /// Whether the server supplied it as context outside the requested limit.
     pub context: bool,
     /// Whether the line's actor is this session's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// Whether the line's distinct subject is this session's user.
     pub subject_party: Party,
 }
@@ -2279,7 +2279,7 @@ pub struct TagMessage {
     #[doc(hidden)]
     pub peer_token: ReplyToken,
     /// Whether the actor is this session's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -2314,7 +2314,7 @@ pub struct Redacted {
     #[doc(hidden)]
     pub peer_token: ReplyToken,
     /// Whether the actor is this session's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -3255,7 +3255,7 @@ pub enum BatchAbandonReason {
 pub struct ReceivedLine {
     line: Line,
     batch_type: Option<String>,
-    authorship: Party,
+    actor_party: Party,
     conversation: Option<Conversation>,
     status: Option<Prefix>,
     channel_context: Option<ChannelName>,
@@ -3452,8 +3452,8 @@ impl ReceivedLine {
 
     /// Returns whether the line's actor is this session's user.
     #[must_use]
-    pub const fn authorship(&self) -> Party {
-        self.authorship
+    pub const fn actor_party(&self) -> Party {
+        self.actor_party
     }
 
     /// Returns the conversation addressed by this line, when its address is valid.
@@ -6466,7 +6466,7 @@ impl Session {
                 _ => Party::Unknown,
             };
             let line = item.line_mut();
-            line.authorship = self.history_actor_party(&line.line.as_ref());
+            line.actor_party = self.history_actor_party(&line.line.as_ref());
             line.subject_party = subject_party;
         }
     }
@@ -6937,7 +6937,7 @@ mod tests {
                 .with_params(["#staff", "+k", "staff-key-8732"])
                 .with_source("operator!~o@services.example"),
             batch_type: None,
-            authorship: Party::Other,
+            actor_party: Party::Other,
             conversation: None,
             status: None,
             channel_context: None,
