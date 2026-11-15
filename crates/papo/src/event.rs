@@ -2400,6 +2400,7 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::MetadataChanged {
             subject,
+            subject_token,
             key,
             value,
             ..
@@ -2409,7 +2410,7 @@ pub(crate) fn from_core_with_receipt(
                     crate::Subject::Channel(channel_handle(channel))
                 }
                 papo_core::Subject::User(nick) => {
-                    crate::Subject::User(crate::UserHandle::from_current_state(nick, handle_state))
+                    crate::Subject::User(user_at_arrival(nick, Account::Unknown, subject_token))
                 }
                 _ => return CoreEvent::Unknown,
             },
@@ -2837,16 +2838,11 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::StateLimitReached { limit, .. } => {
             Event::Warning(Warning::StateLimitReached { kind: limit })
         }
-        papo_core::Event::MonitorOnline { nick, .. } => {
-            let subject = crate::UserHandle::from_current_state(nick, handle_state);
-            let reply_token =
-                reply_state.map(|state| state.__reply_token_for(subject.nick().as_str()));
+        papo_core::Event::MonitorOnline { nick, token, .. } => {
+            let subject = user_at_arrival(nick, Account::Unknown, token);
             let receipt = crate::message_ref::Receipt::without_recipient(
-                Source::User(crate::UserHandle::from_current_state(
-                    subject.nick().clone(),
-                    handle_state,
-                )),
-                reply_token,
+                Source::User(subject.clone()),
+                Some(token),
                 subject.nick().to_string(),
                 origin,
             );
@@ -6587,6 +6583,7 @@ mod tests {
 
         fn joined_review() -> (Session, Shared) {
             let mut session = Session::new(Config::default().nick("papo"));
+            session.monitor_add(["carol"]);
             let shared = Arc::new(RwLock::new(Arc::new(crate::State::from_session(
                 &session, true,
             ))));
@@ -6767,6 +6764,36 @@ mod tests {
                     line: ":dave!~dave@users.example INVITE alice #review",
                     subject: "alice",
                     person: |event| event.as_invited().map(|invited| invited.subject.clone()),
+                },
+            ] {
+                assert_person_at_arrival(&case);
+            }
+        }
+
+        #[test]
+        fn metadata_and_monitor_name_the_person_at_arrival() {
+            for case in [
+                Case {
+                    name: "METADATA",
+                    line: ":ergo.test 761 papo alice display-name * :Alice Liddell",
+                    subject: "alice",
+                    person: |event| match event
+                        .as_metadata_changed()
+                        .map(|changed| &changed.subject)
+                    {
+                        Some(crate::Subject::User(user)) => Some(user.clone()),
+                        _ => None,
+                    },
+                },
+                Case {
+                    name: "MONITOR online",
+                    line: ":ergo.test 730 papo :carol!~carol@cloak.example",
+                    subject: "carol",
+                    person: |event| {
+                        event
+                            .as_monitor_online()
+                            .map(|online| online.subject.clone())
+                    },
                 },
             ] {
                 assert_person_at_arrival(&case);
