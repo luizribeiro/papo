@@ -2796,6 +2796,74 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn soju_refuses_msgid_references_before_writing() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_connect_history(&mut server, &mut events).await;
+        server_line(
+            &mut server,
+            b":soju.test 005 papo-driver BOT=B CASEMAPPING=ascii CHATHISTORY=1000 MSGREFTYPES=timestamp :are supported\r\n",
+        )
+        .await;
+        while client.state().isupport().msgreftypes() != ["timestamp"] {
+            tokio::task::yield_now().await;
+        }
+        let id = crate::MessageId::from("97b979m6qw8cdht9ktjmyk4fjs");
+        let history = || client.history("#ops");
+        let results = [
+            history().before(&id).await.map(drop),
+            history().after(&id).await.map(drop),
+            history().latest_after(&id).await.map(drop),
+            history().around(&id).await.map(drop),
+            history()
+                .between(&id, server_time(1_763_095_145, 754))
+                .await
+                .map(drop),
+            history().message(id.clone()).await.map(drop),
+        ];
+        for result in results {
+            assert!(
+                matches!(
+                    result,
+                    Err(Error::InvalidInput(
+                        crate::InvalidInput::UnusableMessageReference
+                    ))
+                ),
+                "{result:?}"
+            );
+        }
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("#ops")
+                    .around(server_time(1_763_095_145, 754))
+                    .limit(3)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 CHATHISTORY AROUND #ops timestamp=2025-11-14T04:39:05.754Z 3\r\n",
+        )
+        .await;
+        request.abort();
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn soju_replays_ops_only_lines_in_the_restricted_arm() {
         let config = config().wanted_caps([
             "draft/chathistory",
