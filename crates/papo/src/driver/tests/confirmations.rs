@@ -428,3 +428,33 @@ async fn a_subscription_refused_past_the_limit_still_subscribes_the_other_keys()
     .await;
     assert!(matches!(refused, Err(Error::Server(_))), "{refused:?}");
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_metadata_sync_says_when_the_server_defers_it() {
+    let cases: [(&[&str], crate::SyncOutcome); 2] = [
+        (
+            &[
+                "@time=2026-11-15T20:11:45.707Z;label=0 :ergo.test BATCH +9 metadata #papo",
+                "@time=2026-11-15T20:11:45.707Z :ergo.test BATCH -9",
+            ],
+            crate::SyncOutcome::Synced,
+        ),
+        (
+            &["@time=2026-11-15T20:11:45.707Z;label=0 :ergo.test 774 papo-driver #papo 4"],
+            crate::SyncOutcome::Later {
+                retry_after: Some(Duration::from_secs(4)),
+            },
+        ),
+    ];
+    for (replies, expected) in cases {
+        let outcome = answered(
+            METADATA,
+            |client| client.metadata().sync("#papo"),
+            "@label=0 METADATA #papo SYNC",
+            replies,
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome, expected, "{replies:?}");
+    }
+}

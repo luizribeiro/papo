@@ -2193,6 +2193,26 @@ impl core::marker::Unpin for papo::Subject
 impl core::marker::UnsafeUnpin for papo::Subject
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Subject
 impl core::panic::unwind_safe::UnwindSafe for papo::Subject
+#[non_exhaustive] pub enum papo::SyncOutcome
+#[non_exhaustive] pub papo::SyncOutcome::Later
+pub papo::SyncOutcome::Later::retry_after: core::option::Option<core::time::Duration>
+pub papo::SyncOutcome::Synced
+impl core::clone::Clone for papo::SyncOutcome
+pub fn papo::SyncOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::SyncOutcome
+impl core::cmp::PartialEq for papo::SyncOutcome
+pub fn papo::SyncOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::SyncOutcome
+pub fn papo::SyncOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::SyncOutcome
+impl core::marker::StructuralPartialEq for papo::SyncOutcome
+impl core::marker::Freeze for papo::SyncOutcome
+impl core::marker::Send for papo::SyncOutcome
+impl core::marker::Sync for papo::SyncOutcome
+impl core::marker::Unpin for papo::SyncOutcome
+impl core::marker::UnsafeUnpin for papo::SyncOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::SyncOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::SyncOutcome
 #[non_exhaustive] pub enum papo::UnconfirmedReason
 pub papo::UnconfirmedReason::NoEchoMessage
 pub papo::UnconfirmedReason::NoLabeledResponse
@@ -3065,7 +3085,7 @@ pub fn papo::Metadata::remove_on(&self, impl papo::AsConversation, papo::Metadat
 pub fn papo::Metadata::set(&self, papo::MetadataKey, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::MetadataValue>
 pub fn papo::Metadata::set_on(&self, impl papo::AsConversation, papo::MetadataKey, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::MetadataValue>
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<papo::SubscribeOutcome> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::sync(&self, impl papo::AsConversation) -> papo::RequestFuture<()>
+pub fn papo::Metadata::sync(&self, impl papo::AsConversation) -> papo::RequestFuture<papo::SyncOutcome>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 impl core::fmt::Debug for papo::Metadata
 pub fn papo::Metadata::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

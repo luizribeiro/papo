@@ -2494,7 +2494,7 @@ async fn assert_stale_channel_requests_fail(
             metadata.remove_on(stale, avatar()).await,
         ),
         ("metadata.clear_on", done(metadata.clear_on(stale).await)),
-        ("metadata.sync", metadata.sync(stale).await),
+        ("metadata.sync", done(metadata.sync(stale).await)),
     ] {
         assert!(
             matches!(result, Err(papo::Error::TargetGone)),

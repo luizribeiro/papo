@@ -17,6 +17,20 @@ pub struct SubscribeOutcome {
     pub refused: Vec<(crate::MetadataKey, crate::Refusal)>,
 }
 
+/// How the server answered a [`Metadata::sync`] request.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SyncOutcome {
+    /// The server sent the target's metadata, which is now in state.
+    Synced,
+    /// The server deferred the sync with `RPL_METADATASYNCLATER`.
+    #[non_exhaustive]
+    Later {
+        /// How long the server asked to wait before syncing again, when it said.
+        retry_after: Option<std::time::Duration>,
+    },
+}
+
 /// Handle for metadata requests and cached metadata state.
 pub struct Metadata {
     client: Client,
@@ -438,7 +452,8 @@ impl Metadata {
         ))
     }
 
-    /// Synchronizes cached metadata for a user or channel.
+    /// Synchronizes cached metadata for a user or channel and resolves to whether the server
+    /// synced now or asked to retry later.
     ///
     /// # Errors
     ///
@@ -447,7 +462,7 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub fn sync(&self, target: impl crate::AsConversation) -> crate::RequestFuture<()> {
+    pub fn sync(&self, target: impl crate::AsConversation) -> crate::RequestFuture<SyncOutcome> {
         let metadata = Self {
             client: self.client.clone(),
         };
@@ -457,10 +472,13 @@ impl Metadata {
             let proof = metadata
                 .prove_target(&target, user, "metadata.sync: target")
                 .await?;
-            metadata
+            let response = metadata
                 .request(MetadataCommand::__sync(target), proof)
-                .await
-                .map(drop)
+                .await?;
+            Ok(match response.sync_later() {
+                Some(retry_after) => SyncOutcome::Later { retry_after },
+                None => SyncOutcome::Synced,
+            })
         })
     }
 }

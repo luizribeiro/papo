@@ -1182,7 +1182,7 @@ mod tests {
                 "metadata.clear_on",
                 metadata.clear_on(&channel).await.map(|_| ()),
             ),
-            ("metadata.sync", metadata.sync(&channel).await),
+            ("metadata.sync", metadata.sync(&channel).await.map(|_| ())),
         ] {
             assert!(
                 matches!(result, Err(crate::Error::TargetGone)),

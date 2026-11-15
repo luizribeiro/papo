@@ -68,7 +68,7 @@ async fn call_with_handed_off_person(
             .set_on(alice, display_name, "Mallory")
             .await
             .map(drop),
-        "papo::Metadata::sync" => metadata.sync(alice).await,
+        "papo::Metadata::sync" => metadata.sync(alice).await.map(drop),
         "papo::SetModes::dehalfop" => modes.dehalfop(alice).await.map(drop),
         "papo::SetModes::deop" => modes.deop(alice).await.map(drop),
         "papo::SetModes::devoice" => modes.devoice(alice).await.map(drop),

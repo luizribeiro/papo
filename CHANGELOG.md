@@ -135,6 +135,9 @@ its limit with a `FAIL`.
 `Metadata::subscribe` resolves to a `SubscribeOutcome`: the keys in `RPL_METADATASUBOK` and each
 requested key the server left out with its refusal.
 
+`Metadata::sync` resolves to `SyncOutcome::Synced`, or `SyncOutcome::Later { retry_after }` when
+the server deferred it with `RPL_METADATASYNCLATER`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
