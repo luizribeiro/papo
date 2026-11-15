@@ -2967,16 +2967,15 @@ pub(crate) fn typed_mode_change(
     member: impl FnOnce(crate::Nick) -> crate::UserHandle,
 ) -> ModeChange {
     let arg = arg.map(|arg| match (mode, kind) {
-        ('k', _) => papo_core::ModeArg::Key(crate::Secret::new(arg)),
-        (_, papo_proto::ModeKind::Prefix(prefix)) => {
-            papo_core::ModeArg::__member(origin.__nick(casemapping, arg), prefix)
-        }
-        (_, papo_proto::ModeKind::List) => {
-            papo_core::ModeArg::Mask(origin.__mask(casemapping, arg))
-        }
-        _ => papo_core::ModeArg::Value(arg.to_owned()),
+        ('k', _) => crate::ModeArg::Key(crate::Secret::new(arg)),
+        (_, papo_proto::ModeKind::Prefix(prefix)) => crate::ModeArg::Member {
+            user: member(origin.__nick(casemapping, arg)),
+            prefix,
+        },
+        (_, papo_proto::ModeKind::List) => crate::ModeArg::Mask(origin.__mask(casemapping, arg)),
+        _ => crate::ModeArg::Value(arg.to_owned()),
     });
-    ModeChange::from_core(papo_core::ModeChange::__new(mode, action, arg), member)
+    ModeChange::new(mode, action, arg)
 }
 
 #[cfg(all(test, not(browser)))]
