@@ -378,7 +378,7 @@ pub use ext::{
 pub use handle::{ChannelHandle, UserHandle, Watch};
 pub use isupport_impl::Isupport;
 pub use message_ref::{MessageRef, NoticeRef};
-pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
+pub use mode::{BanTarget, Extban, KickbanOutcome, ModesOutcome, SetModes};
 pub use name_rules::{NameCheck, NameRules};
 #[doc(inline)]
 pub use papo_core::InvalidUrl;

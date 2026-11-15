@@ -157,23 +157,24 @@ impl std::fmt::Debug for SetModes {
     }
 }
 
-/// Mode changes whose outcomes the server confirmed.
+/// What the server did with each requested mode change.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct ModesApplied {
+pub struct ModesOutcome {
     /// Changes confirmed by a matching server echo.
     pub applied: Vec<ModeChange>,
     /// Changes the server explicitly refused.
     pub refused: Vec<(ModeChange, Refusal)>,
-    /// Changes whose outcome could not be confirmed.
-    pub unconfirmed: Vec<(ModeChange, Error)>,
+    /// Changes the request could not finish, with the error that stopped it, such as a
+    /// disconnect after an earlier chunk was applied.
+    pub failed: Vec<(ModeChange, Error)>,
 }
 
-impl ModesApplied {
+impl ModesOutcome {
     /// Returns whether every requested change was either applied or explicitly refused.
     #[must_use]
     pub fn is_complete(&self) -> bool {
-        self.unconfirmed.is_empty()
+        self.failed.is_empty()
     }
 }
 
@@ -379,8 +380,8 @@ impl SetModes {
 }
 
 impl IntoFuture for SetModes {
-    type Output = Result<ModesApplied, Error>;
-    type IntoFuture = RequestFuture<ModesApplied>;
+    type Output = Result<ModesOutcome, Error>;
+    type IntoFuture = RequestFuture<ModesOutcome>;
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
@@ -415,10 +416,10 @@ impl IntoFuture for SetModes {
             let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
             let task = Box::pin(async move {
                 let outcome = async {
-                    let mut result = ModesApplied {
+                    let mut result = ModesOutcome {
                         applied: Vec::new(),
                         refused: Vec::new(),
-                        unconfirmed: Vec::new(),
+                        failed: Vec::new(),
                     };
                     let mut first_refusal = None;
                     for (index, ((message, chunk), guard)) in messages
@@ -439,7 +440,7 @@ impl IntoFuture for SetModes {
                             Ok(response) => response,
                             Err(error) if result.applied.is_empty() => return Err(error),
                             Err(error) => {
-                                result.unconfirmed.extend(
+                                result.failed.extend(
                                     requested
                                         .chunks(maximum)
                                         .skip(index)

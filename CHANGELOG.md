@@ -89,6 +89,8 @@ labelled echo, or `Unconfirmed` with an `UnconfirmedReason` when the server cann
 `SendOutcome::lines` has its exact text and its own `Confirmation`, so a partial echo shows which
 lines were confirmed.
 
+`ModesApplied` is renamed `ModesOutcome`, and its `unconfirmed` field is renamed `failed`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
@@ -518,7 +520,7 @@ order as one driver-owned composite operation.
 | `client.list(ListFilter::default().channels(...))` | `client.list().channels(...).await`; omit `channels` for all visible channels |
 | `Metadata::get(target, keys)` returned the whole cache | It returns exactly each requested key mapped to `Option<MetadataValue>` |
 | Mixed `AsRef<str>` / `Into<String>` reason parameters and mandatory part text | Stored reasons use `Into<String>` consistently; `""` means no reason |
-| `ModesApplied { applied, refused }` could report a partial batch as complete | `unconfirmed: Vec<(ModeChange, Error)>` and `is_complete()` expose missing confirmations |
+| `ModesApplied { applied, refused }` could report a partial batch as complete | `ModesOutcome::failed: Vec<(ModeChange, Error)>` and `is_complete()` expose changes the request could not finish |
 | Dropping mode, kickban, or multiline-redact futures could stop midway | Once accepted by the driver, composite actions continue even if the caller drops its future |
 | `State::read_marker() -> Option<SystemTime>` conflated unknown and explicitly unset | `Option<ReadMarker>` distinguishes unknown, `Unset`, and `ReadUntil(time)` |
 | `State` implemented a partly deep `Clone` | Keep and clone the `Arc<State>` returned by `Client::snapshot`; channel snapshots share unchanged storage |

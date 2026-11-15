@@ -2962,23 +2962,23 @@ impl core::marker::Unpin for papo::ModeListEntry
 impl core::marker::UnsafeUnpin for papo::ModeListEntry
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeListEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::ModeListEntry
-#[non_exhaustive] pub struct papo::ModesApplied
-pub papo::ModesApplied::applied: alloc::vec::Vec<papo::ModeChange>
-pub papo::ModesApplied::refused: alloc::vec::Vec<(papo::ModeChange, papo::Refusal)>
-pub papo::ModesApplied::unconfirmed: alloc::vec::Vec<(papo::ModeChange, papo::Error)>
-impl papo::ModesApplied
-pub fn papo::ModesApplied::is_complete(&self) -> bool
-impl core::clone::Clone for papo::ModesApplied
-pub fn papo::ModesApplied::clone(&self) -> Self
-impl core::fmt::Debug for papo::ModesApplied
-pub fn papo::ModesApplied::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo::ModesApplied
-impl core::marker::Send for papo::ModesApplied
-impl core::marker::Sync for papo::ModesApplied
-impl core::marker::Unpin for papo::ModesApplied
-impl core::marker::UnsafeUnpin for papo::ModesApplied
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::ModesApplied
-impl !core::panic::unwind_safe::UnwindSafe for papo::ModesApplied
+#[non_exhaustive] pub struct papo::ModesOutcome
+pub papo::ModesOutcome::applied: alloc::vec::Vec<papo::ModeChange>
+pub papo::ModesOutcome::failed: alloc::vec::Vec<(papo::ModeChange, papo::Error)>
+pub papo::ModesOutcome::refused: alloc::vec::Vec<(papo::ModeChange, papo::Refusal)>
+impl papo::ModesOutcome
+pub fn papo::ModesOutcome::is_complete(&self) -> bool
+impl core::clone::Clone for papo::ModesOutcome
+pub fn papo::ModesOutcome::clone(&self) -> Self
+impl core::fmt::Debug for papo::ModesOutcome
+pub fn papo::ModesOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::ModesOutcome
+impl core::marker::Send for papo::ModesOutcome
+impl core::marker::Sync for papo::ModesOutcome
+impl core::marker::Unpin for papo::ModesOutcome
+impl core::marker::UnsafeUnpin for papo::ModesOutcome
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::ModesOutcome
+impl !core::panic::unwind_safe::UnwindSafe for papo::ModesOutcome
 pub struct papo::NameRules<'a>
 impl papo::NameRules<'_>
 pub fn papo::NameRules<'_>::account(&self, impl core::convert::Into<alloc::string::String>) -> papo::AccountName
@@ -3383,8 +3383,8 @@ pub fn papo::SetModes::voice(self, &papo::UserHandle) -> Self
 impl core::fmt::Debug for papo::SetModes
 pub fn papo::SetModes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::SetModes
-pub type papo::SetModes::IntoFuture = papo::RequestFuture<papo::ModesApplied>
-pub type papo::SetModes::Output = core::result::Result<papo::ModesApplied, papo::Error>
+pub type papo::SetModes::IntoFuture = papo::RequestFuture<papo::ModesOutcome>
+pub type papo::SetModes::Output = core::result::Result<papo::ModesOutcome, papo::Error>
 pub fn papo::SetModes::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::SetModes
 impl core::marker::Send for papo::SetModes

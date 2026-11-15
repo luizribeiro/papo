@@ -7000,7 +7000,7 @@ async fn mode_changes_return_confirmed_facts_after_a_later_disconnect() {
     assert!(matches!(result.applied.as_slice(), [change] if change.mode == 'm'));
     assert!(result.refused.is_empty());
     assert!(matches!(
-        result.unconfirmed.as_slice(),
+        result.failed.as_slice(),
         [(change, Error::Interrupted(_))] if change.mode == 'n'
     ));
     assert!(!result.is_complete());
