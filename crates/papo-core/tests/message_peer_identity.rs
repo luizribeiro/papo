@@ -317,3 +317,22 @@ fn a_logged_out_who_proof_never_passes_to_the_next_logged_out_sender() {
     );
     assert!(session.state().__resolve_proven(&proof).is_err());
 }
+
+#[test]
+fn a_monitored_sender_keeps_their_identity_across_a_host_change() {
+    let mut session = registered("account-tag message-tags");
+    session.monitor_add(["bob"]);
+    server(
+        &mut session,
+        ":ergo.test 730 papo-admin :bob!~u@8ajhv7kxgp7ag.irc",
+    );
+    drain(&mut session);
+    let before = token(&session, "bob");
+
+    server(
+        &mut session,
+        ":bob!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :moved to the new bastion",
+    );
+
+    assert_eq!(token(&session, "bob"), before);
+}
