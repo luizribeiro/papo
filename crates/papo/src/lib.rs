@@ -373,6 +373,7 @@ pub use ext::metadata::Metadata;
 pub use ext::{
     bouncer::{AddNetwork, Bouncer, ChangeNetwork},
     persistence::Persistence,
+    relay::RelayOutcome,
     webpush::{PushKeys, RegisterOutcome, WebPush},
 };
 pub use handle::{ChannelHandle, UserHandle, Watch};

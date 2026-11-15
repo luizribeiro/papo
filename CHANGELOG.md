@@ -120,6 +120,9 @@ kept, which may be cut to `TOPICLEN`, and the echo's `Confirmation`.
 `Client::ctcp_reply` resolves to a `SendOutcome` like `Client::notice`, with its labelled echo's
 `Confirmation` when the server has `echo-message` and `labeled-response`.
 
+`Client::relay` (unstable) resolves to a `RelayOutcome` with the `Confirmation` of the relayed
+`PRIVMSG` echo.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

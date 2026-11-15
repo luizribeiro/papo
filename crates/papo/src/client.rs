@@ -902,7 +902,14 @@ impl Client {
             ));
         }
         let response = self.correlated_chat(&target, line).await?;
-        crate::requests::empty(&response)?;
+        self.labelled_confirmation(&response)
+    }
+
+    pub(crate) fn labelled_confirmation(
+        &self,
+        response: &Response,
+    ) -> Result<crate::Confirmation, Error> {
+        crate::requests::empty(response)?;
         let echo_message = self.state().caps().contains_key(&crate::cap::ECHO_MESSAGE);
         Ok(crate::Confirmation::from_labelled_echo(
             echo_message,

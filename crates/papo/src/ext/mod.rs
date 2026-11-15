@@ -5,4 +5,4 @@ pub(crate) mod metadata;
 #[cfg(feature = "unstable")]
 mod unstable;
 #[cfg(feature = "unstable")]
-pub(crate) use unstable::{bouncer, persistence, webpush};
+pub(crate) use unstable::{bouncer, persistence, relay, webpush};

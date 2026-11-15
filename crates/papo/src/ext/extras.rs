@@ -1,5 +1,3 @@
-#[cfg(feature = "unstable")]
-use crate::driver::unstable::UnstableRequest;
 use crate::{Client, driver::CoreRequest};
 use std::future::IntoFuture;
 
@@ -119,49 +117,6 @@ impl Client {
             crate::requests::empty(&response)
         })
     }
-
-    /// Sends a message attributed to a relayed nickname.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::Error::Unsupported`] for [`crate::Feature::Relay`] with reason
-    /// [`crate::UnsupportedReason::NotOffered`] or
-    /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid relayed nickname returns
-    /// [`crate::Error::InvalidInput`]; a refusal returns [`crate::Error::Server`] with
-    /// [`crate::Refusal::CannotSendToChannel`], [`crate::Refusal::BannedFromChannel`], or
-    /// [`crate::Refusal::Other`]. It can also return [`crate::Error::TooManyPendingRequests`],
-    /// [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
-    #[cfg(feature = "unstable")]
-    pub fn relay(
-        &self,
-        channel: impl crate::AsChannel,
-        nick: impl crate::AsNick,
-        text: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
-        let client = self.clone();
-        let channel = crate::AsChannel::__parts(&channel).into_owned();
-        let nick = crate::AsNick::__parts(&nick).into_owned();
-        let text = text.into();
-        crate::RequestFuture::new(async move {
-            let channel =
-                client.resolve(crate::target::Role::Channel("relay: channel"), channel)?;
-            let nick = client.resolve(crate::target::Role::Nick("relay: nick"), nick)?;
-            let state = client.state();
-            let names = state
-                .known_name_rules()
-                .ok_or(crate::InvalidInput::NameRulesUnknown)?;
-            let channel = names.channel(channel);
-            let nick = names.nick(nick);
-            let response = client
-                .core_request(UnstableRequest::Relay {
-                    channel: channel.into_string(),
-                    nick: nick.into_string(),
-                    text,
-                })
-                .await?;
-            crate::requests::empty(&response)
-        })
-    }
 }
 
 #[cfg(all(test, feature = "unstable"))]
@@ -240,7 +195,10 @@ mod tests {
         )
         .await;
         server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
-        assert!(within(relay).await.unwrap().is_ok());
+        assert_eq!(
+            within(relay).await.unwrap().unwrap().confirmation,
+            crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoEchoMessage)
+        );
 
         let channel = mapping.channel("#bridged");
         let nick = mapping.nick("mx|alice");
@@ -264,5 +222,48 @@ mod tests {
             Err(Error::Server(error)) if error.code() == "BANNED"
         ));
         abort_task(driver).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_relayed_message_resolves_to_its_labelled_echo() {
+        let caps = "draft/relaymsg echo-message labeled-response message-tags";
+        let settings = config()
+            .enable(crate::Feature::Relay)
+            .wanted_caps(caps.split(' '));
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        complete_connect_caps(
+            &mut server,
+            &mut events,
+            "draft/relaymsg=/ echo-message labeled-response message-tags",
+            caps,
+        )
+        .await;
+        let relay = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .relay("#papo", "bridge/discord", "hello from discord")
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 RELAYMSG #papo bridge/discord :hello from discord\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@draft/relaymsg=papo-driver;msgid=hvjgkknruzk58qrw89xh3v4spa;time=2026-11-15T20:11:27.686Z;label=0 :bridge/discord!~u@i3umsc6kjrw38.irc PRIVMSG #papo :hello from discord\r\n",
+        )
+        .await;
+        assert_eq!(
+            within(relay).await.unwrap().unwrap().confirmation,
+            crate::Confirmation::Confirmed {
+                msgid: "hvjgkknruzk58qrw89xh3v4spa".into(),
+                server_time: Some("2026-11-15T20:11:27.686Z".parse().unwrap()),
+            }
+        );
+        driver.abort();
     }
 }

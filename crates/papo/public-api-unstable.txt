@@ -2488,7 +2488,8 @@ pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
 pub fn papo::Client::persistence(&self) -> papo::Persistence
 impl papo::Client
-pub fn papo::Client::relay(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::relay(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::RelayOutcome>
+impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl papo::AsChannel) -> papo::RenameChannel
 impl papo::Client
 pub fn papo::Client::webpush(&self) -> papo::WebPush
@@ -3412,6 +3413,23 @@ impl core::marker::Unpin for papo::RegisterOutcome
 impl core::marker::UnsafeUnpin for papo::RegisterOutcome
 impl core::panic::unwind_safe::RefUnwindSafe for papo::RegisterOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::RegisterOutcome
+#[non_exhaustive] pub struct papo::RelayOutcome
+pub papo::RelayOutcome::confirmation: papo::Confirmation
+impl core::clone::Clone for papo::RelayOutcome
+pub fn papo::RelayOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::RelayOutcome
+impl core::cmp::PartialEq for papo::RelayOutcome
+pub fn papo::RelayOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RelayOutcome
+pub fn papo::RelayOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RelayOutcome
+impl core::marker::Freeze for papo::RelayOutcome
+impl core::marker::Send for papo::RelayOutcome
+impl core::marker::Sync for papo::RelayOutcome
+impl core::marker::Unpin for papo::RelayOutcome
+impl core::marker::UnsafeUnpin for papo::RelayOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RelayOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::RelayOutcome
 pub struct papo::RenameChannel
 impl papo::RenameChannel
 pub fn papo::RenameChannel::to(self, impl papo::AsChannel) -> papo::RenameChannelRequest
