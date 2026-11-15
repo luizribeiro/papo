@@ -172,6 +172,9 @@
 "ops_only::public_answers_to_an_ops_only_line_never_reach_the_wire" = [
   "security.statusmsg.public-answer-refused",
 ]
+"ops_only::an_app_without_the_restricted_arm_never_answers_an_ops_only_line" = [
+  "security.statusmsg.unhandled-arm-never-answers",
+]
 "typing_reply::retained_typers_reply_to_private_and_ops_only_audiences" = [
   "security.adv-7.private-line-recipient-guards",
   "security.st-13.typing-status-audience",

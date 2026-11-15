@@ -319,3 +319,39 @@ async fn statusmsg_window_reaches_everyone(s: Scenario) -> papo_testing::Result<
     }
     Ok(())
 }
+
+/// an application that never matches the restricted arm never answers an operators-only line
+#[scenario(
+    requires(isupport = ["STATUSMSG"]),
+    covers = ["security.statusmsg.unhandled-arm-never-answers"]
+)]
+async fn statusmsg_unhandled_arm_never_answers(s: Scenario) -> papo_testing::Result<()> {
+    let StatusmsgPeers {
+        alice,
+        mut bob,
+        carol: _,
+        mut dave,
+        channel,
+    } = statusmsg_peers(&s).await?;
+
+    alice
+        .privmsg(format!("@{channel}"), "!deploy key rotated?")
+        .await?;
+    alice.privmsg(&channel, "!ping").await?;
+    let command = bob
+        .wait_for(|event| {
+            event
+                .as_message()
+                .filter(|message| message.text.starts_with('!'))
+        })
+        .await?;
+    assert_eq!(command.text, "!ping");
+    bob.privmsg(&channel, format!("handled {}", command.text))
+        .await?;
+
+    dave.wait_for(|event| message_text(event, "handled !ping"))
+        .await?;
+    dave.expect_none(|event| any_message_text(event, "handled !deploy key rotated?"))
+        .await?;
+    Ok(())
+}
