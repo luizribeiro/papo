@@ -1189,57 +1189,118 @@ mod tests {
     }
 
     #[test]
-    fn every_public_invalid_input_variant_can_be_constructed() {
-        let variants = [
-            InvalidInput::Url(crate::InvalidUrl::Empty),
+    #[allow(clippy::too_many_lines)]
+    fn every_invalid_input_variant_reports_its_data() {
+        let cases = [
+            (
+                InvalidInput::Url(crate::InvalidUrl::Empty),
+                "server URL is empty",
+            ),
             #[cfg(tls)]
-            InvalidInput::TlsConfig("invalid PEM".into()),
-            InvalidInput::KnownCapability {
-                capability: "chathistory".into(),
-                feature: crate::Feature::History,
-            },
-            InvalidInput::UnstableCapability("draft/persistence".into()),
-            InvalidInput::ManagedCapability("sts".into()),
-            InvalidInput::ZeroEventCapacity,
-            InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
-            InvalidInput::WireMessage(crate::BuildError::InvalidParam(0)),
-            InvalidInput::InvalidCtcp,
-            InvalidInput::InvalidClientTagKey("account".into()),
+            (
+                InvalidInput::TlsConfig("invalid PEM".into()),
+                "invalid TLS configuration: invalid PEM",
+            ),
+            (
+                InvalidInput::KnownCapability {
+                    capability: "chathistory".into(),
+                    feature: crate::Feature::History,
+                },
+                "capability Cap(\"chathistory\") is known to papo; use enable(Feature::History)",
+            ),
+            (
+                InvalidInput::ZeroEventCapacity,
+                "event queue capacity must be positive",
+            ),
+            (
+                InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
+                "rate-limit burst must be positive",
+            ),
+            (
+                InvalidInput::WireMessage(crate::BuildError::InvalidParam(0)),
+                "invalid IRC message: IRC parameter 0 is invalid",
+            ),
+            (InvalidInput::InvalidCtcp, "invalid CTCP command or text"),
+            (
+                InvalidInput::InvalidClientTagKey("account".into()),
+                "client-only message tag \"account\" must start with '+'",
+            ),
             #[cfg(not(browser))]
-            InvalidInput::CustomStreamNotReusable,
-            InvalidInput::InvalidMode("mode has an invalid argument".into()),
-            InvalidInput::InvalidMetadataKey {
-                key: "Display-Name".into(),
-                reason: crate::InvalidIdentifier::InvalidCharacter('D'),
-            },
-            InvalidInput::InvalidRequest("unsupported history status".into()),
-            InvalidInput::InvalidName {
-                argument: "name",
-                name: String::new(),
-                reason: crate::InvalidIdentifier::Empty,
-            },
-            InvalidInput::NameRulesUnknown,
-            InvalidInput::EmptyText,
-            InvalidInput::Reaction {
-                maximum: 4094,
-                actual: 4095,
-            },
-            InvalidInput::UnusableMessageReference,
-            InvalidInput::WiderThanReferenced {
-                referenced: crate::Prefix::__new('o', '@'),
-            },
-            InvalidInput::EmailRequired,
-            InvalidInput::AccountNameMustMatchNick,
-            InvalidInput::MetadataValueTooLong {
-                maximum: 512,
-                actual: 513,
-            },
-            InvalidInput::TooManyMetadataSubscriptions {
-                maximum: 10,
-                actual: 11,
-            },
+            (
+                InvalidInput::CustomStreamNotReusable,
+                "a custom stream cannot be copied to a bouncer network connection",
+            ),
+            (
+                InvalidInput::InvalidMode("mode has an invalid argument".into()),
+                "invalid mode change: mode has an invalid argument",
+            ),
+            (
+                InvalidInput::InvalidMetadataKey {
+                    key: "Display-Name".into(),
+                    reason: crate::InvalidIdentifier::InvalidCharacter('D'),
+                },
+                "metadata key \"Display-Name\" is invalid: identifier contains forbidden character 'D'",
+            ),
+            (
+                InvalidInput::InvalidRequest("unsupported history status".into()),
+                "invalid request input: unsupported history status",
+            ),
+            (
+                InvalidInput::InvalidName {
+                    argument: "join: channel",
+                    name: "#papo dev".into(),
+                    reason: crate::InvalidIdentifier::InvalidCharacter(' '),
+                },
+                "join: channel `#papo dev` is not a valid IRC name: identifier contains forbidden character ' '",
+            ),
+            (
+                InvalidInput::NameRulesUnknown,
+                "the server has not advertised CASEMAPPING",
+            ),
+            (InvalidInput::EmptyText, "chat text is empty"),
+            (
+                InvalidInput::Reaction {
+                    maximum: 4094,
+                    actual: 4095,
+                },
+                "reaction length 4095 exceeds client-tag limit 4094",
+            ),
+            (
+                InvalidInput::UnusableMessageReference,
+                "the message reference has no server identifier",
+            ),
+            (
+                InvalidInput::WiderThanReferenced {
+                    referenced: crate::Prefix::__new('o', '@'),
+                },
+                "the referenced message reached only @ members; this send reaches others",
+            ),
+            (
+                InvalidInput::EmailRequired,
+                "account registration requires an email address",
+            ),
+            (
+                InvalidInput::AccountNameMustMatchNick,
+                "the server does not support a custom account name",
+            ),
+            (
+                InvalidInput::MetadataValueTooLong {
+                    maximum: 512,
+                    actual: 513,
+                },
+                "metadata value length 513 exceeds limit 512",
+            ),
+            (
+                InvalidInput::TooManyMetadataSubscriptions {
+                    maximum: 10,
+                    actual: 11,
+                },
+                "metadata subscription count 11 exceeds limit 10",
+            ),
         ];
-        assert!(variants.iter().all(|error| !error.to_string().is_empty()));
+        for (error, expected) in cases {
+            assert_eq!(error.to_string(), expected, "{error:?}");
+        }
 
         #[cfg(feature = "unstable")]
         for error in [
