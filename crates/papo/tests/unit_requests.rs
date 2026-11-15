@@ -83,6 +83,7 @@ const PLAIN_RESULTS: &[(&str, Plain)] = &[
     ("alloc::vec::Vec<papo::ModeListEntry>", Plain::List),
     ("alloc::vec::Vec<papo::RecentConversation>", Plain::List),
     ("alloc::vec::Vec<papo::WhoEntry>", Plain::List),
+    ("core::option::Option<papo::Event>", Plain::Value),
     ("core::option::Option<papo::Whois>", Plain::Value),
     ("core::time::Duration", Plain::Value),
     ("papo::ChannelHandle", Plain::Handle),
