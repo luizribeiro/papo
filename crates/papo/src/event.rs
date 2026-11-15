@@ -1843,6 +1843,7 @@ impl Event {
                 event.msgid.as_ref()
             }
             Self::ServerNotice(event) => event.msgid.as_ref(),
+            Self::Restricted(event) => event.line.msgid(),
             Self::CtcpQuery(event) => event.msgid.as_ref(),
             Self::CtcpReply(event) => event.msgid.as_ref(),
             Self::BroadcastCtcp(event) => event.msgid.as_ref(),

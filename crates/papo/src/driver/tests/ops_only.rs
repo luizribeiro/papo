@@ -284,3 +284,118 @@ async fn a_loop_matching_only_messages_never_sees_an_ops_only_line() {
     assert_eq!(seen.raw_text, "deploying now");
     ops.finish().await;
 }
+
+fn restricted_variant(line: &crate::RestrictedLine) -> &'static str {
+    match line {
+        crate::RestrictedLine::Message(_) => "Message",
+        crate::RestrictedLine::Notice(_) => "Notice",
+        crate::RestrictedLine::ServerNotice(_) => "ServerNotice",
+        crate::RestrictedLine::CtcpQuery(_) => "CtcpQuery",
+        crate::RestrictedLine::CtcpReply(_) => "CtcpReply",
+        crate::RestrictedLine::TagMsg(_) => "TagMsg",
+        crate::RestrictedLine::Reacted(_) => "Reacted",
+        crate::RestrictedLine::Redacted(_) => "Redacted",
+        crate::RestrictedLine::TypingChanged(_) => "TypingChanged",
+        crate::RestrictedLine::Incomplete(_) => "Incomplete",
+    }
+}
+
+fn plain_variant(event: &Event) -> &'static str {
+    match event {
+        Event::Message(_) => "Message",
+        Event::Notice(_) => "Notice",
+        Event::ServerNotice(_) => "ServerNotice",
+        Event::CtcpQuery(_) => "CtcpQuery",
+        Event::CtcpReply(_) => "CtcpReply",
+        Event::TagMsg(_) => "TagMsg",
+        Event::Reacted(_) => "Reacted",
+        Event::Redacted(_) => "Redacted",
+        Event::TypingChanged(_) => "TypingChanged",
+        event => panic!("unexpected plain event {event:?}"),
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn every_line_type_with_a_status_sign_arrives_restricted() {
+    let cases = [
+        (
+            "Message",
+            "@msgid={id};time=2026-11-14T04:38:03.843Z :oppy!~u@cloak.example PRIVMSG {to} :deploy key rotated?",
+            true,
+        ),
+        (
+            "Notice",
+            "@msgid={id};time=2026-11-14T04:38:19.957Z :oppy!~u@cloak.example NOTICE {to} :ops notice",
+            true,
+        ),
+        (
+            "ServerNotice",
+            "@msgid={id};time=2026-11-14T04:38:59.001Z :irc.sol.test NOTICE {to} :KNOCK: #ops (bob[~bob@127.0.0.1] has asked for an invite)",
+            true,
+        ),
+        (
+            "CtcpQuery",
+            "@msgid={id};time=2026-11-14T04:38:20.112Z :oppy!~u@cloak.example PRIVMSG {to} :\x01VERSION\x01",
+            true,
+        ),
+        (
+            "CtcpReply",
+            "@msgid={id};time=2026-11-14T04:38:21.310Z :oppy!~u@cloak.example NOTICE {to} :\x01VERSION Ergo-2.17.0\x01",
+            true,
+        ),
+        (
+            "TagMsg",
+            "@msgid={id};time=2026-11-14T04:38:22.404Z;+example/status=ready :oppy!~u@cloak.example TAGMSG {to}",
+            true,
+        ),
+        (
+            "Reacted",
+            "@msgid={id};time=2026-11-14T04:38:28.964Z;+draft/reply=wuc392x3jbiymzdgd9d7ktuy6i;+draft/react=👀 :oppy!~u@cloak.example TAGMSG {to}",
+            true,
+        ),
+        (
+            "Redacted",
+            "@msgid={id};time=2026-11-14T04:38:31.002Z :oppy!~u@cloak.example REDACT {to} wuc392x3jbiymzdgd9d7ktuy6i :wrong channel",
+            true,
+        ),
+        (
+            "TypingChanged",
+            "@msgid={id};time=2026-11-14T04:38:17.655Z;+typing={typing} :oppy!~u@cloak.example TAGMSG {to}",
+            false,
+        ),
+    ];
+    let mut ops =
+        OpsChannel::joined_with([crate::cap::MESSAGE_TAGS, crate::cap::MESSAGE_REDACTION]).await;
+    for (expected, template, has_msgid) in cases {
+        for (to, id, typing) in [
+            ("@#ops", "kve8g9qnm88ecsi5d95uz3b38w", "active"),
+            ("#ops", "mmaw5dbdbfcdtemfrdriw2pg5n", "paused"),
+        ] {
+            let line = template
+                .replace("{to}", to)
+                .replace("{id}", id)
+                .replace("{typing}", typing);
+            server_line(&mut ops.server, format!("{line}\r\n").as_bytes()).await;
+            let event = next_event(&mut ops.events).await.unwrap();
+            let variant = match &event {
+                Event::Restricted(restricted) => {
+                    assert_eq!(restricted.audience.symbol(), '@', "{line}");
+                    restricted_variant(&restricted.line)
+                }
+                event => {
+                    assert_eq!(to, "#ops", "{line} arrived in a plain arm");
+                    plain_variant(event)
+                }
+            };
+            assert_eq!(variant, expected, "{line}");
+            assert_eq!(event.as_restricted().is_some(), to == "@#ops", "{line}");
+            assert_eq!(event.conversation().unwrap().to_string(), "#ops", "{line}");
+            assert_eq!(
+                event.msgid().map(AsRef::as_ref),
+                has_msgid.then_some(id),
+                "{line}"
+            );
+        }
+    }
+    ops.finish().await;
+}

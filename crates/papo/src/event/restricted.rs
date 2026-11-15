@@ -1,6 +1,6 @@
 use super::{
-    Audience, CtcpQuery, CtcpReply, Incomplete, Message, Notice, Reacted, Redacted, ServerNotice,
-    TagMsg, TypingChanged,
+    Audience, CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, Reacted, Redacted,
+    ServerNotice, TagMsg, TypingChanged,
 };
 use crate::{Conversation, Prefix};
 
@@ -87,6 +87,22 @@ impl RestrictedLine {
             Self::Reacted(line) => Some(line.conversation.clone()),
             Self::Redacted(line) => Some(line.conversation.clone()),
             Self::TypingChanged(line) => Some(line.conversation.clone()),
+        }
+    }
+
+    pub(crate) const fn msgid(&self) -> Option<&MessageId> {
+        match self {
+            Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => {
+                line.msgid.as_ref()
+            }
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.msgid.as_ref(),
+            Self::ServerNotice(line) => line.msgid.as_ref(),
+            Self::CtcpQuery(line) => line.msgid.as_ref(),
+            Self::CtcpReply(line) => line.msgid.as_ref(),
+            Self::TagMsg(line) => line.msgid.as_ref(),
+            Self::Reacted(line) => line.msgid.as_ref(),
+            Self::Redacted(line) => line.msgid.as_ref(),
+            Self::TypingChanged(_) => None,
         }
     }
 }
