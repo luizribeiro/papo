@@ -1187,6 +1187,7 @@ mod tests {
     #[test]
     #[allow(clippy::too_many_lines)]
     fn every_invalid_input_variant_reports_its_data() {
+        let stored = |text| crate::ServerTime::from_stored(text).unwrap();
         let cases = [
             (
                 InvalidInput::Url(crate::InvalidUrl::Empty),
@@ -1205,12 +1206,24 @@ mod tests {
                 "capability Cap(\"chathistory\") is known to papo; use enable(Feature::History)",
             ),
             (
+                InvalidInput::UnstableCapability("draft/persistence".into()),
+                "capability Cap(\"draft/persistence\") requires papo's `unstable` feature",
+            ),
+            (
+                InvalidInput::ManagedCapability("sts".into()),
+                "capability Cap(\"sts\") is configured through its typed builder method",
+            ),
+            (
                 InvalidInput::ZeroEventCapacity,
                 "event queue capacity must be positive",
             ),
             (
                 InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
                 "rate-limit burst must be positive",
+            ),
+            (
+                InvalidInput::InsecureAuthentication,
+                "credentials on a plaintext endpoint require allow_insecure_auth(true)",
             ),
             (
                 InvalidInput::WireMessage(crate::BuildError::InvalidParam(0)),
@@ -1272,12 +1285,39 @@ mod tests {
                 "the referenced message reached only @ members; this send reaches others",
             ),
             (
+                InvalidInput::WrongConversation,
+                "the message belongs to another conversation",
+            ),
+            (
+                InvalidInput::NoServerTime,
+                "no server time is known for the conversation",
+            ),
+            (
+                InvalidInput::ServerTimeInFuture {
+                    requested: stored("2026-11-08T19:56:00.000Z"),
+                    estimated_now: stored("2026-11-08T19:55:04.373Z"),
+                },
+                "server time 2026-11-08T19:56:00.000Z is later than estimated server time \
+                 2026-11-08T19:55:04.373Z",
+            ),
+            (
                 InvalidInput::EmailRequired,
                 "account registration requires an email address",
             ),
             (
                 InvalidInput::AccountNameMustMatchNick,
                 "the server does not support a custom account name",
+            ),
+            (
+                InvalidInput::InvalidExtbanAccount("*".into()),
+                "invalid account extended-ban name \"*\"",
+            ),
+            (
+                InvalidInput::KickReasonTooLong {
+                    maximum: 307,
+                    actual: 308,
+                },
+                "kick reason length 308 exceeds limit 307",
             ),
             (
                 InvalidInput::MetadataValueTooLong {
