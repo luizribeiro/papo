@@ -83,23 +83,17 @@ pub(crate) fn who_account(
     response: &papo_core::Response,
 ) -> Result<crate::Account, crate::Error> {
     crate::requests::empty(response)?;
-    let account = response.lines.iter().find_map(|line| {
-        let line = line.as_ref();
-        (line.command_is("354") && line.param(1).is_some_and(|found| found == nick))
-            .then(|| line.param(2))
-            .flatten()
-    });
-    match account {
-        None => Err(crate::Error::TargetGone),
-        Some("0" | "*") => Ok(crate::Account::LoggedOut),
-        Some(account) => Ok(crate::Account::LoggedIn(
-            client
-                .state()
-                .known_name_rules()
-                .ok_or(crate::InvalidInput::NameRulesUnknown)?
-                .account(account),
-        )),
+    let state = client.state();
+    let account = state
+        .core
+        .__who_account(nick, &response.lines)
+        .ok_or(crate::Error::TargetGone)?;
+    if matches!(account, crate::Account::LoggedIn(_)) {
+        state
+            .known_name_rules()
+            .ok_or(crate::InvalidInput::NameRulesUnknown)?;
     }
+    Ok(account)
 }
 
 pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
@@ -165,6 +159,10 @@ mod tests {
         for (line, expected) in [
             (
                 ":ergo.test 354 papo alice alice-account",
+                Some("alice-account"),
+            ),
+            (
+                ":ergo.test 354 papo Alice alice-account",
                 Some("alice-account"),
             ),
             (":ergo.test 354 papo alice 0", None),

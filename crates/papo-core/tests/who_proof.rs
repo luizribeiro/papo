@@ -86,3 +86,41 @@ fn who_proof_table_keeps_the_newest_thousand_identities() {
     assert_eq!(resolved(&session, &first), None);
     assert_eq!(resolved(&session, &second).as_deref(), Some("reviewer1"));
 }
+
+fn registered_with(casemapping: &str) -> Session {
+    let mut session = registered();
+    server(
+        &mut session,
+        &format!(":ergo.test 005 papo CASEMAPPING={casemapping} :are supported"),
+    );
+    session
+}
+
+#[test]
+fn who_rows_match_the_requested_nick_under_the_session_casemapping() {
+    for (casemapping, asked, row, matches) in [
+        ("rfc1459", "[bot]", "{bot}", true),
+        ("rfc1459", "bot\\ops", "bot|ops", true),
+        ("rfc1459", "Alice", "alice", true),
+        ("rfc1459", "alice", "alicia", false),
+        ("ascii", "Alice", "alice", true),
+        ("ascii", "[bot]", "{bot}", false),
+    ] {
+        let mut session = registered_with(casemapping);
+        let casemapping_rules = session.state().casemapping();
+        let row = Line::new("354").with_params(["papo", row, "bot-account"]);
+        assert_eq!(
+            session
+                .state()
+                .__who_account(asked, std::slice::from_ref(&row)),
+            matches.then(|| Account::LoggedIn(casemapping_rules.account("bot-account"))),
+            "{casemapping}: {asked} against {row:?}"
+        );
+        let proof = session.__prove_who_user(
+            casemapping_rules.nick(asked),
+            Account::LoggedIn(casemapping_rules.account("bot-account")),
+            &[row],
+        );
+        assert_eq!(proof.is_ok(), matches, "{casemapping}: proof of {asked}");
+    }
+}
