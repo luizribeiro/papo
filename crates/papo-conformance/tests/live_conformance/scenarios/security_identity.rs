@@ -69,6 +69,64 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     Ok(())
 }
 
+/// refuses an admin check and a guarded reply after an unseen private sender is replaced
+#[scenario(covers = ["security.guard-proof.unseen-message-peer-handoff"])]
+async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> {
+    match profile().as_str() {
+        "soju-ergo" => {
+            return s.skip("soju keeps the upstream user attached after downstream QUIT");
+        }
+        "ergo-default" | "ergo-persistent" => {
+            return s.skip("Ergo reserves a logged-in user's nick for their account");
+        }
+        _ => {}
+    }
+    let mut bot = s.connect("bot").await?;
+    let alice = s.connect_as_account("alice").await?;
+    let mallory = s.connect("mallory").await?;
+    let spare = s.connect("handoff").await?;
+    let handoff = spare.snapshot().nick().clone().to_string();
+    spare.quit().await?;
+    alice.set_nick(&handoff).await?;
+    let bot_nick = bot.snapshot().nick().clone();
+
+    alice
+        .privmsg(&alice.query(bot_nick.as_str())?, "!ping")
+        .await?;
+    let (admin, state) = bot
+        .wait_for_with_state(|event| message_text(event, "!ping"))
+        .await?;
+    assert!(matches!(
+        state.user(&admin.actor)?.map(papo::User::account),
+        Some(papo::Account::LoggedIn(_))
+    ));
+    let saved = admin.actor.key();
+
+    alice.quit().await?;
+    mallory.set_nick(&handoff).await?;
+    mallory
+        .privmsg(&mallory.query(bot_nick.as_str())?, "!op mallory")
+        .await?;
+    let (takeover, state) = bot
+        .wait_for_with_state(|event| message_text(event, "!op mallory"))
+        .await?;
+
+    assert_eq!(
+        state.user(&takeover.actor)?.map(papo::User::account),
+        Some(&papo::Account::LoggedOut)
+    );
+    assert_ne!(takeover.actor, admin.actor);
+    assert!(matches!(
+        saved.check(&takeover.actor.key()),
+        papo::PeerKeyCheck::Mismatch(_)
+    ));
+    assert!(matches!(
+        bot.reply(&admin, "op granted").await,
+        Err(papo::Error::TargetGone)
+    ));
+    Ok(())
+}
+
 /// keeps a broadcast out of the replyable message event
 #[scenario(covers = ["security.reply.broadcast-private"])]
 async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
