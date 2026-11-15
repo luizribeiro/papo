@@ -1516,7 +1516,7 @@ impl Client {
         Ok(crate::ChannelHandle::new(self, channel, true))
     }
 
-    /// Leaves a channel.
+    /// Leaves a channel and resolves to the server's echo of our `PART`.
     ///
     /// An empty `reason` means no reason.
     ///
@@ -1528,13 +1528,14 @@ impl Client {
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::NotOnChannel`], [`crate::Refusal::TryAgain`], or
-    /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
-    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// [`crate::Refusal::Other`] when refused, and [`Error::NotVerified`] when answered without
+    /// the echo. It can also return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`],
+    /// [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn part(
         &self,
         channel: impl crate::AsChannel,
         reason: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<crate::PartOutcome> {
         let client = self.clone();
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let reason = reason.into();
@@ -1556,7 +1557,10 @@ impl Client {
                 .await
                 .map_err(|_| Error::connection_lost())?;
             let response = receiver.await.map_err(|_| Error::connection_lost())??;
-            crate::requests::empty(&response)
+            let echo = crate::requests::echo(&response, "PART")?;
+            Ok(crate::PartOutcome {
+                confirmation: crate::Confirmation::from_echo(&echo),
+            })
         })
     }
 

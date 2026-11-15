@@ -168,7 +168,7 @@ impl Peer {
         &self,
         channel: impl AsRef<str>,
         reason: impl Into<String>,
-    ) -> papo::RequestFuture<()> {
+    ) -> papo::RequestFuture<papo::PartOutcome> {
         self.client.part(
             self.with_name_rules(|names| names.channel(channel.as_ref())),
             reason,

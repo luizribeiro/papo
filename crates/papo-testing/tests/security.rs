@@ -764,7 +764,7 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
     let metadata = second.metadata();
     let results = [
         ("join", done(second.join(channel).await)),
-        ("part", second.part(channel, "Review complete").await),
+        ("part", done(second.part(channel, "Review complete").await)),
         (
             "kick from a foreign channel",
             second.kick(channel, "alice", "Flooding").await,

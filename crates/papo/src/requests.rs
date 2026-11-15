@@ -40,6 +40,14 @@ pub struct TopicOutcome {
     pub confirmation: crate::Confirmation,
 }
 
+/// The departure the server confirmed by echoing our `PART`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct PartOutcome {
+    /// The echo's `msgid` and server time, which Ergo assigns to a departure.
+    pub confirmation: crate::Confirmation,
+}
+
 /// Information returned by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

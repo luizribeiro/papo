@@ -166,3 +166,44 @@ async fn a_topic_change_without_its_echo_fails() {
         );
     }
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_departure_resolves_to_the_echo_of_our_part() {
+    let cases = [
+        (
+            LABELLED,
+            "@label=0 PART #papo leaving",
+            "@msgid=x95ke2uf27w64gbhhcnccekj8s;time=2026-11-15T20:07:35.242Z;label=0 :papo-driver!~u@3t4fgnf9zitka.irc PART #papo leaving",
+            Ok(confirmed(
+                "x95ke2uf27w64gbhhcnccekj8s",
+                "2026-11-15T20:07:35.242Z",
+            )),
+        ),
+        (
+            "message-tags",
+            "PART #papo leaving",
+            ":papo-driver!~papo@127.0.0.1 PART #papo :leaving",
+            Ok(Confirmation::unconfirmed(UnconfirmedReason::NoMessageId)),
+        ),
+        (
+            LABELLED,
+            "@label=0 PART #papo leaving",
+            "@time=2026-11-15T20:07:36.744Z;label=0 :ergo.test ACK",
+            Err(()),
+        ),
+    ];
+    for (caps, sent, reply, expected) in cases {
+        let result = answered(
+            caps,
+            |client| client.part("#papo", "leaving"),
+            sent,
+            &[reply],
+        )
+        .await;
+        match (result, expected) {
+            (Ok(outcome), Ok(confirmation)) => assert_eq!(outcome.confirmation, confirmation),
+            (Err(Error::NotVerified), Err(())) => {}
+            (result, _) => panic!("{reply}: {result:?}"),
+        }
+    }
+}

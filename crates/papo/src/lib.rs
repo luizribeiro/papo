@@ -417,8 +417,8 @@ pub use papo_proto::{
 pub use peer_key::{InvalidPeerKey, NotSamePerson, PeerKey, PeerKeyCheck, PeerKeyMismatch};
 pub use reconnect::Reconnect;
 pub use requests::{
-    ListEntry, ListRequest, NickOutcome, RealnameOutcome, TopicOutcome, WhoEntry, Whois,
-    WhoisChannel,
+    ListEntry, ListRequest, NickOutcome, PartOutcome, RealnameOutcome, TopicOutcome, WhoEntry,
+    Whois, WhoisChannel,
 };
 pub use state::{Channel, ModeListEntry, Presence, ReadMarker, State};
 pub use target::{AsCap, AsChannel, AsConversation, AsMask, AsNick, Target};
