@@ -249,3 +249,71 @@ fn our_own_untagged_line_keeps_the_account_from_sasl() {
         &logged_in(&session, "papo-admin")
     );
 }
+
+#[test]
+fn a_who_proven_persons_first_line_keeps_the_proof_only_with_the_proven_account() {
+    for (caps, line, kept) in [
+        (
+            "account-tag message-tags",
+            "@account=bob :bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
+            true,
+        ),
+        (
+            "account-tag message-tags",
+            "@account=mallory :bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
+            false,
+        ),
+        (
+            "account-tag message-tags",
+            ":bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
+            false,
+        ),
+        (
+            "message-tags",
+            ":bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
+            false,
+        ),
+    ] {
+        let mut session = registered(caps);
+        let names = session.state().casemapping();
+        let proof = session
+            .__prove_who_user(
+                names.nick("bob"),
+                logged_in(&session, "bob"),
+                &[papo_proto::Line::new("354").with_params(["papo-admin", "bob", "bob"])],
+            )
+            .unwrap();
+        server(&mut session, line);
+        assert_eq!(
+            session
+                .state()
+                .__resolve_proven(&proof)
+                .is_ok_and(|nick| nick == "bob"),
+            kept,
+            "{line} with {caps}"
+        );
+        assert_eq!(
+            token(&session, "bob") == proof.__recipient().unwrap().__token(),
+            kept,
+            "{line} with {caps}: the sender takes over the proven identity"
+        );
+    }
+}
+
+#[test]
+fn a_logged_out_who_proof_never_passes_to_the_next_logged_out_sender() {
+    let mut session = registered("account-tag message-tags");
+    let names = session.state().casemapping();
+    let proof = session
+        .__prove_who_user(
+            names.nick("guest"),
+            Account::LoggedOut,
+            &[papo_proto::Line::new("354").with_params(["papo-admin", "guest", "0"])],
+        )
+        .unwrap();
+    server(
+        &mut session,
+        ":guest!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :who is this?",
+    );
+    assert!(session.state().__resolve_proven(&proof).is_err());
+}
