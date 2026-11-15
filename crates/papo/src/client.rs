@@ -66,8 +66,36 @@ pub struct SendOutcome {
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Whether the server confirmed the message, with its assigned metadata when it did.
     pub(crate) outcome: SentOutcome,
+    /// Each logical line papo sent, in send order, with the server's confirmation of it.
+    ///
+    /// Long text is split into several lines, and segments in one `draft/multiline` batch form
+    /// one logical line. Each line is confirmed by its own echo, so when only some echoes carry
+    /// a `msgid`, the others are [`crate::Confirmation::Unconfirmed`].
+    pub lines: Vec<SentLine>,
     /// Compatibility fallbacks applied while sending.
     pub fallbacks: Vec<Fallback>,
+}
+
+/// One logical line of a [`SendOutcome`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct SentLine {
+    /// The exact text papo sent, with a batch's line breaks restored as `\n`.
+    pub text: String,
+    /// Whether the server confirmed this line, with the identity it assigned when it did.
+    pub confirmation: crate::Confirmation,
+}
+
+impl SentLine {
+    pub(crate) fn unconfirmed(texts: Vec<String>, reason: crate::UnconfirmedReason) -> Vec<Self> {
+        texts
+            .into_iter()
+            .map(|text| Self {
+                text,
+                confirmation: crate::Confirmation::unconfirmed(reason),
+            })
+            .collect()
+    }
 }
 
 /// The server-confirmation outcome of a sent chat message.
@@ -504,12 +532,14 @@ impl SendOutcome {
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
+        lines: Vec<SentLine>,
     ) -> Self {
         Self {
             conversation,
             status,
             receipt,
             outcome: SentOutcome::Unconfirmed,
+            lines,
             fallbacks,
         }
     }
@@ -533,7 +563,7 @@ impl SendOutcome {
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
         let confirmed = msgids.len() == texts.len();
-        let outcome = ConfirmedLines::new(msgids.iter().cloned().zip(texts).collect())
+        let outcome = ConfirmedLines::new(msgids.iter().cloned().zip(texts.clone()).collect())
             .filter(|_| confirmed)
             .map_or(SentOutcome::Unconfirmed, |lines| SentOutcome::Confirmed {
                 lines,
@@ -542,11 +572,21 @@ impl SendOutcome {
         if confirmed {
             receipt.set_reference(msgids, None);
         }
+        // papo labels a send only when echo-message is on as well.
+        let lines = texts
+            .into_iter()
+            .zip(echoes)
+            .map(|(text, echo)| SentLine {
+                text,
+                confirmation: crate::Confirmation::from_labelled_echo(true, echo.clone()),
+            })
+            .collect();
         Self {
             conversation,
             status,
             receipt,
             outcome,
+            lines,
             fallbacks,
         }
     }
@@ -1366,18 +1406,21 @@ impl Client {
                 text.to_owned()
             };
             let mut message = match kind {
-                TextKind::Privmsg => Line::privmsg(&wire_target, text),
-                TextKind::Notice => Line::notice(&wire_target, text),
+                TextKind::Privmsg => Line::privmsg(&wire_target, &text),
+                TextKind::Notice => Line::notice(&wire_target, &text),
             };
             for (key, value) in tags {
                 message = message.with_tag(key, value);
             }
             self.send_chat_message(target, message).await?;
+            let lines =
+                SentLine::unconfirmed(vec![text], crate::UnconfirmedReason::NoLabeledResponse);
             return Ok(SendOutcome::unconfirmed(
                 conversation,
                 status,
                 receipt,
                 fallbacks,
+                lines,
             ));
         }
         let (result, receiver) = oneshot::channel();

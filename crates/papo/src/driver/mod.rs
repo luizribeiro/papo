@@ -320,6 +320,7 @@ enum PendingTransmit {
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
+        lines: Vec<crate::SentLine>,
         result: oneshot::Sender<Result<SendOutcome, Error>>,
     },
 }
@@ -333,6 +334,7 @@ impl PendingTransmit {
                 status,
                 receipt,
                 fallbacks,
+                lines,
                 result,
             } => {
                 _ = result.send(Ok(SendOutcome::unconfirmed(
@@ -340,6 +342,7 @@ impl PendingTransmit {
                     status,
                     receipt,
                     fallbacks,
+                    lines,
                 )));
             }
         }
@@ -1296,11 +1299,17 @@ where
                                     result,
                                 });
                             } else if let Some(token) = sent.transmit {
+                                let reason = if session.caps().contains_key(&crate::cap::LABELED_RESPONSE) {
+                                    crate::UnconfirmedReason::NoEchoMessage
+                                } else {
+                                    crate::UnconfirmedReason::NoLabeledResponse
+                                };
                                 transmits.insert(token, PendingTransmit::Text {
                                     conversation,
                                     status,
                                     receipt,
                                     fallbacks,
+                                    lines: crate::SentLine::unconfirmed(sent.texts, reason),
                                     result,
                                 });
                             }

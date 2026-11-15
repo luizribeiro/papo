@@ -34,3 +34,77 @@ async fn a_send_through_a_handle_reports_the_membership_it_was_sent_through() {
     assert_eq!(sent.conversation, crate::Conversation::Channel(handle));
     task.abort();
 }
+
+const RELEASE_NOTE: &str = "deploy finished\nall checks green";
+
+async fn send_two_lines(advertised: &str, enabled: &str, echoes: [&str; 2]) -> crate::SendOutcome {
+    let wanted = config().wanted_caps(advertised.split(' '));
+    let (mut server, client, mut events, driver) = scripted(wanted);
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, advertised, enabled).await;
+    let sent = tokio::spawn({
+        let client = client.clone();
+        async move { client.privmsg("#papo", RELEASE_NOTE).await }
+    });
+    let wire = if enabled.contains("echo-message") {
+        "@label=0 PRIVMSG #papo :deploy finished\r\n@label=0-1 PRIVMSG #papo :all checks green\r\n"
+    } else {
+        "PRIVMSG #papo :deploy finished\r\nPRIVMSG #papo :all checks green\r\n"
+    };
+    client_line(&mut server, wire.as_bytes()).await;
+    for echo in echoes.into_iter().filter(|echo| !echo.is_empty()) {
+        server_line(&mut server, format!("{echo}\r\n").as_bytes()).await;
+    }
+    let sent = within(sent).await.unwrap().unwrap();
+    task.abort();
+    sent
+}
+
+fn line(text: &str, confirmation: crate::Confirmation) -> crate::SentLine {
+    crate::SentLine {
+        text: text.into(),
+        confirmation,
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn each_line_of_a_send_carries_its_own_confirmation() {
+    let first = "@label=0;msgid=ripxp4ezdb76is6ep47ic7rexa;time=2026-11-15T17:42:12.749Z :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG #papo :deploy finished";
+    let second = "@label=0-1;msgid=6b4b6emqdux5z7beb724swiqhn;time=2026-11-15T17:42:12.751Z :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG #papo :all checks green";
+    let second_without_msgid = "@label=0-1;time=2026-11-15T17:42:12.751Z :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG #papo :all checks green";
+    let confirmed = |msgid: &str, time: &str| crate::Confirmation::Confirmed {
+        msgid: msgid.into(),
+        server_time: Some(time.parse().unwrap()),
+    };
+    let cases = [
+        (
+            "echo-message labeled-response",
+            "echo-message labeled-response",
+            [first, second],
+            [
+                confirmed("ripxp4ezdb76is6ep47ic7rexa", "2026-11-15T17:42:12.749Z"),
+                confirmed("6b4b6emqdux5z7beb724swiqhn", "2026-11-15T17:42:12.751Z"),
+            ],
+        ),
+        (
+            "echo-message labeled-response",
+            "echo-message labeled-response",
+            [first, second_without_msgid],
+            [
+                confirmed("ripxp4ezdb76is6ep47ic7rexa", "2026-11-15T17:42:12.749Z"),
+                crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoMessageId),
+            ],
+        ),
+    ];
+    for (advertised, enabled, echoes, [deploy, checks]) in cases {
+        let sent = send_two_lines(advertised, enabled, echoes).await;
+        assert_eq!(
+            sent.lines,
+            [
+                line("deploy finished", deploy),
+                line("all checks green", checks)
+            ],
+            "{advertised}: {echoes:?}"
+        );
+    }
+}

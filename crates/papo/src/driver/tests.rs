@@ -9064,6 +9064,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
             .unwrap(),
             server_time: None,
         },
+        lines: Vec::new(),
         fallbacks: Vec::new(),
     };
     sent.receipt.set_reference(

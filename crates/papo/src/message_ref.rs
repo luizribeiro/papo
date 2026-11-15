@@ -626,6 +626,7 @@ mod tests {
                 .unwrap(),
                 server_time: Some(crate::ServerTime::from_stored_millis(0).unwrap()),
             },
+            lines: Vec::new(),
             fallbacks: Vec::new(),
         };
         sent.receipt.set_reference(
