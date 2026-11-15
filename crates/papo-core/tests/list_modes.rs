@@ -439,7 +439,7 @@ fn live_mode_changes_update_only_a_completed_list() {
     ));
     assert_eq!(
         entries[1].set_at,
-        papo_proto::time::parse("2026-10-21T12:00:00.000Z")
+        papo_proto::ServerTime::from_stored("2026-10-21T12:00:00.000Z").ok()
     );
 
     session.handle_line(now, b":alice!~alice@staff.example MODE #papo -b bob");

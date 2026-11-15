@@ -17,7 +17,7 @@ use papo_proto::{
     ChannelName, Chghost, Command, Isupport, Join, LineRef, Mask, MetadataKey,
     ModeChange as ProtoModeChange, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Origin,
     Prefix, Rank, ServerTime, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply,
-    parse_353, time,
+    parse_353,
 };
 
 #[cfg(test)]

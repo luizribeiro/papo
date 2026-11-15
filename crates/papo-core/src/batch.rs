@@ -4,7 +4,7 @@ use std::{
 };
 use web_time::Instant;
 
-use papo_proto::{Command, Line, LineRef, Reaction, time};
+use papo_proto::{Command, Line, LineRef, Reaction};
 
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
 
@@ -759,7 +759,7 @@ fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
                 }
                 Some((
                     message.param(1)?.to_owned(),
-                    time::parse(message.param(2)?)?,
+                    papo_proto::ServerTime::from_stored(message.param(2)?).ok()?,
                 ))
             })
             .collect();

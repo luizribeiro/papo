@@ -2020,7 +2020,7 @@ impl LineEnvelope {
             msgid: line.tag("msgid").map(std::borrow::Cow::into_owned),
             server_time: line
                 .tag("time")
-                .and_then(|value| papo_proto::time::parse(&value)),
+                .and_then(|value| papo_proto::ServerTime::from_stored(&value).ok()),
             account: line.tag("account").map(std::borrow::Cow::into_owned),
             account_known: line.tag("account").is_some(),
             bot: line.tags().any(|(key, _)| key == "bot"),
@@ -5581,7 +5581,7 @@ impl Session {
         let Some(newest) = message
             .tag("time")
             .or_else(|| message.tag("znc.in/server-time-iso"))
-            .and_then(|value| papo_proto::time::parse(&value))
+            .and_then(|value| papo_proto::ServerTime::from_stored(&value).ok())
         else {
             return;
         };
@@ -6445,7 +6445,7 @@ impl Session {
         if let Some(latest) = items
             .iter()
             .filter_map(|item| item.line().as_ref().tag("time"))
-            .filter_map(|value| papo_proto::time::parse(&value))
+            .filter_map(|value| papo_proto::ServerTime::from_stored(&value).ok())
             .max()
         {
             self.state.remember_server_time_for(target, latest);

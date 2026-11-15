@@ -1,6 +1,6 @@
 use super::{
     Command, Event, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, NameKey, Outbox, ProtoSource,
-    ReadMarker, State, StateLimit, time,
+    ReadMarker, ServerTime, State, StateLimit,
 };
 
 impl State {
@@ -10,7 +10,10 @@ impl State {
         own_nick: &str,
         isupport: &papo_proto::Isupport,
     ) {
-        let Some(server_time) = message.tag("time").and_then(|value| time::parse(&value)) else {
+        let Some(server_time) = message
+            .tag("time")
+            .and_then(|value| ServerTime::from_stored(&value).ok())
+        else {
             return;
         };
         let Ok((_, target)) = crate::conversation::classify_line_with_names(
@@ -69,7 +72,10 @@ impl State {
         let time = match value {
             "*" | "timestamp=*" => None,
             value => {
-                let Some(time) = value.strip_prefix("timestamp=").and_then(time::parse) else {
+                let Some(time) = value
+                    .strip_prefix("timestamp=")
+                    .and_then(|value| ServerTime::from_stored(value).ok())
+                else {
                     return false;
                 };
                 Some(time)
@@ -134,7 +140,9 @@ impl State {
         let (Some(mut target), Some(msgid), Some(time)) = (
             message.param(0),
             message.tag("msgid"),
-            message.tag("time").and_then(|value| time::parse(&value)),
+            message
+                .tag("time")
+                .and_then(|value| ServerTime::from_stored(&value).ok()),
         ) else {
             return;
         };

@@ -7,7 +7,7 @@ use support::Transcript;
 
 #[test]
 fn exact_line_events_keep_their_envelope() {
-    let expected = papo_proto::time::parse("2026-10-20T18:42:11.123Z").unwrap();
+    let expected = papo_proto::ServerTime::from_stored("2026-10-20T18:42:11.123Z").unwrap();
     let tagged = "time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120019";
     Transcript::new(Config::default().nick("papo"))
         .server(&format!(

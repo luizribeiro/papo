@@ -1631,7 +1631,7 @@ fn tracks_live_topic_changes_and_clearing() {
             ));
             assert_eq!(
                 channel.topic_set_at(),
-                papo_proto::time::parse("2026-10-22T13:14:15.250Z")
+                papo_proto::ServerTime::from_stored("2026-10-22T13:14:15.250Z").ok()
             );
         })
         .server("@time=2026-10-22T13:15:00.000Z :alice!alice@staff.example TOPIC #papo :")
@@ -1645,7 +1645,7 @@ fn tracks_live_topic_changes_and_clearing() {
                 .is_some_and(|nick| nick == "alice"));
             assert_eq!(
                 channel.topic_set_at(),
-                papo_proto::time::parse("2026-10-22T13:15:00.000Z")
+                papo_proto::ServerTime::from_stored("2026-10-22T13:15:00.000Z").ok()
             );
         })
         .no_event();

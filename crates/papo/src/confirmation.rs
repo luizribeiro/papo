@@ -62,7 +62,7 @@ impl Confirmation {
                 server_time: echo
                     .tag("time")
                     .as_deref()
-                    .and_then(papo_proto::time::parse),
+                    .and_then(|value| ServerTime::from_stored(value).ok()),
             },
             None => Self::unconfirmed(UnconfirmedReason::NoMessageId),
         }
@@ -72,5 +72,5 @@ impl Confirmation {
 pub(crate) fn echo_time(echo: &papo_core::SentInfo) -> Option<ServerTime> {
     echo.server_time
         .as_deref()
-        .and_then(papo_proto::time::parse)
+        .and_then(|value| ServerTime::from_stored(value).ok())
 }

@@ -169,7 +169,7 @@ fn newest_cursor(items: &[papo_core::HistoryItem]) -> Option<CatchupCursor> {
             let message = raw.as_ref();
             let time = message
                 .tag("time")
-                .and_then(|value| papo_proto::time::parse(&value))?;
+                .and_then(|value| papo_proto::ServerTime::from_stored(&value).ok())?;
             Some(CatchupCursor {
                 msgid: message.tag("msgid").map(std::borrow::Cow::into_owned),
                 time,
@@ -494,7 +494,7 @@ mod tests {
 
     #[test]
     fn activity_without_a_msgid_advances_the_timestamp_cursor() {
-        let time = papo_proto::time::parse("2026-10-15T12:01:00.000Z").unwrap();
+        let time = papo_proto::ServerTime::from_stored("2026-10-15T12:01:00.000Z").unwrap();
         let item = HistoryItem::Joined(HistoryLine {
             line: LineRef::parse("@time=2026-10-15T12:01:00.000Z :papo!papo@localhost JOIN #papo")
                 .unwrap()

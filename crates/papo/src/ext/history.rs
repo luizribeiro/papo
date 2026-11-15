@@ -2087,7 +2087,7 @@ mod tests {
             if quit.channels == ["#papo"]
                 && quit.actor_party == crate::Party::Other
                 && matches!(quit.actor.account(), crate::Account::LoggedIn(account) if account == "emily")));
-        let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
+        let first_time = papo_proto::ServerTime::from_stored("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::Message(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
@@ -2099,7 +2099,7 @@ mod tests {
 
     #[test]
     fn soju_history_without_msgids_pages_by_time() {
-        let server_time = papo_proto::time::parse("2026-10-20T18:44:00.250Z").unwrap();
+        let server_time = papo_proto::ServerTime::from_stored("2026-10-20T18:44:00.250Z").unwrap();
         let client = crate::Client::disconnected_for_test();
         let item = history_item(
             papo_core::HistoryItem::Message(core_item(
