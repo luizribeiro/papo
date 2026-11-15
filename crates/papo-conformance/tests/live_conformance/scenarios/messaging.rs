@@ -861,7 +861,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     );
 
     match bob.react(&original, "👍").await {
-        Ok(()) => {}
+        Ok(_) => {}
         Err(Error::Unsupported(unsupported))
             if unsupported.feature == Feature::Reactions
                 && unsupported.reason == UnsupportedReason::TagDenied =>

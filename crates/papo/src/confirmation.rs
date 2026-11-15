@@ -34,6 +34,26 @@ pub enum UnconfirmedReason {
     NoMessageId,
 }
 
+impl Confirmation {
+    pub(crate) fn unconfirmed(reason: UnconfirmedReason) -> Self {
+        Self::Unconfirmed { reason }
+    }
+
+    pub(crate) fn from_labelled_echo(
+        echo_message: bool,
+        echo: Option<papo_core::SentInfo>,
+    ) -> Self {
+        match echo {
+            Some(echo) => Self::Confirmed {
+                server_time: echo_time(&echo),
+                msgid: MessageId::from(echo.msgid),
+            },
+            None if echo_message => Self::unconfirmed(UnconfirmedReason::NoMessageId),
+            None => Self::unconfirmed(UnconfirmedReason::NoEchoMessage),
+        }
+    }
+}
+
 pub(crate) fn echo_time(echo: &papo_core::SentInfo) -> Option<ServerTime> {
     echo.server_time
         .as_deref()

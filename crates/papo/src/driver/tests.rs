@@ -4,6 +4,7 @@ use std::fmt::Write as _;
 
 mod history_message;
 mod ops_only;
+mod reactions;
 
 macro_rules! disconnected {
     () => {
@@ -939,8 +940,8 @@ async fn chat_person_method_identity_matrix() {
                     Method::Typing => client.typing(user, Typing::Active).await,
                     Method::Reply => client.reply(&message, "release approved").await.map(drop),
                     Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await,
-                    Method::React => client.react(&message, "✅").await,
-                    Method::Unreact => client.unreact(&message, "✅").await,
+                    Method::React => client.react(&message, "✅").await.map(drop),
+                    Method::Unreact => client.unreact(&message, "✅").await.map(drop),
                     Method::Redact => client.redact(&message, "superseded").await,
                 }
             });
@@ -988,8 +989,8 @@ async fn chat_person_method_identity_matrix() {
             Method::Typing => client.typing(alice.clone(), Typing::Done).await,
             Method::Reply => client.reply(&message, "payroll attached").await.map(drop),
             Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await,
-            Method::React => client.react(&message, "✅").await,
-            Method::Unreact => client.unreact(&message, "✅").await,
+            Method::React => client.react(&message, "✅").await.map(drop),
+            Method::Unreact => client.unreact(&message, "✅").await.map(drop),
             Method::Redact => client.redact(&message, "superseded").await,
         };
         assert!(
@@ -5695,11 +5696,10 @@ async fn every_name_taking_method_returns_invalid_name() {
     for (method, argument, bad) in cases {
         let result = match method {
             Method::Typing => client.typing(bad, crate::Typing::Active).await,
-            Method::React => {
-                client
-                    .react(line_reference(bad, "RfcBTzyxY120004"), "eyes")
-                    .await
-            }
+            Method::React => client
+                .react(line_reference(bad, "RfcBTzyxY120004"), "eyes")
+                .await
+                .map(drop),
             Method::Redact => {
                 client
                     .redact(line_reference(bad, "RfcBTzyxY120004"), "spam")

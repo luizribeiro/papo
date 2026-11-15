@@ -2364,7 +2364,7 @@ pub fn papo::Client::pause_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::ReactOutcome>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
@@ -2377,7 +2377,7 @@ pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string:
 pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
-pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::ReactOutcome>
 pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core::option::Option<papo::Whois>>
 impl papo::Client

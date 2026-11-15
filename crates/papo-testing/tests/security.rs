@@ -743,8 +743,8 @@ async fn every_send_reports_a_foreign_value_as_foreign_reference() {
         ("action", done(second.action(channel, "waves").await)),
         ("typing", second.typing(channel, papo::Typing::Active).await),
         ("reply", done(second.reply(message(), "acknowledged").await)),
-        ("react", second.react(message(), "+1").await),
-        ("unreact", second.unreact(message(), "+1").await),
+        ("react", done(second.react(message(), "+1").await)),
+        ("unreact", done(second.unreact(message(), "+1").await)),
         ("redact", second.redact(message(), "posted twice").await),
     ];
     foreign.assert_all_foreign(results).await;
@@ -1037,8 +1037,8 @@ async fn assert_line_recipient_guard(
     let mut results = Vec::new();
     if reference.msgid().is_some() {
         results.extend([
-            client.react(reference.clone(), "✅").await,
-            client.unreact(reference.clone(), "✅").await,
+            client.react(reference.clone(), "✅").await.map(|_| ()),
+            client.unreact(reference.clone(), "✅").await.map(|_| ()),
             client.redact(reference.clone(), "superseded").await,
         ]);
     }

@@ -78,6 +78,10 @@ type `State::read_marker` returns; it replaces `read_until: Option<ServerTime>`.
 `Client::fetch_read_marker` resolves to a `ReadMarker` instead of `Option<ServerTime>`, so a `*`
 reply is `Unset`; it fails with `Error::Unconfirmed` when the reply leaves no marker in state.
 
+`Client::react` and `Client::unreact` resolve to a `ReactOutcome` instead of `()`: its conversation
+and status audience, and a `Confirmation` that is `Confirmed { msgid, server_time }` from the
+labelled echo, or `Unconfirmed` with an `UnconfirmedReason` when the server cannot confirm it.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

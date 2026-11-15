@@ -174,8 +174,8 @@ fn answer(path: Path, ops: &OpsChannel, line: &ChatMessage) -> Answer {
     Box::pin(async move {
         match path {
             Path::Reply => client.reply(&line, "key rotated").await.map(drop),
-            Path::React => client.react(&line, "👀").await,
-            Path::Unreact => client.unreact(&line, "👀").await,
+            Path::React => client.react(&line, "👀").await.map(drop),
+            Path::Unreact => client.unreact(&line, "👀").await.map(drop),
             Path::Redact => client.redact(&line, "key rotated").await,
             Path::ReturnAddress => client
                 .privmsg(line.return_address(), "key rotated")

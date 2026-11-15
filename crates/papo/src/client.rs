@@ -1125,6 +1125,8 @@ impl Client {
     ///
     /// A reaction is usually an emoji but may be any nonempty text. Reactions are compared
     /// exactly, without case folding or Unicode normalization.
+    /// The result carries the server's msgid and time for the reaction when `echo-message` and
+    /// `labeled-response` let it confirm one; see [`ReactOutcome`].
     /// Passing the received line or [`Sent`] preserves its return address; see
     /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
@@ -1143,13 +1145,14 @@ impl Client {
         &self,
         message: impl Into<crate::MessageRef>,
         emoji: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<ReactOutcome> {
         self.reaction(message.into(), emoji.into(), "+draft/react")
     }
 
     /// Removes `emoji` as a reaction to `message`.
     ///
     /// `emoji` must exactly match the added reaction; papo performs no Unicode normalization.
+    /// The result is confirmed the same way as [`Client::react`].
     /// Passing the received line or [`Sent`] preserves its return address; see
     /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
@@ -1168,7 +1171,7 @@ impl Client {
         &self,
         message: impl Into<crate::MessageRef>,
         emoji: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<ReactOutcome> {
         self.reaction(message.into(), emoji.into(), "+draft/unreact")
     }
 
@@ -1177,7 +1180,7 @@ impl Client {
         message: crate::MessageRef,
         emoji: String,
         reaction_tag: &'static str,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<ReactOutcome> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let Some(message_id) = message.msgid().cloned() else {
@@ -1217,12 +1220,21 @@ impl Client {
             let line = Line::tagmsg(&target.text)
                 .with_tag(reply_tag, message_id.as_ref())
                 .with_tag(reaction_tag, emoji);
-            if state.supports(Feature::LabeledResponse) {
+            let (status, conversation) = target.conversation(&client, &state)?;
+            let confirmation = if state.supports(Feature::LabeledResponse) {
                 let response = client.correlated_chat(&target, line).await?;
-                crate::requests::empty(&response)
+                crate::requests::empty(&response)?;
+                let echo_message = state.caps().contains_key(&crate::cap::ECHO_MESSAGE);
+                crate::Confirmation::from_labelled_echo(echo_message, response.sent())
             } else {
-                client.send_chat_message(target, line).await
-            }
+                client.send_chat_message(target, line).await?;
+                crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoLabeledResponse)
+            };
+            Ok(ReactOutcome {
+                conversation,
+                status,
+                confirmation,
+            })
         })
     }
 
