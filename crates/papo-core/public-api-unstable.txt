@@ -1269,7 +1269,7 @@ pub papo_core::ResponseMatcher::Oper
 pub papo_core::ResponseMatcher::Part(alloc::string::String)
 pub papo_core::ResponseMatcher::Ping(alloc::string::String)
 pub papo_core::ResponseMatcher::ReadMarker(alloc::string::String)
-pub papo_core::ResponseMatcher::SetName(alloc::string::String)
+pub papo_core::ResponseMatcher::SetName
 pub papo_core::ResponseMatcher::Topic(alloc::string::String)
 pub papo_core::ResponseMatcher::Who(alloc::string::String)
 pub papo_core::ResponseMatcher::Whois(alloc::string::String)

@@ -1090,7 +1090,7 @@ fn matches_unlabelled_own_user_actions() {
     assert_unlabelled(
         &mut session,
         Line::new("SETNAME").with_params(["Papo Test Client"]),
-        ResponseMatcher::SetName("Papo Test Client".into()),
+        ResponseMatcher::SetName,
         &[":papo!papo@localhost SETNAME :Papo Test Client"],
     );
     assert_unlabelled(
@@ -1145,7 +1145,7 @@ fn setname_matches_after_a_nickname_change() {
         .request_with_matcher(
             now,
             Line::new("SETNAME").with_params(["Papo Review Client"]),
-            ResponseMatcher::SetName("Papo Review Client".into()),
+            ResponseMatcher::SetName,
         )
         .unwrap();
     session.handle_line(now, b":paporev!papo@localhost SETNAME :Papo Review Client");
@@ -1244,18 +1244,31 @@ fn action_matchers_require_every_identity_field() {
         .request_with_matcher(
             now,
             Line::new("SETNAME").with_params(["Papo Test Client"]),
-            ResponseMatcher::SetName("Papo Test Client".into()),
+            ResponseMatcher::SetName,
         )
         .unwrap();
-    for line in [
-        ":alice!alice@staff.example SETNAME :Papo Test Client",
-        ":papo!papo@localhost SETNAME :Different Name",
-    ] {
-        setname.handle_line(now, line.as_bytes());
-        assert_no_response(&mut setname);
-    }
+    setname.handle_line(now, b":alice!alice@staff.example SETNAME :Papo Test Client");
+    assert_no_response(&mut setname);
     setname.handle_line(now, b":papo!papo@localhost SETNAME :Papo Test Client");
     assert_eq!(response_id(&mut setname), setname_id);
+}
+
+#[test]
+fn setname_ends_at_our_echo_when_the_server_rewrites_the_realname() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("SETNAME").with_params(["Papo  \x02Test\x02  Client "]),
+            ResponseMatcher::SetName,
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b"@time=2026-11-15T20:08:34.189Z :papo!~u@3t4fgnf9zitka.irc SETNAME :Papo Test Client",
+    );
+    assert_eq!(response_id(&mut session), id);
 }
 
 #[test]
@@ -2148,7 +2161,7 @@ fn standard_failures_require_fail_kind_and_matching_command() {
         (
             "SETNAME",
             Line::new("SETNAME").with_params(["Papo Test Client"]),
-            ResponseMatcher::SetName("Papo Test Client".into()),
+            ResponseMatcher::SetName,
         ),
         (
             "OPER",

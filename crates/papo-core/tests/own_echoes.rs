@@ -57,7 +57,7 @@ fn cases() -> [Case; 5] {
         },
         Case {
             command: Line::new("SETNAME").with_params(["Carol  bold "]),
-            matcher: ResponseMatcher::SetName("Carol  bold ".into()),
+            matcher: ResponseMatcher::SetName,
             labelled: "@time=2026-11-15T20:07:13.153Z;label=0 :papo!~u@3t4fgnf9zitka.irc SETNAME :Carol  bold ",
             unlabelled: "@time=2026-11-15T20:08:34.189Z :papo!~u@3t4fgnf9zitka.irc SETNAME :Carol  bold ",
         },

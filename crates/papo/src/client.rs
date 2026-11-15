@@ -1867,8 +1867,8 @@ impl Client {
             Self::require_feature(&client.state(), Feature::SetName)?;
             let response = client
                 .correlated(
-                    Line::new("SETNAME").with_params([realname.clone()]),
-                    Some(ResponseMatcher::SetName(realname)),
+                    Line::new("SETNAME").with_params([realname]),
+                    Some(ResponseMatcher::SetName),
                 )
                 .await?;
             crate::requests::empty(&response)

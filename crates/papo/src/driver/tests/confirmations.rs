@@ -76,3 +76,15 @@ async fn a_nickname_change_without_its_echo_fails() {
     .await;
     assert!(matches!(refused, Err(Error::Server(_))), "{refused:?}");
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_unlabelled_realname_change_ends_at_a_rewritten_echo() {
+    let result = answered(
+        "setname",
+        |client| client.set_realname("Papo  \x02Review\x02  Client "),
+        "SETNAME :Papo  \x02Review\x02  Client ",
+        &["@time=2026-11-15T20:08:34.189Z :papo-driver!~u@3t4fgnf9zitka.irc SETNAME :Papo Review Client"],
+    )
+    .await;
+    assert!(result.is_ok(), "{result:?}");
+}

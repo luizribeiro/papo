@@ -100,6 +100,9 @@ lines were confirmed.
 `Error::Unconfirmed` is renamed `Error::NotVerified`: the server answered but papo could not see
 the change take effect.
 
+Without `labeled-response`, `Client::set_realname` ends at our `SETNAME` echo even when the server
+rewrote the realname, instead of timing out.
+
 `Client::set_nick` resolves to a `NickOutcome` with the nickname as the server echoed it and the
 echo's `Confirmation`; an answer without the echo fails with `Error::NotVerified`.
 

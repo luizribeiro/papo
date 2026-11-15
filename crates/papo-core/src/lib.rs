@@ -1397,8 +1397,8 @@ pub enum ResponseMatcher {
     Nick(String),
     /// An away-state change ending at `RPL_NOWAWAY` or `RPL_UNAWAY`.
     Away(bool),
-    /// A realname change ending at our `SETNAME` echo.
-    SetName(String),
+    /// A realname change ending at our `SETNAME` echo, whatever realname the server accepted.
+    SetName,
     /// An operator login ending at `RPL_YOUREOPER`.
     Oper,
     /// A latency probe ending at the matching `PONG`.
@@ -1639,9 +1639,7 @@ impl ResponseMatcher {
                     || Self::numeric_names_command(message, numeric, "AWAY")
             }) || Self::standard_failure(message, "AWAY"))
             .then_some(true),
-            Self::SetName(realname) => ((message.command() == Command::Setname
-                && current_own_source
-                && message.param(0) == Some(realname))
+            Self::SetName => ((message.command() == Command::Setname && current_own_source)
                 || numeric.is_some_and(|numeric| {
                     Self::numeric_names_command(message, numeric, "SETNAME")
                 })
