@@ -1859,10 +1859,10 @@ fn should_hold_sent_candidate(
 
 fn own_line_msgid(event: &Event) -> Option<&str> {
     match event {
-        Event::Message(message) if message.authorship == crate::Party::Me => {
+        Event::Message(message) if message.actor_party == crate::Party::Me => {
             message.msgid().map(AsRef::as_ref)
         }
-        Event::Notice(notice) if notice.authorship == crate::Party::Me => notice.msgid.as_deref(),
+        Event::Notice(notice) if notice.actor_party == crate::Party::Me => notice.msgid.as_deref(),
         _ => None,
     }
 }

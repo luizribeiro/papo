@@ -111,7 +111,7 @@ pub struct Reacted {
     /// The user that changed the reaction.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -174,7 +174,7 @@ pub struct TypingChanged {
     /// The user or server that sent the notification.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation where typing is occurring.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -202,7 +202,7 @@ pub struct TagMsg {
     /// The user or server that sent the message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

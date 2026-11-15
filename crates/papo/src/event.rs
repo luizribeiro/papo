@@ -105,7 +105,7 @@ pub struct CtcpQuery {
     /// The user that sent the CTCP message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation to which the CTCP message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -138,7 +138,7 @@ pub struct CtcpReply {
     /// The user that sent the CTCP reply.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation to which the CTCP reply belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -255,6 +255,17 @@ ctcp_reference_accessors!(CtcpQuery, CtcpReply);
 ///
 /// Comparing with [`Client::snapshot`](crate::Client::snapshot), the latest state instead of
 /// the paired one, also goes wrong whenever your nick changed after the event.
+///
+/// ```
+/// use papo::{Message, Party};
+///
+/// fn echo(message: &Message) -> Option<String> {
+///     if message.actor_party == Party::Me {
+///         return None;
+///     }
+///     Some(format!("you said: {}", message.text))
+/// }
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum Party {
@@ -278,15 +289,15 @@ impl Party {
 
 /// An incoming `PRIVMSG` or CTCP `ACTION` in a channel or private conversation.
 ///
-/// This type cannot represent notices or server broadcasts. Inspect [`Self::authorship`] to
-/// distinguish messages authored by this account from messages authored by other users.
+/// This type cannot represent notices or server broadcasts. Inspect [`Self::actor_party`] to
+/// tell your own messages from other users' messages.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Message {
     /// The user that sent the message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -331,7 +342,7 @@ pub struct Notice {
     /// The user that sent the notice.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The chat conversation to which the notice belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -431,7 +442,7 @@ pub struct ServerNotice {
     /// The server or operator that sent the notice.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
@@ -534,7 +545,7 @@ fn ctcp_from_line(
     if reply {
         Ok(Event::CtcpReply(CtcpReply {
             actor,
-            authorship: metadata.authorship,
+            actor_party: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
             command,
@@ -548,7 +559,7 @@ fn ctcp_from_line(
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
             actor,
-            authorship: metadata.authorship,
+            actor_party: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
             command,
@@ -891,7 +902,7 @@ impl Message {
         let conversation = metadata.conversation;
         Ok(Self {
             actor,
-            authorship: metadata.authorship,
+            actor_party: metadata.authorship,
             conversation,
             status: metadata.status,
             text,
@@ -925,7 +936,7 @@ impl Message {
     /// Reports whether this message's actor is this client's user.
     #[must_use]
     pub fn is_own(&self) -> bool {
-        self.authorship == Party::Me
+        self.actor_party == Party::Me
     }
 }
 
@@ -1013,7 +1024,7 @@ impl Notice {
         let conversation = metadata.conversation;
         Ok(Self {
             actor,
-            authorship: metadata.authorship,
+            actor_party: metadata.authorship,
             conversation,
             status: metadata.status,
             text,
@@ -1146,7 +1157,7 @@ impl ServerNotice {
         };
         Ok(Self {
             actor,
-            authorship,
+            actor_party: authorship,
             kind,
             to,
             status,
@@ -1967,7 +1978,7 @@ pub(crate) fn attach_message_handles(
             let event = $event;
             attach_user_message_handle(
                 &mut event.actor,
-                event.authorship,
+                event.actor_party,
                 &mut event.conversation,
                 &mut event.receipt,
                 tokens,
@@ -2250,7 +2261,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: change.server_time,
                 received_at,
                 actor,
-                authorship,
+                actor_party: authorship,
                 conversation,
                 status: change.status,
                 receipt,
@@ -2282,7 +2293,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                authorship,
+                actor_party: authorship,
                 conversation,
                 status: message.status,
                 receipt,
@@ -2307,7 +2318,7 @@ pub(crate) fn from_core_with_receipt(
                     server_time: tag.server_time,
                     received_at: tag.received_at,
                     actor: tag.actor,
-                    authorship: tag.authorship,
+                    actor_party: tag.actor_party,
                     conversation: tag.conversation,
                     status: tag.status,
                     receipt: tag.receipt,
@@ -2331,7 +2342,7 @@ pub(crate) fn from_core_with_receipt(
                     server_time: tag.server_time,
                     received_at: tag.received_at,
                     actor: tag.actor,
-                    authorship: tag.authorship,
+                    actor_party: tag.actor_party,
                     conversation: tag.conversation,
                     status: tag.status,
                     receipt,
@@ -3724,7 +3735,7 @@ mod tests {
         };
         assert_eq!(server.kind, ServerNoticeKind::Notice);
         assert_eq!(server.to, Audience::Me);
-        assert_eq!(server.authorship, Party::Other);
+        assert_eq!(server.actor_party, Party::Other);
         assert!(server.status.is_none());
         assert!(server.return_address().is_none());
 
@@ -3772,7 +3783,7 @@ mod tests {
             broadcast.to,
             Audience::Broadcast(Broadcast::Mask(_))
         ));
-        assert_eq!(broadcast.authorship, Party::Other);
+        assert_eq!(broadcast.actor_party, Party::Other);
         assert!(
             matches!(broadcast.actor.user().map(|actor| actor.account().clone()),
             Some(Account::LoggedIn(account)) if account == "network-admin")
@@ -4711,7 +4722,7 @@ mod tests {
         assert!(matches!(route(
                 Line::privmsg("#papo", "from another device").with_source("papo{bot}!p@localhost"),
                 Party::Me), Event::Message(message)
-            if message.authorship == Party::Me));
+            if message.actor_party == Party::Me));
         assert!(matches!(
             route(
                 Line::privmsg("#papo", "from emily").with_source("emily!e@localhost"),
@@ -4722,7 +4733,7 @@ mod tests {
         assert!(matches!(route(
                 Line::notice("#papo", "from another device").with_source("papo{bot}!p@localhost"),
                 Party::Me), Event::Notice(notice)
-            if notice.authorship == Party::Me));
+            if notice.actor_party == Party::Me));
     }
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core_with_mapping(
@@ -5071,7 +5082,7 @@ mod tests {
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(matches!(forwarded(papo_core::Event::TagMessage(tag)),
-            Event::TypingChanged(typing) if typing.authorship == Party::Me));
+            Event::TypingChanged(typing) if typing.actor_party == Party::Me));
     }
 
     #[test]

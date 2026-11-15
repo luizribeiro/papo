@@ -40,7 +40,7 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
     let received = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(received.authorship, papo::Party::Me);
+    assert_eq!(received.actor_party, papo::Party::Me);
     assert_eq!(
         conversation_name(received.conversation()),
         Some(channel.clone())
@@ -406,7 +406,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
         .items
         .iter()
         .filter_map(Event::as_message)
-        .filter(|message| message.authorship == Party::Me)
+        .filter(|message| message.actor_party == Party::Me)
         .filter(|message| texts.contains(&message.text.as_str()))
         .count();
     assert_eq!(own, 2);
@@ -443,7 +443,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
 
     desktop.typing(&channel, papo::Typing::Active).await?;
     let typing = phone.wait_for(Event::as_typing_changed).await?;
-    assert_eq!(typing.authorship, papo::Party::Me);
+    assert_eq!(typing.actor_party, papo::Party::Me);
     assert_eq!(
         crate::source_nick(&typing.actor),
         Some(desktop.nick().as_str())
@@ -497,7 +497,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(sent_text, text);
     for message in [&on_desktop, &on_phone, &on_tablet] {
         assert_eq!(message.msgid(), Some(id));
-        assert_eq!(message.authorship, papo::Party::Other);
+        assert_eq!(message.actor_party, papo::Party::Other);
         assert_eq!(
             conversation_name(message.conversation()),
             Some(sender.nick().to_string())
@@ -512,7 +512,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let sibling_reply = desktop
         .wait_for(|event| chat_text(event, "reviewed from the phone"))
         .await?;
-    assert_eq!(sibling_reply.authorship, papo::Party::Me);
+    assert_eq!(sibling_reply.actor_party, papo::Party::Me);
     assert_eq!(sibling_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(
         conversation_name(sibling_reply.conversation()),

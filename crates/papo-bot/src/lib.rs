@@ -244,7 +244,7 @@ impl Command {
         audience: Option<Prefix>,
         config: &BotConfig,
     ) -> Option<Self> {
-        if message.authorship == papo::Party::Me
+        if message.actor_party == papo::Party::Me
             || message.kind != MessageKind::Text
             || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
@@ -1016,7 +1016,7 @@ mod tests {
         assert!(parse(&action, &config).is_none());
 
         let mut own = message("#papo", "!ping");
-        own.authorship = Party::Me;
+        own.actor_party = Party::Me;
         assert!(parse(&own, &config).is_none());
     }
 

@@ -977,7 +977,7 @@ mod tests {
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
             actor: actor.clone(),
-            authorship: crate::Party::Other,
+            actor_party: crate::Party::Other,
             conversation,
             status: None,
             receipt,

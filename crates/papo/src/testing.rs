@@ -198,7 +198,7 @@ pub fn message(
     );
     Message {
         actor,
-        authorship: Party::Other,
+        actor_party: Party::Other,
         conversation,
         status: None,
         raw_text: text.clone(),

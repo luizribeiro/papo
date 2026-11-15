@@ -453,7 +453,7 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     let other = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(other.authorship, papo::Party::Me);
+    assert_eq!(other.actor_party, papo::Party::Me);
     desktop
         .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
@@ -488,7 +488,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
     let message = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(message.authorship, papo::Party::Me);
+    assert_eq!(message.actor_party, papo::Party::Me);
     assert_eq!(
         conversation_name(message.conversation()),
         Some(channel.clone())

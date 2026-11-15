@@ -394,7 +394,7 @@ fn historical_tagmsg(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        authorship,
+        actor_party: authorship,
         conversation,
         status,
         receipt,
@@ -493,7 +493,7 @@ fn reaction(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        authorship,
+        actor_party: authorship,
         conversation,
         status,
         receipt,
@@ -1967,11 +1967,11 @@ mod tests {
             .collect();
 
         assert!(matches!(&items[0], PageEvent::Message(message)
-            if message.authorship == crate::Party::Me && message.is_own()));
+            if message.actor_party == crate::Party::Me && message.is_own()));
         assert!(matches!(&items[1], PageEvent::Message(message)
-            if message.authorship == crate::Party::Other && !message.is_own()));
+            if message.actor_party == crate::Party::Other && !message.is_own()));
         assert!(matches!(&items[2], PageEvent::Message(message)
-            if message.authorship == crate::Party::Unknown && !message.is_own()));
+            if message.actor_party == crate::Party::Unknown && !message.is_own()));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.actor.nick() == "papo" && changed.old == "papo-old"
                 && changed.new == "papo"

@@ -793,7 +793,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
 
     let own = next_event(&mut events).await.unwrap();
     let own = own.as_message().unwrap();
-    assert_eq!(own.authorship, crate::Party::Me);
+    assert_eq!(own.actor_party, crate::Party::Me);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -1325,7 +1325,7 @@ async fn event_reply_needs_no_who() {
     client_line(&mut server, b"NOTICE dan \x01PING\x01\r\n").await;
 
     let mut own_query = channel_query.clone();
-    own_query.authorship = crate::Party::Me;
+    own_query.actor_party = crate::Party::Me;
     within(client.ctcp_reply(&own_query, "from another device"))
         .await
         .unwrap();
@@ -9130,7 +9130,7 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
     assert!(within(sent).await.unwrap().is_ok());
 
     let sibling = next_event(&mut events).await.unwrap();
-    assert_eq!(sibling.as_message().unwrap().authorship, crate::Party::Me);
+    assert_eq!(sibling.as_message().unwrap().actor_party, crate::Party::Me);
     server_line(
         &mut server,
         b"@msgid=RfcBTzyxY120004 :emily!e@cloak.example PRIVMSG #papo :coincidental identifier\r\n",
