@@ -51,9 +51,19 @@ macro_rules! line_types {
         }
 
         impl RestrictedLine {
-            pub(crate) const fn view(&self) -> LineView<'_> {
+            const fn view(&self) -> LineView<'_> {
                 match self {
                     $(Self::$variant(line) => LineView::$variant(line),)+
+                }
+            }
+        }
+
+        impl crate::Event {
+            pub(crate) const fn line_view(&self) -> Option<LineView<'_>> {
+                match self {
+                    $(Self::$variant(line) => Some(LineView::$variant(line)),)+
+                    Self::Restricted(restricted) => Some(restricted.line.view()),
+                    _ => None,
                 }
             }
         }

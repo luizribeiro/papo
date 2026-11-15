@@ -51,6 +51,7 @@ pub use conversation::{
     Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use papo_core::{BatchAbandonReason, TypingReason};
+use restricted::LineView;
 pub(crate) use restricted::separate as separate_restricted;
 pub use restricted::{Restricted, RestrictedLine};
 #[cfg(feature = "unstable")]
@@ -1714,20 +1715,17 @@ impl Event {
     #[must_use]
     pub fn conversation(&self) -> Option<Conversation> {
         match self {
-            Self::Message(event) => Some(event.conversation.clone()),
-            Self::Notice(event) => Some(event.conversation.clone()),
-            Self::Incomplete(event) => Some(event.conversation().clone()),
-            Self::ServerNotice(event) => match &event.to {
-                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
-                Audience::Me | Audience::Broadcast(_) => None,
-            },
-            Self::Restricted(event) => event.line.view().conversation(),
-            Self::CtcpQuery(event) => Some(event.conversation.clone()),
-            Self::CtcpReply(event) => Some(event.conversation.clone()),
-            Self::TagMsg(event) => Some(event.conversation.clone()),
-            Self::Reacted(event) => Some(event.conversation.clone()),
-            Self::TypingChanged(event) => Some(event.conversation.clone()),
-            Self::Redacted(event) => Some(event.conversation.clone()),
+            Self::Message(_)
+            | Self::Notice(_)
+            | Self::Incomplete(_)
+            | Self::ServerNotice(_)
+            | Self::Restricted(_)
+            | Self::CtcpQuery(_)
+            | Self::CtcpReply(_)
+            | Self::TagMsg(_)
+            | Self::Reacted(_)
+            | Self::Redacted(_)
+            | Self::TypingChanged(_) => self.line_view().and_then(LineView::conversation),
             Self::MetadataChanged(event) => match &event.subject {
                 crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 crate::Subject::User(_) => None,
@@ -1818,22 +1816,12 @@ impl Event {
     /// Returns the server-assigned identifier carried by this event, when supplied.
     #[must_use]
     pub fn msgid(&self) -> Option<&MessageId> {
+        if let Some(line) = self.line_view() {
+            return line.msgid();
+        }
         match self {
-            Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
-                event.msgid.as_ref()
-            }
-            Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => {
-                event.msgid.as_ref()
-            }
-            Self::ServerNotice(event) => event.msgid.as_ref(),
-            Self::Restricted(event) => event.line.view().msgid(),
-            Self::CtcpQuery(event) => event.msgid.as_ref(),
-            Self::CtcpReply(event) => event.msgid.as_ref(),
             Self::BroadcastCtcp(event) => event.msgid.as_ref(),
             Self::BroadcastTagMsg(event) => event.msgid.as_ref(),
-            Self::TagMsg(event) => event.msgid.as_ref(),
-            Self::Reacted(event) => event.msgid.as_ref(),
-            Self::Redacted(event) => event.msgid.as_ref(),
             Self::Joined(event) => event.msgid.as_ref(),
             Self::Parted(event) => event.msgid.as_ref(),
             Self::Kicked(event) => event.msgid.as_ref(),
@@ -1854,20 +1842,12 @@ impl Event {
     /// specification.
     #[must_use]
     pub fn server_time(&self) -> Option<ServerTime> {
+        if let Some(line) = self.line_view() {
+            return line.server_time();
+        }
         match self {
-            Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
-                event.server_time
-            }
-            Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => event.server_time,
-            Self::ServerNotice(event) => event.server_time,
-            Self::Restricted(event) => event.line.view().server_time(),
-            Self::CtcpQuery(event) => event.server_time,
-            Self::CtcpReply(event) => event.server_time,
             Self::BroadcastCtcp(event) => event.server_time,
             Self::BroadcastTagMsg(event) => tagged_from_tags(&event.tags),
-            Self::TagMsg(event) => tagged_from_tags(&event.tags),
-            Self::Reacted(event) => event.server_time,
-            Self::Redacted(event) => event.server_time,
             Self::Joined(event) => event.server_time,
             Self::Parted(event) => event.server_time,
             Self::Kicked(event) => event.server_time,
@@ -1881,7 +1861,6 @@ impl Event {
             Self::AwayChanged(event) => event.server_time,
             Self::HostChanged(event) => event.server_time,
             Self::RealnameChanged(event) => event.server_time,
-            Self::TypingChanged(event) => event.server_time,
             Self::Other(event) => event.server_time,
             _ => None,
         }
@@ -1890,22 +1869,12 @@ impl Event {
     /// Returns when this device's clock observed the event line, when timestamped.
     #[must_use]
     pub fn received_at(&self) -> Option<SystemTime> {
+        if let Some(line) = self.line_view() {
+            return Some(line.received_at());
+        }
         match self {
-            Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
-                Some(event.received_at)
-            }
-            Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => {
-                Some(event.received_at)
-            }
-            Self::ServerNotice(event) => Some(event.received_at),
-            Self::Restricted(event) => Some(event.line.view().received_at()),
-            Self::CtcpQuery(event) => Some(event.received_at),
-            Self::CtcpReply(event) => Some(event.received_at),
             Self::BroadcastCtcp(event) => Some(event.received_at),
             Self::BroadcastTagMsg(event) => Some(event.received_at),
-            Self::TagMsg(event) => Some(event.received_at),
-            Self::Reacted(event) => Some(event.received_at),
-            Self::Redacted(event) => Some(event.received_at),
             Self::Joined(event) => Some(event.received_at),
             Self::Parted(event) => Some(event.received_at),
             Self::Kicked(event) => Some(event.received_at),
@@ -1917,7 +1886,6 @@ impl Event {
             Self::AwayChanged(event) => Some(event.received_at),
             Self::HostChanged(event) => Some(event.received_at),
             Self::RealnameChanged(event) => Some(event.received_at),
-            Self::TypingChanged(event) => Some(event.received_at),
             Self::ModeChanged(event) => Some(event.received_at),
             Self::TopicChanged(event) => Some(event.received_at),
             Self::Other(event) => Some(event.received_at),
