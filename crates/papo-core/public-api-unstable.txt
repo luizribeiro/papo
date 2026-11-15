@@ -2182,6 +2182,7 @@ pub fn papo_core::Response::refusal(&self) -> core::option::Option<papo_core::Re
 pub fn papo_core::Response::sent(&self) -> core::option::Option<papo_core::SentInfo>
 impl papo_core::Response
 pub fn papo_core::Response::metadata(&self) -> alloc::vec::Vec<(papo::MetadataKey, core::option::Option<papo_core::MetadataValue>)>
+pub fn papo_core::Response::sync_later(&self) -> core::option::Option<core::option::Option<core::time::Duration>>
 impl core::clone::Clone for papo_core::Response
 pub fn papo_core::Response::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Response

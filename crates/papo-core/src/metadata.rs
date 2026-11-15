@@ -34,7 +34,31 @@ impl Visibility {
     }
 }
 
+/// Reads `RPL_METADATASYNCLATER`: the target and the delay the server asks for, if any.
+pub(crate) fn sync_later<'a>(
+    message: &papo_proto::LineRef<'a>,
+) -> Option<(&'a str, Option<std::time::Duration>)> {
+    if message.command() != Command::Numeric(Numeric::RPL_METADATASYNCLATER) {
+        return None;
+    }
+    let target = message.param(1)?;
+    let retry_after = match message.param(2) {
+        Some(seconds) => Some(std::time::Duration::from_secs(seconds.parse().ok()?)),
+        None => None,
+    };
+    Some((target, retry_after))
+}
+
 impl crate::Response {
+    /// Returns the delay from an `RPL_METADATASYNCLATER` in this response: `Some(None)` when the
+    /// server asked to sync later without saying when, and `None` when it did not defer.
+    #[must_use]
+    pub fn sync_later(&self) -> Option<Option<std::time::Duration>> {
+        self.lines
+            .iter()
+            .find_map(|line| sync_later(&line.as_ref()).map(|(_, retry_after)| retry_after))
+    }
+
     /// Returns each key this response reports, with its stored value, or `None` for a key the
     /// server reported as not set (`RPL_KEYNOTSET`).
     #[must_use]

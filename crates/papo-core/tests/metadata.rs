@@ -907,10 +907,7 @@ fn labelled_metadata_session(now: std::time::Instant) -> papo_core::Session {
     session
 }
 
-fn metadata_reply(
-    command: MetadataCommand,
-    lines: &[&str],
-) -> Vec<(MetadataKey, Option<papo_core::MetadataValue>)> {
+fn metadata_response(command: MetadataCommand, lines: &[&str]) -> papo_core::Response {
     let now = std::time::Instant::now();
     let mut session = labelled_metadata_session(now);
     session.metadata(now, command).unwrap();
@@ -919,7 +916,7 @@ fn metadata_reply(
     }
     std::iter::from_fn(|| session.poll_event())
         .find_map(|event| match event {
-            Event::Response(response) => Some(response.metadata()),
+            Event::Response(response) => Some(response),
             _ => None,
         })
         .expect("the reply ends the request")
@@ -927,12 +924,13 @@ fn metadata_reply(
 
 #[test]
 fn a_response_reports_the_metadata_values_ergo_stored_or_cleared() {
-    let stored = metadata_reply(
+    let stored = metadata_response(
         MetadataCommand::__set("*".into(), "display-name".into(), Some("Alice A".into())),
         &[
             "@time=2026-11-15T20:11:32.195Z;label=0 :ergo.test 761 alice alice display-name * :Alice A",
         ],
-    );
+    )
+    .metadata();
     let [(stored_key, Some(stored_value))] = stored.as_slice() else {
         panic!("one stored value expected, got {stored:?}");
     };
@@ -940,7 +938,7 @@ fn a_response_reports_the_metadata_values_ergo_stored_or_cleared() {
     assert_eq!(stored_value.value, "Alice A");
     assert_eq!(stored_value.visibility, papo_core::Visibility::Public);
 
-    let cleared = metadata_reply(
+    let cleared = metadata_response(
         MetadataCommand::__clear("*".into()),
         &[
             "@time=2026-11-15T20:11:38.200Z;label=0 :ergo.test BATCH +5 metadata alice",
@@ -948,18 +946,49 @@ fn a_response_reports_the_metadata_values_ergo_stored_or_cleared() {
             "@time=2026-11-15T20:11:38.200Z;batch=5 :ergo.test 766 alice alice display-name :Metadata value cleared",
             "@time=2026-11-15T20:11:38.200Z :ergo.test BATCH -5",
         ],
-    );
+    )
+    .metadata();
     assert_eq!(
         cleared,
         [(key("avatar"), None), (key("display-name"), None)]
     );
 
-    let nothing_set = metadata_reply(
+    let nothing_set = metadata_response(
         MetadataCommand::__clear("*".into()),
         &[
             "@label=0;time=2026-11-15T20:11:39.703Z :ergo.test BATCH +6 metadata alice",
             "@time=2026-11-15T20:11:39.703Z :ergo.test BATCH -6",
         ],
-    );
+    )
+    .metadata();
     assert_eq!(nothing_set, []);
+}
+
+#[test]
+fn a_sync_response_reports_when_the_server_defers_it() {
+    let sync = || MetadataCommand::__sync("#papo".into());
+    let cases = [
+        (
+            vec![
+                "@time=2026-11-15T20:11:45.707Z;label=0 :ergo.test BATCH +9 metadata #papo",
+                "@time=2026-11-15T20:11:45.707Z :ergo.test BATCH -9",
+            ],
+            None,
+        ),
+        (
+            vec!["@time=2026-11-15T20:11:45.707Z;label=0 :ergo.test 774 alice #papo 4"],
+            Some(Some(Duration::from_secs(4))),
+        ),
+        (
+            vec!["@time=2026-11-15T20:11:45.707Z;label=0 :ergo.test 774 alice #papo"],
+            Some(None),
+        ),
+    ];
+    for (lines, expected) in cases {
+        assert_eq!(
+            metadata_response(sync(), &lines).sync_later(),
+            expected,
+            "{lines:?}"
+        );
+    }
 }

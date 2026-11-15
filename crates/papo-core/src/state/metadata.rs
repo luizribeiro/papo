@@ -26,17 +26,8 @@ impl State {
         outbox: &mut Outbox,
     ) -> bool {
         if message.command() == Command::Numeric(Numeric::RPL_METADATASYNCLATER) {
-            let Some(target) = message.param(1) else {
+            let Some((target, retry_after)) = crate::metadata::sync_later(message) else {
                 return false;
-            };
-            let retry_after = match message.param(2) {
-                Some(seconds) => {
-                    let Ok(seconds) = seconds.parse() else {
-                        return false;
-                    };
-                    Some(std::time::Duration::from_secs(seconds))
-                }
-                None => None,
             };
             outbox.event(Event::MetadataSyncLater {
                 target: target.to_owned(),
