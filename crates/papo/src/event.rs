@@ -5253,7 +5253,7 @@ mod tests {
     #[test]
     fn maps_metadata_events() {
         assert!(matches!(
-            forwarded(papo_core::Event::__metadata_changed(papo_core::Subject::Channel(Casemapping::default().channel("#papo")), "pronouns".into(), Some("they/them".into()), Visibility::Restricted("members".into()))),
+            forwarded(papo_core::Event::__metadata_changed(papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(crate::Origin::NONE), "pronouns".into(), Some("they/them".into()), Visibility::Restricted("members".into()))),
             Event::MetadataChanged(changed)
                 if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && changed.key == "pronouns"
@@ -5264,6 +5264,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__metadata_changed(
                 papo_core::Subject::User(Casemapping::default().nick("alice")),
+                papo_core::ReplyToken::__unknown(crate::Origin::NONE),
                 "avatar".into(),
                 None,
                 Visibility::Public
@@ -6261,12 +6262,12 @@ mod tests {
     #[test]
     fn monitor_online_carries_only_handle() {
         assert!(matches!(
-            forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("alice"), Some("~alice".into()), Some("cloak.example".into()))),
+            forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("alice"), Some("~alice".into()), Some("cloak.example".into()), papo_core::ReplyToken::__unknown(crate::Origin::NONE))),
             Event::MonitorOnline(online)
                 if online.subject.nick() == "alice"
         ));
         assert!(matches!(
-            forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("bob"), None, None)),
+            forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("bob"), None, None, papo_core::ReplyToken::__unknown(crate::Origin::NONE))),
             Event::MonitorOnline(online)
                 if online.subject.nick() == "bob"
         ));

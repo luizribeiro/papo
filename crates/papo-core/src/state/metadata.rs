@@ -125,6 +125,7 @@ impl State {
             } else {
                 Subject::User(self.casemapping.nick(target))
             },
+            subject_token: self.__reply_token_for(target),
             key: key.to_owned(),
             value,
         });

@@ -24,6 +24,7 @@ fn drain(session: &mut Session) {
 
 fn joined_review() -> Session {
     let mut session = Session::new(Config::default().nick("papo"));
+    session.monitor_add(["carol"]);
     for line in [
         ":papo!~papo@localhost JOIN #review",
         ":alice!~alice@cloak.example JOIN #review",
@@ -200,6 +201,32 @@ fn actors_and_subjects_record_the_person_at_arrival() {
             subject: "alice",
             token: |event| match event {
                 Event::Invited { token, .. } => Some(*token),
+                _ => None,
+            },
+        },
+    ] {
+        assert_identity_at_arrival(&case);
+    }
+}
+
+#[test]
+fn metadata_and_monitor_record_the_subject_at_arrival() {
+    for case in [
+        Case {
+            name: "METADATA",
+            line: ":ergo.test 761 papo alice display-name * :Alice Liddell",
+            subject: "alice",
+            token: |event| match event {
+                Event::MetadataChanged { subject_token, .. } => Some(*subject_token),
+                _ => None,
+            },
+        },
+        Case {
+            name: "MONITOR online",
+            line: ":ergo.test 730 papo :carol!~carol@cloak.example",
+            subject: "carol",
+            token: |event| match event {
+                Event::MonitorOnline { token, .. } => Some(*token),
                 _ => None,
             },
         },

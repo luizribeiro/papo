@@ -521,6 +521,7 @@ impl Monitor {
                     nick: self.casemapping.nick(nick),
                     username: user.map(str::to_owned),
                     host: host.map(str::to_owned),
+                    token: state.__reply_token_for(nick),
                 });
             } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
                 outbox.event(Event::HostChanged {

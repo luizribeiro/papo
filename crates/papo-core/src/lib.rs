@@ -2696,6 +2696,8 @@ pub enum Event {
     MetadataChanged {
         /// User or channel whose metadata changed.
         subject: Subject,
+        /// Identity of a user subject when the line arrived.
+        subject_token: ReplyToken,
         /// Metadata key.
         key: String,
         /// New server-returned value, or `None` when cleared.
@@ -2817,6 +2819,8 @@ pub enum Event {
         username: Option<String>,
         /// The user's current hostname, when supplied by the server.
         host: Option<String>,
+        /// Identity of the user once the presence was applied.
+        token: ReplyToken,
     },
     /// A monitored nickname went offline.
     #[non_exhaustive]
@@ -3133,7 +3137,7 @@ hidden_event_constructors! {
     __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
-    __monitor_online(nick: Nick, username: Option<String>, host: Option<String>) => MonitorOnline;
+    __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
     __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
@@ -3145,12 +3149,14 @@ impl Event {
     #[must_use]
     pub fn __metadata_changed(
         subject: Subject,
+        subject_token: ReplyToken,
         key: String,
         value: Option<String>,
         visibility: Visibility,
     ) -> Self {
         Self::MetadataChanged {
             subject,
+            subject_token,
             key,
             value: value.map(|value| MetadataValue { value, visibility }),
         }
@@ -5868,6 +5874,7 @@ impl Session {
                 &mut self.outbox,
             );
         }
+        let monitor_events = self.outbox.events.len();
         let monitor_handled = self.monitor.handle_message(
             message,
             self.isupport.value(),
@@ -5882,6 +5889,11 @@ impl Session {
             for nick in monitor::presence_nicks(message) {
                 self.state
                     .sync_monitored_nick(&self.monitor, self.isupport.value(), nick);
+            }
+        }
+        for event in self.outbox.events.range_mut(monitor_events..) {
+            if let Event::MonitorOnline { nick, token, .. } = event {
+                *token = self.state.__reply_token_for(nick.as_str());
             }
         }
         let whoami = self.handle_whoami(message);

@@ -601,6 +601,7 @@ pub papo_core::Event::MembersRefreshed::channel: papo::ChannelName
 #[non_exhaustive] pub papo_core::Event::MetadataChanged
 pub papo_core::Event::MetadataChanged::key: alloc::string::String
 pub papo_core::Event::MetadataChanged::subject: papo_core::Subject
+pub papo_core::Event::MetadataChanged::subject_token: ReplyToken
 pub papo_core::Event::MetadataChanged::value: core::option::Option<papo_core::MetadataValue>
 #[non_exhaustive] pub papo_core::Event::MetadataSyncLater
 pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
@@ -625,6 +626,7 @@ pub papo_core::Event::MonitorOffline::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::MonitorOnline
 pub papo_core::Event::MonitorOnline::host: core::option::Option<alloc::string::String>
 pub papo_core::Event::MonitorOnline::nick: papo::Nick
+pub papo_core::Event::MonitorOnline::token: ReplyToken
 pub papo_core::Event::MonitorOnline::username: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub papo_core::Event::Motd
 pub papo_core::Event::Motd::lines: alloc::vec::Vec<alloc::string::String>
