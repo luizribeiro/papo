@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{Account, Authorship, Away, BatchId, MessageId, Nick, ServerName};
+use crate::{Account, Away, BatchId, MessageId, Nick, Party, ServerName};
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -23,7 +23,7 @@ pub struct Quit {
     /// Shared channels where papo knows the user is a member.
     pub channels: Vec<crate::ChannelHandle>,
     /// Whether the disconnected user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The netsplit batch that carried this quit, when applicable.
     pub netsplit: Option<SplitServers>,
 }
@@ -47,7 +47,7 @@ pub struct NickChanged {
     /// Shared channels where papo knows the user is a member.
     pub channels: Vec<crate::ChannelHandle>,
     /// Whether the renamed user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A user's away state changed.
@@ -66,7 +66,7 @@ pub struct AwayChanged {
     /// The user's new presence state.
     pub new: Away,
     /// Whether the affected user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A user's account state changed.
@@ -87,7 +87,7 @@ pub struct AccountChanged {
     /// This is retained because it describes the change itself.
     pub new: Account,
     /// Whether the affected user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A user's username or hostname changed.
@@ -108,7 +108,7 @@ pub struct HostChanged {
     /// The user's new hostname.
     pub new_host: String,
     /// Whether the affected user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A user's real name changed.
@@ -124,7 +124,7 @@ pub struct RealnameChanged {
     /// The user's new real name.
     pub new: String,
     /// Whether the affected user is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
 }
 
 /// A monitored nickname came online.

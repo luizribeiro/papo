@@ -4,7 +4,7 @@ use crate::ServerTime;
 
 use crate::{Conversation, Mask, MessageId, Prefix, Typing};
 
-use super::{Authorship, Source, Tags, TypingReason};
+use super::{Party, Source, Tags, TypingReason};
 
 /// A server-wide audience addressed by `*` or a server mask.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -23,7 +23,7 @@ pub struct BroadcastCtcp {
     /// The user or server that sent the CTCP message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// The command with its original spelling.
@@ -47,7 +47,7 @@ pub struct BroadcastTagMsg {
     /// The user or server that sent the message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// Tags in wire order with last-wins lookup.
@@ -111,7 +111,7 @@ pub struct Reacted {
     /// The user that changed the reaction.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -143,7 +143,7 @@ pub struct Redacted {
     /// The user or server that removed the message.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -174,7 +174,7 @@ pub struct TypingChanged {
     /// The user or server that sent the notification.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation where typing is occurring.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -202,7 +202,7 @@ pub struct TagMsg {
     /// The user or server that sent the message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

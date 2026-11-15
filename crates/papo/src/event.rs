@@ -105,7 +105,7 @@ pub struct CtcpQuery {
     /// The user that sent the CTCP message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation to which the CTCP message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -138,7 +138,7 @@ pub struct CtcpReply {
     /// The user that sent the CTCP reply.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation to which the CTCP reply belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -295,7 +295,7 @@ pub struct Message {
     /// The user that sent the message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -340,7 +340,7 @@ pub struct Notice {
     /// The user that sent the notice.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The chat conversation to which the notice belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -440,7 +440,7 @@ pub struct ServerNotice {
     /// The server or operator that sent the notice.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
@@ -493,7 +493,7 @@ impl std::ops::Deref for Unparsed {
 
 struct MessageMetadata {
     actor: Source,
-    authorship: Authorship,
+    authorship: Party,
     conversation: Conversation,
     status: Option<Prefix>,
     receipt: crate::message_ref::Receipt,
@@ -510,7 +510,7 @@ struct MessageMetadata {
 fn ctcp_from_line(
     raw: ProtoLine,
     batch_type: Option<&str>,
-    authorship: Authorship,
+    authorship: Party,
     conversation: Conversation,
     status: Option<Prefix>,
     isupport: &Isupport,
@@ -589,7 +589,7 @@ fn ctcp_parts(message: &LineRef<'_>) -> Option<(crate::Command, Option<String>, 
 
 fn broadcast_from_line(
     raw: ProtoLine,
-    authorship: Authorship,
+    authorship: Party,
     origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
@@ -702,7 +702,7 @@ pub(crate) fn incoming_from_core(
         });
         crate::ChannelHandle::from_parts(channel, guard, handle_state)
     });
-    let authorship = Authorship::from_core(received.actor_party());
+    let authorship = Party::from_core(received.actor_party());
     let (raw, batch_type) = received.into_parts();
     let Some(conversation) = conversation else {
         let raw = match broadcast_from_line(
@@ -825,11 +825,7 @@ impl Message {
             };
             isupport.casemapping().nick(source) == nick
         });
-        let authorship = if own_source {
-            Authorship::Own
-        } else {
-            Authorship::Other
-        };
+        let authorship = if own_source { Party::Me } else { Party::Other };
         let Ok((status, conversation)) =
             papo_core::classify_conversation(&raw.as_ref(), nick, isupport)
         else {
@@ -855,7 +851,7 @@ impl Message {
     fn new_with_context(
         raw: ProtoLine,
         batch_type: Option<&str>,
-        authorship: Authorship,
+        authorship: Party,
         conversation: Conversation,
         status: Option<Prefix>,
         channel_context: Option<crate::ChannelHandle>,
@@ -938,7 +934,7 @@ impl Message {
     /// Reports whether this message's actor is this client's user.
     #[must_use]
     pub fn is_own(&self) -> bool {
-        self.authorship == Authorship::Own
+        self.authorship == Party::Me
     }
 }
 
@@ -977,7 +973,7 @@ impl Notice {
     fn from_line(
         raw: ProtoLine,
         batch_type: Option<&str>,
-        authorship: Authorship,
+        authorship: Party,
         conversation: Conversation,
         status: Option<Prefix>,
         channel_context: Option<crate::ChannelHandle>,
@@ -1076,7 +1072,7 @@ impl ServerNotice {
     #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
-        authorship: Authorship,
+        authorship: Party,
         conversation: Option<&Conversation>,
         status: Option<Prefix>,
         origin: crate::Origin,
@@ -1183,7 +1179,7 @@ impl ServerNotice {
 fn message_event_from_line(
     raw: ProtoLine,
     batch_type: Option<&str>,
-    authorship: Authorship,
+    authorship: Party,
     conversation: Conversation,
     status: Option<Prefix>,
     channel_context: Option<crate::ChannelHandle>,
@@ -1261,7 +1257,7 @@ fn message_event_from_line(
 
 pub(crate) fn historical_message_event(
     raw: ProtoLine,
-    authorship: Authorship,
+    authorship: Party,
     history_conversation: Option<&Conversation>,
     client: &Client,
     received_at: SystemTime,
@@ -1302,7 +1298,7 @@ pub(crate) fn historical_message_event(
 
 pub(crate) fn historical_conversation(
     message: &LineRef<'_>,
-    authorship: Authorship,
+    authorship: Party,
     conversation: Conversation,
     history_conversation: Option<&Conversation>,
     own_nick: &crate::Nick,
@@ -1319,7 +1315,7 @@ pub(crate) fn historical_conversation(
             None,
         ));
     }
-    if authorship != Authorship::Own
+    if authorship != Party::Me
         && message
             .param(0)
             .is_some_and(|target| own_nick.origin().__nick(mapping, target) != *own_nick)
@@ -1336,7 +1332,7 @@ pub(crate) fn historical_conversation(
 fn message_metadata(
     message: &LineRef<'_>,
     _batch_type: Option<&str>,
-    authorship: Authorship,
+    authorship: Party,
     conversation: Conversation,
     status: Option<Prefix>,
     isupport: &Isupport,
@@ -1452,7 +1448,7 @@ pub(crate) fn line_envelope_with_account_tag(
 
 pub(crate) fn joined_from_line(
     line: &LineRef<'_>,
-    authorship: Authorship,
+    authorship: Party,
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
@@ -1951,7 +1947,7 @@ pub(crate) struct LineTokens {
 
 fn attach_user_message_handle(
     actor: &mut crate::UserHandle,
-    authorship: Authorship,
+    authorship: Party,
     conversation: &mut Conversation,
     receipt: &mut crate::message_ref::Receipt,
     tokens: LineTokens,
@@ -1960,7 +1956,7 @@ fn attach_user_message_handle(
 ) {
     *actor = event_handle(actor, tokens.actor, state, historical);
     if let Conversation::Private(peer) = conversation {
-        *peer = if authorship == Authorship::Own {
+        *peer = if authorship == Party::Me {
             event_handle(peer, tokens.peer, state, historical)
         } else {
             actor.clone()
@@ -2005,7 +2001,7 @@ pub(crate) fn attach_message_handles(
             if let Source::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
                 if let Conversation::Private(peer) = &mut event.conversation {
-                    *peer = if event.authorship == Authorship::Own {
+                    *peer = if event.authorship == Party::Me {
                         event_handle(peer, tokens.peer, state, historical)
                     } else {
                         actor.clone()
@@ -2252,7 +2248,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = handle_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let authorship = Authorship::from_core(change.actor_party);
+            let authorship = Party::from_core(change.actor_party);
             let receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
                 &conversation,
@@ -2281,7 +2277,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = handle_from_raw(&message.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let authorship = Authorship::from_core(message.actor_party);
+            let authorship = Party::from_core(message.actor_party);
             let conversation = conversation_handle(message.conversation, message.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
@@ -2364,7 +2360,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = actor_from_raw(&redacted.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let authorship = Authorship::from_core(redacted.actor_party);
+            let authorship = Party::from_core(redacted.actor_party);
             let conversation = conversation_handle(redacted.conversation, redacted.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
                 actor.clone(),
@@ -2543,7 +2539,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 channel: channel_handle(channel),
                 actor,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
                 netjoin: netjoin.map(SplitServers::from_core),
             })
         }
@@ -2578,7 +2574,7 @@ pub(crate) fn from_core_with_receipt(
                 facts,
                 channel: channel_handle(channel),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::Kicked {
@@ -2619,8 +2615,8 @@ pub(crate) fn from_core_with_receipt(
                 ),
                 facts,
                 actor,
-                authorship: Authorship::from_core(authorship),
-                subject_authorship: Authorship::from_core(subject_authorship),
+                authorship: Party::from_core(authorship),
+                subject_authorship: Party::from_core(subject_authorship),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
@@ -2654,8 +2650,8 @@ pub(crate) fn from_core_with_receipt(
                 channel: channel_handle(channel),
                 subject: user_at_arrival(subject, Account::Unknown, token),
                 actor,
-                authorship: Authorship::from_core(authorship),
-                subject_authorship: Authorship::from_core(subject_authorship),
+                authorship: Party::from_core(authorship),
+                subject_authorship: Party::from_core(subject_authorship),
                 receipt,
             })
         }
@@ -2684,7 +2680,7 @@ pub(crate) fn from_core_with_receipt(
                 facts,
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 channels: channels.into_iter().map(&channel_handle).collect(),
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
                 netsplit: netsplit.map(SplitServers::from_core),
             })
         }
@@ -2708,7 +2704,7 @@ pub(crate) fn from_core_with_receipt(
                 old,
                 new,
                 channels: channels.into_iter().map(&channel_handle).collect(),
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::ChannelRenamed {
@@ -2734,7 +2730,7 @@ pub(crate) fn from_core_with_receipt(
                 old,
                 new,
                 actor,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
@@ -2753,7 +2749,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 new: account,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::AwayChanged {
@@ -2771,7 +2767,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 new: away,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::HostChanged {
@@ -2791,7 +2787,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 new_username: username,
                 new_host: host,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::RealnameChanged {
@@ -2809,7 +2805,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 new: realname,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::ModeChanged {
@@ -2848,7 +2844,7 @@ pub(crate) fn from_core_with_receipt(
                     _ => return CoreEvent::Unknown,
                 },
                 actor,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
                 own_nick,
                 changes,
             })
@@ -2880,7 +2876,7 @@ pub(crate) fn from_core_with_receipt(
                 channel: channel_handle(channel),
                 topic: topic.map(|topic| papo_proto::display_text(&topic).into_owned()),
                 actor,
-                authorship: Authorship::from_core(authorship),
+                authorship: Party::from_core(authorship),
             })
         }
         papo_core::Event::StateLimitReached { limit, .. } => {
