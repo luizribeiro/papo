@@ -6198,6 +6198,139 @@ mod tests {
     #[cfg(feature = "unstable")]
     mod unstable {
         use super::*;
+        use crate::event_impl::LineView;
+
+        fn source_person(source: &Source) -> Vec<crate::UserHandle> {
+            source.user().cloned().into_iter().collect()
+        }
+
+        fn conversation_person(conversation: &Conversation) -> Vec<crate::UserHandle> {
+            match conversation {
+                Conversation::Private(peer) => vec![peer.clone()],
+                Conversation::Channel(_) => Vec::new(),
+            }
+        }
+
+        fn subject_person(subject: &crate::Subject) -> Vec<crate::UserHandle> {
+            match subject {
+                crate::Subject::User(user) => vec![user.clone()],
+                _ => Vec::new(),
+            }
+        }
+
+        fn line_people(line: LineView<'_>) -> Vec<crate::UserHandle> {
+            let message = |actor: &crate::UserHandle, conversation: &Conversation| {
+                [vec![actor.clone()], conversation_person(conversation)].concat()
+            };
+            match line {
+                LineView::Message(line) | LineView::Incomplete(Incomplete::Message(line)) => {
+                    message(&line.actor, &line.conversation)
+                }
+                LineView::Notice(line) | LineView::Incomplete(Incomplete::Notice(line)) => {
+                    message(&line.actor, &line.conversation)
+                }
+                LineView::CtcpQuery(line) => message(&line.actor, &line.conversation),
+                LineView::CtcpReply(line) => message(&line.actor, &line.conversation),
+                LineView::TagMsg(line) => message(&line.actor, &line.conversation),
+                LineView::Reacted(line) => message(&line.actor, &line.conversation),
+                LineView::TypingChanged(line) => message(&line.actor, &line.conversation),
+                LineView::Redacted(line) => [
+                    source_person(&line.actor),
+                    conversation_person(&line.conversation),
+                ]
+                .concat(),
+                LineView::ServerNotice(line) => source_person(&line.actor),
+                LineView::Other(_) => Vec::new(),
+            }
+        }
+
+        // Exhaustive on purpose, and compiled with the unstable variants: a new Event variant
+        // fails to build here until it says which people it names, and every person a live
+        // event names must be built from the identity recorded when its line arrived, which
+        // the table below checks after a nickname handoff.
+        fn people(event: &Event) -> Vec<crate::UserHandle> {
+            match event {
+                Event::Message(_)
+                | Event::Notice(_)
+                | Event::Incomplete(_)
+                | Event::ServerNotice(_)
+                | Event::Restricted(_)
+                | Event::CtcpQuery(_)
+                | Event::CtcpReply(_)
+                | Event::Other(_)
+                | Event::TagMsg(_)
+                | Event::Reacted(_)
+                | Event::TypingChanged(_)
+                | Event::Redacted(_) => line_people(event.line_view().expect("a line event")),
+                Event::BroadcastCtcp(event) => vec![event.actor.clone()],
+                Event::BroadcastTagMsg(event) => vec![event.actor.clone()],
+                Event::Joined(event) => vec![event.actor.clone()],
+                Event::Parted(event) => vec![event.actor.clone()],
+                Event::Quit(event) => vec![event.actor.clone()],
+                Event::NickChanged(event) => vec![event.actor.clone()],
+                Event::AccountChanged(event) => vec![event.actor.clone()],
+                Event::AwayChanged(event) => vec![event.actor.clone()],
+                Event::HostChanged(event) => vec![event.actor.clone()],
+                Event::RealnameChanged(event) => vec![event.actor.clone()],
+                Event::MonitorOnline(event) => vec![event.subject.clone()],
+                Event::MonitorOffline(event) => vec![event.subject.clone()],
+                Event::Kicked(event) => {
+                    [source_person(&event.actor), vec![event.subject.clone()]].concat()
+                }
+                Event::Invited(event) => {
+                    [source_person(&event.actor), vec![event.subject.clone()]].concat()
+                }
+                Event::TopicChanged(event) => source_person(&event.actor),
+                Event::ChannelRenamed(event) => source_person(&event.actor),
+                Event::ModeChanged(event) => {
+                    [source_person(&event.actor), subject_person(&event.subject)].concat()
+                }
+                Event::MetadataChanged(event) => subject_person(&event.subject),
+                Event::ReadMarkerChanged(event) => conversation_person(&event.conversation),
+                Event::Lagged(event) => event
+                    .gaps
+                    .iter()
+                    .flat_map(|gap| conversation_person(&gap.conversation))
+                    .collect(),
+                // Replayed history names people as they were then; its handles are unproven
+                // by design, not built from a live arrival.
+                Event::History(_)
+                | Event::Connecting(_)
+                | Event::Connected(_)
+                | Event::Motd(_)
+                | Event::StandardReply(_)
+                | Event::AccountCreation(_)
+                | Event::PersistenceChanged(_)
+                | Event::BouncerNetworkChanged(_)
+                | Event::Warning(_)
+                | Event::CapsChanged(_)
+                | Event::FeaturesChanged(_)
+                | Event::CasemappingChanged(_)
+                | Event::AutoJoinFailed(_)
+                | Event::ChannelSynced(_)
+                | Event::MembersRefreshed(_)
+                | Event::Disconnected(_) => Vec::new(),
+            }
+        }
+
+        #[test]
+        fn people_are_a_line_actor_and_its_private_peer() {
+            use super::identity::{joined_review, mapped, server};
+
+            let (mut session, shared) = joined_review();
+            server(
+                &mut session,
+                &shared,
+                "@msgid=RfcBTzyxY120010 :alice!~alice@cloak.example PRIVMSG papo :can you review 142?",
+            );
+            let alice = crate::UserHandle::from_current_state(
+                session.state().casemapping().nick("alice"),
+                Some(&shared),
+            );
+            let event = session.poll_event().expect("private message");
+            let event = mapped(&session, &shared, event).expect("mapped message");
+            assert_eq!(people(&event), [alice.clone(), alice]);
+        }
 
         // Exhaustive on purpose, and compiled with the unstable variants: a new Event variant
         // fails to build here until it is classified. A line that can carry a status sign must
@@ -6632,14 +6765,14 @@ mod tests {
             person: fn(&Event) -> Option<UserHandle>,
         }
 
-        type Shared = Arc<RwLock<Arc<crate::State>>>;
+        pub(super) type Shared = Arc<RwLock<Arc<crate::State>>>;
 
-        fn server(session: &mut Session, shared: &Shared, line: &str) {
+        pub(super) fn server(session: &mut Session, shared: &Shared, line: &str) {
             session.handle_line(Instant::now(), line.as_bytes());
             *shared.write().unwrap() = Arc::new(crate::State::from_session(session, true));
         }
 
-        fn joined_review() -> (Session, Shared) {
+        pub(super) fn joined_review() -> (Session, Shared) {
             let mut session = Session::new(Config::default().nick("papo"));
             session.monitor_add(["carol"]);
             let shared = Arc::new(RwLock::new(Arc::new(crate::State::from_session(
@@ -6657,7 +6790,11 @@ mod tests {
             (session, shared)
         }
 
-        fn mapped(session: &Session, shared: &Shared, event: papo_core::Event) -> Option<Event> {
+        pub(super) fn mapped(
+            session: &Session,
+            shared: &Shared,
+            event: papo_core::Event,
+        ) -> Option<Event> {
             match from_core_with_receipt(
                 event,
                 session.isupport().casemapping(),
