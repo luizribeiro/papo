@@ -6410,6 +6410,7 @@ mod tests {
                     papo_proto::Casemapping::Rfc1459.channel("#papo"),
                 ),
                 read_until,
+                peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             };
             assert!(matches!(
                 forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),

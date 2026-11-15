@@ -3,9 +3,12 @@
 //! Each event is polled only after its subject left and another user took the nickname, so a
 //! token read from the state at polling time would name the newcomer.
 
+mod support;
+
 use std::time::Instant;
 
 use papo_core::{Config, Event, ReplyToken, Session, TypingReason};
+use support::Transcript;
 
 struct Case {
     name: &'static str,
@@ -24,6 +27,11 @@ fn drain(session: &mut Session) {
 
 fn joined_review() -> Session {
     let mut session = Session::new(Config::default().nick("papo"));
+    join_review(&mut session);
+    session
+}
+
+fn join_review(session: &mut Session) {
     session.monitor_add(["carol"]);
     for line in [
         ":papo!~papo@localhost JOIN #review",
@@ -31,10 +39,9 @@ fn joined_review() -> Session {
         ":mallory!~mallory@users.example JOIN #review",
         ":dave!~dave@users.example JOIN #review",
     ] {
-        server(&mut session, line);
+        server(session, line);
     }
-    drain(&mut session);
-    session
+    drain(session);
 }
 
 fn assert_identity_at_arrival(case: &Case) {
@@ -45,13 +52,16 @@ fn assert_identity_at_arrival(case: &Case) {
 }
 
 fn assert_identity_after(case: &Case, departure: &str) {
-    let mut session = joined_review();
-    server(&mut session, case.line);
+    check_identity(&mut joined_review(), case, departure);
+}
+
+fn check_identity(session: &mut Session, case: &Case, departure: &str) {
+    server(session, case.line);
     let at_arrival = session.state().__reply_token_for(case.subject);
     assert!(at_arrival.__is_known(), "{}: subject is unknown", case.name);
-    server(&mut session, departure);
+    server(session, departure);
     server(
-        &mut session,
+        session,
         &format!(":mallory!~mallory@users.example NICK {}", case.subject),
     );
     let newcomer = session.state().__reply_token_for(case.subject);
@@ -416,4 +426,37 @@ fn private_tags_redactions_and_typing_record_the_peer_at_arrival() {
     for case in &cases {
         assert_identity_at_arrival(case);
     }
+}
+
+#[test]
+fn a_private_read_marker_records_the_peer_at_arrival() {
+    let case = Case {
+        name: "MARKREAD",
+        line: "MARKREAD alice timestamp=2026-10-27T12:00:00.000Z",
+        subject: "alice",
+        token: |event| match event {
+            Event::ReadMarkerChanged(marker) => Some(marker.peer_token),
+            _ => None,
+        },
+    };
+    Transcript::new(
+        Config::default()
+            .nick("papo")
+            .wanted_caps(["draft/read-marker"]),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/read-marker")
+    .client("CAP REQ :draft/read-marker")
+    .server("CAP * ACK :draft/read-marker")
+    .client("CAP END")
+    .welcome(":ergo.test 001 papo :Welcome to Ergo")
+    .update(|session| {
+        join_review(session);
+        check_identity(
+            session,
+            &case,
+            ":alice!~alice@cloak.example QUIT :Quit: bye",
+        );
+        drain(session);
+    });
 }

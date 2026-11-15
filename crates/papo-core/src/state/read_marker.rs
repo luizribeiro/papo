@@ -106,6 +106,7 @@ impl State {
         };
         if advances {
             let marker = ReadMarker {
+                peer_token: self.conversation_token(&conversation),
                 conversation,
                 read_until: time,
             };

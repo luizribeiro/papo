@@ -25,6 +25,8 @@ pub struct ReadMarker {
     pub conversation: Conversation,
     /// Marker time, or `None` when the server reports `*`.
     pub read_until: Option<ServerTime>,
+    #[doc(hidden)]
+    pub peer_token: crate::ReplyToken,
 }
 
 /// The newest live message remembered for one conversation.
