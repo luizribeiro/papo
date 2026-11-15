@@ -75,7 +75,7 @@ if let Event::Restricted(restricted) = &event
 let whois = client.whois("alice").await?.expect("alice is online");
 ```
 
-So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out and we don't know aren't the same thing. And when you send a message it's only `Confirmed` (with the msgids the server assigned) if the server echoed it back. Otherwise it's `Unconfirmed` and you can't react to it or delete it.
+So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out and we don't know aren't the same thing. And when you send a message, each line it was split into is only `Confirmed` (with the msgid the server assigned) if the server echoed that line back. Otherwise it's `Unconfirmed`, with the reason, and you can't react to it or delete it.
 
 ## Examples
 
