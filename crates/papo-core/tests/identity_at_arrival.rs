@@ -268,6 +268,17 @@ fn tags_redactions_and_typing_record_the_actor_at_arrival() {
             },
         },
         Case {
+            name: "private typing from a user who shares no channel",
+            line: "@+typing=active :erin!~erin@users.example TAGMSG papo",
+            subject: "erin",
+            token: |event| match event {
+                Event::TypingChanged(change) if change.reason == TypingReason::Notified => {
+                    Some(change.__actor_token())
+                }
+                _ => None,
+            },
+        },
+        Case {
             name: "typing stopped by the departure",
             line: "@+typing=active :alice!~alice@cloak.example TAGMSG #review",
             subject: "alice",

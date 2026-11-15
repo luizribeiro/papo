@@ -5907,8 +5907,6 @@ impl Session {
         } else if self.confirmed_back(message) {
             self.config.away_on_connect = None;
         }
-        let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
-        self.stop_typing_for_message(message);
         self.handle_identity_lifecycle(message);
         let reserved_channel_epoch = (message.command() == Command::Join)
             .then(|| message.param(0))
@@ -5931,6 +5929,8 @@ impl Session {
                 own_away_message.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
+        let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
+        self.stop_typing_for_message(message);
         let nick_regain_handled = self.nick_regain.handle_message(
             now,
             message,
