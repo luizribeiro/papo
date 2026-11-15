@@ -235,6 +235,8 @@ papo's hidden test-construction hooks are compiled only with its internal `__tes
 
 The hidden `Source::from_proto` constructor is removed; sources come only from received lines.
 
+`Whois::nick` is now `Whois::user`, a `UserHandle` for the person the reply describes.
+
 `Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
 
 `NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.

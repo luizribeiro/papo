@@ -5864,7 +5864,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     server_line(&mut server, b"@label=0 :irc.solanum.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :irc.solanum.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :irc.solanum.test 312 papo-driver alice irc.solanum.test :Solanum Test Network\r\n@batch=whois-42 :irc.solanum.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :irc.solanum.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :irc.solanum.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :irc.solanum.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :irc.solanum.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :irc.solanum.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :irc.solanum.test 318 papo-driver alice :End of /WHOIS list\r\n:irc.solanum.test BATCH -whois-42\r\n").await;
     let whois = within(whois).await.unwrap().unwrap().unwrap();
     assert_eq!(
-        (whois.nick.as_str(), whois.username.as_deref()),
+        (whois.user.nick().as_str(), whois.username.as_deref()),
         ("alice", Some("~alice"))
     );
     assert_eq!(
@@ -7182,8 +7182,8 @@ async fn typed_requests_match_unlabelled_responses() {
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(&mut server, b":ergo.test 311 papo-driver alice ~alice host * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n").await;
     let whois = within(whois).await.unwrap().unwrap().unwrap();
-    assert_eq!(whois.nick, "alice");
-    assert_eq!(whois.nick.origin(), client.origin());
+    assert_eq!(whois.user, "alice");
+    assert_eq!(whois.user.nick().origin(), client.origin());
     assert_eq!(whois.account, crate::Account::Unknown);
 
     let who = tokio::spawn({
@@ -9721,7 +9721,7 @@ async fn only_pending_request_enables_read_ahead() {
         b":ergo.test 311 papo-driver alice ~alice staff.example * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n",
     )
     .await;
-    assert_eq!(within(whois).await.unwrap().unwrap().unwrap().nick, "alice");
+    assert_eq!(within(whois).await.unwrap().unwrap().unwrap().user, "alice");
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::Lagged(crate::event::Lagged { dropped: 1, .. }))
@@ -9775,7 +9775,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
         b":alice!~alice@staff.example QUIT :Client exited\r\n:ergo.test 311 papo-driver dan ~dan users.example * :Dan Example\r\n:ergo.test 318 papo-driver dan :End of /WHOIS list\r\n",
     )
     .await;
-    assert_eq!(within(whois).await.unwrap().unwrap().unwrap().nick, "dan");
+    assert_eq!(within(whois).await.unwrap().unwrap().unwrap().user, "dan");
 
     loop {
         let event = within(events.next())

@@ -1516,7 +1516,7 @@ impl Client {
                 response,
                 nick.as_str(),
                 client.state().isupport().inner(),
-                client.origin(),
+                &client,
             )
         })
     }

@@ -18,7 +18,7 @@ async fn labeled_response(s: Scenario) -> papo_testing::Result<()> {
         .whois(alice.snapshot().nick().as_str())
         .await?
         .expect("WHOIS target exists");
-    assert_eq!(whois.nick, alice.snapshot().nick().clone());
+    assert_eq!(whois.user.nick(), *alice.snapshot().nick());
     assert!(
         whois
             .username
@@ -32,7 +32,7 @@ async fn labeled_response(s: Scenario) -> papo_testing::Result<()> {
             .is_some_and(|realname| !realname.is_empty())
     );
     assert!(whois.host.is_some());
-    assert_eq!(alice.snapshot().nick(), &whois.nick);
+    assert_eq!(alice.snapshot().nick(), &whois.user.nick());
     Ok(())
 }
 

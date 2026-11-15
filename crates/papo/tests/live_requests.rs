@@ -35,7 +35,7 @@ async fn typed_requests_round_trip_against_ergo() {
         }
 
         let whois = client.whois(support::nick(&nick)).await.unwrap().unwrap();
-        assert_eq!(whois.nick, nick.as_str());
+        assert_eq!(whois.user, nick.as_str());
 
         client.join(support::channel(&channel)).await.unwrap();
         assert_eq!(

@@ -222,7 +222,7 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
         .whois(alice.snapshot().nick().as_str())
         .await?
         .expect("WHOIS target exists");
-    assert_eq!(whois.nick, *alice.snapshot().nick());
+    assert_eq!(whois.user.nick(), *alice.snapshot().nick());
     assert_eq!(
         whois.account.name().map(papo::AccountName::as_str),
         Some(account.as_str())
@@ -326,7 +326,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         .whois(nick.as_str())
         .await?
         .expect("WHOIS target exists");
-    assert_eq!(whois.nick, nick);
+    assert_eq!(whois.user.nick(), nick);
     assert_eq!(whois.account, papo::Account::LoggedIn(account));
     alice.expect_none(Event::as_account_creation).await?;
     Ok(())
