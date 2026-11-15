@@ -1,6 +1,6 @@
 use super::{
     Account, AccountNotify, Authorship, Away, AwayNotify, Chghost, Command, Event, Handled,
-    Isupport, LineRef, NameKey, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS,
+    Isupport, LineRef, NameKey, Numeric, Outbox, ProtoSource, Setname, State, User, WHOX_FIELDS,
     WHOX_TOKEN, WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
@@ -130,6 +130,12 @@ impl State {
         self.casemapping
     }
 
+    /// Whether papo would see `user` leave or change nick: through a shared channel, MONITOR, or
+    /// because it is us.
+    fn follows_presence(&self, user: &User) -> bool {
+        !user.channels.is_empty() || user.monitored || user.nick == self.nick
+    }
+
     fn track_message_user(
         &mut self,
         message: &LineRef<'_>,
@@ -152,9 +158,18 @@ impl State {
             return;
         };
         let key = NameKey::new(nick, self.casemapping);
+        let line_account = self.line_account(message, nick, enabled_caps);
+        if self.users.get(&key).is_some_and(|user| {
+            !self.follows_presence(user) && !user.may_send_as(username, host, line_account.as_ref())
+        }) {
+            self.prepare_identity_arrival(nick);
+        }
         let mut changed = false;
         if !self.users.contains_key(&key) {
-            let user = self.new_user(nick, username, host);
+            let mut user = self.new_user(nick, username, host);
+            if let Some(account) = line_account {
+                user.update_account(account);
+            }
             self.users.insert(key.clone(), user);
             changed = true;
         }
@@ -164,11 +179,6 @@ impl State {
             let old_host = user.host.clone();
             let old_is_bot = user.is_bot;
             user.update_userhost(username, host);
-            if changed && let Some(account) = message.tag("account") {
-                user.update_account(Account::LoggedIn(
-                    self.casemapping.account(account.as_ref()),
-                ));
-            }
             if message_tags && isupport.bot_mode().is_some() {
                 user.is_bot = Some(message.tags().any(|(name, _)| name == "bot"));
             }
@@ -640,5 +650,25 @@ impl State {
                 .and_modify(|sweep| sweep.count += 1)
                 .or_insert_with(WhoSweep::new);
         }
+    }
+}
+
+impl User {
+    /// Whether a line from this user's nick, sent from `username@host` with the line's `account`,
+    /// can come from the person papo knows. A person papo cannot follow may have left unseen and
+    /// another may hold the nick, so any changed fact means a new person.
+    fn may_send_as(
+        &self,
+        username: Option<&str>,
+        host: Option<&str>,
+        account: Option<&Account>,
+    ) -> bool {
+        let unchanged = |known: Option<&str>, seen: Option<&str>| {
+            known.zip(seen).is_none_or(|(known, seen)| known == seen)
+        };
+        unchanged(self.username.as_deref(), username)
+            && unchanged(self.host.as_deref(), host)
+            && account
+                .is_none_or(|account| self.account == Account::Unknown || self.account == *account)
     }
 }

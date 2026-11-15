@@ -616,3 +616,6 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - With `account-tag`, another user's line without an `account` tag marks them logged out, as the
   specification requires; `Event::AccountChanged` reports it when they were logged in. Our own
   account still follows the 900 and 901 numerics.
+- A person known only from private lines (no shared channel, no MONITOR) whose next line shows
+  another username, host or account is a new person: a new `UserHandle` identity, no inherited
+  account or facts, and guarded sends to the earlier handle fail with `Error::TargetGone`.
