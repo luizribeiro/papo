@@ -1,5 +1,5 @@
 use crate::driver::test_support::*;
-use crate::{Confirmation, ReactOutcome};
+use crate::{Confirmation, ReactOutcome, UnconfirmedReason};
 
 const ECHO_CAPS: &str = "echo-message labeled-response message-tags";
 const ORIGINAL: &str = "3gcfszmd5bzyy9g2evchgjqiv2";
@@ -64,4 +64,48 @@ async fn an_ergo_echo_confirms_a_reaction_to_its_audience() {
         assert_eq!(outcome.status.map(crate::Prefix::symbol), status, "{echo}");
         assert_eq!(outcome.conversation.to_string(), "#papo", "{echo}");
     }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_reaction_says_why_the_server_cannot_confirm_it() {
+    let no_echo = Confirmation::unconfirmed(UnconfirmedReason::NoEchoMessage);
+    let no_label = Confirmation::unconfirmed(UnconfirmedReason::NoLabeledResponse);
+    let no_msgid = Confirmation::unconfirmed(UnconfirmedReason::NoMessageId);
+    let cases = [
+        (
+            ECHO_CAPS,
+            "unreact",
+            "@time=2026-11-15T17:42:13.750Z;label=0;msgid=veexijhbhzbjwe74s63iww4haw;+draft/reply=3gcfszmd5bzyy9g2evchgjqiv2;+draft/unreact=👍 :papo-driver!~u@7z29yeuh6n8ta.irc TAGMSG #papo",
+            confirmed("veexijhbhzbjwe74s63iww4haw", "2026-11-15T17:42:13.750Z"),
+        ),
+        (
+            "labeled-response message-tags",
+            "react",
+            "@label=0 :ergo.test ACK",
+            no_echo,
+        ),
+        ("message-tags", "react", "", no_label),
+        (
+            ECHO_CAPS,
+            "react",
+            "@time=2026-11-15T17:42:12.749Z;label=0;+draft/reply=3gcfszmd5bzyy9g2evchgjqiv2;+draft/react=👍 :papo-driver!~u@7z29yeuh6n8ta.irc TAGMSG #papo",
+            no_msgid,
+        ),
+    ];
+    for (caps, tag, reply, confirmation) in cases {
+        let outcome = react(caps, tag, "#papo", reply).await.unwrap();
+        assert_eq!(outcome.confirmation, confirmation, "{caps}: {reply}");
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_refused_reaction_is_an_error_not_unconfirmed() {
+    let refused = react(
+        ECHO_CAPS,
+        "react",
+        "#papo",
+        "@time=2026-11-15T17:58:36.932Z;label=0 :ergo.test 404 papo-driver #papo :Cannot send to channel (+m)",
+    )
+    .await;
+    assert!(matches!(refused, Err(Error::Server(_))), "{refused:?}");
 }
