@@ -1224,7 +1224,10 @@ impl Client {
             let confirmation = if state.supports(Feature::LabeledResponse) {
                 let response = client.correlated_chat(&target, line).await?;
                 crate::requests::empty(&response)?;
-                let echo_message = state.caps().contains_key(&crate::cap::ECHO_MESSAGE);
+                let echo_message = client
+                    .state()
+                    .caps()
+                    .contains_key(&crate::cap::ECHO_MESSAGE);
                 crate::Confirmation::from_labelled_echo(echo_message, response.sent())
             } else {
                 client.send_chat_message(target, line).await?;
