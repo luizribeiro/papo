@@ -6452,7 +6452,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
     .await;
     assert!(matches!(
         within(unconfirmed).await.unwrap(),
-        Err(Error::Unconfirmed)
+        Err(Error::NotVerified)
     ));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
@@ -6561,7 +6561,7 @@ async fn kickban_does_not_refetch_a_known_list_after_an_unconfirmed_ban() {
     server_line(&mut server, b"@label=1 ACK\r\n").await;
     assert!(matches!(
         within(kickban).await.unwrap(),
-        Err(Error::Unconfirmed)
+        Err(Error::NotVerified)
     ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), server.read_u8())

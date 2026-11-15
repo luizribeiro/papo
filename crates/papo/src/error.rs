@@ -498,9 +498,13 @@ pub enum Error {
     /// A bounded state collection reached its configured limit.
     #[error("the {0:?} state limit was reached")]
     StateLimit(crate::StateLimit),
-    /// A requested state change could not be confirmed from server replies or state.
-    #[error("the IRC operation could not be confirmed")]
-    Unconfirmed,
+    /// The server answered, but papo could not see the change take effect.
+    ///
+    /// For example, a kickban's ban is missing from the channel's ban list, or `mark_read` left
+    /// an older marker. A server that cannot confirm a write at all is
+    /// [`crate::Confirmation::Unconfirmed`] instead.
+    #[error("the server answered but the change could not be verified")]
+    NotVerified,
     /// The intended user left, changed nickname, or no longer holds a private reply nickname.
     #[error("the target user is no longer present")]
     TargetGone,
@@ -700,8 +704,8 @@ mod tests {
     #[test]
     fn kickban_terminal_errors_are_distinct() {
         assert_eq!(
-            Error::Unconfirmed.to_string(),
-            "the IRC operation could not be confirmed"
+            Error::NotVerified.to_string(),
+            "the server answered but the change could not be verified"
         );
         assert_eq!(
             Error::TargetGone.to_string(),

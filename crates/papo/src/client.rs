@@ -1618,7 +1618,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unconfirmed`] without sending `KICK` when the ban cannot be proved. A ban
+    /// Returns [`Error::NotVerified`] without sending `KICK` when the ban cannot be proved. A ban
     /// refusal and the errors documented by [`Client::kick`] are returned before an outcome.
     pub fn kickban(&self, channel: impl crate::AsChannel) -> Kickban {
         Kickban {
@@ -1687,7 +1687,7 @@ impl Client {
                         drop(state);
                         if !confirmed {
                             if !needs_fetch {
-                                return Err(Error::Unconfirmed);
+                                return Err(Error::NotVerified);
                             }
                             let entries = client.list_modes(&channel, crate::ListMode::Ban).await?;
                             let state = client.state();
@@ -1695,7 +1695,7 @@ impl Client {
                                 .iter()
                                 .any(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
                             {
-                                return Err(Error::Unconfirmed);
+                                return Err(Error::NotVerified);
                             }
                         }
                         if target_was_present

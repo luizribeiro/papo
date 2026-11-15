@@ -1540,12 +1540,12 @@ pub papo::Error::ForeignReference(papo::ForeignReference)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::NotSamePerson(papo::NotSamePerson)
+pub papo::Error::NotVerified
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StateLimit(papo::StateLimit)
 pub papo::Error::TargetGone
 pub papo::Error::Timeout
 pub papo::Error::TooManyPendingRequests
-pub papo::Error::Unconfirmed
 #[non_exhaustive] pub papo::Error::UnexpectedReply
 pub papo::Error::UnexpectedReply::command: papo::Command
 pub papo::Error::Unsupported(papo::Unsupported)

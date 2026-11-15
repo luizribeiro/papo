@@ -77,7 +77,7 @@ tracked variants now fail with `RequestError` instead of `BuildError`.
 type `State::read_marker` returns; it replaces `read_until: Option<ServerTime>`.
 
 `Client::fetch_read_marker` resolves to a `ReadMarker` instead of `Option<ServerTime>`, so a `*`
-reply is `Unset`; it fails with `Error::Unconfirmed` when the reply leaves no marker in state.
+reply is `Unset`; it fails with `Error::NotVerified` when the reply leaves no marker in state.
 
 `Client::react` and `Client::unreact` resolve to a `ReactOutcome` instead of `()`: its conversation
 and status audience, and a `Confirmation` that is `Confirmed { msgid, server_time }` from the
@@ -96,6 +96,9 @@ lines were confirmed.
 `KickbanOutcome` reports each part: `ban` is the mask seen on the ban list, beside `kick`.
 
 `AccountCreation` is renamed `AccountOutcome`; the `Event::AccountCreation` arm keeps its name.
+
+`Error::Unconfirmed` is renamed `Error::NotVerified`: the server answered but papo could not see
+the change take effect.
 
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
@@ -544,7 +547,7 @@ either operand order. `Error` gains `From<ServerError>`, `From<StateLimit>`, and
 `InvalidMessage(String)`.
 
 `client.direct` can return `Error::MonitorFull` when an unshared private recipient cannot reserve
-a server `MONITOR` slot. `Error::Unconfirmed` reports a state-changing request whose wire outcome
+a server `MONITOR` slot. `Error::NotVerified` reports a state-changing request whose wire outcome
 could not be proven.
 
 All request futures are lazy until first poll. After polling, dropping the future abandons the

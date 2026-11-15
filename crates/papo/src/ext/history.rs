@@ -133,11 +133,11 @@ impl IntoFuture for MarkReadRequest {
             let response = receiver.await.map_err(|_| Error::connection_lost())??;
             crate::requests::empty(&response)?;
             let stored = read_marker_time(self.client.state().read_marker(&target))
-                .ok_or(Error::Unconfirmed)?;
+                .ok_or(Error::NotVerified)?;
             if stored > latest {
                 Ok(MarkReadOutcome::BehindLatest { stored, latest })
             } else if stored < latest {
-                Err(Error::Unconfirmed)
+                Err(Error::NotVerified)
             } else if previous.is_some_and(|previous| previous >= latest) {
                 Ok(MarkReadOutcome::Unchanged { stored })
             } else {
@@ -1457,7 +1457,7 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. It can also return
     /// [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`]. A refusal returns [`Error::Server`] with its typed
-    /// [`crate::Refusal`]. [`Error::Unconfirmed`] means the reply left no marker in state.
+    /// [`crate::Refusal`]. [`Error::NotVerified`] means the reply left no marker in state.
     pub fn fetch_read_marker(
         &self,
         target: impl crate::AsConversation,
@@ -1483,7 +1483,7 @@ impl Client {
             client
                 .state()
                 .read_marker(&target)
-                .ok_or(Error::Unconfirmed)
+                .ok_or(Error::NotVerified)
         })
     }
 }
@@ -3218,7 +3218,7 @@ mod tests {
         .await;
         assert!(matches!(
             within(unconfirmed).await.unwrap(),
-            Err(Error::Unconfirmed)
+            Err(Error::NotVerified)
         ));
         abort_task(task).await;
     }
@@ -3392,7 +3392,7 @@ mod tests {
             b"@label=4 :ergo.test MARKREAD #new timestamp=yesterday\r\n",
         )
         .await;
-        assert!(matches!(malformed, Err(Error::Unconfirmed)));
+        assert!(matches!(malformed, Err(Error::NotVerified)));
         assert_eq!(client.state().read_marker("#new"), None);
         assert!(
             tokio::time::timeout(Duration::from_millis(1), events.next())
