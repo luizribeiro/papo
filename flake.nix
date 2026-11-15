@@ -82,6 +82,20 @@
           pkgs.chromium
           pkgs.chromedriver
         ];
+        # chromedriver otherwise launches whichever Chrome the host has installed, and refuses
+        # any major version but its own.
+        browserEnv =
+          let
+            inherit (pkgs.lib.versions) major;
+          in
+          assert pkgs.lib.assertMsg (major pkgs.chromium.version == major pkgs.chromedriver.version)
+            "chromedriver ${pkgs.chromedriver.version} cannot drive chromium ${pkgs.chromium.version}; pin both to one nixpkgs release";
+          {
+            CHROMEDRIVER = pkgs.lib.getExe pkgs.chromedriver;
+            WASM_BINDGEN_TEST_WEBDRIVER_JSON = pkgs.writeText "webdriver.json" (
+              builtins.toJSON { "goog:chromeOptions".binary = pkgs.lib.getExe pkgs.chromium; }
+            );
+          };
         craneLib = (crane.mkLib pkgs).overrideToolchain stableToolchain;
         cargoSource = pkgs.lib.cleanSourceWith {
           src = ./.;
@@ -206,13 +220,14 @@
             name,
             text,
             runtimeInputs ? [ ],
+            runtimeEnv ? { },
             stages ? [ "pre-commit" ],
           }:
           {
             enable = true;
             entry = "${
               pkgs.writeShellApplication {
-                inherit name text;
+                inherit name text runtimeEnv;
                 runtimeInputs = [ stableToolchain ] ++ runtimeInputs;
               }
             }/bin/${name}";
@@ -446,6 +461,7 @@
           browser-tests = cargoHook {
             name = "browser-tests-hook";
             runtimeInputs = browserTools;
+            runtimeEnv = browserEnv;
             text = ''
               CARGO_TARGET_DIR="$PWD/target" \
                 ${pkgs.lib.getExe pkgs.bash} "$PWD/nix/test-runner" --browser
@@ -575,6 +591,7 @@
           );
           browser-tests = craneLib.mkCargoDerivation (
             browserCraneArgs
+            // browserEnv
             // {
               # Live fixtures bind deterministic addresses, so their derivations must not overlap.
               SERVER_TEST_AFTER = nextest;
@@ -805,6 +822,7 @@
           ]
           ++ browserTools
           ++ gitHooks.enabledPackages;
+          inherit (browserEnv) CHROMEDRIVER WASM_BINDGEN_TEST_WEBDRIVER_JSON;
           ERGO_BIN = pkgs.lib.getExe ergochat;
           ERGO_CONFIG = ergoConfig;
           ERGO_LANGUAGES = "${ergochat.src}/languages";
