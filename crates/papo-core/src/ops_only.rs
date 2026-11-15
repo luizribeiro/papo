@@ -54,15 +54,9 @@ fn line_target<'a>(message: &LineRef<'a>) -> Option<&'a str> {
     .flatten()
 }
 
-/// The target and referenced id of a line that threads, reacts to or redacts a message.
-fn reference<'a>(message: &LineRef<'a>) -> Option<(&'a str, String)> {
-    if message.command_is("REDACT") {
-        return Some((message.param(0)?, message.param(1)?.to_owned()));
-    }
-    let id = message
-        .tag("+reply")
-        .or_else(|| message.tag("+draft/reply"))?;
-    Some((line_target(message)?, id.into_owned()))
+/// Servers may honour either reply tag, so every copy of both names a referenced line.
+fn is_reply_tag(key: &str) -> bool {
+    matches!(key, "+reply" | "+draft/reply")
 }
 
 /// Whether `status` reaches only members ranked at least as high as `original`.
@@ -96,7 +90,19 @@ impl Session {
     }
 
     pub(crate) fn check_line_audience(&self, message: &LineRef<'_>) -> Result<(), RequestError> {
-        reference(message).map_or(Ok(()), |(target, id)| self.check_audience(target, &id))
+        if message.command_is("REDACT") {
+            return match (message.param(0), message.param(1)) {
+                (Some(target), Some(id)) => self.check_audience(target, id),
+                _ => Ok(()),
+            };
+        }
+        let Some(target) = line_target(message) else {
+            return Ok(());
+        };
+        message
+            .tags()
+            .filter(|(key, _)| is_reply_tag(key))
+            .try_for_each(|(_, id)| self.check_audience(target, id.as_deref().unwrap_or_default()))
     }
 
     pub(crate) fn check_text_audience(
@@ -105,7 +111,7 @@ impl Session {
         tags: &[(&str, &str)],
     ) -> Result<(), RequestError> {
         tags.iter()
-            .filter(|(key, _)| matches!(*key, "+reply" | "+draft/reply"))
+            .filter(|(key, _)| is_reply_tag(key))
             .try_for_each(|(_, id)| self.check_audience(target, id))
     }
 
