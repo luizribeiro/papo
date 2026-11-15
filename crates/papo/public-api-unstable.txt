@@ -2459,7 +2459,7 @@ pub fn papo::Client::resume_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<papo::NickOutcome>
-pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::RealnameOutcome>
 pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
@@ -3296,6 +3296,24 @@ impl core::marker::Unpin for papo::ReactOutcome
 impl core::marker::UnsafeUnpin for papo::ReactOutcome
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ReactOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::ReactOutcome
+#[non_exhaustive] pub struct papo::RealnameOutcome
+pub papo::RealnameOutcome::confirmation: papo::Confirmation
+pub papo::RealnameOutcome::realname: alloc::string::String
+impl core::clone::Clone for papo::RealnameOutcome
+pub fn papo::RealnameOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::RealnameOutcome
+impl core::cmp::PartialEq for papo::RealnameOutcome
+pub fn papo::RealnameOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RealnameOutcome
+pub fn papo::RealnameOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RealnameOutcome
+impl core::marker::Freeze for papo::RealnameOutcome
+impl core::marker::Send for papo::RealnameOutcome
+impl core::marker::Sync for papo::RealnameOutcome
+impl core::marker::Unpin for papo::RealnameOutcome
+impl core::marker::UnsafeUnpin for papo::RealnameOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RealnameOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::RealnameOutcome
 #[non_exhaustive] pub struct papo::RecentConversation
 pub papo::RecentConversation::conversation: papo::Conversation
 pub papo::RecentConversation::latest_server_time: papo_proto::time::ServerTime

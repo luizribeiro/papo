@@ -20,6 +20,16 @@ pub struct NickOutcome {
     pub confirmation: crate::Confirmation,
 }
 
+/// The realname change the server confirmed by echoing `SETNAME`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct RealnameOutcome {
+    /// The realname the server accepted, which may differ from the one sent.
+    pub realname: String,
+    /// The echo's `msgid` and server time, when the server tagged it with a `msgid`.
+    pub confirmation: crate::Confirmation,
+}
+
 /// Information returned by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

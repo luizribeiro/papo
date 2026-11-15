@@ -1849,15 +1849,20 @@ impl Client {
         })
     }
 
-    /// Changes this client's realname through the `setname` capability.
+    /// Changes this client's realname through the `setname` capability and resolves to the
+    /// realname the server echoed.
     ///
     /// An empty realname is invalid input.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] when `setname` is unavailable, or a typed server refusal,
-    /// invalid-input error, timeout, or disconnect.
-    pub fn set_realname(&self, realname: impl Into<String>) -> crate::RequestFuture<()> {
+    /// Returns [`Error::Unsupported`] when `setname` is unavailable, [`Error::NotVerified`] when
+    /// the server answers without the echo, or a typed server refusal, invalid-input error,
+    /// timeout, or disconnect.
+    pub fn set_realname(
+        &self,
+        realname: impl Into<String>,
+    ) -> crate::RequestFuture<crate::RealnameOutcome> {
         let client = self.clone();
         let realname = realname.into();
         crate::RequestFuture::new(async move {
@@ -1871,7 +1876,11 @@ impl Client {
                     Some(ResponseMatcher::SetName),
                 )
                 .await?;
-            crate::requests::empty(&response)
+            let echo = crate::requests::echo(&response, "SETNAME")?;
+            Ok(crate::RealnameOutcome {
+                realname: echo.param(0).ok_or(Error::NotVerified)?.to_owned(),
+                confirmation: crate::Confirmation::from_echo(&echo),
+            })
         })
     }
 

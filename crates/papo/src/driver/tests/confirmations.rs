@@ -78,13 +78,31 @@ async fn a_nickname_change_without_its_echo_fails() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn an_unlabelled_realname_change_ends_at_a_rewritten_echo() {
-    let result = answered(
-        "setname",
-        |client| client.set_realname("Papo  \x02Review\x02  Client "),
-        "SETNAME :Papo  \x02Review\x02  Client ",
-        &["@time=2026-11-15T20:08:34.189Z :papo-driver!~u@3t4fgnf9zitka.irc SETNAME :Papo Review Client"],
-    )
-    .await;
-    assert!(result.is_ok(), "{result:?}");
+async fn a_realname_change_resolves_to_the_echoed_realname() {
+    let cases = [
+        (
+            "setname",
+            "SETNAME :Papo  \x02Review\x02  Client ",
+            "@time=2026-11-15T20:08:34.189Z :papo-driver!~u@3t4fgnf9zitka.irc SETNAME :Papo Review Client",
+            Confirmation::unconfirmed(UnconfirmedReason::NoMessageId),
+        ),
+        (
+            "labeled-response message-tags setname",
+            "@label=0 SETNAME :Papo  \x02Review\x02  Client ",
+            "@msgid=JAKlsWp50lNEa6sj5EQqh0;time=2026-11-15T20:09:46.417Z;label=0 :papo-driver!~u@localhost SETNAME :Papo Review Client",
+            confirmed("JAKlsWp50lNEa6sj5EQqh0", "2026-11-15T20:09:46.417Z"),
+        ),
+    ];
+    for (caps, sent, echo, confirmation) in cases {
+        let outcome = answered(
+            caps,
+            |client| client.set_realname("Papo  \x02Review\x02  Client "),
+            sent,
+            &[echo],
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome.realname, "Papo Review Client", "{echo}");
+        assert_eq!(outcome.confirmation, confirmation, "{echo}");
+    }
 }

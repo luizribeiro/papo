@@ -106,6 +106,9 @@ rewrote the realname, instead of timing out.
 `Client::set_nick` resolves to a `NickOutcome` with the nickname as the server echoed it and the
 echo's `Confirmation`; an answer without the echo fails with `Error::NotVerified`.
 
+`Client::set_realname` resolves to a `RealnameOutcome` with the realname the server accepted, which
+may differ from the one sent.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 
