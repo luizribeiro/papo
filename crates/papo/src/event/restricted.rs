@@ -140,7 +140,7 @@ impl RestrictedLine {
 macro_rules! separate_restricted {
     ($($variant:ident),+ $(,)?) => {
         /// Moves a status-prefixed line into [`crate::Event::Restricted`], so that no plain arm
-        /// ever carries one. Every event an application receives passes through here.
+        /// ever carries one. The event stream and every history item both end here.
         pub(crate) fn separate(event: crate::Event) -> crate::Event {
             let (audience, line) = match event {
                 $(crate::Event::$variant(mut line) => match line.status.take() {

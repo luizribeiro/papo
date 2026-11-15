@@ -64,6 +64,7 @@ impl OpsChannel {
         server_line(&mut self.server, line).await;
         let (audience, message) = next_restricted_message(&mut self.events).await;
         assert_eq!(audience.symbol(), '@');
+        assert_eq!(message.status, None, "the wrapper alone holds the audience");
         message
     }
 
