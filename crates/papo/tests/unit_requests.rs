@@ -1,4 +1,70 @@
-//! Reads the requests and their results out of the public API snapshots.
+//! Checks that every request resolving to `()` names why the protocol gives it no confirmation.
+
+use std::collections::BTreeSet;
+
+const SNAPSHOTS: [&str; 4] = [
+    include_str!("../public-api.txt"),
+    include_str!("../public-api-unstable.txt"),
+    include_str!("../../papo-core/public-api.txt"),
+    include_str!("../../papo-core/public-api-unstable.txt"),
+];
+
+#[derive(Clone, Copy, Debug)]
+enum Reason {
+    /// No line reaches the server; the driver acts locally.
+    LocalOnly,
+    /// The server answers with a numeric whose text is fixed.
+    FixedTextNumeric,
+    /// The server's answer repeats only what was sent.
+    EchoesInputOnly,
+    /// The line is written without correlation; `request_raw` is the correlated form.
+    UnlabelledByDesign,
+    /// The connection closing is the confirmation.
+    CloseIsConfirmation,
+    /// The sans-IO session only queues the line; its result arrives as a typed event.
+    QueuedEventCarriesResult,
+    /// The notification is never stored or referenced, so its echo carries nothing to keep.
+    Ephemeral,
+    /// The server confirms with an ACK and sends its echo outside the labelled response.
+    EchoOutsideResponse,
+}
+
+const UNIT_REQUESTS: &[(&str, Reason)] = &[
+    ("papo::Bouncer::remove", Reason::EchoesInputOnly),
+    ("papo::ChangeNetwork", Reason::EchoesInputOnly),
+    ("papo::Client::clear_away", Reason::FixedTextNumeric),
+    ("papo::Client::invite", Reason::EchoesInputOnly),
+    ("papo::Client::oper", Reason::FixedTextNumeric),
+    ("papo::Client::pause_reconnect", Reason::LocalOnly),
+    ("papo::Client::quit", Reason::CloseIsConfirmation),
+    ("papo::Client::reconnect", Reason::LocalOnly),
+    ("papo::Client::redact", Reason::EchoOutsideResponse),
+    ("papo::Client::resume_reconnect", Reason::LocalOnly),
+    ("papo::Client::send_raw", Reason::UnlabelledByDesign),
+    ("papo::Client::set_away", Reason::FixedTextNumeric),
+    ("papo::Client::typing", Reason::Ephemeral),
+    ("papo::Metadata::remove", Reason::EchoesInputOnly),
+    ("papo::Metadata::remove_on", Reason::EchoesInputOnly),
+    ("papo::Metadata::unsubscribe", Reason::EchoesInputOnly),
+    ("papo::WebPush::unregister", Reason::EchoesInputOnly),
+    (
+        "papo_core::Session::create_account",
+        Reason::QueuedEventCarriesResult,
+    ),
+    (
+        "papo_core::Session::persistence_get",
+        Reason::QueuedEventCarriesResult,
+    ),
+    (
+        "papo_core::Session::persistence_set",
+        Reason::QueuedEventCarriesResult,
+    ),
+    ("papo_core::Session::send", Reason::QueuedEventCarriesResult),
+    (
+        "papo_core::Session::verify",
+        Reason::QueuedEventCarriesResult,
+    ),
+];
 
 /// The item a snapshot line declares, with the request result it resolves to.
 fn request(line: &str) -> Option<(&str, &str)> {
@@ -34,6 +100,32 @@ fn request(line: &str) -> Option<(&str, &str)> {
         })
         .flatten()
         .map(|ty| (path, ty))
+}
+
+fn requests() -> BTreeSet<(&'static str, &'static str)> {
+    SNAPSHOTS
+        .iter()
+        .flat_map(|snapshot| snapshot.lines())
+        .filter_map(request)
+        .collect()
+}
+
+fn assert_listed<T: std::fmt::Debug>(found: &BTreeSet<&str>, listed: &[(&str, T)], unlisted: &str) {
+    let listed: BTreeSet<_> = listed.iter().map(|(item, _)| *item).collect();
+    let missing: Vec<_> = found.difference(&listed).collect();
+    assert!(missing.is_empty(), "{unlisted}: {missing:?}");
+    let stale: Vec<_> = listed.difference(found).collect();
+    assert!(stale.is_empty(), "no longer in the public API: {stale:?}");
+}
+
+#[test]
+fn every_unit_request_names_why_it_has_no_confirmation() {
+    let unit = requests()
+        .into_iter()
+        .filter(|(_, ty)| *ty == "()")
+        .map(|(path, _)| path)
+        .collect();
+    assert_listed(&unit, UNIT_REQUESTS, "classify under R15");
 }
 
 #[test]
