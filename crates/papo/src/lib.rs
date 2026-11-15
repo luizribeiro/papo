@@ -291,6 +291,7 @@ mod action;
 mod address;
 mod builder;
 mod client;
+mod confirmation;
 mod conversation;
 mod driver;
 mod entropy;
@@ -350,6 +351,7 @@ pub use client::{
     Client, ConfirmedLines, Fallback, JoinChannel, Kickban, KickbanNick, KickbanRequest,
     SendMessage, Sent, SentOutcome,
 };
+pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;
 pub use driver::{Driver, Events};
 pub use error::{

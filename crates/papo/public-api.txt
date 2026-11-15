@@ -1395,6 +1395,27 @@ impl core::marker::Unpin for papo::Authorship
 impl core::marker::UnsafeUnpin for papo::Authorship
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Authorship
 impl core::panic::unwind_safe::UnwindSafe for papo::Authorship
+#[non_exhaustive] pub enum papo::Confirmation
+#[non_exhaustive] pub papo::Confirmation::Confirmed
+pub papo::Confirmation::Confirmed::msgid: papo::MessageId
+pub papo::Confirmation::Confirmed::server_time: core::option::Option<papo_proto::time::ServerTime>
+#[non_exhaustive] pub papo::Confirmation::Unconfirmed
+pub papo::Confirmation::Unconfirmed::reason: papo::UnconfirmedReason
+impl core::clone::Clone for papo::Confirmation
+pub fn papo::Confirmation::clone(&self) -> Self
+impl core::cmp::Eq for papo::Confirmation
+impl core::cmp::PartialEq for papo::Confirmation
+pub fn papo::Confirmation::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Confirmation
+pub fn papo::Confirmation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Confirmation
+impl core::marker::Freeze for papo::Confirmation
+impl core::marker::Send for papo::Confirmation
+impl core::marker::Sync for papo::Confirmation
+impl core::marker::Unpin for papo::Confirmation
+impl core::marker::UnsafeUnpin for papo::Confirmation
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Confirmation
+impl core::panic::unwind_safe::UnwindSafe for papo::Confirmation
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::AccountRequired
 pub papo::ConnectErrorKind::Banned
@@ -2143,6 +2164,28 @@ impl core::marker::Unpin for papo::Subject
 impl core::marker::UnsafeUnpin for papo::Subject
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Subject
 impl core::panic::unwind_safe::UnwindSafe for papo::Subject
+#[non_exhaustive] pub enum papo::UnconfirmedReason
+pub papo::UnconfirmedReason::NoEchoMessage
+pub papo::UnconfirmedReason::NoLabeledResponse
+pub papo::UnconfirmedReason::NoMessageId
+impl core::clone::Clone for papo::UnconfirmedReason
+pub fn papo::UnconfirmedReason::clone(&self) -> Self
+impl core::cmp::Eq for papo::UnconfirmedReason
+impl core::cmp::PartialEq for papo::UnconfirmedReason
+pub fn papo::UnconfirmedReason::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::UnconfirmedReason
+pub fn papo::UnconfirmedReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::UnconfirmedReason
+pub fn papo::UnconfirmedReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::UnconfirmedReason
+impl core::marker::StructuralPartialEq for papo::UnconfirmedReason
+impl core::marker::Freeze for papo::UnconfirmedReason
+impl core::marker::Send for papo::UnconfirmedReason
+impl core::marker::Sync for papo::UnconfirmedReason
+impl core::marker::Unpin for papo::UnconfirmedReason
+impl core::marker::UnsafeUnpin for papo::UnconfirmedReason
+impl core::panic::unwind_safe::RefUnwindSafe for papo::UnconfirmedReason
+impl core::panic::unwind_safe::UnwindSafe for papo::UnconfirmedReason
 pub struct papo::BanTarget(_)
 impl core::clone::Clone for papo::BanTarget
 pub fn papo::BanTarget::clone(&self) -> Self

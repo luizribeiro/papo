@@ -8,7 +8,7 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, Typing, time};
+use papo_proto::{Ctcp, Typing};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
@@ -506,7 +506,7 @@ impl Sent {
     ) -> Self {
         let server_time = confirmations
             .iter()
-            .find_map(|sent| sent.server_time.as_deref().and_then(time::parse));
+            .find_map(crate::confirmation::echo_time);
         let msgids = confirmations
             .iter()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
