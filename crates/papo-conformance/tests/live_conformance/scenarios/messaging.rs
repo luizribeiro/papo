@@ -1070,3 +1070,57 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     bob.expect_none(Event::as_redacted).await?;
     Ok(())
 }
+
+/// a private history message keeps the channel context its line names, and replies keep it
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory", "message-tags"]),
+    covers = ["tag.channel-context"]
+)]
+async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    if !context_tag_allowed(&bob) {
+        return s.skip("the server denies the channel-context client tag");
+    }
+    let text = "can you check the release notes before the vote?";
+    let alice_direct = bob.query(alice.nick().as_str())?;
+    bob.privmsg(&alice_direct, text)
+        .channel_context(channel.as_str())
+        .await?;
+    let live = alice.wait_for(|event| message_text(event, text)).await?;
+    assert!(
+        live.channel_context()
+            .is_some_and(|context| context == channel.as_str())
+    );
+
+    let page = alice
+        .history(bob.nick().as_str())
+        .latest()
+        .limit(10)
+        .await?;
+    let Some(historical) = page
+        .chat_messages()
+        .find(|message| message.raw_text == text)
+    else {
+        return s.skip("the server keeps no direct-message history for these clients");
+    };
+    let stored = historical
+        .tags
+        .get("+channel-context")
+        .or_else(|| historical.tags.get("+draft/channel-context"));
+    if stored.is_none() {
+        assert_eq!(historical.channel_context(), None);
+        return s.skip("the server does not store client-only tags in history");
+    }
+    assert_eq!(historical.channel_context(), live.channel_context());
+
+    let answer = "notes look good, ship it";
+    alice.reply(historical, answer).await?;
+    let reply = bob.wait_for(|event| message_text(event, answer)).await?;
+    assert!(
+        reply
+            .channel_context()
+            .is_some_and(|context| context == channel.as_str())
+    );
+    assert_eq!(reply.in_reply_to.as_ref(), historical.msgid());
+    Ok(())
+}
