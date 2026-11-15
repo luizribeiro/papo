@@ -24,6 +24,11 @@ event.
 `Client::reconnect` now returns `Error::AlreadyConnected` without disturbing a live connection;
 while disconnected, it still skips the current backoff and retries immediately.
 
+`Party::{Me, Other, Unknown}` says who an event's actor (`actor_party`) or subject
+(`subject_party`, `ModeChanged::subject_party(&change)`) is relative to you. papo decides it when
+the line arrives, from the nick and account you held then, and a replayed history line is `Me` or
+`Other` only when its `account` tag proves it.
+
 `Client::kickban` can be awaited only after `.nick(..)` and `.ban(..)`; an incomplete kickban does not
 compile.
 

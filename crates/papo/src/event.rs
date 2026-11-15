@@ -236,26 +236,53 @@ macro_rules! ctcp_reference_accessors {
 
 ctcp_reference_accessors!(CtcpQuery, CtcpReply);
 
-/// Whether an event's actor is this client's user.
+/// Who a person on a line is relative to you: an event's actor, or the user it is about.
+///
+/// papo decides it when the line arrives, from the nick and account you held at that moment,
+/// and stores it in the event. Read it instead of comparing the sender with your own nick.
+/// [`Events::next`](crate::Events::next) pairs each event with the state captured right after
+/// it was applied, so an event from before a later rename of yours still compares correctly
+/// with that state, but the comparison is wrong in these cases:
+///
+/// - Your own `NICK`: the paired state already holds your new nick, so comparing it with
+///   [`NickChanged::old`](crate::event::NickChanged::old) says someone else renamed. papo says
+///   [`Party::Me`].
+/// - Your account on another connection, such as another device behind a bouncer: it can use a
+///   different nick, but the line's `account` tag matches yours, so it is [`Party::Me`].
+/// - History: nobody can prove who held a nick back then, so a replayed line is
+///   [`Party::Unknown`] unless its `account` tag proves who sent it.
+/// - A live line from a server is [`Party::Other`].
+///
+/// Comparing with [`Client::snapshot`](crate::Client::snapshot), the latest state instead of
+/// the paired one, also goes wrong whenever your nick changed after the event.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
-pub enum Authorship {
-    /// The actor is this client's user.
-    Own,
-    /// The actor is another user or a server.
+pub enum Party {
+    /// The person is you.
+    Me,
+    /// The person is another user or a server.
     Other,
-    /// The protocol did not prove who the actor is relative to this client.
+    /// The protocol did not prove who the person is relative to you.
     Unknown,
 }
 
-impl Authorship {
+impl Party {
     pub(crate) const fn from_core(value: papo_core::Party) -> Self {
         match value {
-            papo_core::Party::Me => Self::Own,
+            papo_core::Party::Me => Self::Me,
             papo_core::Party::Other => Self::Other,
             _ => Self::Unknown,
         }
     }
+}
+
+#[doc(hidden)]
+pub type Authorship = Party;
+
+#[allow(non_upper_case_globals)]
+impl Party {
+    #[doc(hidden)]
+    pub const Own: Self = Self::Me;
 }
 
 /// An incoming `PRIVMSG` or CTCP `ACTION` in a channel or private conversation.
