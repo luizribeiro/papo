@@ -1,9 +1,12 @@
-//! Transcript coverage for the account a user's line attests, and for people papo knows only from
-//! their private lines, who can leave and be replaced under the same nick without papo seeing it.
+//! Transcript coverage for people papo knows only from their private lines, who can leave and be
+//! replaced under the same nick without papo seeing it.
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, ReplyToken, Session};
+use papo_core::{Account, Config, Event, RecipientStatus, ReplyToken, Session};
+
+const ALICE_ADMIN: &str =
+    "@account=alice;msgid=4kd8y2mxa1 :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!ping";
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -45,6 +48,39 @@ fn logged_in(session: &Session, name: &str) -> Account {
 
 fn token(session: &Session, nick: &str) -> ReplyToken {
     session.state().__reply_token_for(nick)
+}
+
+#[test]
+fn an_unseen_nick_handoff_does_not_inherit_the_admins_identity_or_account() {
+    let mut session = registered("account-tag message-tags");
+    server(&mut session, ALICE_ADMIN);
+    drain(&mut session);
+    let admin = token(&session, "alice");
+    let alice = logged_in(&session, "alice");
+    assert_eq!(account(&session, "alice"), Some(alice.clone()));
+    let guard = session
+        .state()
+        .__capture_recipient(session.state().casemapping().nick("alice"), alice)
+        .unwrap();
+
+    server(
+        &mut session,
+        "@msgid=9fq3nb7c2e :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :!op alice",
+    );
+    let events = drain(&mut session);
+
+    assert_eq!(account(&session, "alice"), Some(Account::LoggedOut));
+    assert_ne!(token(&session, "alice"), admin);
+    assert_eq!(
+        session.state().__resolve_recipient(&guard),
+        RecipientStatus::Gone
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, Event::AccountChanged { .. })),
+        "a new person is not an account change: {events:?}"
+    );
 }
 
 #[test]
