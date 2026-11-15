@@ -325,6 +325,7 @@ mod transport;
 mod typing;
 mod webirc;
 
+#[cfg(feature = "__testing")]
 #[doc(hidden)]
 #[path = "testing.rs"]
 pub mod __testing;

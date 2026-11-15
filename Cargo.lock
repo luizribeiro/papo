@@ -541,6 +541,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.4.3",
  "js-sys",
+ "papo",
  "papo-core",
  "papo-proto",
  "papo-test-server",

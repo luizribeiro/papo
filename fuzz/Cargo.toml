@@ -11,7 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 papo-core = { path = "../crates/papo-core" }
 papo-proto = { path = "../crates/papo-proto" }
-papo = { path = "../crates/papo", default-features = false }
+papo = { path = "../crates/papo", default-features = false, features = ["__testing"] }
 web-time = "1"
 
 [[bin]]
