@@ -123,6 +123,9 @@ kept, which may be cut to `TOPICLEN`, and the echo's `Confirmation`.
 `Client::relay` (unstable) resolves to a `RelayOutcome` with the `Confirmation` of the relayed
 `PRIVMSG` echo.
 
+Awaiting a `RenameChannelRequest` resolves to a `ChannelHandle` for the channel under the name the
+server echoed in `RENAME`.
+
 `Client::pause_reconnect` stops automatic retries without dropping a live connection, and
 `Client::resume_reconnect` resumes a paused client with an immediate retry.
 

@@ -3267,8 +3267,8 @@ pub fn papo::RenameChannelRequest::reason(self, impl core::convert::Into<alloc::
 impl core::fmt::Debug for papo::RenameChannelRequest
 pub fn papo::RenameChannelRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::RenameChannelRequest
-pub type papo::RenameChannelRequest::IntoFuture = papo::RequestFuture<()>
-pub type papo::RenameChannelRequest::Output = core::result::Result<(), papo::Error>
+pub type papo::RenameChannelRequest::IntoFuture = papo::RequestFuture<papo::ChannelHandle>
+pub type papo::RenameChannelRequest::Output = core::result::Result<papo::ChannelHandle, papo::Error>
 pub fn papo::RenameChannelRequest::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::RenameChannelRequest
 impl core::marker::Send for papo::RenameChannelRequest

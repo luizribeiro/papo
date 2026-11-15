@@ -790,7 +790,7 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         ),
         (
             "rename_channel",
-            second.rename_channel(channel).to("#papo-release").await,
+            done(second.rename_channel(channel).to("#papo-release").await),
         ),
         ("set_nick", done(second.set_nick(nick).await)),
         (

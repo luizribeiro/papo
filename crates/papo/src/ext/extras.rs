@@ -59,8 +59,8 @@ impl RenameChannelRequest {
 }
 
 impl IntoFuture for RenameChannelRequest {
-    type Output = Result<(), crate::Error>;
-    type IntoFuture = crate::RequestFuture<()>;
+    type Output = Result<crate::ChannelHandle, crate::Error>;
+    type IntoFuture = crate::RequestFuture<crate::ChannelHandle>;
 
     fn into_future(self) -> Self::IntoFuture {
         self.client
@@ -69,7 +69,8 @@ impl IntoFuture for RenameChannelRequest {
 }
 
 impl Client {
-    /// Requests a channel rename.
+    /// Requests a channel rename and resolves to a handle for the channel under the name the
+    /// server echoed.
     ///
     /// Name the destination with [`RenameChannel::to`]; only the resulting
     /// [`RenameChannelRequest`] can be awaited.
@@ -78,6 +79,7 @@ impl Client {
     ///
     /// # Errors
     ///
+    /// Returns [`crate::Error::NotVerified`] when the server answers without its `RENAME` echo.
     /// Returns [`crate::Error::Unsupported`] for [`crate::Feature::ChannelRename`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`crate::Error::Server`] with
@@ -96,7 +98,7 @@ impl Client {
         old: crate::target::sealed::Parts<'static>,
         new: crate::target::sealed::Parts<'static>,
         reason: String,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<crate::ChannelHandle> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let old = client.resolve(crate::target::Role::Channel("rename_channel: old"), old)?;
@@ -114,7 +116,9 @@ impl Client {
                     reason,
                 })
                 .await?;
-            crate::requests::empty(&response)
+            let echo = crate::requests::echo(&response, "RENAME")?;
+            let renamed = echo.param(1).ok_or(crate::Error::NotVerified)?;
+            client.channel(names.channel(renamed))
         })
     }
 }
@@ -159,8 +163,15 @@ mod tests {
             b"@label=0 RENAME #rust #rust-lang :Project renamed\r\n",
         )
         .await;
-        server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
-        assert!(within(rename).await.unwrap().is_ok());
+        server_line(
+            &mut server,
+            b"@time=2026-11-15T20:11:30.693Z;label=0 :papo-driver!~u@t86kzv775fsaw.irc RENAME #rust #Rust-Lang :Project renamed\r\n",
+        )
+        .await;
+        assert_eq!(
+            within(rename).await.unwrap().unwrap().to_string(),
+            "#Rust-Lang"
+        );
 
         let rename = tokio::spawn({
             let client = client.clone();
