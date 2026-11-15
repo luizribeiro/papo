@@ -1049,6 +1049,9 @@ impl std::fmt::Debug for History {
 }
 
 const DEFAULT_HISTORY_LIMIT: usize = 100;
+/// The specification leaves open how a server splits an AROUND limit around its reference, so
+/// one neighbour on each side leaves the referenced item a slot either way at a cost of two lines.
+const MESSAGE_LOOKUP_LIMIT: usize = 3;
 
 impl History {
     /// Requests the newest messages.
@@ -1097,6 +1100,43 @@ impl History {
     /// Requests messages surrounding `reference`.
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         self.reference_query(reference, CursorEdge::After, HistoryQuery::__around)
+    }
+
+    /// Fetches the history item whose message ID is exactly `id`.
+    ///
+    /// This sends one [`History::around`] request with a limit of 3 and keeps only the item
+    /// whose ID matches byte for byte. It resolves to `None` when the server has no such item,
+    /// including when its page holds only neighbouring items or is empty.
+    ///
+    /// The item is the same [`Event`] a [`HistoryPage`] holds, so it answers with
+    /// [`Client::reply`], [`Client::react`] or [`Client::redact`] like any page item. An
+    /// ops-only line stays in [`Event::Restricted`]; see [`crate::Conversation`] for
+    /// status-prefixed line guidance.
+    ///
+    /// ```no_run
+    /// # async fn thank(client: &papo::Client, stored_id: &str) -> Result<(), papo::Error> {
+    /// if let Some(papo::Event::Message(message)) =
+    ///     client.history("#papo").message(stored_id).await?
+    /// {
+    ///     client.react(&message, "🙏").await?;
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as awaiting a [`HistoryRequest`].
+    pub fn message(self, id: impl Into<crate::MessageId>) -> crate::RequestFuture<Option<Event>> {
+        let id = id.into();
+        let request = self.around(&id).limit(MESSAGE_LOOKUP_LIMIT);
+        crate::RequestFuture::new(async move {
+            let page = request.await?;
+            Ok(page
+                .items
+                .into_iter()
+                .find(|item| item.msgid() == Some(&id)))
+        })
     }
 
     fn reference_query(

@@ -2,6 +2,7 @@ use super::test_support::*;
 use crate::{Client, KickbanRequest};
 use std::fmt::Write as _;
 
+mod history_message;
 mod ops_only;
 
 macro_rules! disconnected {
