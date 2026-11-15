@@ -2535,3 +2535,68 @@ async fn stale_channel_handles_fail_mode_and_metadata_requests() {
         assert_stale_channel_requests_fail(&client, &mut wire, &stale).await;
     }
 }
+
+async fn next_private_message(events: &mut Events) -> (papo::Message, Arc<papo::State>) {
+    loop {
+        match events.next().await {
+            Some((papo::Event::Message(message), state)) => return (message, state),
+            Some((papo::Event::Disconnected(disconnected), _)) => {
+                panic!("disconnected while waiting for a message: {disconnected}")
+            }
+            Some(_) => {}
+            None => panic!("driver stopped while waiting for a message"),
+        }
+    }
+}
+
+fn state_account(state: &papo::State, actor: &papo::UserHandle) -> Option<papo::Account> {
+    state
+        .user(actor)
+        .expect("an event actor belongs to its paired state")
+        .map(|user| user.account().clone())
+}
+
+#[tokio::test]
+async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-admin")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["account-tag", "message-tags"]).await;
+    connected(&mut events).await;
+    wire.server(
+        "@account=alice;msgid=4kd8y2mxa1 :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!ping",
+    )
+    .await;
+    let (admin, state) = next_private_message(&mut events).await;
+    let alice = state.name_rules().unwrap().account("alice");
+    assert_eq!(
+        state_account(&state, &admin.actor),
+        Some(papo::Account::LoggedIn(alice.clone()))
+    );
+    let saved = admin.actor.key();
+
+    wire.server("@msgid=9fq3nb7c2e :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :!op alice")
+        .await;
+    let (takeover, state) = next_private_message(&mut events).await;
+
+    assert_eq!(
+        state_account(&state, &takeover.actor),
+        Some(papo::Account::LoggedOut)
+    );
+    assert_ne!(takeover.actor, admin.actor);
+    assert!(matches!(
+        saved.check(&takeover.actor.key()),
+        papo::PeerKeyCheck::Mismatch(_)
+    ));
+    assert!(matches!(
+        client.privmsg(&admin.actor, "op granted").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
