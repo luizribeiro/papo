@@ -212,7 +212,8 @@ impl ModesOutcome {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct KickbanOutcome {
-    /// The ban mask papo sent, seen on the channel's ban list before the kick was sent.
+    /// The ban as the server stored it, from its `MODE +b` echo or the channel's ban list, seen
+    /// before the kick was sent; Ergo stores `alice` as `alice!*@*`.
     ///
     /// A ban that cannot be set or seen fails the whole request instead, and no kick is sent.
     pub ban: Mask,
@@ -881,46 +882,49 @@ fn same_change(state: &crate::State, left: &ModeChange, right: &ModeChange) -> b
     }
 }
 
+/// Returns the tracked ban-list entry matching `ban`, as the server stored it.
 pub(crate) fn tracked_ban(
     state: &crate::State,
     channel: &papo_proto::ChannelName,
     ban: &Mask,
-) -> bool {
+) -> Option<Mask> {
     state
-        .channel_local(channel)
-        .and_then(|joined| joined.list(crate::ListMode::Ban))
-        .is_some_and(|entries| {
-            entries
-                .iter()
-                .any(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
-        })
+        .channel_local(channel)?
+        .list(crate::ListMode::Ban)?
+        .iter()
+        .find(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
+        .map(|entry| entry.mask.clone())
 }
 
+/// Returns the ban mask as the server echoed it in a `MODE +b` matching `ban`.
 pub(crate) fn confirmed_ban(
     lines: &[Line],
     state: &crate::State,
     channel: &papo_proto::ChannelName,
     ban: &Mask,
-) -> bool {
-    lines.iter().any(|line| {
+) -> Option<Mask> {
+    let names = state.known_name_rules()?;
+    lines.iter().find_map(|line| {
         let line = line.as_ref();
-        line.command() == Command::Mode
-            && line.param(0).is_some_and(|target| {
-                state
-                    .known_name_rules()
-                    .is_some_and(|names| names.channel(target) == *channel)
-            })
-            && line.param(1).is_some_and(|modes| {
-                ModeChanges::parse(modes, line.params().skip(2), state.isupport().inner()).any(
-                    |change| {
-                        change.action == papo_proto::ModeAction::Add
-                            && change.mode == 'b'
-                            && change
-                                .arg
-                                .is_some_and(|argument| state.same_list_entry(ban, argument))
-                    },
-                )
-            })
+        if line.command() != Command::Mode
+            || line
+                .param(0)
+                .is_none_or(|target| names.channel(target) != *channel)
+        {
+            return None;
+        }
+        ModeChanges::parse(
+            line.param(1)?,
+            line.params().skip(2),
+            state.isupport().inner(),
+        )
+        .find_map(|change| {
+            (change.action == papo_proto::ModeAction::Add && change.mode == 'b')
+                .then_some(change.arg)
+                .flatten()
+                .filter(|argument| state.same_list_entry(ban, argument))
+                .map(|argument| names.mask(argument))
+        })
     })
 }
 
@@ -1117,8 +1121,11 @@ mod tests {
             .mask("Alice");
         let echo =
             |modes| papo_proto::Line::new("MODE").with_params(["#papo{", modes, "alice!*@*"]);
-        assert!(confirmed_ban(&[echo("+b")], &state, &channel, &ban,));
-        assert!(!confirmed_ban(&[echo("-b")], &state, &channel, &ban,));
+        assert_eq!(
+            confirmed_ban(&[echo("+b")], &state, &channel, &ban).map(|mask| mask.to_string()),
+            Some("alice!*@*".to_owned())
+        );
+        assert_eq!(confirmed_ban(&[echo("-b")], &state, &channel, &ban), None);
     }
 
     #[test]

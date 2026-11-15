@@ -6306,7 +6306,7 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
     )
     .await;
     let outcome = within(success).await.unwrap().unwrap();
-    assert_eq!(outcome.ban.as_str(), "alice");
+    assert_eq!(outcome.ban.as_str(), "alice!*@*");
     assert!(outcome.kick.is_ok());
 
     let refused = tokio::spawn({
@@ -6386,7 +6386,7 @@ async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
     )
     .await;
     let outcome = within(fetched).await.unwrap().unwrap();
-    assert_eq!(outcome.ban.as_str(), "alice");
+    assert_eq!(outcome.ban.as_str(), "alice!*@*");
     assert!(outcome.kick.is_ok());
 
     server_line(
@@ -6417,7 +6417,7 @@ async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
     )
     .await;
     let outcome = within(tracked).await.unwrap().unwrap();
-    assert_eq!(outcome.ban.as_str(), "bob");
+    assert_eq!(outcome.ban.as_str(), "bob!*@*");
     assert!(outcome.kick.is_ok());
 
     within(server.shutdown()).await.unwrap();
@@ -6488,7 +6488,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
     )
     .await;
     let outcome = within(departed).await.unwrap().unwrap();
-    assert_eq!(outcome.ban.as_str(), "carol");
+    assert_eq!(outcome.ban.as_str(), "carol!*@*");
     assert!(matches!(outcome.kick, Err(Error::TargetGone)));
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())

@@ -93,7 +93,8 @@ lines were confirmed.
 
 `MarkReadOutcome::Advanced(time)` becomes `MarkReadOutcome::Advanced { marker }`.
 
-`KickbanOutcome` reports each part: `ban` is the mask seen on the ban list, beside `kick`.
+`KickbanOutcome` reports each part: `ban` is the mask as the server stored it, from its `MODE +b`
+echo or the ban list (Ergo stores `alice` as `alice!*@*`), beside `kick`.
 
 `AccountCreation` is renamed `AccountOutcome`; the `Event::AccountCreation` arm keeps its name.
 

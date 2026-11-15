@@ -1695,59 +1695,22 @@ impl Client {
             let (result, receiver) = oneshot::channel();
             let task = Box::pin(async move {
                 let outcome = async {
-                    if !already_set {
-                        let response = client
-                            .correlated(
-                                Line::new("MODE").with_params([
-                                    channel.as_str(),
-                                    "+b",
-                                    ban.as_str(),
-                                ]),
-                                Some(ResponseMatcher::Mode(channel.to_string())),
-                            )
-                            .await?;
-                        let already_set_reply = response.error().is_some_and(|error| {
-                            error.refusal() == crate::Refusal::ListModeAlreadySet
-                        });
-                        if let Some(error) = response.error()
-                            && !already_set_reply
-                        {
-                            return Err(Error::server(error));
-                        }
-                        let state = client.state();
-                        let confirmed = already_set_reply
-                            || crate::mode::confirmed_ban(&response.lines, &state, &channel, &ban)
-                            || crate::mode::tracked_ban(&state, &channel, &ban);
-                        let needs_fetch = !confirmed
-                            && state
-                                .channel_local(&channel)
-                                .is_none_or(|joined| joined.list(crate::ListMode::Ban).is_none());
-                        drop(state);
-                        if !confirmed {
-                            if !needs_fetch {
-                                return Err(Error::NotVerified);
-                            }
-                            let entries = client.list_modes(&channel, crate::ListMode::Ban).await?;
-                            let state = client.state();
-                            if !entries
-                                .iter()
-                                .any(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
-                            {
-                                return Err(Error::NotVerified);
-                            }
-                        }
+                    let ban = if let Some(stored) = already_set {
+                        stored
+                    } else {
+                        let stored = set_ban(&client, &channel, &ban).await?;
                         if target_was_present
                             && client.state().channel_local(&channel).is_none_or(|joined| {
                                 joined.member(&resolved_nick).unwrap().is_none()
                             })
                         {
                             return Ok(crate::KickbanOutcome {
-                                ban,
+                                ban: stored,
                                 kick: Err(Error::TargetGone),
                             });
                         }
-                    }
-
+                        stored
+                    };
                     Ok(crate::KickbanOutcome {
                         kick: kick_resolved(&client, channel, nick, reason).await,
                         ban,
@@ -2081,6 +2044,51 @@ impl Client {
             receiver.await.unwrap_or(Ok(()))
         })
     }
+}
+
+async fn set_ban(
+    client: &Client,
+    channel: &crate::ChannelName,
+    ban: &crate::Mask,
+) -> Result<crate::Mask, Error> {
+    let response = client
+        .correlated(
+            Line::new("MODE").with_params([channel.as_str(), "+b", ban.as_str()]),
+            Some(ResponseMatcher::Mode(channel.to_string())),
+        )
+        .await?;
+    let already_set_reply = response
+        .error()
+        .is_some_and(|error| error.refusal() == crate::Refusal::ListModeAlreadySet);
+    if let Some(error) = response.error()
+        && !already_set_reply
+    {
+        return Err(Error::server(error));
+    }
+    let state = client.state();
+    let stored = if already_set_reply {
+        Some(crate::mode::tracked_ban(&state, channel, ban).unwrap_or_else(|| ban.clone()))
+    } else {
+        crate::mode::confirmed_ban(&response.lines, &state, channel, ban)
+            .or_else(|| crate::mode::tracked_ban(&state, channel, ban))
+    };
+    if let Some(stored) = stored {
+        return Ok(stored);
+    }
+    let list_known = state
+        .channel_local(channel)
+        .is_some_and(|joined| joined.list(crate::ListMode::Ban).is_some());
+    drop(state);
+    if list_known {
+        return Err(Error::NotVerified);
+    }
+    let entries = client.list_modes(channel, crate::ListMode::Ban).await?;
+    let state = client.state();
+    entries
+        .into_iter()
+        .find(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
+        .map(|entry| entry.mask)
+        .ok_or(Error::NotVerified)
 }
 
 async fn kick_resolved(
