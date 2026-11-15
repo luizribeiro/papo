@@ -5831,6 +5831,7 @@ mod tests {
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Account::LoggedIn(Casemapping::default().account("emily")),
+                papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
                 papo_core::Authorship::Other,
             )),
             Event::AccountChanged(changed)
@@ -5846,6 +5847,7 @@ mod tests {
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Away::__away_value(Some("Gone to lunch".into())),
+                papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
                 papo_core::Authorship::Other,
             )),
             Event::AwayChanged(changed)

@@ -18,6 +18,7 @@ impl State {
             .zip(message.tag("inspircd.org/account-id"))
             .map(|(_, id)| id.into_owned())
             .filter(|id| !id.is_empty());
+        let token = self.__reply_token_for(nick);
         let mut changed = false;
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             for (key, value) in message.tags() {
@@ -32,6 +33,7 @@ impl State {
                                 actor: actor.clone(),
                                 nick: self.casemapping.nick(nick),
                                 account,
+                                token,
                                 authorship,
                             });
                         }
@@ -152,6 +154,7 @@ impl State {
         let envelope = crate::LineEnvelope::from_line(message).with_account(account.account);
         let account = Account::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
+        let token = self.__reply_token_for(nick);
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
             && user.account != account
         {
@@ -161,6 +164,7 @@ impl State {
                 actor,
                 nick: self.casemapping.nick(nick),
                 account,
+                token,
                 authorship: self.source_authorship(message),
             });
         }
@@ -184,6 +188,7 @@ impl State {
                     message: Some(message.to_owned()),
                 },
             };
+            let token = self.__reply_token_for(nick);
             let user_changed = self
                 .users
                 .get_mut(self.casemapping.fold(nick).as_ref())
@@ -201,6 +206,7 @@ impl State {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     away: next,
+                    token,
                     authorship: self.source_authorship(message),
                 });
             }
@@ -211,6 +217,7 @@ impl State {
                 let (Some(nick), Some(away)) = (message.param(1), message.param(2)) else {
                     return Some(Handled::No);
                 };
+                let token = self.__reply_token_for(nick);
                 if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                     let envelope = crate::LineEnvelope::from_line(message);
                     let message = away.to_owned();
@@ -224,6 +231,7 @@ impl State {
                             actor: nick.to_owned(),
                             nick: self.casemapping.nick(nick),
                             away: next,
+                            token,
                             authorship: self.nick_authorship(nick),
                         });
                     }
@@ -239,6 +247,7 @@ impl State {
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away: Away::Present,
+                    token: self.__reply_token_for(self.nick.as_str()),
                     authorship: Authorship::Own,
                 });
             }
@@ -257,6 +266,7 @@ impl State {
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away,
+                    token: self.__reply_token_for(self.nick.as_str()),
                     authorship: Authorship::Own,
                 });
             }

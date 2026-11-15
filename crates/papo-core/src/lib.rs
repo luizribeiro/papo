@@ -2991,6 +2991,8 @@ pub enum Event {
         nick: Nick,
         /// The user's new account state.
         account: Account,
+        /// Identity of the affected user when the line arrived.
+        token: ReplyToken,
         /// Whether the affected user is this session's user.
         authorship: Authorship,
     },
@@ -3005,6 +3007,8 @@ pub enum Event {
         nick: Nick,
         /// The user's new presence state.
         away: Away,
+        /// Identity of the affected user when the line arrived.
+        token: ReplyToken,
         /// Whether the affected user is this session's user.
         authorship: Authorship,
     },
@@ -3104,8 +3108,8 @@ hidden_event_constructors! {
     __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
-    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, authorship: Authorship) => AccountChanged;
-    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, authorship: Authorship) => AwayChanged;
+    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Authorship) => AccountChanged;
+    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Authorship) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, authorship: Authorship) => HostChanged;
     __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;

@@ -507,6 +507,7 @@ pub papo_core::Event::AccountChanged::actor: alloc::string::String
 pub papo_core::Event::AccountChanged::authorship: papo_core::Authorship
 pub papo_core::Event::AccountChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::AccountChanged::nick: papo::Nick
+pub papo_core::Event::AccountChanged::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::AccountCreated
 pub papo_core::Event::AccountCreated::account: papo::AccountName
 pub papo_core::Event::AccountCreated::logged_in: bool
@@ -518,6 +519,7 @@ pub papo_core::Event::AwayChanged::authorship: papo_core::Authorship
 pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::AwayChanged::nick: papo::Nick
+pub papo_core::Event::AwayChanged::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::BatchAbandoned
 pub papo_core::Event::BatchAbandoned::batch_type: papo::BatchType
 pub papo_core::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
