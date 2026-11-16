@@ -332,6 +332,9 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 - Without `account-tag`, a peer's first private line no longer takes the account a `WHO` proof saw:
   `User::account` stays unknown, so whoever holds the proven nick is never reported as logged in.
   Sends to the proven nick still succeed.
+- With echo-message and labeled-response, a `PRIVMSG` or `NOTICE` whose text is a `Secret` (such as
+  `PRIVMSG NickServ :IDENTIFY ..`) stays redacted while papo awaits its echo, and the echo's lines
+  and events are redacted in `{:?}` too.
 
 ### Migration from the 2026-10-24 API
 

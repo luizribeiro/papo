@@ -10,10 +10,30 @@ impl Session {
             .pop_back()
             .expect("a resolved request queued its response");
         debug_assert!(matches!(response, Event::Response(_)));
-        let received = self.received_line(message.to_owned(), None);
+        let echo = match &response {
+            Event::Response(resolved) => resolved.lines.last().cloned(),
+            _ => None,
+        }
+        .unwrap_or_else(|| message.to_owned());
+        let received = self.received_line(echo, None);
         self.outbox.event(Event::Line(received));
         // Consumers must observe the confirming event before the action completes.
         self.outbox.event(response);
+    }
+}
+
+impl Session {
+    /// Marks the server's echo of a secret we sent secret too, wherever its response lands.
+    pub(super) fn mark_secret_echo(&self, echo: Option<&crate::SentEcho>, lines: &mut [Line]) {
+        let Some(echo) = echo.filter(|echo| echo.subject.__is_secret()) else {
+            return;
+        };
+        let mapping = self.isupport.value().casemapping();
+        for line in lines {
+            if echo.matches(&line.as_ref(), mapping) {
+                line.__mark_secret(1);
+            }
+        }
     }
 }
 

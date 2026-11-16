@@ -3778,3 +3778,107 @@ fn a_secret_message_request_stays_redacted_while_awaiting_its_echo() {
     support::queue_debug_marker(&mut session);
     support::assert_session_debug_redacts(&session, "services-password-5129");
 }
+
+#[test]
+fn the_echo_of_a_secret_message_request_stays_redacted() {
+    const PASSWORD: &str = "services-password-5129";
+    let identify = || {
+        Line::new("PRIVMSG")
+            .param("NickServ")
+            .param(Secret::new(format!("IDENTIFY alice {PASSWORD}")))
+    };
+    let ergo_echo = format!(
+        "@msgid=RfcBTzyxY120006;time=2026-11-16T09:12:01.123Z :papo!~papo@client.example PRIVMSG NickServ :IDENTIFY alice {PASSWORD}"
+    );
+    let ergo_batch = vec![
+        "@label=0 :ergo.test BATCH +NickServ-1 labeled-response".to_owned(),
+        format!("@batch=NickServ-1;{}", &ergo_echo[1..]),
+        "@batch=NickServ-1 :NickServ!NickServ@localhost NOTICE papo :You're now logged in as alice"
+            .to_owned(),
+        ":ergo.test BATCH -NickServ-1".to_owned(),
+    ];
+    let away_key = || {
+        Line::new("PRIVMSG")
+            .param("alice")
+            .param(Secret::new(format!("the staff key is {PASSWORD}")))
+    };
+    let cases = [
+        (
+            "labelled echo",
+            identify(),
+            vec![format!("@label=0;{}", &ergo_echo[1..])],
+        ),
+        ("labelled response batch", identify(), ergo_batch),
+        (
+            "unlabelled echo after an away reply",
+            away_key(),
+            vec![
+                "@label=0 :irc.solanum.test 301 papo alice :is away".to_owned(),
+                format!(
+                    "@msgid=RfcBTzyxY120007;time=2026-11-16T09:13:01.123Z :papo!~papo@client.example PRIVMSG alice :the staff key is {PASSWORD}"
+                ),
+            ],
+        ),
+    ];
+    for (name, message, server_lines) in cases {
+        let now = Instant::now();
+        let mut session = echo_session(now);
+        let id = request(&mut session, now, message);
+        while session.poll_transmit().is_some() {}
+        for line in &server_lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+        let echo = events
+            .iter()
+            .find_map(|event| match event {
+                Event::Response(response) if response.id == id => response
+                    .lines
+                    .iter()
+                    .find(|line| line.as_ref().command_is("PRIVMSG")),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("{name}: the echo completes the request: {events:?}"));
+        assert!(
+            echo.as_ref().param(1).unwrap().ends_with(PASSWORD),
+            "{name}"
+        );
+        assert!(
+            format!("{echo:?}").ends_with(" :<redacted>"),
+            "{name}: {echo:?}"
+        );
+        let debug = format!("{events:?}");
+        for reply in server_lines
+            .iter()
+            .filter(|line| !line.contains(PASSWORD) && !line.contains(" BATCH "))
+        {
+            let text = reply.rsplit(" :").next().unwrap();
+            assert!(debug.contains(text), "{name}: {text:?} hidden in {debug}");
+        }
+        assert!(
+            !debug.contains(PASSWORD),
+            "{name}: plaintext secret in {debug}"
+        );
+    }
+}
+
+#[test]
+fn the_echo_of_an_ordinary_message_request_stays_visible() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    request(
+        &mut session,
+        now,
+        Line::new("PRIVMSG").with_params(["NickServ", "INFO alice"]),
+    );
+    while session.poll_transmit().is_some() {}
+    session.handle_line(
+        now,
+        b"@label=0;msgid=RfcBTzyxY120008 :papo!~papo@client.example PRIVMSG NickServ :INFO alice",
+    );
+    let debug = format!(
+        "{:?}",
+        std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>()
+    );
+    assert!(debug.contains("PRIVMSG NickServ :INFO alice"), "{debug}");
+}

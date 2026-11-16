@@ -54,12 +54,14 @@ impl Session {
         }
         let mut lines = request
             .echo
-            .and_then(|echo| echo.reply)
+            .as_ref()
+            .and_then(|echo| echo.reply.clone())
             .into_iter()
             .collect::<Vec<_>>();
         if !message.command_is("ACK") {
             lines.push(message.to_owned());
         }
+        self.mark_secret_echo(request.echo.as_ref(), &mut lines);
         let whois_channels = parse_whois_channels(&lines, self.isupport.value());
         if !self
             .unlabelled_requests

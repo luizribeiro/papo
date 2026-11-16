@@ -6581,7 +6581,7 @@ impl Session {
         let BatchEvent::Response {
             label,
             echo,
-            messages,
+            mut messages,
             batch_type,
             mut history,
             history_targets,
@@ -6590,6 +6590,10 @@ impl Session {
             unreachable!("response dispatcher received another batch event");
         };
         let request = self.requests.remove(&label);
+        self.mark_secret_echo(
+            request.as_ref().and_then(|request| request.echo.as_ref()),
+            &mut messages,
+        );
         if let Some(request) = &request {
             self.away_messages.remove(&request.id);
         }
