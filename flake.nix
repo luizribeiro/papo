@@ -342,6 +342,7 @@
               run_clippy -p papo -p papo-core -p papo-proto
               run_clippy --workspace --all-features
               run_clippy -p papo --no-default-features
+              run_clippy -p papo --no-default-features --features websocket
               run_clippy -p papo --no-default-features --features unstable
             '';
           };
