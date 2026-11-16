@@ -267,3 +267,82 @@ async fn untagged_history_line_is_not_the_current_nick_holder() {
     );
     assert!(sending.await.unwrap().is_ok());
 }
+
+#[tokio::test]
+async fn logged_out_reply_to_our_archived_direct_message_never_reaches_us() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://ergo.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "account-tag",
+        "batch",
+        "draft/chathistory",
+        "extended-join",
+        "labeled-response",
+        "message-tags",
+        "server-time",
+    ])
+    .await;
+    connected(&mut events).await;
+    for line in [
+        ":papo!~u@papo.irc JOIN #release * :Papo",
+        ":alice!~u@alice.irc JOIN #release alice :Alice",
+    ] {
+        join(&mut events, &mut wire, line).await;
+    }
+
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move { client.history("alice").latest().limit(10).await }
+    });
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=0 CHATHISTORY LATEST alice * 10"
+    );
+    for line in [
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply;draft/chathistory-end :ergo.test BATCH +h chathistory alice",
+        "@batch=h;time=2026-11-01T09:00:00.000Z;msgid=6e7q9yyfrx3nwsw2i6yjzmzxyc :papo!~u@papo.irc PRIVMSG alice :I will send the token once you confirm",
+        "@batch=h;time=2026-11-01T09:01:00.000Z;msgid=pwcbkkexfp2uqmk5ri5x5b5bya;account=alice :alice!~u@alice.irc PRIVMSG papo :confirmed, send it",
+        "@batch=reply :ergo.test BATCH -h",
+        ":ergo.test BATCH -reply",
+    ] {
+        wire.server(line).await;
+    }
+    let page = request.await.unwrap().unwrap();
+    let [ours, theirs] = [0, 1].map(|index| page.chat_messages().nth(index).unwrap().clone());
+    for message in [&ours, &theirs] {
+        let papo::Conversation::Private(peer) = message.conversation() else {
+            panic!("expected a direct conversation")
+        };
+        assert_eq!(peer.nick(), "alice");
+    }
+
+    let reply = tokio::spawn({
+        let client = client.clone();
+        async move { client.reply(&ours, "confirmed? here it is").await }
+    });
+    assert_eq!(wire.next_sent().await, "@label=1 WHO alice %na");
+    wire.server("@label=1 :ergo.test BATCH +who labeled-response")
+        .await;
+    wire.server("@batch=who :ergo.test 354 papo alice alice")
+        .await;
+    wire.server("@batch=who :ergo.test 315 papo alice :End of WHO list")
+        .await;
+    wire.server(":ergo.test BATCH -who").await;
+    assert!(matches!(reply.await.unwrap(), Err(Error::TargetGone)));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+
+    let reply = tokio::spawn(async move { client.reply(&theirs, "here it is").await });
+    assert_eq!(
+        wire.next_sent().await,
+        "@+reply=pwcbkkexfp2uqmk5ri5x5b5bya PRIVMSG alice :here it is"
+    );
+    assert!(reply.await.unwrap().is_ok());
+}
