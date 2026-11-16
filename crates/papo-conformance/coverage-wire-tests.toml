@@ -238,3 +238,6 @@
 "who_sweep::a_nick_taker_never_inherits_the_previous_holders_account_or_rank" = [
   "security.who-sweep.stale-row-identity",
 ]
+"catchup_bound::unanswered_catchup_never_grows_with_live_traffic" = [
+  "security.catchup.unanswered-request-bound",
+]

@@ -172,4 +172,5 @@ ids = [
   "security.h12.catchup-progress",
   "security.who-sweep.stale-row-identity",
   "security.kick.foreign-echo-confirmation",
+  "security.catchup.unanswered-request-bound",
 ]
