@@ -636,7 +636,7 @@ stop a client that still sends. Dropping the final handle asks the driver to sen
 cannot await delivery or acknowledgement. For intentional shutdown:
 
 ```rust,ignore
-client.quit("shutting down").await?;
+client.quit().reason("shutting down").await?;
 while events.next().await.is_some() {}
 ```
 
