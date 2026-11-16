@@ -883,15 +883,15 @@ mod tests {
         );
     }
 
+    fn plan(address: &str) -> ConnectionPlan {
+        ConnectionPlan {
+            address: address.parse().unwrap(),
+            tls: TlsConfig::default(),
+        }
+    }
+
     #[test]
     fn only_verified_transport_plans_authenticate_a_server_name() {
-        fn plan(address: &str) -> ConnectionPlan {
-            ConnectionPlan {
-                address: address.parse().unwrap(),
-                tls: TlsConfig::default(),
-            }
-        }
-
         assert_eq!(authenticated_server_name(&plan("irc://irc.example")), None);
         assert_eq!(authenticated_server_name(&plan("ws://irc.example")), None);
         assert_eq!(
@@ -906,13 +906,21 @@ mod tests {
             authenticated_server_name(&plan("wss://irc.example:9443/other")),
             Some("irc.example".to_owned())
         );
+    }
 
-        let mut overridden = plan("ircs://edge.example");
-        overridden.tls.server_name = Some("Identity.Example.".to_owned());
-        assert_eq!(
-            authenticated_server_name(&overridden),
-            Some("identity.example".to_owned())
-        );
+    #[cfg(tls)]
+    mod tls {
+        use super::*;
+
+        #[test]
+        fn a_tls_server_name_override_is_the_authenticated_name() {
+            let mut overridden = plan("ircs://edge.example");
+            overridden.tls.server_name = Some("Identity.Example.".to_owned());
+            assert_eq!(
+                authenticated_server_name(&overridden),
+                Some("identity.example".to_owned())
+            );
+        }
     }
 }
 
