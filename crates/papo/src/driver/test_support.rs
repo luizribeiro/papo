@@ -279,6 +279,13 @@ pub(crate) fn scripted_with_failures(
     (server, client, events, driver)
 }
 
+pub(crate) fn confirmed(msgid: &str, server_time: Option<&str>) -> crate::Confirmation {
+    crate::Confirmation::Confirmed {
+        msgid: msgid.into(),
+        server_time: server_time.map(|time| crate::ServerTime::from_stored(time).unwrap()),
+    }
+}
+
 pub(crate) fn confirmed_line(
     msgid: &str,
     server_time: Option<&str>,
@@ -286,10 +293,7 @@ pub(crate) fn confirmed_line(
 ) -> crate::SentLine {
     crate::SentLine {
         text: text.into(),
-        confirmation: crate::Confirmation::Confirmed {
-            msgid: msgid.into(),
-            server_time: server_time.map(|time| crate::ServerTime::from_stored(time).unwrap()),
-        },
+        confirmation: confirmed(msgid, server_time),
     }
 }
 
