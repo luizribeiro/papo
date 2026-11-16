@@ -169,10 +169,6 @@ pub(crate) fn history_item(
     let mapping = state.casemapping();
     let origin = client.origin();
     let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
-    let prove_not_bot = crate::event_impl::can_prove_non_bot(
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-        state.isupport().bot_mode().is_some(),
-    );
     let mut event = match item {
         papo_core::HistoryItem::Message(item) => {
             let actor_party = crate::Party::from_core(item.actor_party);
@@ -206,7 +202,6 @@ pub(crate) fn history_item(
                 state.isupport().inner(),
                 history_conversation,
                 account_tag_enabled,
-                prove_not_bot,
                 received_at,
                 Some(&state),
             )
@@ -222,7 +217,6 @@ pub(crate) fn history_item(
                     state.isupport().inner(),
                     history_conversation,
                     account_tag_enabled,
-                    prove_not_bot,
                     received_at,
                     Some(&state),
                 )
@@ -281,7 +275,6 @@ pub(crate) fn history_item(
                     mapping,
                     origin,
                     account_tag_enabled,
-                    prove_not_bot,
                     received_at,
                 )
             })
@@ -381,7 +374,7 @@ fn historical_tagmsg(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = user_from_line(message, &envelope, mapping, client.origin(), false)?;
+    let actor = user_from_line(message, &envelope, mapping, client.origin())?;
     let mut receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
         &conversation,
@@ -414,7 +407,6 @@ fn actor_from_line(
     envelope: &crate::event_impl::EventEnvelope,
     mapping: crate::Casemapping,
     origin: crate::Origin,
-    _prove_not_bot: bool,
 ) -> Option<crate::Source> {
     crate::event_impl::source::from_line(
         crate::event_impl::source::LinePrefix::Raw(message.raw_source()?),
@@ -429,9 +421,8 @@ fn user_from_line(
     envelope: &crate::event_impl::EventEnvelope,
     mapping: crate::Casemapping,
     origin: crate::Origin,
-    prove_not_bot: bool,
 ) -> Option<crate::UserHandle> {
-    match actor_from_line(message, envelope, mapping, origin, prove_not_bot)? {
+    match actor_from_line(message, envelope, mapping, origin)? {
         crate::Source::User(user) => Some(user),
         crate::Source::Server(_) => None,
     }
@@ -447,7 +438,6 @@ fn reaction(
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
     state: Option<&crate::State>,
 ) -> Option<Event> {
@@ -480,7 +470,7 @@ fn reaction(
         received_at,
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
-    let actor = user_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
+    let actor = user_from_line(message, &envelope, mapping, origin)?;
     let receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
         &conversation,
@@ -516,7 +506,6 @@ fn redaction(
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
     state: Option<&crate::State>,
 ) -> Option<Event> {
@@ -543,7 +532,7 @@ fn redaction(
         received_at,
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
-    let actor = actor_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
+    let actor = actor_from_line(message, &envelope, mapping, origin)?;
     let receipt = crate::message_ref::Receipt::new(
         actor.clone(),
         &conversation,
@@ -581,10 +570,6 @@ fn joined(
         mapping,
         client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-        crate::event_impl::can_prove_non_bot(
-            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-            state.isupport().bot_mode().is_some(),
-        ),
         received_at,
     )
     .map(Event::Joined)
@@ -605,16 +590,7 @@ fn parted(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = user_from_line(
-        message,
-        &envelope,
-        mapping,
-        client.origin(),
-        crate::event_impl::can_prove_non_bot(
-            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-            state.isupport().bot_mode().is_some(),
-        ),
-    )?;
+    let actor = user_from_line(message, &envelope, mapping, client.origin())?;
     let actor = crate::UserHandle::from_event(
         actor.nick(),
         actor.account().clone(),
@@ -654,16 +630,7 @@ fn quit(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = user_from_line(
-        message,
-        &envelope,
-        mapping,
-        origin,
-        crate::event_impl::can_prove_non_bot(
-            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-            state.isupport().bot_mode().is_some(),
-        ),
-    )?;
+    let actor = user_from_line(message, &envelope, mapping, origin)?;
     Some(Event::Quit(Quit {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -700,16 +667,7 @@ fn kicked(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = actor_from_line(
-        message,
-        &envelope,
-        mapping,
-        client.origin(),
-        crate::event_impl::can_prove_non_bot(
-            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-            state.isupport().bot_mode().is_some(),
-        ),
-    )?;
+    let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
         crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_event(
             user.nick(),
@@ -761,16 +719,7 @@ fn nick_changed(
     );
     let old = state.known_name_rules()?.nick(source_nick(message)?);
     let new = state.known_name_rules()?.nick(message.param(0)?);
-    let source = user_from_line(
-        message,
-        &envelope,
-        mapping,
-        client.origin(),
-        crate::event_impl::can_prove_non_bot(
-            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-            state.isupport().bot_mode().is_some(),
-        ),
-    )?;
+    let source = user_from_line(message, &envelope, mapping, client.origin())?;
     let actor = crate::UserHandle::from_event(
         new.clone(),
         source.account().clone(),
@@ -799,7 +748,6 @@ fn topic_changed(
     mapping: crate::Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
     let envelope = crate::event_impl::line_envelope_with_account_tag(
@@ -809,7 +757,7 @@ fn topic_changed(
         account_tag_enabled,
         received_at,
     );
-    let actor = actor_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
+    let actor = actor_from_line(message, &envelope, mapping, origin)?;
     Some(Event::TopicChanged(TopicChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -869,16 +817,7 @@ fn mode_changed(
         )
     })
     .collect();
-    let actor = actor_from_line(
-        message,
-        &envelope,
-        mapping,
-        client.origin(),
-        crate::event_impl::can_prove_non_bot(
-            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-            state.isupport().bot_mode().is_some(),
-        ),
-    )?;
+    let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
         crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_event(
             user.nick(),
@@ -1616,7 +1555,6 @@ mod tests {
             client.origin(),
             session.isupport(),
             false,
-            false,
             UNIX_EPOCH,
             Some(&client.state),
         );
@@ -1665,7 +1603,6 @@ mod tests {
             received,
             client.origin(),
             session.isupport(),
-            false,
             false,
             UNIX_EPOCH,
             Some(&client.state),
@@ -1759,7 +1696,6 @@ mod tests {
             session.poll_event().expect("live part event"),
             session.isupport().casemapping(),
             crate::Origin::NONE,
-            true,
             true,
             UNIX_EPOCH,
         );
@@ -2251,7 +2187,6 @@ mod tests {
             &papo_proto::Isupport::default(),
             None,
             true,
-            false,
             UNIX_EPOCH,
             None,
         ) else {

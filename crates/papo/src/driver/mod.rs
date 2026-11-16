@@ -1423,7 +1423,6 @@ where
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            can_prove_non_bot(session),
             crate::rt::now_wall(),
             Some(session.state()),
             Some(&events.state),
@@ -1449,7 +1448,6 @@ where
                     session.state().nick().origin(),
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-                    can_prove_non_bot(session),
                     crate::rt::now_wall(),
                     Some(&events.state),
                 );
@@ -1592,7 +1590,6 @@ where
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            can_prove_non_bot(session),
             crate::rt::now_wall(),
             Some(session.state()),
             Some(&events.state),
@@ -1643,7 +1640,6 @@ where
                     session.state().nick().origin(),
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-                    can_prove_non_bot(session),
                     crate::rt::now_wall(),
                     Some(&events.state),
                 );
@@ -1907,13 +1903,6 @@ fn text_target(line: &Line) -> Option<&str> {
     matches!(line.command(), ProtoCommand::Privmsg | ProtoCommand::Notice)
         .then(|| line.param(0))
         .flatten()
-}
-
-fn can_prove_non_bot(session: &Session) -> bool {
-    event::can_prove_non_bot(
-        session.caps().contains_key(&crate::cap::MESSAGE_TAGS),
-        session.isupport().bot_mode().is_some(),
-    )
 }
 
 async fn drain_transmit<S>(

@@ -13,10 +13,6 @@ use papo_proto::{
 
 use crate::{Client, Conversation, Disconnected, ModeAction, ModeChange, ServerTime};
 
-pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
-    message_tags && bot_mode
-}
-
 #[path = "event/channel.rs"]
 mod channel;
 #[path = "event/connection.rs"]
@@ -662,7 +658,6 @@ pub(crate) fn incoming_from_core(
     origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
-    _prove_not_bot: bool,
     received_at: SystemTime,
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> Event {
@@ -1453,7 +1448,6 @@ pub(crate) fn joined_from_line(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-    _prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
@@ -2133,7 +2127,6 @@ pub(crate) fn from_core(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> CoreEvent {
     from_core_with_receipt(
@@ -2141,7 +2134,6 @@ pub(crate) fn from_core(
         casemapping,
         origin,
         account_tag_enabled,
-        prove_not_bot,
         received_at,
         None,
         None,
@@ -2161,7 +2153,6 @@ pub(crate) fn from_core_with_receipt(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-    _prove_not_bot: bool,
     received_at: SystemTime,
     reply_state: Option<&papo_core::State>,
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
@@ -2984,7 +2975,6 @@ mod tests {
             Casemapping::default(),
             crate::Origin::NONE,
             false,
-            false,
             UNIX_EPOCH,
         )
     }
@@ -3281,7 +3271,6 @@ mod tests {
             session.isupport().casemapping(),
             crate::Origin::NONE,
             false,
-            false,
             UNIX_EPOCH,
         ) {
             CoreEvent::Forward(event) => event,
@@ -3289,7 +3278,6 @@ mod tests {
                 line,
                 crate::Origin::NONE,
                 session.isupport(),
-                false,
                 false,
                 UNIX_EPOCH,
                 None,
@@ -3459,7 +3447,6 @@ mod tests {
                 session.isupport().casemapping(),
                 crate::Origin::NONE,
                 false,
-                false,
                 UNIX_EPOCH,
                 Some(session.state()),
                 Some(&shared),
@@ -3469,7 +3456,6 @@ mod tests {
                     line,
                     crate::Origin::NONE,
                     session.isupport(),
-                    false,
                     false,
                     UNIX_EPOCH,
                     Some(&shared),
@@ -3494,7 +3480,6 @@ mod tests {
             session.poll_event().unwrap(),
             session.isupport().casemapping(),
             crate::Origin::NONE,
-            false,
             false,
             UNIX_EPOCH,
             Some(session.state()),
@@ -4354,7 +4339,6 @@ mod tests {
                 session.isupport().casemapping(),
                 crate::Origin::NONE,
                 session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-                false,
                 received_at,
             ) {
                 CoreEvent::Forward(event) => event,
@@ -4363,7 +4347,6 @@ mod tests {
                     crate::Origin::NONE,
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-                    false,
                     received_at,
                     None,
                 ),
@@ -4500,7 +4483,6 @@ mod tests {
                 session.isupport().casemapping(),
                 crate::Origin::NONE,
                 false,
-                false,
                 UNIX_EPOCH,
             ) {
                 CoreEvent::Forward(event) => event,
@@ -4508,7 +4490,6 @@ mod tests {
                     line,
                     crate::Origin::NONE,
                     session.isupport(),
-                    false,
                     false,
                     UNIX_EPOCH,
                     None,
@@ -4595,7 +4576,6 @@ mod tests {
                         Casemapping::default(),
                         crate::Origin::NONE,
                         false,
-                        false,
                         received_at,
                     ) {
                         CoreEvent::Forward(event) => Some(event),
@@ -4642,7 +4622,6 @@ mod tests {
             session.poll_event().expect("typing timeout event"),
             Casemapping::default(),
             crate::Origin::NONE,
-            false,
             false,
             received_at,
         ) else {
@@ -4733,7 +4712,6 @@ mod tests {
             Casemapping::default(),
             crate::Origin::NONE,
             true,
-            false,
             UNIX_EPOCH,
         ) else {
             panic!("event was not forwarded")
@@ -4795,7 +4773,6 @@ mod tests {
             Casemapping::Rfc1459,
             crate::Origin::NONE,
             false,
-            false,
             UNIX_EPOCH,
         ) else {
             panic!("join was not forwarded");
@@ -4824,7 +4801,6 @@ mod tests {
             Casemapping::default(),
             origin,
             true,
-            false,
             UNIX_EPOCH,
         ) else {
             panic!("join was not forwarded");
@@ -4842,7 +4818,6 @@ mod tests {
             Casemapping::default(),
             origin,
             true,
-            false,
             UNIX_EPOCH,
         ) else {
             panic!("part was not forwarded");
@@ -4864,7 +4839,6 @@ mod tests {
             Casemapping::Rfc1459,
             crate::Origin::NONE,
             false,
-            false,
             UNIX_EPOCH,
         ) else {
             panic!("expected queued join");
@@ -4873,7 +4847,6 @@ mod tests {
             session.poll_event().unwrap(),
             Casemapping::Rfc1459,
             crate::Origin::NONE,
-            false,
             false,
             UNIX_EPOCH,
         ) else {
@@ -4891,7 +4864,6 @@ mod tests {
             message,
             crate::Origin::NONE,
             &Isupport::default(),
-            false,
             false,
             UNIX_EPOCH,
             None,
@@ -4914,7 +4886,6 @@ mod tests {
             line,
             crate::Origin::NONE,
             &Isupport::default(),
-            false,
             false,
             UNIX_EPOCH,
             None,
@@ -5006,7 +4977,6 @@ mod tests {
             line,
             crate::Origin::NONE,
             &Isupport::default(),
-            false,
             false,
             UNIX_EPOCH,
             None,
@@ -5472,7 +5442,6 @@ mod tests {
             session.isupport().casemapping(),
             crate::Origin::NONE,
             false,
-            false,
             UNIX_EPOCH,
             Some(session.state()),
             Some(&state),
@@ -5482,7 +5451,6 @@ mod tests {
                 line,
                 crate::Origin::NONE,
                 session.isupport(),
-                false,
                 false,
                 UNIX_EPOCH,
                 Some(&state),
@@ -5712,7 +5680,6 @@ mod tests {
                 session.isupport().casemapping(),
                 crate::Origin::NONE,
                 true,
-                true,
                 UNIX_EPOCH,
             );
             let CoreEvent::Forward(event) = mapped else {
@@ -5743,7 +5710,6 @@ mod tests {
             session.poll_event().expect("join event"),
             Casemapping::default(),
             crate::Origin::NONE,
-            false,
             false,
             received_at,
         );
@@ -6927,7 +6893,6 @@ mod tests {
                 session.isupport().casemapping(),
                 session.state().nick().origin(),
                 false,
-                false,
                 UNIX_EPOCH,
                 Some(session.state()),
                 Some(shared),
@@ -6938,7 +6903,6 @@ mod tests {
                         line,
                         session.state().nick().origin(),
                         session.isupport(),
-                        false,
                         false,
                         UNIX_EPOCH,
                         Some(shared),

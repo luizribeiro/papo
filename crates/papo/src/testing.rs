@@ -35,7 +35,6 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
             session.isupport().casemapping(),
             crate::Origin::NONE,
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            false,
             SystemTime::UNIX_EPOCH,
         );
         let mut observe = |event| {
@@ -53,7 +52,6 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
                     line,
                     crate::Origin::NONE,
                     session.isupport(),
-                    false,
                     false,
                     SystemTime::UNIX_EPOCH,
                     None,
