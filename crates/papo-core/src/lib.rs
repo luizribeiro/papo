@@ -3571,37 +3571,39 @@ struct PendingMarkRead {
 
 #[derive(Debug)]
 struct SentEcho {
-    kind: TextKind,
+    command: Command<'static>,
     target: String,
-    text: String,
+    /// The text of a message, or the msgid a `REDACT` names.
+    subject: String,
     reply: Option<Line>,
 }
 
 impl SentEcho {
-    fn new(kind: TextKind, target: &str, text: &str) -> Self {
+    fn new(command: Command<'static>, target: &str, subject: &str) -> Self {
         Self {
-            kind,
+            command,
             target: target.to_owned(),
-            text: text.to_owned(),
+            subject: subject.to_owned(),
             reply: None,
         }
     }
 
     fn from_message(message: &LineRef<'_>) -> Option<Self> {
-        let kind = match message.command() {
-            Command::Privmsg => TextKind::Privmsg,
-            Command::Notice => TextKind::Notice,
+        let command = match message.command() {
+            Command::Privmsg => Command::Privmsg,
+            Command::Notice => Command::Notice,
+            Command::Redact => Command::Redact,
             _ => return None,
         };
-        Some(Self::new(kind, message.param(0)?, message.param(1)?))
+        Some(Self::new(command, message.param(0)?, message.param(1)?))
     }
 
     fn matches(&self, message: &LineRef<'_>, mapping: Casemapping) -> bool {
-        message.command_is(self.kind.command())
+        message.command() == self.command
             && message
                 .param(0)
                 .is_some_and(|target| names_equal(mapping, target, &self.target))
-            && message.param(1) == Some(self.text.as_str())
+            && message.param(1) == Some(self.subject.as_str())
     }
 }
 
@@ -4746,7 +4748,7 @@ impl Session {
                     sent: true,
                     feature: None,
                     emit_events: false,
-                    echo: Some(SentEcho::new(kind, target, text)),
+                    echo: Some(SentEcho::new(Command::parse(kind.command()), target, text)),
                 },
             );
         }
@@ -6954,6 +6956,30 @@ mod tests {
             assert!(!echo.matches(&mismatch.as_ref(), Casemapping::Rfc1459));
         }
         assert!(SentEcho::from_message(&Line::new("PING").param("irc.example").as_ref()).is_none());
+    }
+
+    #[test]
+    fn sent_echo_matches_a_redaction_by_target_and_msgid() {
+        let echo = SentEcho::from_message(
+            &Line::new("REDACT")
+                .with_params(["#Papo", "b56bhkz4gmj7ig2jeg9hs7d2cs", "superseded"])
+                .as_ref(),
+        )
+        .unwrap();
+        assert!(
+            echo.matches(
+                &Line::new("REDACT")
+                    .with_params(["#papo", "b56bhkz4gmj7ig2jeg9hs7d2cs"])
+                    .as_ref(),
+                Casemapping::Ascii,
+            )
+        );
+        for mismatch in [
+            Line::privmsg("#papo", "b56bhkz4gmj7ig2jeg9hs7d2cs"),
+            Line::new("REDACT").with_params(["#papo", "kcq8m7mfjjd2vde7gcqaxxe2se"]),
+        ] {
+            assert!(!echo.matches(&mismatch.as_ref(), Casemapping::Ascii));
+        }
     }
 
     fn session_with_channel_modes() -> Session {
