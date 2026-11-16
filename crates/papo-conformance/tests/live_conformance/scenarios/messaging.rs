@@ -843,7 +843,7 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
 fn assert_confirmed_as_seen(
     outcome: &papo::ReactOutcome,
     seen: &papo::event::Reacted,
-    channel: &str,
+    target: &str,
 ) {
     let confirmed = match &outcome.confirmation {
         papo::Confirmation::Confirmed { msgid, .. } => Some(msgid),
@@ -857,7 +857,7 @@ fn assert_confirmed_as_seen(
     assert_eq!(outcome.status, None);
     assert_eq!(
         conversation_name(&outcome.conversation),
-        Some(channel.to_owned())
+        Some(target.to_owned())
     );
 }
 
@@ -927,6 +927,47 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(removed.reacts_to, original_id);
     assert_eq!(removed.reaction, "👍");
     assert_eq!(removed.action, papo::event::ReactionAction::Removed);
+    Ok(())
+}
+
+/// a private reaction to an away user is confirmed by its echo
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags"]),
+    covers = ["tag.react.private-to-away-user"]
+)]
+async fn private_reaction_to_away_user(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let bob_nick = bob.snapshot().nick().to_string();
+    let alice_direct = bob.query(alice.snapshot().nick().as_str())?;
+    bob.privmsg(&alice_direct, "the build is green again")
+        .await?;
+    let original = alice
+        .wait_for(|event| message_text(event, "the build is green again"))
+        .await?;
+    bob.set_away("out for lunch until 14:00").await?;
+    assert!(matches!(bob.snapshot().away(), papo::Away::Away { .. }));
+
+    let reacted = match alice.react(&original, "👍").await {
+        Ok(reacted) => reacted,
+        Err(Error::Unsupported(unsupported))
+            if unsupported.feature == Feature::Reactions
+                && unsupported.reason == UnsupportedReason::TagDenied =>
+        {
+            return s.skip("server denies the reaction tag");
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let seen = bob.wait_for(Event::as_reacted).await?;
+    assert!(
+        matches!(reacted.confirmation, papo::Confirmation::Confirmed { .. }),
+        "the echo confirms a reaction to an away user: {reacted:?}"
+    );
+    assert_confirmed_as_seen(&reacted, &seen, &bob_nick);
+    assert_eq!(
+        seen.reacts_to,
+        *original.msgid().expect("message has an identifier")
+    );
     Ok(())
 }
 
