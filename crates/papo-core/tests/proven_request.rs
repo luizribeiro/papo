@@ -33,7 +33,9 @@ fn person_request_retargets_the_proven_user() {
     let nick = session.state().casemapping().nick("alice");
     let account = Account::LoggedIn(session.state().casemapping().account("alice-account"));
     let row = Line::new("354").with_params(["papo", "alice", "alice-account"]);
-    let proof = session.__prove_who_user(nick, account, &[row]).unwrap();
+    let proof = session
+        .__prove_who_user(nick, account.name(), &[row])
+        .unwrap();
     let command = PersonCommand::__new(Line::new("WHOIS").param("template")).unwrap();
     session.request_person(now, proof, command).unwrap();
     server(&mut session, ":alice!a@alice.example NICK alicia");
@@ -66,7 +68,7 @@ fn who_proof_does_not_mark_user_monitored() {
     let proof = session
         .__prove_who_user(
             nick,
-            account,
+            account.name(),
             &[Line::new("354").with_params(["papo", "alice", "alice-account"])],
         )
         .unwrap();
@@ -118,7 +120,7 @@ fn proven_non_target_parameter_rewrites_or_fails_closed() {
         let proof = session
             .__prove_who_user(
                 session.state().casemapping().nick("alice"),
-                Account::LoggedIn(session.state().casemapping().account("alice-account")),
+                Some(&session.state().casemapping().account("alice-account")),
                 &[Line::new("354").with_params(["papo", "alice", "alice-account"])],
             )
             .unwrap();

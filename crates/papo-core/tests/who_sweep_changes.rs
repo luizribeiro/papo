@@ -160,7 +160,7 @@ fn renaming_onto_a_who_proven_nick_mid_sweep_ends_the_proof_and_skips_both_rows(
             let row = papo_proto::Line::new("354").with_params(["bob", "carol", "carol"]);
             proof = Some(
                 session
-                    .__prove_who_user(carol.clone(), logged_in("carol"), &[row])
+                    .__prove_who_user(carol.clone(), logged_in("carol").name(), &[row])
                     .unwrap(),
             );
         })

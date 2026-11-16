@@ -28,14 +28,9 @@ pub(crate) async fn prove(
             Some(papo_core::ResponseMatcher::Who(nick.to_string())),
         )
         .await?;
-    let account = who_account(client, nick.as_str(), &response)?;
-    if handle.is_unproven_history() && !matches!(handle.account(), crate::Account::LoggedIn(_)) {
-        return Err(crate::Error::TargetGone);
-    }
-    if let (crate::Account::LoggedIn(expected), crate::Account::LoggedIn(actual)) =
-        (handle.account(), &account)
-        && expected != actual
-    {
+    who_account(client, nick.as_str(), &response)?;
+    let expected_account = handle.account().name().cloned();
+    if handle.is_unproven_history() && expected_account.is_none() {
         return Err(crate::Error::TargetGone);
     }
     let (result, receiver) = tokio::sync::oneshot::channel();
@@ -43,7 +38,7 @@ pub(crate) async fn prove(
         .commands
         .send(crate::driver::Command::ProveUser {
             nick: nick.clone(),
-            account,
+            expected_account,
             lines: response.lines,
             result,
         })
@@ -291,15 +286,17 @@ mod tests {
         result.send(Ok(response)).unwrap();
         let crate::driver::Command::ProveUser {
             nick,
-            account: actual,
+            expected_account,
             lines,
             result,
         } = next_command(&mut commands).await
         else {
             panic!("expected user proof")
         };
-        assert_eq!(actual, account);
-        let proof = session.__prove_who_user(nick, actual, &lines).unwrap();
+        assert_eq!(expected_account.as_ref(), account.name());
+        let proof = session
+            .__prove_who_user(nick, expected_account.as_ref(), &lines)
+            .unwrap();
         result.send(Ok(proof)).unwrap();
         assert!(matches!(
             next_command(&mut commands).await,

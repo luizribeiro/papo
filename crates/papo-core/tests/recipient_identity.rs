@@ -196,7 +196,7 @@ fn who_proof_rejects_a_foreign_nickname() {
 
     assert_eq!(
         session
-            .__prove_who_user(foreign_nick, account, &[row])
+            .__prove_who_user(foreign_nick, account.name(), &[row])
             .unwrap_err(),
         ProofFailure::ForeignReference
     );
@@ -215,7 +215,7 @@ fn who_proof_rejects_another_users_row() {
 
     assert_eq!(
         session
-            .__prove_who_user(nick, account, &[mallory_row])
+            .__prove_who_user(nick, account.name(), &[mallory_row])
             .unwrap_err(),
         ProofFailure::MissingEvidence
     );

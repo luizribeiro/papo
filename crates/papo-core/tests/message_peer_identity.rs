@@ -256,7 +256,7 @@ fn prove_logged_in_bob(session: &mut Session) -> papo_core::Proven {
     session
         .__prove_who_user(
             names.nick("bob"),
-            bob,
+            bob.name(),
             &[papo_proto::Line::new("354").with_params(["papo-admin", "bob", "bob"])],
         )
         .unwrap()
@@ -371,7 +371,7 @@ fn a_logged_out_who_proven_peer_keeps_the_proof_through_their_first_reply() {
     let proof = session
         .__prove_who_user(
             names.nick("bob"),
-            Account::LoggedOut,
+            None,
             &[papo_proto::Line::new("354").with_params(["papo-admin", "bob", "0"])],
         )
         .unwrap();

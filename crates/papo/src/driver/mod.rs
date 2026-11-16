@@ -184,7 +184,7 @@ pub(crate) enum Command {
     },
     ProveUser {
         nick: crate::Nick,
-        account: crate::Account,
+        expected_account: Option<crate::AccountName>,
         lines: Vec<Line>,
         result: oneshot::Sender<Result<papo_core::Proven, Error>>,
     },
@@ -1256,9 +1256,9 @@ where
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
-                Some(Command::ProveUser { nick, account, lines, result }) => {
+                Some(Command::ProveUser { nick, expected_account, lines, result }) => {
                     let proof = session
-                        .__prove_who_user(nick, account, &lines)
+                        .__prove_who_user(nick, expected_account.as_ref(), &lines)
                         .map_err(crate::identity::map_failure);
                     publish_session_state(events, session);
                     _ = result.send(proof);

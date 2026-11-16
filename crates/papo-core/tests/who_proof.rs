@@ -35,7 +35,7 @@ fn prove(session: &mut Session, nick: &str, account: &str) -> Result<Proven, Pro
     };
     session.__prove_who_user(
         casemapping.nick(nick),
-        expected,
+        expected.name(),
         &[Line::new("354").with_params(["papo", nick, account])],
     )
 }
@@ -118,7 +118,7 @@ fn who_rows_match_the_requested_nick_under_the_session_casemapping() {
         );
         let proof = session.__prove_who_user(
             casemapping_rules.nick(asked),
-            Account::LoggedIn(casemapping_rules.account("bot-account")),
+            Some(&casemapping_rules.account("bot-account")),
             &[row],
         );
         assert_eq!(proof.is_ok(), matches, "{casemapping}: proof of {asked}");
@@ -175,5 +175,39 @@ fn a_who_proof_ends_when_papo_sees_its_nick_change_hands() {
             Some("alice"),
             "{name}"
         );
+    }
+}
+
+#[test]
+fn who_proof_for_an_expected_account_needs_a_row_showing_exactly_that_account() {
+    for (row, expected) in [
+        (":ergo.test 354 papo alice alice-account", Ok(())),
+        (":ergo.test 354 papo Alice Alice-Account", Ok(())),
+        (
+            ":ergo.test 354 papo alice 0",
+            Err(ProofFailure::IdentityChanged),
+        ),
+        (
+            ":ergo.test 354 papo alice mallory-account",
+            Err(ProofFailure::IdentityChanged),
+        ),
+        (
+            ":ergo.test 354 papo alice",
+            Err(ProofFailure::MissingEvidence),
+        ),
+        (
+            ":ergo.test 352 papo * ~alice cloak.example ergo.test alice H :0 Alice",
+            Err(ProofFailure::MissingEvidence),
+        ),
+    ] {
+        let mut session = registered();
+        let casemapping = session.state().casemapping();
+        let line = papo_proto::LineRef::parse(row).unwrap().to_owned();
+        let proof = session.__prove_who_user(
+            casemapping.nick("alice"),
+            Some(&casemapping.account("alice-account")),
+            &[line],
+        );
+        assert_eq!(proof.map(drop), expected, "{row}");
     }
 }
