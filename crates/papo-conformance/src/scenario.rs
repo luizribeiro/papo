@@ -32,6 +32,12 @@ impl Scenario {
         &self.wire_log
     }
 
+    /// Renders the wire log that a failure of this scenario would print.
+    #[must_use]
+    pub fn rendered_wire_log(&self) -> String {
+        self.wire_log.render()
+    }
+
     /// Configures a client with a unique nickname derived from `label`.
     ///
     /// # Errors
