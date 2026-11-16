@@ -253,6 +253,9 @@ impl Isupport {
             if changed {
                 self.generation = self.generation.wrapping_add(1);
             }
+            if self.__advertised_casemapping().is_some() {
+                self.fallback = self.casemapping();
+            }
         }
     }
 
@@ -310,7 +313,7 @@ impl Isupport {
     /// Returns the server's name casemapping.
     ///
     /// Without a `CASEMAPPING` token this is the protocol default, RFC 1459, unless the rules
-    /// were seeded. A token whose rules papo doesn't know yields [`Ascii`](Casemapping::Ascii):
+    /// were seeded or an earlier token has since been withdrawn, in which case those rules stay. A token whose rules papo doesn't know yields [`Ascii`](Casemapping::Ascii):
     /// every known casemapping folds at least ASCII letters, so the narrowest folding never treats
     /// two of the server's distinct names as one.
     #[must_use]

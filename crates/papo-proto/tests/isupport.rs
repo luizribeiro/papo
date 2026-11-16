@@ -183,8 +183,6 @@ fn selects_the_advertised_casemapping_with_the_protocol_default() {
     assert_eq!(support.casemapping(), Casemapping::Ascii);
     support.apply_tokens(["CASEMAPPING=rfc1459-strict"]);
     assert_eq!(support.casemapping(), Casemapping::Rfc1459Strict);
-    support.apply_tokens(["-CASEMAPPING"]);
-    assert_eq!(support.casemapping(), Casemapping::Rfc1459);
 }
 
 #[test]
@@ -196,6 +194,16 @@ fn seeded_rules_apply_only_while_the_server_advertises_none() {
     assert_eq!(support.casemapping(), Casemapping::Ascii);
     support.apply_tokens(["CASEMAPPING=rfc1459"]);
     assert_eq!(support.casemapping(), Casemapping::Rfc1459);
+}
+
+#[test]
+fn a_withdrawn_casemapping_keeps_its_rules() {
+    let mut support = Isupport::default();
+    support.apply_tokens(["CASEMAPPING=rfc8265"]);
+    support.apply_tokens(["-CASEMAPPING"]);
+    assert_eq!(support.casemapping(), Casemapping::Ascii);
+    support.apply_tokens(["CASEMAPPING=rfc1459-strict", "-CASEMAPPING"]);
+    assert_eq!(support.casemapping(), Casemapping::Rfc1459Strict);
 }
 
 #[test]
