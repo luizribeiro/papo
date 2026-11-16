@@ -5,6 +5,17 @@ use super::{
 };
 
 impl State {
+    /// Returns the identity of the current holder of the nickname a `RPL_WHOISUSER`,
+    /// `RPL_WHOREPLY` or WHOX row describes.
+    pub(crate) fn who_subject_token(&self, message: &LineRef<'_>) -> Option<crate::ReplyToken> {
+        let nick = match message.command() {
+            Command::Numeric(Numeric::RPL_WHOISUSER) => message.param(1),
+            Command::Numeric(Numeric::RPL_WHOREPLY) => message.param(5),
+            _ => WhoxReply::parse(message, WHOX_FIELDS).and_then(|reply| reply.nick),
+        }?;
+        Some(self.__reply_token_for(nick))
+    }
+
     /// Returns the account a WHOX `%na` reply lists for `nick`, matching the row's nickname under
     /// the session's casemapping, or `None` when no row names `nick`.
     #[doc(hidden)]

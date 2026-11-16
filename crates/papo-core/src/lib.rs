@@ -1781,6 +1781,7 @@ struct UnlabelledRequest {
     fence: Option<String>,
     deferred: Option<WireLine>,
     lines: bounded::BoundedCollection<Line>,
+    subject_tokens: Vec<(usize, ReplyToken)>,
 }
 
 #[derive(Clone, Debug)]
@@ -1828,6 +1829,7 @@ pub struct Response {
     pub state_limit: Option<StateLimit>,
     sent: Option<SentInfo>,
     enabled_features: BTreeSet<Feature>,
+    subject_tokens: Vec<(usize, ReplyToken)>,
 }
 
 impl Response {
@@ -1835,6 +1837,16 @@ impl Response {
     #[must_use]
     pub fn sent(&self) -> Option<SentInfo> {
         self.sent.clone()
+    }
+
+    /// Returns the identity of the person the `WHO` or `WHOIS` row at `line` describes, recorded
+    /// when that row arrived, so a later holder of the nickname is never adopted.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __subject_token(&self, line: usize) -> Option<ReplyToken> {
+        self.subject_tokens
+            .iter()
+            .find_map(|(index, token)| (*index == line).then_some(*token))
     }
 
     /// Returns the first standard failure or error numeric in this response.
@@ -6651,6 +6663,7 @@ impl Session {
                 mode_list: None,
                 state_limit: None,
                 enabled_features,
+                subject_tokens: Vec::new(),
             }));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_line(message, None);
@@ -7126,6 +7139,7 @@ mod tests {
                 fence: None,
                 deferred: None,
                 lines: crate::bounded::BoundedCollection::new(1_000),
+                subject_tokens: Vec::new(),
             },
             UnlabelledRequest {
                 id: RequestId(42),
@@ -7138,6 +7152,7 @@ mod tests {
                 fence: None,
                 deferred: None,
                 lines: crate::bounded::BoundedCollection::new(1_000),
+                subject_tokens: Vec::new(),
             },
         ]);
 

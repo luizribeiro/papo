@@ -1,7 +1,7 @@
 use crate::{
     Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, PendingRequest,
-    RequestError, RequestId, Response, ResponseBoundary, ResponseMatcher, SentEcho, Session,
-    UnlabelledRequest, WireLine, cap, parse_whois_channels, sent_info,
+    ReplyToken, RequestError, RequestId, Response, ResponseBoundary, ResponseMatcher, SentEcho,
+    Session, UnlabelledRequest, WireLine, cap, parse_whois_channels, sent_info,
 };
 
 impl UnlabelledRequest {
@@ -10,15 +10,21 @@ impl UnlabelledRequest {
         message: &LineRef<'_>,
         complete: bool,
         max_list_entries: usize,
+        subject: Option<ReplyToken>,
     ) -> bool {
         if self.boundary.is_framing(message) {
             return false;
         }
-        self.list_rows_full(message, max_list_entries)
+        let index = self.lines.as_slice().len();
+        let overflow = self.list_rows_full(message, max_list_entries)
             || self
                 .lines
                 .push_reject_unless_last(message.to_owned(), complete)
-                .is_err()
+                .is_err();
+        if !overflow && let Some(token) = subject {
+            self.subject_tokens.push((index, token));
+        }
+        overflow
     }
 
     fn list_rows_full(&self, message: &LineRef<'_>, maximum: usize) -> bool {
@@ -87,6 +93,7 @@ impl Session {
                 mode_list: None,
                 state_limit: None,
                 enabled_features,
+                subject_tokens: Vec::new(),
             }));
         }
         Some(true)
@@ -132,6 +139,7 @@ impl Session {
             mode_list: None,
             state_limit: None,
             enabled_features,
+            subject_tokens: Vec::new(),
         }));
         true
     }
@@ -240,11 +248,12 @@ impl Session {
             return false;
         };
         let max_list_entries = self.config.max_list_entries_per_mode;
+        let subject = self.state.who_subject_token(message);
         let request = self.unlabelled_requests.get_mut(index).unwrap();
         if join_started {
             request.started = Some(now);
         }
-        if request.push_or_overflow(message, complete, max_list_entries) {
+        if request.push_or_overflow(message, complete, max_list_entries, subject) {
             let id = request.id;
             self.finish_truncated(id);
             return true;
@@ -265,6 +274,7 @@ impl Session {
                 mode_list: None,
                 state_limit: None,
                 enabled_features,
+                subject_tokens: request.subject_tokens,
             };
             if let Some(matcher) = request.boundary.matcher() {
                 self.finish_mode_list_response(matcher, &mut response);
@@ -306,6 +316,7 @@ impl Session {
             mode_list: None,
             state_limit: Some(crate::StateLimit::ListEntries),
             enabled_features,
+            subject_tokens: Vec::new(),
         }));
     }
 
@@ -401,6 +412,7 @@ impl Session {
             fence,
             deferred,
             lines: crate::bounded::BoundedCollection::new(row_limit),
+            subject_tokens: Vec::new(),
         });
     }
 

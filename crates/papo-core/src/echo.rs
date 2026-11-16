@@ -103,6 +103,7 @@ impl Session {
             mode_list: None,
             state_limit: None,
             enabled_features,
+            subject_tokens: Vec::new(),
         }));
     }
 
