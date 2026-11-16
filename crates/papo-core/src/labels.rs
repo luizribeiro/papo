@@ -1,7 +1,7 @@
 use crate::{
     Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, PendingRequest,
-    RequestError, RequestId, Response, ResponseMatcher, SentEcho, Session, UnlabelledRequest, cap,
-    parse_whois_channels, sent_info,
+    RequestError, RequestId, Response, ResponseBoundary, ResponseMatcher, SentEcho, Session,
+    UnlabelledRequest, WireLine, cap, parse_whois_channels, sent_info,
 };
 
 impl UnlabelledRequest {
@@ -382,6 +382,28 @@ impl Session {
 }
 
 impl Session {
+    pub(super) fn track_unlabelled(
+        &mut self,
+        id: RequestId,
+        boundary: ResponseBoundary,
+        row_limit: usize,
+        fence: Option<String>,
+        deferred: Option<WireLine>,
+    ) {
+        let channel_join = boundary
+            .matcher()
+            .and_then(|matcher| self.channel_join_reservation(matcher));
+        self.unlabelled_requests.push_back(UnlabelledRequest {
+            id,
+            started: None,
+            boundary,
+            channel_join,
+            fence,
+            deferred,
+            lines: crate::bounded::BoundedCollection::new(row_limit),
+        });
+    }
+
     pub(super) fn queue_request(
         &mut self,
         now: Instant,

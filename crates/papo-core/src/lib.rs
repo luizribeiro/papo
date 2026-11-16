@@ -4977,17 +4977,7 @@ impl Session {
                 self.away_messages.insert(id, message);
             }
             if track_sync {
-                let channel_join =
-                    matcher.and_then(|matcher| self.channel_join_reservation(matcher));
-                self.unlabelled_requests.push_back(UnlabelledRequest {
-                    id,
-                    started: None,
-                    boundary,
-                    channel_join,
-                    fence: None,
-                    deferred: None,
-                    lines: bounded::BoundedCollection::new(response_row_limit),
-                });
+                self.track_unlabelled(id, boundary, response_row_limit, None, None);
             }
             if let Some(channel) = who_sweep {
                 self.state.track_who(&channel);
@@ -5021,16 +5011,7 @@ impl Session {
             self.outbox.transmit_ordered(ping, Some(*request));
         }
         let deferred = who_fence.is_some().then(|| line.clone());
-        let channel_join = matcher.and_then(|matcher| self.channel_join_reservation(matcher));
-        self.unlabelled_requests.push_back(UnlabelledRequest {
-            id,
-            started: None,
-            boundary,
-            channel_join,
-            fence: fence.clone(),
-            deferred,
-            lines: bounded::BoundedCollection::new(response_row_limit),
-        });
+        self.track_unlabelled(id, boundary, response_row_limit, fence.clone(), deferred);
         if let Some(message) = away_message {
             self.away_messages.insert(id, message);
         }
