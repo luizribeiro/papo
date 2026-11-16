@@ -72,22 +72,20 @@ pub(crate) fn from_line(
             _ => return None,
         },
     };
-    Some(Source::User(crate::UserHandle::from_parts(
+    Some(Source::User(crate::UserHandle::from_past_line(
         origin.__nick(casemapping, nick),
         envelope.account.clone(),
-        None,
-        None,
     )))
 }
 
 pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
     match source {
-        papo_core::Source::User { nick, .. } => Some(Source::User(crate::UserHandle::from_parts(
-            origin.__nick(nick.casemapping(), nick.as_str()),
-            Account::Unknown,
-            None,
-            None,
-        ))),
+        papo_core::Source::User { nick, .. } => {
+            Some(Source::User(crate::UserHandle::from_past_line(
+                origin.__nick(nick.casemapping(), nick.as_str()),
+                Account::Unknown,
+            )))
+        }
         papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
         _ => None,
     }
@@ -114,5 +112,49 @@ mod tests {
         assert_eq!(bare.user().unwrap().to_string(), "ChanServ");
         assert_eq!(bare.to_string(), "ChanServ");
         assert_eq!(server.to_string(), "irc.example.net");
+    }
+
+    #[test]
+    fn every_user_named_by_a_line_prefix_is_historical() {
+        let mapping = Casemapping::Rfc1459;
+        let origin = crate::Origin::NONE;
+        let envelope = super::super::EventEnvelope {
+            msgid: None,
+            server_time: None,
+            received_at: std::time::SystemTime::UNIX_EPOCH,
+            account: crate::Account::LoggedIn(origin.__account(mapping, "alice-account")),
+        };
+        let core = || {
+            papo_core::Source::from_proto(
+                papo_proto::Source::__user("alice", Some("~alice"), Some("cloak.example")),
+                mapping,
+            )
+        };
+        let sources = [
+            super::from_line(
+                super::LinePrefix::Raw("alice!~alice@cloak.example"),
+                &envelope,
+                mapping,
+                origin,
+            ),
+            super::from_line(super::LinePrefix::Core(core()), &envelope, mapping, origin),
+            super::from_core(core(), origin),
+        ];
+        for source in sources {
+            let user = source.as_ref().and_then(super::Source::user).unwrap();
+            assert_eq!(user.nick().as_str(), "alice");
+            assert!(user.is_unproven_history(), "{source:?}");
+        }
+
+        let server = super::from_line(
+            super::LinePrefix::Raw("ergo.test"),
+            &envelope,
+            mapping,
+            origin,
+        );
+        assert_eq!(
+            server.map(|source| source.to_string()).as_deref(),
+            Some("ergo.test")
+        );
     }
 }

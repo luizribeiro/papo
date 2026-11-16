@@ -72,6 +72,11 @@ impl ModeListEntry {
     }
 
     /// Returns the actor that set the entry, when reported.
+    ///
+    /// The server names the setter as they were when the entry was set, which can be long ago,
+    /// so a user here is a past name and a send through it fails with
+    /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, open a handle
+    /// with [`crate::Client::query`].
     #[must_use]
     pub const fn actor(&self) -> Option<&crate::Source> {
         self.actor.as_ref()
@@ -134,6 +139,11 @@ impl Channel {
     }
 
     /// Returns who set the current topic when known.
+    ///
+    /// The server names the setter as they were when the topic was set, which can be long ago,
+    /// so a user here is a past name and a send through it fails with
+    /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, open a handle
+    /// with [`crate::Client::query`].
     #[must_use]
     pub const fn topic_set_by(&self) -> Option<&crate::Source> {
         self.topic_set_by.as_ref()
@@ -860,6 +870,42 @@ mod name_tests {
                 .nick()
                 .is_some_and(|nick| nick.as_str() == expected.as_str())
         );
+    }
+
+    #[test]
+    fn stored_topic_and_list_setters_are_historical() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b":papo!~papo@localhost JOIN #release");
+        session.handle_line(
+            now,
+            b":ergo.test 333 papo #release alice!~alice@cloak.example 1700000000",
+        );
+        session
+            .request_with_matcher(
+                now,
+                crate::Line::new("MODE").with_params(["#release", "b"]),
+                papo_core::ResponseMatcher::__list_mode("#release".into(), crate::ListMode::Ban),
+            )
+            .unwrap();
+        for line in [
+            ":ergo.test 367 papo #release *!*@spam.example bob!~bob@cloak.example 1700000000",
+            ":ergo.test 368 papo #release :End of channel ban list",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+
+        let state = State::from_session(&session, true);
+        let channel = &state.channels[0];
+        let ban = channel.list(crate::ListMode::Ban).and_then(<[_]>::first);
+        for (setter, nick) in [
+            (channel.topic_set_by(), "alice"),
+            (ban.and_then(super::ModeListEntry::actor), "bob"),
+        ] {
+            let user = setter.and_then(crate::Source::user).unwrap();
+            assert_eq!(user.nick().as_str(), nick);
+            assert!(user.is_unproven_history(), "{nick}");
+        }
     }
 
     #[test]

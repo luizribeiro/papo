@@ -200,6 +200,13 @@ impl UserHandle {
         Self::from_parts_kind(nick, account, proof, state, false)
     }
 
+    /// Builds the handle for a person a line names in the past: an archived line, a topic
+    /// setter, or the setter of a list-mode entry. papo never saw that line's sender live, so a
+    /// send through it is refused unless the line named an account the current holder proves.
+    pub(crate) fn from_past_line(nick: crate::Nick, account: crate::Account) -> Self {
+        Self::from_parts_kind(nick, account, None, None, true)
+    }
+
     fn from_parts_kind(
         nick: crate::Nick,
         account: crate::Account,
