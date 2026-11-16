@@ -17,12 +17,22 @@ impl Session {
     }
 }
 
+impl crate::SentEcho {
+    /// Whether `message` is held until the line that completes its response arrives.
+    pub(super) fn holds(&self, message: &LineRef<'_>) -> bool {
+        match self.command {
+            // Ergo sends a REDACT echo outside the labelled response, so its ACK may come first.
+            Command::Redact => message.command_is("ACK") && self.reply.is_none(),
+            _ => message.command() == Command::Numeric(Numeric::RPL_AWAY),
+        }
+    }
+}
+
 impl Session {
     /// Ties an unlabelled echo of our `REDACT` to the pending request that sent it.
     ///
     /// A message is redacted only once, so the echo from our nick naming its target and msgid is
-    /// the one our request caused, unless our request then fails. The `ACK` that ends the request
-    /// reads the identity from it.
+    /// the one our request caused, unless our request then fails.
     pub(super) fn observe_redaction_echo(&mut self, message: &LineRef<'_>) {
         if message.command() != Command::Redact
             || message.tag("label").is_some()
@@ -35,10 +45,13 @@ impl Session {
             .requests
             .iter()
             .filter(|(_, request)| {
-                request
-                    .echo
-                    .as_ref()
-                    .is_some_and(|echo| echo.matches(message, mapping) && echo.reply.is_none())
+                request.echo.as_ref().is_some_and(|echo| {
+                    echo.matches(message, mapping)
+                        && echo
+                            .reply
+                            .as_ref()
+                            .is_none_or(|reply| reply.as_ref().command_is("ACK"))
+                })
             })
             .min_by_key(|(_, request)| request.id)
         else {
@@ -50,7 +63,26 @@ impl Session {
             .get_mut(&label)
             .and_then(|request| request.echo.as_mut())
             .expect("the request was found by its echo");
-        echo.reply = Some(message.to_owned());
+        if echo.reply.is_none() {
+            echo.reply = Some(message.to_owned());
+            return;
+        }
+        let request = self
+            .requests
+            .remove(&label)
+            .expect("the request was just found");
+        let enabled_features = self.supported_features();
+        self.outbox.event(Event::Response(crate::Response {
+            id: request.id,
+            sent: crate::sent_info(message),
+            lines: vec![message.to_owned()],
+            history: None,
+            history_targets: None,
+            whois_channels: Vec::new(),
+            mode_list: None,
+            state_limit: None,
+            enabled_features,
+        }));
     }
 
     pub(super) fn is_own_source(&self, message: &LineRef<'_>) -> bool {

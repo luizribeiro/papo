@@ -38,10 +38,10 @@ impl Session {
             .tag("label")
             .map(std::borrow::Cow::into_owned)
             .or_else(|| self.pending_sent_label(message))?;
-        if message.command() == Command::Numeric(Numeric::RPL_AWAY)
-            && let Some(request) = self.requests.get_mut(&label)
+        if let Some(request) = self.requests.get_mut(&label)
             && request.sent
             && let Some(echo) = &mut request.echo
+            && echo.holds(message)
         {
             echo.reply = Some(message.to_owned());
             return Some(false);
