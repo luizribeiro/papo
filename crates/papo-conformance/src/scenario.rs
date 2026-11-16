@@ -5,7 +5,7 @@ use papo_test_server::{ServerInfo, create_account, unique};
 
 use papo_testing::{Error, Result, skipped};
 
-use crate::Peer;
+use crate::{Peer, wire_log::WireLog};
 
 const ACCOUNT_PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
@@ -14,6 +14,7 @@ const ACCOUNT_PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 pub struct Scenario {
     server: ServerInfo,
     clients: Arc<Mutex<Vec<Client>>>,
+    wire_log: WireLog,
 }
 
 impl Scenario {
@@ -23,7 +24,12 @@ impl Scenario {
         Self {
             server,
             clients: Arc::new(Mutex::new(Vec::new())),
+            wire_log: WireLog::new(),
         }
+    }
+
+    pub(crate) fn wire_log(&self) -> &WireLog {
+        &self.wire_log
     }
 
     /// Configures a client with a unique nickname derived from `label`.
@@ -189,13 +195,20 @@ impl Scenario {
         Ok(builder)
     }
 
-    /// Connects and retains a client configured by the caller.
+    /// Connects and retains a client configured by the caller, recording its wire lines.
     ///
     /// # Errors
     ///
     /// Returns the client's connection failure.
     pub async fn connect_with(&self, builder: Builder) -> Result<Peer> {
-        let (client, events) = builder.connect().await?;
+        let index = self.wire_log.add_client();
+        let log = self.wire_log.clone();
+        let (client, events) = papo::__testing::wrapped::connect_wrapped(builder, move |stream| {
+            log.tap(index, stream)
+        })
+        .await?;
+        self.wire_log
+            .rename(index, client.snapshot().nick().as_str());
         self.clients
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
