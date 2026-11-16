@@ -168,4 +168,5 @@ ids = [
   "security.d7.away-reconnect",
   "security.h12.catchup-progress",
   "security.who-sweep.stale-row-identity",
+  "security.kick.foreign-echo-confirmation",
 ]

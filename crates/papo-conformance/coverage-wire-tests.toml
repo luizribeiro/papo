@@ -226,6 +226,9 @@
 "security::repeated_completed_children_hit_the_parent_batch_limit" = [
   "security.batch.completed-child-bound",
 ]
+"kick_confirmation::another_operators_kick_never_confirms_ours" = [
+  "security.kick.foreign-echo-confirmation",
+]
 "who_sweep::a_nick_taker_never_inherits_the_previous_holders_account_or_rank" = [
   "security.who-sweep.stale-row-identity",
 ]
