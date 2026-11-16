@@ -319,8 +319,13 @@
           clippy = cargoHook {
             name = "clippy-hook";
             text = ''
-              cargo clippy --workspace --all-targets --locked -- -W clippy::pedantic -D warnings
-              cargo clippy --workspace --all-targets --all-features --locked -- -W clippy::pedantic -D warnings
+              run_clippy() {
+                cargo clippy "$@" --all-targets --locked -- -W clippy::pedantic -D warnings
+              }
+              run_clippy --workspace
+              # The workspace run unifies the unstable features papo-testing and papo-conformance enable.
+              run_clippy -p papo -p papo-core -p papo-proto
+              run_clippy --workspace --all-features
             '';
           };
           wasi-checks = cargoHook {
