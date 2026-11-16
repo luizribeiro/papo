@@ -7,9 +7,12 @@ use super::{EventSink, PostConnect, now};
 use crate::{Client, Event};
 use papo_core::{HistoryQuery, RequestId, Response, Session};
 
-// A live msgid can only repeat a catchup item while fewer than 1,000 items precede it, and one
+const CATCHUP_ITEM_LIMIT: usize = 1_000;
+const CATCHUP_PAGE_SIZE: usize = 100;
+
+// A live msgid can only repeat a catchup item while fewer than the item limit precede it, and one
 // more page may be in flight when it arrives.
-const LIVE_SEEN_LIMIT: usize = 1_000 + 100;
+const LIVE_SEEN_LIMIT: usize = CATCHUP_ITEM_LIMIT + CATCHUP_PAGE_SIZE;
 
 pub(super) struct Catchup {
     pub(super) target: String,
@@ -79,13 +82,13 @@ pub(super) fn advance_catchup(
     let next = extend_catchup(&mut catchup, page.items);
     if !page_end
         && catchup.items.len() > previous_len
-        && catchup.items.len() < 1_000
+        && catchup.items.len() < CATCHUP_ITEM_LIMIT
         && let Some(next) = next
     {
         let query = HistoryQuery::__after(
             catchup.target.clone(),
             papo_core::MsgRef::Msgid(next),
-            (1_000 - catchup.items.len()).min(100),
+            (CATCHUP_ITEM_LIMIT - catchup.items.len()).min(CATCHUP_PAGE_SIZE),
         );
         if let Ok(id) = session.chathistory(now(), query) {
             catchups.insert(id, catchup);
@@ -159,7 +162,7 @@ pub(super) fn extend_catchup(
         {
             catchup.items.push(item);
         }
-        if catchup.items.len() == 1_000 {
+        if catchup.items.len() == CATCHUP_ITEM_LIMIT {
             break;
         }
     }
@@ -207,7 +210,7 @@ pub(super) fn begin_catchup(
         else {
             continue;
         };
-        let query = HistoryQuery::__after(channel.channel.clone(), after, 100);
+        let query = HistoryQuery::__after(channel.channel.clone(), after, CATCHUP_PAGE_SIZE);
         if let Ok(id) = session.chathistory(now(), query) {
             catchups.insert(
                 id,
