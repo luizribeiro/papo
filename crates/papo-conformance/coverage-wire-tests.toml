@@ -220,3 +220,6 @@
 "security::repeated_completed_children_hit_the_parent_batch_limit" = [
   "security.batch.completed-child-bound",
 ]
+"who_sweep::a_nick_taker_never_inherits_the_previous_holders_account_or_rank" = [
+  "security.who-sweep.stale-row-identity",
+]
