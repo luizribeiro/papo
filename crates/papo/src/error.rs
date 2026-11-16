@@ -1188,6 +1188,15 @@ mod tests {
         }
     }
 
+    fn assert_connect_error_leaf(kind: ConnectErrorKind) {
+        let error = ConnectError::new(kind, io::Error::other("recorded cause"));
+        assert_eq!(error.kind(), kind);
+        assert_eq!(
+            std::error::Error::source(&error).is_none(),
+            super::displays_server_reason(kind)
+        );
+    }
+
     #[test]
     fn every_public_error_leaf_can_be_constructed() {
         for kind in [
@@ -1195,7 +1204,6 @@ mod tests {
             ConnectErrorKind::Refused,
             ConnectErrorKind::Unreachable,
             ConnectErrorKind::TimedOut,
-            ConnectErrorKind::CertificateRejected,
             ConnectErrorKind::HandshakeFailed,
             ConnectErrorKind::Sasl,
             ConnectErrorKind::SaslUnavailable,
@@ -1209,12 +1217,7 @@ mod tests {
             ConnectErrorKind::WelcomeTimedOut,
             ConnectErrorKind::Other,
         ] {
-            let error = ConnectError::new(kind, io::Error::other("recorded cause"));
-            assert_eq!(error.kind(), kind);
-            assert_eq!(
-                std::error::Error::source(&error).is_none(),
-                super::displays_server_reason(kind)
-            );
+            assert_connect_error_leaf(kind);
         }
 
         for cause in [

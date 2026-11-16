@@ -15,3 +15,8 @@ fn late_tls_configuration_errors_do_not_become_other() {
             if message.contains("invalid TLS server name")
     ));
 }
+
+#[test]
+fn certificate_rejection_is_a_constructible_leaf() {
+    assert_connect_error_leaf(ConnectErrorKind::CertificateRejected);
+}
