@@ -206,7 +206,7 @@ fn known_casemapping_still_folds_brackets() {
 fn casemapping_advertisements_set_rules_and_whether_they_are_known() {
     use papo_proto::Casemapping::{Ascii, Rfc1459};
     for (seed, token, rules, known) in [
-        (Some(Ascii), "NETWORK=ErgoTest", Rfc1459, true),
+        (Some(Ascii), "NETWORK=ErgoTest", Ascii, true),
         (None, "NETWORK=ErgoTest", Rfc1459, false),
         (None, "CASEMAPPING", Ascii, false),
         (Some(Rfc1459), "CASEMAPPING", Ascii, false),
@@ -243,4 +243,26 @@ fn a_later_unknown_casemapping_makes_known_rules_unknown() {
         ))
     );
     assert!(!session.__name_rules_known());
+}
+
+#[test]
+fn seeded_rules_decide_who_we_are_before_any_005() {
+    let now = std::time::Instant::now();
+    let seeded = Config::default()
+        .nick("papo[bot]")
+        .casemapping(papo_proto::Casemapping::Ascii);
+    let mut session = Session::new(seeded);
+    session.handle_line(
+        now,
+        b":papo{bot}!~u@3qkv8a5h7d2xw.irc PRIVMSG #release :ship it",
+    );
+    session.handle_line(now, b":PAPO[bot]!~u@papo.irc PRIVMSG #release :shipping");
+
+    let parties: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Line(line) => Some(line.actor_party()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(parties, [papo_core::Party::Other, papo_core::Party::Me]);
 }

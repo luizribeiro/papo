@@ -3998,7 +3998,7 @@ impl Session {
         };
         let secure_credentials_allowed = secure_credentials_allowed(&config, &connection);
         let welcome_state = WelcomeState::new(&config);
-        let isupport = IsupportState::new(config.decoding);
+        let isupport = IsupportState::new(config.decoding, config.casemapping);
         let sasl = SaslSession::new(&config, entropy);
         let rate_limit = RateLimiter::new(config.rate_limit);
         let ctcp_rate_limit = RateLimiter::new(config.ctcp.rate);
@@ -6546,12 +6546,7 @@ impl Session {
     }
 
     fn remember_casemapping(&mut self) {
-        let advertised = self.isupport.value().get("CASEMAPPING");
-        let new = if advertised == papo_proto::Advertised::Absent {
-            self.remembered_casemapping
-        } else {
-            self.isupport.value().casemapping()
-        };
+        let new = self.isupport.value().casemapping();
         self.state.update_isupport(self.isupport.value(), new);
         if self.utf8_casemapping_warning == Utf8CasemappingWarning::Pending
             && matches!(
@@ -6569,11 +6564,8 @@ impl Session {
                 new,
             });
         }
-        if advertised != papo_proto::Advertised::Absent {
-            self.name_rules_known = matches!(
-                advertised,
-                papo_proto::Advertised::Value(value) if value.parse::<Casemapping>().is_ok()
-            );
+        if let Some(advertised) = self.isupport.value().__advertised_casemapping() {
+            self.name_rules_known = advertised.is_ok();
         }
         self.remembered_casemapping = new;
     }

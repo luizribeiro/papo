@@ -1,4 +1,4 @@
-use papo_proto::{Isupport, Line, LineRef};
+use papo_proto::{Casemapping, Isupport, Line, LineRef};
 
 use crate::{Decoding, Event, Handled, Outbox, StateLimit};
 
@@ -10,19 +10,25 @@ pub(super) struct IsupportState {
     limit_warned: bool,
 }
 
+fn seeded(casemapping: Casemapping) -> Isupport {
+    let mut value = Isupport::default();
+    value.__seed_casemapping(casemapping);
+    value
+}
+
 impl IsupportState {
-    pub(super) fn new(configured_decoding: Decoding) -> Self {
+    pub(super) fn new(configured_decoding: Decoding, casemapping: Casemapping) -> Self {
         Self {
             configured_decoding,
             decoding: configured_decoding,
-            value: Isupport::default(),
+            value: seeded(casemapping),
             limit_warned: false,
         }
     }
 
     pub(super) fn handle_connected(&mut self) {
         self.decoding = self.configured_decoding;
-        self.value = Isupport::default();
+        self.value = seeded(self.value.casemapping());
         self.limit_warned = false;
     }
 

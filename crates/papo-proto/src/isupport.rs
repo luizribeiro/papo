@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::{Casemapping, Command, LineRef, Numeric, canonical};
+use crate::{Casemapping, Command, LineRef, Numeric, UnknownCasemapping, canonical};
 
 /// Whether an ISUPPORT token is absent, bare, or carries a value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -145,6 +145,7 @@ pub struct Isupport {
     generation: u64,
     limit_reached: bool,
     received: bool,
+    fallback: Casemapping,
 }
 
 const MAX_TOKENS: usize = 1_024;
@@ -308,21 +309,37 @@ impl Isupport {
 
     /// Returns the server's name casemapping.
     ///
-    /// Without a `CASEMAPPING` token this is the protocol default, RFC 1459. A token whose rules
-    /// papo doesn't know yields [`Ascii`](Casemapping::Ascii): every known casemapping folds at
-    /// least ASCII letters, so the narrowest folding never treats two of the server's distinct
-    /// names as one.
+    /// Without a `CASEMAPPING` token this is the protocol default, RFC 1459, unless the rules
+    /// were seeded. A token whose rules papo doesn't know yields [`Ascii`](Casemapping::Ascii):
+    /// every known casemapping folds at least ASCII letters, so the narrowest folding never treats
+    /// two of the server's distinct names as one.
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {
+        match self.__advertised_casemapping() {
+            None => self.fallback,
+            Some(rules) => rules.unwrap_or(Casemapping::Ascii),
+        }
+    }
+
+    /// Returns the rules the server advertised, or `None` when it advertised none.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __advertised_casemapping(&self) -> Option<Result<Casemapping, UnknownCasemapping>> {
         #[cfg(feature = "precis")]
         if self.value("UTF8MAPPING") == Some("rfc8265") {
-            return Casemapping::Precis;
+            return Some(Ok(Casemapping::Precis));
         }
         match self.get("CASEMAPPING") {
-            Advertised::Absent => Casemapping::default(),
-            Advertised::Bare => Casemapping::Ascii,
-            Advertised::Value(value) => value.parse().unwrap_or(Casemapping::Ascii),
+            Advertised::Absent => None,
+            Advertised::Bare => Some(Err(UnknownCasemapping)),
+            Advertised::Value(value) => Some(value.parse()),
         }
+    }
+
+    /// Sets the rules [`casemapping`](Self::casemapping) returns while the server advertises none.
+    #[doc(hidden)]
+    pub const fn __seed_casemapping(&mut self, casemapping: Casemapping) {
+        self.fallback = casemapping;
     }
 
     /// Returns the channel-type prefix characters.

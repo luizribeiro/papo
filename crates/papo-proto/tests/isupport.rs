@@ -188,6 +188,17 @@ fn selects_the_advertised_casemapping_with_the_protocol_default() {
 }
 
 #[test]
+fn seeded_rules_apply_only_while_the_server_advertises_none() {
+    let mut support = Isupport::default();
+    support.__seed_casemapping(Casemapping::Ascii);
+    assert_eq!(support.casemapping(), Casemapping::Ascii);
+    support.apply_tokens(["NETWORK=ErgoTest"]);
+    assert_eq!(support.casemapping(), Casemapping::Ascii);
+    support.apply_tokens(["CASEMAPPING=rfc1459"]);
+    assert_eq!(support.casemapping(), Casemapping::Rfc1459);
+}
+
+#[test]
 fn unknown_casemapping_tokens_fold_only_ascii_letters() {
     for token in [
         "CASEMAPPING=rfc8265",
