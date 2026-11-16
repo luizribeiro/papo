@@ -183,10 +183,22 @@ fn selects_the_advertised_casemapping_with_the_protocol_default() {
     assert_eq!(support.casemapping(), Casemapping::Ascii);
     support.apply_tokens(["CASEMAPPING=rfc1459-strict"]);
     assert_eq!(support.casemapping(), Casemapping::Rfc1459Strict);
-    support.apply_tokens(["CASEMAPPING=unknown"]);
-    assert_eq!(support.casemapping(), Casemapping::Rfc1459);
     support.apply_tokens(["-CASEMAPPING"]);
     assert_eq!(support.casemapping(), Casemapping::Rfc1459);
+}
+
+#[test]
+fn unknown_casemapping_tokens_fold_only_ascii_letters() {
+    for token in [
+        "CASEMAPPING=rfc8265",
+        "CASEMAPPING=strict-rfc1459",
+        "CASEMAPPING",
+    ] {
+        let mut support = Isupport::default();
+        support.apply_tokens([token]);
+        assert_eq!(support.casemapping(), Casemapping::Ascii, "{token}");
+        assert_eq!(support.casemapping().fold("ALICE[m]"), "alice[m]");
+    }
 }
 
 #[cfg(feature = "precis")]
