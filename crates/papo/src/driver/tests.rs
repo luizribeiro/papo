@@ -8197,31 +8197,10 @@ async fn message_tag_obeys_clienttagdeny() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_metadata_from_every_labelled_echo() {
-    let caps = [
-        "draft/message-redaction",
-        "echo-message",
-        "labeled-response",
-    ];
-    let (mut server, client, _events, driver) = scripted(config().wanted_caps(caps));
+    let caps = "draft/message-redaction echo-message labeled-response";
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps.split(' ')));
     let task = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
-    server_line(
-        &mut server,
-        b":ergo.test CAP * LS :draft/message-redaction echo-message labeled-response\r\n",
-    )
-    .await;
-    client_line(
-        &mut server,
-        b"CAP REQ :draft/message-redaction echo-message labeled-response\r\n",
-    )
-    .await;
-    server_line(
-        &mut server,
-        b":ergo.test CAP * ACK :draft/message-redaction echo-message labeled-response\r\n",
-    )
-    .await;
-    client_line(&mut server, b"CAP END\r\n").await;
-    finish_registration(&mut server).await;
+    complete_connect_caps(&mut server, &mut events, caps, caps).await;
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#papo", "hello everyone").await });
     client_line(&mut server, b"@label=0 PRIVMSG #papo :hello everyone\r\n").await;
