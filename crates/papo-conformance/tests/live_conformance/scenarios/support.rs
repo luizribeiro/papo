@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use papo::event::ModeChanged;
 use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
 use papo_test_server::DeploymentProfile;
@@ -228,6 +230,33 @@ pub(super) async fn join_seen_by(
     assert_eq!(joined.actor.nick(), member_nick.as_str());
     assert_eq!(joined.actor_party, papo::Party::Other);
     Ok(())
+}
+
+/// Fetches the latest ten history entries of `target` until they hold a chat message whose wire
+/// text is exactly `text`.
+///
+/// A server can answer a history request before it has stored a message it already echoed: Ergo
+/// stores a channel message after fanning it out, and a bouncer stores it only once the reader's
+/// own upstream connection receives it.
+pub(super) async fn latest_history_with(
+    peer: &Peer,
+    target: &str,
+    text: &str,
+) -> papo_testing::Result<papo::HistoryPage> {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        let page = peer.history(target).latest().limit(10).await?;
+        if page.chat_messages().any(|message| message.raw_text == text) {
+            return Ok(page);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return Err(std::io::Error::other(format!(
+                "history of {target} never contained {text:?}, last page: {page:?}"
+            ))
+            .into());
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {

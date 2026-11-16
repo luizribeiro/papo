@@ -2,7 +2,7 @@ use papo::{Event, event::StandardReplyKind};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{confirmed_line, conversation_name};
+use crate::scenarios::support::{confirmed_line, conversation_name, latest_history_with};
 
 /// a labelled WHOIS resolves to the requested user
 #[scenario(
@@ -50,18 +50,17 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     writer.join(&channel).await?;
     reader.join(&channel).await?;
-    let sent = writer
-        .privmsg(&channel, "batch correlation deployment")
-        .await?;
+    let text = "batch correlation deployment";
+    let sent = writer.privmsg(&channel, text).await?;
 
-    let page = reader.history(&channel).latest().limit(10).await?;
+    let page = latest_history_with(&reader, &channel, text).await?;
     assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
     let message = page
         .chat_messages()
-        .find(|message| message.raw_text == "batch correlation deployment")
+        .find(|message| message.raw_text == text)
         .expect("history contains the sent message");
-    let (id, text, server_time) = confirmed_line(&sent);
-    assert_eq!(text, "batch correlation deployment");
+    let (id, confirmed_text, server_time) = confirmed_line(&sent);
+    assert_eq!(confirmed_text, text);
     assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     Ok(())
