@@ -285,7 +285,7 @@
           };
           example-api = {
             enable = true;
-            files = "(^|/)(examples/.*|scripts/(check-example-api|test_check_example_api\\.sh))$";
+            files = "(^|/)(examples/.*|crates/papo/public-api(-unstable)?\\.txt|scripts/(check-example-api|test_check_example_api\\.sh))$";
             pass_filenames = false;
             entry = "${
               pkgs.writeShellApplication {

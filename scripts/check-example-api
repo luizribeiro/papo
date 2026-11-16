@@ -30,4 +30,48 @@ if search_sources 'Casemapping::default\b'; then
   reject 'examples must not build names with Casemapping::default(); pass plain text'
 fi
 
+snapshot_for() {
+  local snapshot=crates/papo/public-api.txt
+  if rg -q '^papo\s*=.*"unstable"' "$1/Cargo.toml"; then
+    snapshot=crates/papo/public-api-unstable.txt
+  fi
+  if [[ ! -f "$snapshot" ]]; then
+    echo "public-API snapshot $snapshot is missing" >&2
+    exit 2
+  fi
+  echo "$snapshot"
+}
+
+# Every name reached through a `papo::` path must be declared in the public-API snapshot,
+# which leaves out `#[doc(hidden)]` items. Methods called on values are not visible to grep.
+papo_path_names() {
+  local paths status=0
+  paths=$(rg -o -U --no-filename --no-line-number \
+    'papo::(?:[A-Za-z0-9_]+::)*(?:\{[^;]*\}|[A-Za-z0-9_]+)' "$1/src" --glob '*.rs') || status=$?
+  if ((status > 1)); then
+    echo "searching $1 for papo paths failed" >&2
+    exit "$status"
+  fi
+  sed -E 's/^papo:://; s/\bas[[:space:]]+[A-Za-z0-9_]+//g' <<<"$paths" \
+    | tr -c 'A-Za-z0-9_\n' '\n' \
+    | { rg -v '^(self|)$' || true; } \
+    | sort -u
+}
+
+declares() {
+  rg -q "pub( [a-z]+)* papo::([A-Za-z0-9_]+::)*$2\\b" "$1"
+}
+
+for example in examples/*/; do
+  example=${example%/}
+  [[ -d "$example/src" ]] || continue
+  snapshot=$(snapshot_for "$example")
+  names=$(papo_path_names "$example")
+  while IFS= read -r name; do
+    if [[ -n "$name" ]] && ! declares "$snapshot" "$name"; then
+      reject "$example uses papo item '$name', which is not declared in $snapshot"
+    fi
+  done <<<"$names"
+done
+
 exit "$failed"

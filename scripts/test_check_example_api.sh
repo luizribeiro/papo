@@ -40,10 +40,30 @@ expect_rejected() {
   printf '%s\n' "$original" > "$source"
 }
 
-mkdir -p "$fixture/examples/ping-bot/src" "$fixture/examples/ping-bot/tests"
+mkdir -p "$fixture/crates/papo" "$fixture/examples/ping-bot/src" "$fixture/examples/ping-bot/tests" \
+  "$fixture/examples/bouncer-networks/src"
+cat > "$fixture/crates/papo/public-api.txt" <<'EOF'
+pub mod papo::sts
+pub struct papo::sts::StsPolicy
+#[non_exhaustive] pub enum papo::Event
+#[non_exhaustive] pub enum papo::Error
+pub struct papo::Client
+pub async fn papo::Client::op(&self, impl papo::AsChannel, impl papo::AsNick) -> core::result::Result<(), papo::Error>
+pub fn papo::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
+EOF
+{
+  cat "$fixture/crates/papo/public-api.txt"
+  echo 'pub struct papo::BouncerNetwork'
+} > "$fixture/crates/papo/public-api-unstable.txt"
+printf '%s\n' '[dependencies]' 'papo = { path = "../../crates/papo" }' \
+  'papo-test-server = { path = "../../crates/papo-test-server", features = ["unstable"] }' \
+  > "$fixture/examples/ping-bot/Cargo.toml"
+printf '%s\n' '[dependencies]' 'papo = { path = "../../crates/papo", features = ["unstable"] }' \
+  > "$fixture/examples/bouncer-networks/Cargo.toml"
 printf '%s\n' "$stable_main" > "$fixture/examples/ping-bot/src/main.rs"
+printf '%s\n' 'fn show(network: &papo::BouncerNetwork) {}' > "$fixture/examples/bouncer-networks/src/main.rs"
 printf '%s\n' 'let casemapping = papo::Casemapping::default();' > "$fixture/examples/ping-bot/tests/output.rs"
-expect_accepted 'public API and a test file'
+expect_accepted 'public API, an unstable item in an unstable example, and a test file'
 
 expect_rejected 'let state = papo::__testing::exercise_session_mapping;' \
   "doc-hidden __-prefixed"
@@ -57,6 +77,25 @@ expect_rejected 'let nick = papo::Casemapping::default().nick("luiz");' \
   "Casemapping::default()"
 expect_rejected 'let fold = Casemapping::default;' \
   "Casemapping::default()"
+expect_rejected 'fn exact(source: &impl papo::MaskSource) {}' \
+  "'MaskSource', which is not declared in crates/papo/public-api.txt"
+expect_rejected 'fn nick(nick: impl papo::AsNick) {}' \
+  "'AsNick', which is not declared in crates/papo/public-api.txt"
+expect_rejected $'use papo::{\n    Client,\n    MaskSource,\n};' \
+  "'MaskSource', which is not declared in crates/papo/public-api.txt"
+expect_rejected 'use papo::{Client, sts::StsStore};' \
+  "'StsStore', which is not declared in crates/papo/public-api.txt"
+expect_rejected 'fn show(network: &papo::BouncerNetwork) {}' \
+  "'BouncerNetwork', which is not declared in crates/papo/public-api.txt"
+expect_rejected 'use papo::Secret as Password;' \
+  "'Secret', which is not declared in crates/papo/public-api.txt"
+
+mv "$fixture/crates/papo/public-api-unstable.txt" "$fixture/unstable.txt"
+if output=$("$check" "$fixture" 2>&1) || [[ "$output" != *'public-api-unstable.txt is missing'* ]]; then
+  echo 'check-example-api passed without the unstable snapshot' >&2
+  exit 1
+fi
+mv "$fixture/unstable.txt" "$fixture/crates/papo/public-api-unstable.txt"
 
 chmod 000 "$fixture/examples/ping-bot/src/main.rs"
 if output=$("$check" "$fixture" 2>&1) || [[ "$output" != *'failed'* ]]; then
