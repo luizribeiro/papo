@@ -27,7 +27,7 @@ web-time = "1.1.0"
 zeroize = { version = "1.9.1", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
-papo-test-server = { path = "../papo-test-server", version = "=0.1.0" }
+papo-test-server = { path = "../papo-test-server" }
 proptest = { version = "1.9", default-features = false, features = ["std"] }
 
 [[test]]
