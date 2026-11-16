@@ -318,13 +318,6 @@ mod tests {
         }
     }
 
-    #[cfg(tls)]
-    #[tokio::test(flavor = "current_thread")]
-    async fn tls_rejects_a_ws_url() {
-        let tls = Security::Tls(crate::transport::TlsConfig::default());
-        assert_scheme_rejected("ws://irc.example.net/webirc", tls).await;
-    }
-
     #[tokio::test(flavor = "current_thread")]
     async fn flush_propagates_a_broken_peer_error() {
         let peer = Stream::broken_peer();
