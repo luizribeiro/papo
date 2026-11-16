@@ -2954,10 +2954,10 @@ mod tests {
     };
 
     use super::{
-        Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
-        Event, Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged,
-        ModeAction, ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags,
-        Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
+        Audience, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent, Event,
+        Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
+        ModeArg, ModeChange, Party, ServerNoticeKind, Source, StandardReplyKind, Tags, Warning,
+        ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
         message_event_from_line,
     };
     use crate::{Subject, Visibility};
@@ -3079,7 +3079,7 @@ mod tests {
         ] {
             let event = BroadcastTagMsg {
                 actor: actor.clone(),
-                authorship: Authorship::Other,
+                authorship: Party::Other,
                 to,
                 tags: Tags::default(),
                 msgid: None,
@@ -3089,7 +3089,7 @@ mod tests {
         }
         let ctcp = BroadcastCtcp {
             actor,
-            authorship: Authorship::Other,
+            authorship: Party::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
             command: "VERSION".into(),
             params: None,
@@ -3106,7 +3106,7 @@ mod tests {
         let parse = |line| {
             super::broadcast_from_line(
                 LineRef::parse(line).unwrap().to_owned(),
-                Authorship::Other,
+                Party::Other,
                 crate::Origin::NONE,
                 &Isupport::default(),
                 false,
@@ -3259,7 +3259,7 @@ mod tests {
         message_event_from_line(
             message,
             None,
-            Authorship::Other,
+            Party::Other,
             conversation,
             status,
             None,
@@ -3657,7 +3657,7 @@ mod tests {
             let event = message_event_from_line(
                 line,
                 None,
-                Authorship::Other,
+                Party::Other,
                 conversation,
                 None,
                 None,
@@ -3733,7 +3733,7 @@ mod tests {
         };
         assert_eq!(server.kind, ServerNoticeKind::Notice);
         assert_eq!(server.to, Audience::Me);
-        assert_eq!(server.authorship, Authorship::Other);
+        assert_eq!(server.authorship, Party::Other);
         assert!(server.status.is_none());
         assert!(server.return_address().is_none());
 
@@ -3742,7 +3742,7 @@ mod tests {
                 .param("Network maintenance begins soon")
                 .with_source("irc.example"),
             None,
-            Authorship::Other,
+            Party::Other,
             Conversation::Private(user_handle(isupport.casemapping().nick("papo"))),
             None,
             None,
@@ -3764,7 +3764,7 @@ mod tests {
                 .with_source("oper!o@staff")
                 .with_tag("account", "network-admin"),
             None,
-            Authorship::Other,
+            Party::Other,
             Conversation::Private(user_handle(isupport.casemapping().nick("papo"))),
             None,
             None,
@@ -3781,7 +3781,7 @@ mod tests {
             broadcast.to,
             Audience::Broadcast(Broadcast::Mask(_))
         ));
-        assert_eq!(broadcast.authorship, Authorship::Other);
+        assert_eq!(broadcast.authorship, Party::Other);
         assert!(
             matches!(broadcast.actor.user().map(|actor| actor.account().clone()),
             Some(Account::LoggedIn(account)) if account == "network-admin")
@@ -3922,7 +3922,7 @@ mod tests {
             message_event_from_line(
                 line,
                 None,
-                Authorship::Other,
+                Party::Other,
                 conversation,
                 status,
                 None,
@@ -3988,7 +3988,7 @@ mod tests {
             super::Notice::from_line(
                 notice,
                 None,
-                Authorship::Other,
+                Party::Other,
                 conversation,
                 status,
                 None,
@@ -4719,19 +4719,19 @@ mod tests {
         };
         assert!(matches!(route(
                 Line::privmsg("#papo", "from another device").with_source("papo{bot}!p@localhost"),
-                Authorship::Own), Event::Message(message)
-            if message.authorship == Authorship::Own));
+                Party::Me), Event::Message(message)
+            if message.authorship == Party::Me));
         assert!(matches!(
             route(
                 Line::privmsg("#papo", "from emily").with_source("emily!e@localhost"),
-                Authorship::Other
+                Party::Other
             ),
             Event::Message(_)
         ));
         assert!(matches!(route(
                 Line::notice("#papo", "from another device").with_source("papo{bot}!p@localhost"),
-                Authorship::Own), Event::Notice(notice)
-            if notice.authorship == Authorship::Own));
+                Party::Me), Event::Notice(notice)
+            if notice.authorship == Party::Me));
     }
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core_with_mapping(
@@ -4782,7 +4782,7 @@ mod tests {
         assert_eq!(invited.channel, "#papo");
         assert_eq!(invited.subject, "papo");
         assert!(matches!(&invited.actor, Source::User(user) if user.nick() == "emily"));
-        assert_eq!(invited.subject_authorship, Authorship::Own);
+        assert_eq!(invited.subject_authorship, Party::Me);
     }
 
     #[test]
@@ -4885,8 +4885,8 @@ mod tests {
         ) else {
             panic!("expected queued nick change");
         };
-        assert_eq!(joined.authorship, Authorship::Own);
-        assert_eq!(changed.authorship, Authorship::Own);
+        assert_eq!(joined.authorship, Party::Me);
+        assert_eq!(changed.authorship, Party::Me);
     }
 
     fn mapped_message_event(event: papo_core::Event) -> Event {
@@ -5080,7 +5080,7 @@ mod tests {
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(matches!(forwarded(papo_core::Event::TagMessage(tag)),
-            Event::TypingChanged(typing) if typing.authorship == Authorship::Own));
+            Event::TypingChanged(typing) if typing.authorship == Party::Me));
     }
 
     #[test]
@@ -5363,7 +5363,7 @@ mod tests {
             let Event::Message(message) = historical_message_event(
                 Line::privmsg("papo_away", "can you send me the invoice?")
                     .with_source("alice!~a@host"),
-                Authorship::Other,
+                Party::Other,
                 history_conversation,
                 &client,
                 UNIX_EPOCH,
@@ -5391,7 +5391,7 @@ mod tests {
 
         let Event::Message(message) = historical_message_event(
             Line::privmsg("#review", "release approved").with_source("alice!~a@staff.example"),
-            Authorship::Other,
+            Party::Other,
             None,
             &client,
             UNIX_EPOCH,
@@ -5428,7 +5428,7 @@ mod tests {
                 .with_source("alice!~alice@cloak.example")
                 .with_tag("account", "fresh-account"),
             None,
-            Authorship::Other,
+            Party::Other,
             conversation,
             None,
             None,
@@ -5958,7 +5958,7 @@ mod tests {
         let away = forwarded(session.poll_event().expect("away event"));
         let away = away.as_away_changed().expect("typed away event");
         assert_eq!(away.actor.nick(), "dan");
-        assert_eq!(away.authorship, Authorship::Other);
+        assert_eq!(away.authorship, Party::Other);
     }
 
     #[test]
@@ -6065,7 +6065,7 @@ mod tests {
         let event = forwarded(session.poll_event().expect("mode event"));
         let mode = event.as_mode_changed().expect("typed mode event");
         assert!(mode.actor.nick().is_some_and(|nick| nick == "ChanServ"));
-        assert_eq!(mode.authorship, Authorship::Other);
+        assert_eq!(mode.authorship, Party::Other);
         assert_eq!(
             mode.own_nick.as_ref().map(papo_proto::Nick::as_str),
             Some("emily")
@@ -6075,7 +6075,7 @@ mod tests {
             "{:?}",
             mode.changes[0]
         );
-        assert_eq!(mode.about(&mode.changes[0]), Authorship::Own);
+        assert_eq!(mode.about(&mode.changes[0]), Party::Me);
     }
 
     fn mode_event(subject: Subject, own_nick: Option<&str>) -> super::ModeChanged {
@@ -6089,7 +6089,7 @@ mod tests {
                 papo_proto::Source::__user("ChanServ", Some("service"), Some("services.example")),
                 mapping,
             ),
-            authorship: Authorship::Other,
+            authorship: Party::Other,
             changes: Vec::new(),
             own_nick: own_nick.map(|nick| mapping.nick(nick)),
         }
@@ -6118,22 +6118,22 @@ mod tests {
             Subject::Channel(channel_handle(mapping.channel("#papo"))),
             Some("emily"),
         );
-        assert_eq!(channel_mode.about(&own), Authorship::Own);
-        assert_eq!(channel_mode.about(&other), Authorship::Other);
+        assert_eq!(channel_mode.about(&own), Party::Me);
+        assert_eq!(channel_mode.about(&other), Party::Other);
         assert_eq!(
             mode_event(
                 Subject::Channel(channel_handle(mapping.channel("#papo"))),
                 None,
             )
             .about(&own),
-            Authorship::Unknown
+            Party::Unknown
         );
 
         let user_mode = ModeChange::__new('i', ModeAction::Add, None);
         for (subject, own_nick, expected) in [
-            ("papo{bot}", Some("Papo[Bot]"), Authorship::Own),
-            ("alice", Some("Papo[Bot]"), Authorship::Other),
-            ("alice", None, Authorship::Unknown),
+            ("papo{bot}", Some("Papo[Bot]"), Party::Me),
+            ("alice", Some("Papo[Bot]"), Party::Other),
+            ("alice", None, Party::Unknown),
         ] {
             assert_eq!(
                 mode_event(Subject::User(user_handle(mapping.nick(subject))), own_nick,)
@@ -6141,7 +6141,7 @@ mod tests {
                 expected
             );
         }
-        assert_eq!(channel_mode.about(&user_mode), Authorship::Other);
+        assert_eq!(channel_mode.about(&user_mode), Party::Other);
     }
 
     #[test]
@@ -6698,7 +6698,7 @@ mod tests {
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
                 actor: own_handle.clone(),
-                authorship: Authorship::Own,
+                authorship: Party::Me,
                 netjoin: None,
             }),
             Event::Parted(super::Parted {
@@ -6709,7 +6709,7 @@ mod tests {
                 facts: None,
                 channel: channel_handle(mapping.channel("#papo")),
                 reason: None,
-                authorship: Authorship::Own,
+                authorship: Party::Me,
             }),
             Event::Kicked(super::Kicked {
                 msgid: None,
@@ -6719,8 +6719,8 @@ mod tests {
                 subject: own_handle.clone(),
                 facts: None,
                 actor: actor.clone(),
-                authorship: Authorship::Other,
-                subject_authorship: Authorship::Own,
+                authorship: Party::Other,
+                subject_authorship: Party::Me,
                 reason: None,
             }),
             Event::Invited(super::Invited {
@@ -6736,8 +6736,8 @@ mod tests {
                     crate::Origin::NONE,
                 ),
                 actor,
-                authorship: Authorship::Other,
-                subject_authorship: Authorship::Own,
+                authorship: Party::Other,
+                subject_authorship: Party::Me,
             }),
             Event::NickChanged(super::NickChanged {
                 msgid: None,
@@ -6747,7 +6747,7 @@ mod tests {
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
                 channels: vec![channel_handle(mapping.channel("#papo"))],
-                authorship: Authorship::Own,
+                authorship: Party::Me,
             }),
             Event::Joined(super::Joined {
                 msgid: None,
@@ -6755,7 +6755,7 @@ mod tests {
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
                 actor: own_handle,
-                authorship: Authorship::Own,
+                authorship: Party::Me,
                 netjoin: Some(super::SplitServers {
                     batch: crate::BatchId::from("join"),
                     first: "irc.example".into(),
@@ -6764,21 +6764,15 @@ mod tests {
             }),
         ];
 
-        assert_eq!(events[0].as_joined().unwrap().authorship, Authorship::Own);
-        assert_eq!(events[1].as_parted().unwrap().authorship, Authorship::Own);
-        assert_eq!(
-            events[2].as_kicked().unwrap().subject_authorship,
-            Authorship::Own
-        );
+        assert_eq!(events[0].as_joined().unwrap().authorship, Party::Me);
+        assert_eq!(events[1].as_parted().unwrap().authorship, Party::Me);
+        assert_eq!(events[2].as_kicked().unwrap().subject_authorship, Party::Me);
         assert_eq!(
             events[3].as_invited().unwrap().subject_authorship,
-            Authorship::Own
+            Party::Me
         );
-        assert_eq!(
-            events[4].as_nick_changed().unwrap().authorship,
-            Authorship::Own
-        );
-        assert_eq!(events[5].as_joined().unwrap().authorship, Authorship::Own);
+        assert_eq!(events[4].as_nick_changed().unwrap().authorship, Party::Me);
+        assert_eq!(events[5].as_joined().unwrap().authorship, Party::Me);
         assert_eq!(
             events[5]
                 .as_joined()
