@@ -50,6 +50,40 @@ fn records_redacted_lines_under_each_client_name() {
 }
 
 #[test]
+fn each_client_keeps_only_its_last_200_lines() {
+    let log = WireLog::new();
+    for (count, header) in [
+        (250, "== client 1 (50 earlier lines dropped)"),
+        (200, "== client 2"),
+    ] {
+        let client = log.add_client();
+        for index in 0..count {
+            let line = format!("PRIVMSG #papo :client {client} line {index}");
+            log.record(client, Direction::Received, line.as_bytes());
+        }
+        let render = log.render();
+        let section = render.split_once(header).unwrap().1;
+        assert!(section.starts_with('\n'), "{header}");
+        let lines: Vec<&str> = section
+            .lines()
+            .skip(1)
+            .take_while(|line| line.starts_with("  "))
+            .collect();
+        assert_eq!(lines.len(), 200, "{header}");
+        assert!(
+            lines[0].ends_with(&format!(" line {}", count - 200)),
+            "{}",
+            lines[0]
+        );
+        assert!(
+            lines[199].ends_with(&format!(" line {}", count - 1)),
+            "{}",
+            lines[199]
+        );
+    }
+}
+
+#[test]
 fn an_empty_log_renders_only_its_heading() {
     assert_eq!(
         WireLog::new().render(),

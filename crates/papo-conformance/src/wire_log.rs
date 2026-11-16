@@ -1,6 +1,7 @@
 //! A bounded, redacted record of every scenario client's wire lines.
 
 use std::{
+    collections::VecDeque,
     fmt::Write as _,
     sync::{Arc, Mutex, PoisonError},
     time::Instant,
@@ -10,6 +11,8 @@ mod redact;
 #[cfg(test)]
 mod tests;
 
+const LINES_PER_CLIENT: usize = 200;
+
 #[derive(Clone)]
 pub(crate) struct WireLog {
     started: Instant,
@@ -18,7 +21,8 @@ pub(crate) struct WireLog {
 
 struct ClientLog {
     name: String,
-    lines: Vec<String>,
+    lines: VecDeque<String>,
+    dropped: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -41,7 +45,8 @@ impl WireLog {
         let name = format!("client {}", clients.len() + 1);
         clients.push(ClientLog {
             name,
-            lines: Vec::new(),
+            lines: VecDeque::new(),
+            dropped: 0,
         });
         clients.len() - 1
     }
@@ -53,7 +58,11 @@ impl WireLog {
     pub(crate) fn render(&self) -> String {
         let mut output = String::from("wire log, in seconds since the scenario started:\n");
         for client in self.clients().iter() {
-            _ = writeln!(output, "== {}", client.name);
+            _ = write!(output, "== {}", client.name);
+            if client.dropped > 0 {
+                _ = write!(output, " ({} earlier lines dropped)", client.dropped);
+            }
+            output.push('\n');
             for line in &client.lines {
                 _ = writeln!(output, "  {line}");
             }
@@ -71,7 +80,13 @@ impl WireLog {
             self.started.elapsed().as_secs_f64(),
             redact::redact(line)
         );
-        self.clients()[client].lines.push(line);
+        let mut clients = self.clients();
+        let client = &mut clients[client];
+        client.lines.push_back(line);
+        if client.lines.len() > LINES_PER_CLIENT {
+            client.lines.pop_front();
+            client.dropped += 1;
+        }
     }
 
     fn clients(&self) -> std::sync::MutexGuard<'_, Vec<ClientLog>> {
