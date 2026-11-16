@@ -3,7 +3,7 @@
 use std::time::Instant;
 
 use papo_core::{Config, Event, RateLimit, Response, ResponseMatcher, Session};
-use papo_proto::{Line, LineRef};
+use papo_proto::{Command, Line, LineRef};
 
 const ERGO_ISUPPORT: &str = ":ergo.test 005 papo CASEMAPPING=ascii CHANTYPES=# PREFIX=(qaohv)~&@%+ :are supported by this server";
 
@@ -121,6 +121,53 @@ fn an_unlabelled_response_keeps_the_ergo_echo_that_matched_it() {
         session.handle_line(now, case.unlabelled.as_bytes());
         assert_echo_kept(response(&mut session), case.unlabelled);
     }
+}
+
+const OWN_SOURCE: &str = "papo!~u@3t4fgnf9zitka.irc";
+const CHANOP_SOURCE: &str = "chanop!~u@9f3xcwqwgz5yq.irc";
+
+#[test]
+fn another_users_echo_of_the_same_command_does_not_end_our_request() {
+    let now = Instant::now();
+    for case in cases() {
+        let mut session = ergo(now, "message-tags server-time setname");
+        session
+            .request_with_matcher(now, case.command, case.matcher)
+            .unwrap();
+        let foreign = case.unlabelled.replace(OWN_SOURCE, CHANOP_SOURCE);
+        session.handle_line(now, foreign.as_bytes());
+        assert!(response(&mut session).is_none(), "{foreign}");
+        session.handle_line(now, case.unlabelled.as_bytes());
+        assert_echo_kept(response(&mut session), case.unlabelled);
+    }
+}
+
+#[test]
+fn another_operators_mode_change_is_not_kept_as_our_mode_echo() {
+    let now = Instant::now();
+    let mut session = ergo(now, "message-tags server-time");
+    session
+        .request_with_matcher(
+            now,
+            Line::new("MODE").with_params(["#papo", "+t"]),
+            ResponseMatcher::Mode("#papo".into()),
+        )
+        .unwrap();
+    for line in [
+        ":chanop!~u@9f3xcwqwgz5yq.irc MODE #papo +m",
+        ":ergo.test PONG ergo.test :papo-mode-0",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let response = response(&mut session).expect("the PONG fence ends the MODE request");
+    assert!(
+        response
+            .lines
+            .iter()
+            .all(|line| line.as_ref().command() != Command::Mode),
+        "{:?}",
+        response.lines
+    );
 }
 
 const CHANOP_KICK: &str = "@msgid=5ia6vq2kbpzgbsmpq9kbdrm7kc;time=2026-11-15T20:07:21.402Z :chanop!~u@9f3xcwqwgz5yq.irc KICK #papo bob :spam";

@@ -316,6 +316,8 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 - `Client::kick` succeeds only on the echo of our own `KICK`, matched by our nick under the server
   casemapping or by its label. Another operator's `KICK` of the same nick still arrives as
   `Event::Kicked`, but it no longer completes our pending kick or masks our `482` refusal.
+- Without labeled-response, topic and mode requests likewise end only at our own `TOPIC` or `MODE`
+  echo; another operator's change to the same channel stays an ordinary event.
 
 ### Migration from the 2026-10-24 API
 

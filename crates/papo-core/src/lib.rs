@@ -1585,7 +1585,7 @@ impl ResponseMatcher {
                     .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "PART"))
                 || Self::standard_failure(message, "PART"))
             .then_some(true),
-            Self::Mode(target) => ((message.command() == Command::Mode
+            Self::Mode(target) => ((own_echo(Command::Mode)
                 && Self::target_is(message, 0, target, mapping))
                 || numeric.is_some_and(|numeric| {
                     matches!(numeric.code(), 472 | 501 | 502)
@@ -1596,7 +1596,7 @@ impl ResponseMatcher {
             .then_some(true),
             Self::Topic(channel) => {
                 let named = |index| Self::target_is(message, index, channel, mapping);
-                ((message.command() == Command::Topic && named(0))
+                ((own_echo(Command::Topic) && named(0))
                     || numeric.is_some_and(|numeric| {
                         named(1)
                             && (matches!(numeric, Numeric::RPL_NOTOPIC | Numeric::RPL_TOPIC)

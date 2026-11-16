@@ -2005,6 +2005,7 @@ fn topic_replies_use_the_named_concurrent_channel() {
         ":ergo.test 403 papo #unknown :No such channel",
         ":alice!alice@staff.example TOPIC #unknown :Unrelated topic",
         ":alice!alice@staff.example TOPIC #papo{ :Requests in Rust",
+        ":PAPO!~u@3t4fgnf9zitka.irc TOPIC #papo{ :Requests in Rust",
     ] {
         session.handle_line(now, line.as_bytes());
     }
