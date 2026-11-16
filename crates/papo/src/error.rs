@@ -1020,27 +1020,6 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn a_session_audience_refusal_is_wider_than_referenced() {
-        let now = web_time::Instant::now();
-        let mut session = papo_core::Session::new(papo_core::Config::default());
-        session.handle_connected(now);
-        for line in [
-            ":ergo.test 005 papo PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server",
-            "@msgid=z6apvbu245cpg8t9b48v5bdmqs :oppy!~u@87gpv5ftgihhq.irc PRIVMSG @#ops :deploy key rotated?",
-        ] {
-            session.handle_line(now, line.as_bytes());
-        }
-        let reply = papo_proto::Line::privmsg("#ops", "rotated at 18:00")
-            .with_tag("+draft/reply", "z6apvbu245cpg8t9b48v5bdmqs");
-        let refused = session.send(now, reply).unwrap_err();
-        assert!(matches!(
-            Error::request(refused),
-            Error::InvalidInput(InvalidInput::WiderThanReferenced { referenced, .. })
-                if referenced.symbol() == '@'
-        ));
-    }
-
     type RequestCase = (papo_core::RequestError, Box<dyn Fn(&Error) -> bool>);
 
     fn case(
@@ -1057,9 +1036,64 @@ mod tests {
         )
     }
 
+    fn registered_session(now: web_time::Instant, lines: &[&str]) -> papo_core::Session {
+        let mut session = papo_core::Session::new(papo_core::Config::default().nick("papo"));
+        session.handle_connected(now);
+        for line in lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        session
+    }
+
+    fn wider_than_referenced_refusal(now: web_time::Instant) -> papo_core::RequestError {
+        let mut session = registered_session(
+            now,
+            &[
+                ":ergo.test 005 papo PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server",
+                "@msgid=z6apvbu245cpg8t9b48v5bdmqs :oppy!~u@87gpv5ftgihhq.irc PRIVMSG @#ops :deploy key rotated?",
+            ],
+        );
+        let reply = papo_proto::Line::privmsg("#ops", "rotated at 18:00")
+            .with_tag("+draft/reply", "z6apvbu245cpg8t9b48v5bdmqs");
+        session.send(now, reply).unwrap_err()
+    }
+
+    fn server_time_in_future_case(now: web_time::Instant) -> RequestCase {
+        let mut session = registered_session(
+            now,
+            &[
+                "CAP * LS :draft/read-marker server-time",
+                "CAP * ACK :draft/read-marker server-time",
+                ":ergo.test 001 papo :Welcome to the Ergo test network",
+                "@time=2025-10-15T11:55:42.123Z;msgid=Newest :alice!a@host PRIVMSG #papo :seen",
+            ],
+        );
+        let tomorrow = crate::ServerTime::from_stored("2025-10-16T11:55:42.123Z").unwrap();
+        let refusal = session.mark_read(now, "#papo", tomorrow).unwrap_err();
+        let papo_core::RequestError::ServerTimeInFuture {
+            requested,
+            estimated_now,
+            ..
+        } = refusal
+        else {
+            panic!("expected a future server time refusal, got {refusal:?}");
+        };
+        assert_eq!(requested, tomorrow);
+        assert!(estimated_now < tomorrow);
+        invalid_input_case(
+            refusal,
+            InvalidInput::ServerTimeInFuture {
+                requested,
+                estimated_now,
+            },
+        )
+    }
+
     fn stable_request_cases() -> Vec<RequestCase> {
         use papo_core::RequestError as Request;
 
+        let now = web_time::Instant::now();
+        let no_read_markers = Unsupported::new(Feature::ReadMarkers, UnsupportedReason::NotOffered);
         let metadata_key = crate::InvalidIdentifier::InvalidCharacter('/');
         vec![
             invalid_input_case(
@@ -1069,6 +1103,15 @@ mod tests {
             case(Request::PendingLimit, |error| {
                 matches!(error, Error::TooManyPendingRequests)
             }),
+            invalid_input_case(Request::EmptyText, InvalidInput::EmptyText),
+            invalid_input_case(
+                Request::InsecureAuthentication,
+                InvalidInput::InsecureAuthentication,
+            ),
+            case(
+                Request::Unsupported(no_read_markers),
+                move |error| matches!(error, Error::Unsupported(actual) if *actual == no_read_markers),
+            ),
             invalid_input_case(
                 Request::InvalidMessageReference,
                 InvalidInput::UnusableMessageReference,
@@ -1076,6 +1119,7 @@ mod tests {
             case(Request::StateLimit(StateLimit::ReadMarkers), |error| {
                 matches!(error, Error::StateLimit(StateLimit::ReadMarkers))
             }),
+            server_time_in_future_case(now),
             invalid_input_case(Request::EmailRequired, InvalidInput::EmailRequired),
             invalid_input_case(
                 Request::CustomAccountNameUnsupported,
@@ -1102,6 +1146,10 @@ mod tests {
                     actual: 11,
                 },
             ),
+            case(wider_than_referenced_refusal(now), |error| {
+                matches!(error, Error::InvalidInput(InvalidInput::WiderThanReferenced { referenced, .. })
+                    if referenced.symbol() == '@')
+            }),
         ]
     }
 
