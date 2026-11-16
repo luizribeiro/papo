@@ -1252,11 +1252,6 @@ mod tests {
                 InvalidInput::Url(crate::InvalidUrl::Empty),
                 "server URL is empty",
             ),
-            #[cfg(tls)]
-            (
-                InvalidInput::TlsConfig("invalid PEM".into()),
-                "invalid TLS configuration: invalid PEM",
-            ),
             (
                 InvalidInput::KnownCapability {
                     capability: "chathistory".into(),
