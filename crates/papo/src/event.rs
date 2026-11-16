@@ -1960,10 +1960,12 @@ fn private_peer_handle(
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
 ) -> crate::UserHandle {
-    if actor_party == Party::Me {
-        event_handle(peer, tokens.peer, state, historical)
-    } else {
+    let sent_by_peer =
+        actor_party != Party::Me && (!historical || peer.reported_nick() == actor.reported_nick());
+    if sent_by_peer {
         actor.clone()
+    } else {
+        event_handle(peer, tokens.peer, state, historical)
     }
 }
 

@@ -1538,6 +1538,56 @@ mod tests {
         assert_ne!(*peer, live);
     }
 
+    #[test]
+    fn archived_private_peer_is_the_other_side_of_the_line() {
+        use papo_core::Party::{Me, Other, Unknown};
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+            b":papo!~u@papo.irc JOIN #release * :Papo".as_slice(),
+            b":alice!~u@alice.irc JOIN #release alice :Alice".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        let (client, _) = client_with_commands(&session);
+        let live = client.query("alice").unwrap();
+        let page = |nick| crate::Conversation::Private(client.query(nick).unwrap());
+        let alice = page("alice");
+        let ours = "@time=2026-11-01T09:00:00.000Z;msgid=own-1 :papo!~u@papo.irc PRIVMSG alice :I will send the token once you confirm";
+        let theirs = "@time=2026-11-01T09:01:00.000Z;msgid=alice-1;account=alice :alice!~u@alice.irc PRIVMSG papo :confirmed, send it";
+        let renamed_ours = "@time=2026-10-01T09:00:00.000Z;msgid=own-0 :papo_away!~u@papo.irc PRIVMSG alice :back on monday";
+        let renamed_theirs = "@time=2026-10-01T09:01:00.000Z;msgid=alice-0;account=alice :alice!~u@alice.irc PRIVMSG papo_away :see you then";
+        for (line, party, page, peer, sent_by_peer) in [
+            (ours, Me, Some(&alice), Some("alice"), false),
+            (ours, Unknown, Some(&alice), Some("alice"), false),
+            (theirs, Other, Some(&alice), Some("alice"), true),
+            (theirs, Unknown, Some(&alice), Some("alice"), true),
+            (renamed_ours, Me, Some(&alice), Some("alice"), false),
+            (renamed_ours, Unknown, Some(&alice), Some("alice"), false),
+            (renamed_theirs, Unknown, Some(&alice), Some("alice"), true),
+        ] {
+            let mut item = core_item(line);
+            item.actor_party = party;
+            let event = history_item(
+                papo_core::HistoryItem::Message(item),
+                page,
+                &client,
+                UNIX_EPOCH,
+            );
+            let case = format!("{line} {party:?} {page:?}");
+            let PageEvent::Message(message) = event else {
+                panic!("{case}: expected a historical message")
+            };
+            let crate::Conversation::Private(handle) = &message.conversation else {
+                panic!("{case}: expected a private conversation")
+            };
+            assert_eq!(Some(handle.nick().as_str()), peer, "{case}");
+            assert_eq!(*handle == message.actor, sent_by_peer, "{case}");
+            assert_eq!(*handle == live, sent_by_peer, "{case}");
+        }
+    }
+
     fn review_session(members: &[&str]) -> Session {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
