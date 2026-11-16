@@ -295,7 +295,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     assert!(reply.get(2).is_some_and(|time| !time.is_empty()));
 
     let nick = alice.nick();
-    alice.quit_step().reason("record this departure").await?;
+    alice.quit().reason("record this departure").await?;
     let whowas = bob
         .request_raw(papo::Line::new("WHOWAS").with_params([nick.as_str(), "1"]))
         .await?;

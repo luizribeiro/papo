@@ -57,8 +57,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while let Some((event, _)) = events.next().await {
         if let Event::ChannelSynced(synced) = event {
             println!("attached {id} {}", synced.channel);
-            attached.quit_step().await?;
-            manager.quit_step().await?;
+            attached.quit().await?;
+            manager.quit().await?;
             return Ok(());
         }
     }

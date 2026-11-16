@@ -87,8 +87,8 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
                 None => panic!("driver stopped while joining"),
             }
         }
-        attached.quit_step().await.unwrap();
-        manager.quit_step().await.unwrap();
+        attached.quit().await.unwrap();
+        manager.quit().await.unwrap();
     })
     .await
     .expect("live bouncer-network example did not finish within 30 seconds");

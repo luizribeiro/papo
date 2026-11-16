@@ -94,8 +94,8 @@ async fn high_level_client_uses_the_browser_websocket() {
         matches!(event, ClientEvent::Connected(registered) if registered.reconnected)
     })
     .await;
-    peer.quit_step().await.unwrap();
-    client.quit_step().await.unwrap();
+    peer.quit().await.unwrap();
+    client.quit().await.unwrap();
 }
 
 async fn wait_for(events: &mut Events, accepted: impl Fn(&ClientEvent) -> bool) {

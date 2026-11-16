@@ -55,7 +55,7 @@ async fn reacts_to_live_messages() {
         assert_eq!(&reaction.reacts_to, msgid);
         assert_eq!(reaction.reaction, "👍");
 
-        user.quit_step().await.unwrap();
+        user.quit().await.unwrap();
     })
     .await
     .expect("live reaction bot test did not finish within 20 seconds");

@@ -387,7 +387,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
         .connect_account_session("alice-phone", account.clone())
         .await?;
     wait_for_channel(&mut phone, &channel).await?;
-    phone.quit_step().await?;
+    phone.quit().await?;
     phone.wait_for(Event::as_disconnected).await?;
 
     let texts = [

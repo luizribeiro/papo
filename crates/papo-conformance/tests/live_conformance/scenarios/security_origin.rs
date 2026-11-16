@@ -355,7 +355,7 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
         Err(Error::TargetGone)
     ));
 
-    alice.quit_step().await?;
+    alice.quit().await?;
     let stranger = s
         .connect_with(Client::builder(upstream_endpoint, &alice_nick))
         .await?;

@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             _ => continue,
         };
         println!("logged in as {created}");
-        client.quit_step().await?;
+        client.quit().await?;
         return Ok(());
     }
     Ok(())

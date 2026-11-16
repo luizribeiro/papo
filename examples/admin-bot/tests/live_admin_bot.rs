@@ -63,8 +63,8 @@ async fn parses_mentions_and_authorizes_by_account() {
             .unwrap();
         wait_op(&mut admin_events, &channels[0], &user_nick).await;
 
-        user.quit_step().await.unwrap();
-        admin.quit_step().await.unwrap();
+        user.quit().await.unwrap();
+        admin.quit().await.unwrap();
     })
     .await
     .expect("live admin bot test did not finish within 25 seconds");
@@ -105,7 +105,7 @@ async fn keeps_running_after_action_refusals() {
         admin.privmsg(&channels[0], "!ping").await.unwrap();
         wait_message(&mut events, "pong").await;
 
-        admin.quit_step().await.unwrap();
+        admin.quit().await.unwrap();
     })
     .await
     .expect("live admin bot refusal test did not finish within 20 seconds");

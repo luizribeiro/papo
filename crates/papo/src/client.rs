@@ -2157,11 +2157,6 @@ impl Client {
         }
     }
 
-    #[doc(hidden)]
-    pub fn quit_step(&self) -> QuitRequest {
-        self.quit()
-    }
-
     fn quit_request(&self, reason: String) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
