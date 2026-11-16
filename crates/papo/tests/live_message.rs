@@ -82,7 +82,7 @@ async fn same_account_sessions_receive_own_live_messages() {
             .unwrap();
         let other =
             wait_own_message(&mut events_b, |message| message.text == "from this device").await;
-        assert_eq!(other.authorship, papo::Authorship::Own);
+        assert_eq!(other.authorship, papo::Party::Me);
 
         client_b.quit("multiclient test complete").await.unwrap();
         client_a.quit("multiclient test complete").await.unwrap();

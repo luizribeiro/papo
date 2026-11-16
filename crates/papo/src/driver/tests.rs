@@ -793,7 +793,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
 
     let own = next_event(&mut events).await.unwrap();
     let own = own.as_message().unwrap();
-    assert_eq!(own.authorship, crate::Authorship::Own);
+    assert_eq!(own.authorship, crate::Party::Me);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -1325,7 +1325,7 @@ async fn event_reply_needs_no_who() {
     client_line(&mut server, b"NOTICE dan \x01PING\x01\r\n").await;
 
     let mut own_query = channel_query.clone();
-    own_query.authorship = crate::Authorship::Own;
+    own_query.authorship = crate::Party::Me;
     within(client.ctcp_reply(&own_query, "from another device"))
         .await
         .unwrap();
@@ -2009,7 +2009,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
             actor: crate::Source::User(crate::UserHandle::from_nick(test_nick("oper"))),
-            authorship: crate::Authorship::Other,
+            authorship: crate::Party::Other,
             reason: Some("Community renamed".into()),
         }),
     );
@@ -2024,7 +2024,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             received_at: SystemTime::UNIX_EPOCH,
             channel: test_channel_handle("#papo"),
             actor: crate::__testing::user_handle(test_nick("papo-driver")),
-            authorship: crate::Authorship::Own,
+            authorship: crate::Party::Me,
             netjoin: None,
         }),
     );
@@ -2037,7 +2037,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             received_at: SystemTime::UNIX_EPOCH,
             channel: test_channel_handle("#visitors"),
             actor: crate::__testing::user_handle(test_nick("alice")),
-            authorship: crate::Authorship::Other,
+            authorship: crate::Party::Other,
             netjoin: None,
         }),
     );
@@ -2054,7 +2054,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             facts: None,
             channel: test_channel_handle("#staff"),
             reason: Some("lunch".into()),
-            authorship: crate::Authorship::Other,
+            authorship: crate::Party::Other,
         }),
     );
     super::update_rejoin_channels(
@@ -2071,8 +2071,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
                 papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
             ),
-            authorship: crate::Authorship::Other,
-            subject_authorship: crate::Authorship::Other,
+            authorship: crate::Party::Other,
+            subject_authorship: crate::Party::Other,
             reason: Some("idle".into()),
         }),
     );
@@ -2089,7 +2089,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             facts: None,
             channel: test_channel_handle("#Papo"),
             reason: None,
-            authorship: crate::Authorship::Own,
+            authorship: crate::Party::Me,
         }),
     );
     assert_eq!(defaults.parted_while_disconnected, ["#systems"]);
@@ -2107,8 +2107,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
                 papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
             ),
-            authorship: crate::Authorship::Other,
-            subject_authorship: crate::Authorship::Own,
+            authorship: crate::Party::Other,
+            subject_authorship: crate::Party::Me,
             reason: Some("access removed".into()),
         }),
     );
@@ -2176,7 +2176,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         received_at: SystemTime::UNIX_EPOCH,
         channel: test_channel_handle("#overflow"),
         actor: crate::__testing::user_handle(test_nick("papo-driver")),
-        authorship: crate::Authorship::Own,
+        authorship: crate::Party::Me,
         netjoin: None,
     });
 
@@ -6096,7 +6096,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         .unwrap()
         .clone();
     assert_eq!(changed.new, "papo-renamed");
-    assert_eq!(changed.authorship, crate::Authorship::Own);
+    assert_eq!(changed.authorship, crate::Party::Me);
 
     server_line(
         &mut server,
@@ -6111,7 +6111,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         .clone();
     assert_eq!(joined.actor.nick(), "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
-    assert_eq!(joined.authorship, crate::Authorship::Own);
+    assert_eq!(joined.authorship, crate::Party::Me);
     server_line(
         &mut server,
         b":ergo.test 353 papo-renamed = #papo-self :@papo-renamed\r\n:ergo.test 366 papo-renamed #papo-self :End of /NAMES list\r\n",
@@ -9130,10 +9130,7 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
     assert!(within(sent).await.unwrap().is_ok());
 
     let sibling = next_event(&mut events).await.unwrap();
-    assert_eq!(
-        sibling.as_message().unwrap().authorship,
-        crate::Authorship::Own
-    );
+    assert_eq!(sibling.as_message().unwrap().authorship, crate::Party::Me);
     server_line(
         &mut server,
         b"@msgid=RfcBTzyxY120004 :emily!e@cloak.example PRIVMSG #papo :coincidental identifier\r\n",

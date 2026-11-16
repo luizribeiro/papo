@@ -244,7 +244,7 @@ impl Command {
         audience: Option<Prefix>,
         config: &BotConfig,
     ) -> Option<Self> {
-        if message.authorship == papo::Authorship::Own
+        if message.authorship == papo::Party::Me
             || message.kind != MessageKind::Text
             || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
@@ -500,8 +500,7 @@ mod tests {
 
     use futures_io::{AsyncRead, AsyncWrite};
     use papo::{
-        AccountName, Authorship, Casemapping, Client, Conversation, InvalidRateLimit, MessageKind,
-        Nick,
+        AccountName, Casemapping, Client, Conversation, InvalidRateLimit, MessageKind, Nick, Party,
     };
     use papo_testing::MessageBuilder;
     use web_time::Instant;
@@ -1017,7 +1016,7 @@ mod tests {
         assert!(parse(&action, &config).is_none());
 
         let mut own = message("#papo", "!ping");
-        own.authorship = Authorship::Own;
+        own.authorship = Party::Me;
         assert!(parse(&own, &config).is_none());
     }
 

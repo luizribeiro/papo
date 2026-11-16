@@ -57,9 +57,9 @@ impl JoinedBuilder {
     #[must_use]
     pub fn own(mut self, own: bool) -> Self {
         self.0.authorship = if own {
-            papo::Authorship::Own
+            papo::Party::Me
         } else {
-            papo::Authorship::Other
+            papo::Party::Other
         };
         self
     }
@@ -114,7 +114,7 @@ mod tests {
             .own(true)
             .build();
         assert_eq!(joined.channel.name().as_str(), "#papo");
-        assert_eq!(joined.authorship, papo::Authorship::Own);
+        assert_eq!(joined.authorship, papo::Party::Me);
 
         let away = AwayChangedBuilder::new(mapping.nick("alice"))
             .away(papo::Away::__away_value(Some("reviewing IRCv3".into())))
