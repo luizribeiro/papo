@@ -2,7 +2,11 @@
 
 mod file_store;
 
-use std::{env, error::Error, time::UNIX_EPOCH};
+use std::{
+    env,
+    error::Error,
+    time::{Duration, UNIX_EPOCH},
+};
 
 use file_store::FileStore;
 use papo::{Client, sts::StsPolicy, sts::StsStore};
@@ -14,8 +18,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     store.put(StsPolicy::new(
         "irc.example.net",
         6697,
-        UNIX_EPOCH + std::time::Duration::from_secs(4_000_000_000),
-        std::time::Duration::from_hours(4_320),
+        UNIX_EPOCH + Duration::from_secs(4_000_000_000),
+        Duration::from_hours(4_320),
     ));
     let store = FileStore::open(path)?;
     let policy = store.get("irc.example.net").ok_or("policy was not saved")?;

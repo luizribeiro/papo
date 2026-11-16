@@ -1,5 +1,10 @@
 use std::{
-    collections::HashMap, fmt::Write as _, fs, io, path::PathBuf, sync::Mutex, time::UNIX_EPOCH,
+    collections::HashMap,
+    fmt::Write as _,
+    fs, io,
+    path::PathBuf,
+    sync::Mutex,
+    time::{Duration, UNIX_EPOCH},
 };
 
 use papo::sts::{StsPolicy, StsStore};
@@ -63,25 +68,20 @@ impl StsStore for FileStore {
 }
 
 fn parse_policy(line: &str) -> io::Result<(String, StsPolicy)> {
-    let fields = line.split('\t').collect::<Vec<_>>();
-    let (host, port, expiry, duration, transport) = match fields.as_slice() {
-        [host, port, expiry, duration] => (*host, *port, *expiry, *duration, false),
-        [host, port, expiry, duration, transport] => {
-            let transport = match *transport {
-                "tcp" => false,
-                "websocket" => true,
-                _ => return Err(io::Error::other("invalid STS policy transport")),
-            };
-            (*host, *port, *expiry, *duration, transport)
-        }
-        _ => return Err(io::Error::other("invalid STS policy")),
+    let [host, port, expiry, duration, transport] = line.split('\t').collect::<Vec<_>>()[..] else {
+        return Err(io::Error::other("invalid STS policy"));
+    };
+    let websocket = match transport {
+        "tcp" => false,
+        "websocket" => true,
+        _ => return Err(io::Error::other("invalid STS policy transport")),
     };
     let policy = StsPolicy::new(
         host,
         port.parse().map_err(io::Error::other)?,
-        UNIX_EPOCH + std::time::Duration::from_secs(expiry.parse().map_err(io::Error::other)?),
-        std::time::Duration::from_secs(duration.parse().map_err(io::Error::other)?),
+        UNIX_EPOCH + Duration::from_secs(expiry.parse().map_err(io::Error::other)?),
+        Duration::from_secs(duration.parse().map_err(io::Error::other)?),
     )
-    .websocket(transport);
+    .websocket(websocket);
     Ok((host.to_string(), policy))
 }
