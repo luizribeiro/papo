@@ -18,6 +18,8 @@ mod redact;
 mod tests;
 
 const LINES_PER_CLIENT: usize = 200;
+/// The 512-byte message plus the 8191-byte tag section the message-tags spec allows.
+const MAX_LINE: usize = 512 + 8191;
 
 #[derive(Clone)]
 pub(crate) struct WireLog {
@@ -125,7 +127,7 @@ impl Tapped {
                 let line = std::mem::take(partial);
                 let line = line.strip_suffix(b"\r").unwrap_or(&line);
                 self.log.record(self.client, direction, line);
-            } else {
+            } else if partial.len() < MAX_LINE {
                 partial.push(byte);
             }
         }
