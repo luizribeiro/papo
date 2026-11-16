@@ -10,11 +10,17 @@ TEST_START = re.compile(r"^test (scenarios::\S+) \.\.\.")
 
 
 def records(lines):
-    """Yield JSON records embedded in libtest output lines."""
+    """Yield scenario JSON records embedded in libtest output lines.
+
+    Scenario names are Rust identifiers. The runner's own tests run specs named
+    "harness:<case>" so that their records never become scenario rows.
+    """
     for line in lines:
         marker = line.find('{ "type":')
         if marker != -1:
-            yield json.loads(line[marker:])
+            record = json.loads(line[marker:])
+            if not str(record.get("name", "")).startswith("harness:"):
+                yield record
 
 
 def summarize(lines):
