@@ -231,6 +231,56 @@ mod tests {
     use papo::MessageId;
     use papo_test_server::DeploymentProfile;
 
+    use crate::{Requirements, Scenario, ScenarioFuture, ScenarioSpec, run_scenario};
+
+    fn run_harness_case(name: &'static str, run: fn(Scenario) -> ScenarioFuture) -> Option<String> {
+        if std::env::var_os("PAPO_CONFORMANCE_DESCRIBE").is_some() {
+            return None;
+        }
+        let spec = ScenarioSpec {
+            name,
+            requires: Requirements::default(),
+            covers: &[],
+            run,
+        };
+        Some(format!("{:?}", run_scenario(&spec).unwrap_err()))
+    }
+
+    #[test]
+    fn runner_fails_a_failing_body_and_prints_its_wire_log() {
+        fn connect_then_fail(scenario: Scenario) -> ScenarioFuture {
+            Box::pin(async move {
+                scenario.connect("harness").await?;
+                Err(std::io::Error::other("history contains the sent message").into())
+            })
+        }
+        let Some(failure) = run_harness_case("harness:failing-body", connect_then_fail) else {
+            return;
+        };
+        assert!(
+            failure.starts_with(
+                "history contains the sent message\n\
+                 wire log, in seconds since the scenario started:\n== client 1 (harness-"
+            ),
+            "{failure}"
+        );
+        assert!(failure.contains(" -> CAP LS 302\n"), "{failure}");
+    }
+
+    #[test]
+    fn runner_fails_a_panicking_body() {
+        fn panic_body(_: Scenario) -> ScenarioFuture {
+            Box::pin(async { panic!("identity was not synchronized") })
+        }
+        let Some(failure) = run_harness_case("harness:panicking-body", panic_body) else {
+            return;
+        };
+        assert!(
+            failure.starts_with("scenario panicked: identity was not synchronized\nwire log"),
+            "{failure}"
+        );
+    }
+
     use super::assert_delivery_tags;
 
     #[test]
