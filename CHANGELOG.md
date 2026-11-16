@@ -555,7 +555,8 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | `Vec<char>` status prefixes | `Option<Prefix>` preserves the lowest-ranked addressed prefix |
 | `ServerNoticeTarget` | `Audience::{Me, Channel, Broadcast}` plus `Broadcast::{Everyone, Mask}` |
 | Server-wide CTCP and tag messages were folded into unrelated events | `Event::BroadcastCtcp` and `Event::BroadcastTagMsg` carry explicit broadcast audiences |
-| `Event::Other(Line)` | `Event::Other(event::Unparsed)` preserves the line plus msgid and timestamps and dereferences to `Line` |
+| `Event::Other(Line)` | `Event::Other(event::Other)` preserves the line plus msgid and timestamps and dereferences to `Line` |
+| `event::Unparsed` | `event::Other`, named like its `Event::Other` variant and `as_other()` accessor |
 | `Event::msgid()` cloned an identifier | It returns `Option<&MessageId>` |
 | `HistoryPage::messages()` silently omitted notices | Use the page iterator for every item or `chat_messages()` when only `Message` values are wanted |
 

@@ -1,8 +1,8 @@
 use std::time::SystemTime;
 
 use super::{
-    Audience, CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, Reacted, Redacted,
-    ServerNotice, ServerTime, TagMsg, TypingChanged, Unparsed,
+    Audience, CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, Other, Reacted,
+    Redacted, ServerNotice, ServerTime, TagMsg, TypingChanged,
 };
 use crate::{Conversation, Prefix};
 
@@ -109,7 +109,7 @@ line_types! {
     /// A user's typing state changed.
     TypingChanged(TypingChanged),
     /// A line papo did not turn into a typed payload.
-    Other(Unparsed),
+    Other(Other),
 }
 
 trait TakeStatus {
@@ -147,9 +147,9 @@ impl TakeStatus for Incomplete {
     }
 }
 
-// An unparsed line was never classified, so its target is read here: a status sign on it names
+// An untyped line was never classified, so its target is read here: a status sign on it names
 // the same audience a typed line would carry.
-impl TakeStatus for Unparsed {
+impl TakeStatus for Other {
     fn take_status(&mut self, own_nick: &str, isupport: &papo_proto::Isupport) -> Option<Prefix> {
         papo_core::classify_conversation(&self.line.as_ref(), own_nick, isupport)
             .ok()
@@ -236,5 +236,5 @@ variant_accessors! { RestrictedLine;
     (Reacted, as_reacted, Reacted),
     (Redacted, as_redacted, Redacted),
     (TypingChanged, as_typing_changed, TypingChanged),
-    (Other, as_other, Unparsed),
+    (Other, as_other, Other),
 }

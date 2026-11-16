@@ -464,10 +464,10 @@ pub struct ServerNotice {
     pub(crate) receipt: crate::message_ref::Receipt,
 }
 
-/// A parsed IRC line without a more specific typed event.
+/// A parsed line papo did not turn into a typed event, carried by [`Event::Other`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Unparsed {
+pub struct Other {
     /// The original parsed line.
     pub line: ProtoLine,
     /// The server-assigned message identifier, when supplied.
@@ -481,7 +481,7 @@ pub struct Unparsed {
     pub received_at: SystemTime,
 }
 
-impl std::ops::Deref for Unparsed {
+impl std::ops::Deref for Other {
     type Target = ProtoLine;
 
     fn deref(&self) -> &Self::Target {
@@ -680,7 +680,7 @@ pub(crate) fn incoming_from_core(
             && kind != crate::cap::MULTILINE.as_str()
             && !matches!(kind, "netsplit" | "netjoin")
     }) {
-        return unparsed_from_line(received.into_line(), received_at);
+        return other_from_line(received.into_line(), received_at);
     }
     let conversation = received.conversation().cloned();
     let status = received.status();
@@ -706,7 +706,7 @@ pub(crate) fn incoming_from_core(
             Err(raw) => raw,
         };
         if !is_server_notice_line(&raw.as_ref()) {
-            return unparsed_from_line(raw, received_at);
+            return other_from_line(raw, received_at);
         }
         let mut event = ServerNotice::from_line(
             raw,
@@ -720,7 +720,7 @@ pub(crate) fn incoming_from_core(
             Some(reply_token),
         )
         .map_or_else(
-            |line| unparsed_from_line(line, received_at),
+            |line| other_from_line(line, received_at),
             Event::ServerNotice,
         );
         attach_message_handles(&mut event, tokens, handle_state, false);
@@ -1199,7 +1199,7 @@ fn message_event_from_line(
             reply_token,
         )
         .map_or_else(
-            |line| unparsed_from_line(line, received_at),
+            |line| other_from_line(line, received_at),
             Event::ServerNotice,
         );
     }
@@ -1230,7 +1230,7 @@ fn message_event_from_line(
             received_at,
             reply_token,
         )
-        .map_or_else(|line| unparsed_from_line(line, received_at), Event::Notice);
+        .map_or_else(|line| other_from_line(line, received_at), Event::Notice);
     }
     Message::new_with_context(
         raw,
@@ -1244,7 +1244,7 @@ fn message_event_from_line(
         received_at,
         reply_token,
     )
-    .map_or_else(|line| unparsed_from_line(line, received_at), Event::Message)
+    .map_or_else(|line| other_from_line(line, received_at), Event::Message)
 }
 
 pub(crate) fn historical_message_event(
@@ -1260,7 +1260,7 @@ pub(crate) fn historical_message_event(
         snapshot.nick().as_str(),
         snapshot.isupport().inner(),
     ) else {
-        return unparsed_from_line(raw, received_at);
+        return other_from_line(raw, received_at);
     };
     let channel_context = papo_core::claimed_channel_context(
         &raw.as_ref(),
@@ -1522,14 +1522,14 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
 }
 
-pub(crate) fn unparsed_from_line(line: ProtoLine, received_at: SystemTime) -> Event {
+pub(crate) fn other_from_line(line: ProtoLine, received_at: SystemTime) -> Event {
     let message = line.as_ref();
     let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
-    // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so unparsed playback
+    // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so untyped playback
     // lines keep their original timestamps.
     let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
         .and_then(|value| ServerTime::from_stored(&value).ok());
-    Event::Other(Unparsed {
+    Event::Other(Other {
         line,
         msgid,
         server_time,
@@ -1592,7 +1592,7 @@ pub enum Event {
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
     /// and logging; a future version may type it.
-    Other(Unparsed),
+    Other(Other),
     /// A tag-only message with no more specific typed event.
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
@@ -1728,7 +1728,7 @@ variant_accessors! { Event;
     (MetadataChanged, as_metadata_changed, MetadataChanged),
     (AccountCreation, as_account_creation, crate::AccountOutcome),
     (Warning, as_warning, Warning),
-    (Other, as_other, Unparsed),
+    (Other, as_other, Other),
 }
 
 impl Event {
@@ -4290,7 +4290,7 @@ mod tests {
         assert_eq!(tagged_event.received_at(), Some(received));
         assert_eq!(tagged.received_at, received);
         assert_eq!(
-            super::unparsed_from_line(
+            super::other_from_line(
                 Line::new("VENDOR")
                     .param("payload")
                     .with_tag("msgid", "Other120004")

@@ -148,7 +148,7 @@ impl IntoFuture for MarkReadRequest {
 }
 
 fn other(line: Line, received_at: SystemTime) -> Event {
-    crate::event_impl::unparsed_from_line(line, received_at)
+    crate::event_impl::other_from_line(line, received_at)
 }
 
 #[allow(clippy::too_many_lines)]

@@ -902,6 +902,29 @@ impl core::marker::Unpin for papo::event::Notice
 impl core::marker::UnsafeUnpin for papo::event::Notice
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Notice
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Notice
+#[non_exhaustive] pub struct papo::event::Other
+pub papo::event::Other::line: papo::Line
+pub papo::event::Other::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Other::received_at: std::time::SystemTime
+pub papo::event::Other::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl core::clone::Clone for papo::event::Other
+pub fn papo::event::Other::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Other
+impl core::cmp::PartialEq for papo::event::Other
+pub fn papo::event::Other::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Other
+pub fn papo::event::Other::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Other
+impl core::ops::deref::Deref for papo::event::Other
+pub type papo::event::Other::Target = papo::Line
+pub fn papo::event::Other::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo::event::Other
+impl core::marker::Send for papo::event::Other
+impl core::marker::Sync for papo::event::Other
+impl core::marker::Unpin for papo::event::Other
+impl core::marker::UnsafeUnpin for papo::event::Other
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Other
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Other
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::actor: papo::UserHandle
 pub papo::event::Parted::actor_party: papo::Party
@@ -1198,29 +1221,6 @@ impl core::marker::Unpin for papo::event::TypingChanged
 impl core::marker::UnsafeUnpin for papo::event::TypingChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TypingChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TypingChanged
-#[non_exhaustive] pub struct papo::event::Unparsed
-pub papo::event::Unparsed::line: papo::Line
-pub papo::event::Unparsed::msgid: core::option::Option<papo::MessageId>
-pub papo::event::Unparsed::received_at: std::time::SystemTime
-pub papo::event::Unparsed::server_time: core::option::Option<papo_proto::time::ServerTime>
-impl core::clone::Clone for papo::event::Unparsed
-pub fn papo::event::Unparsed::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Unparsed
-impl core::cmp::PartialEq for papo::event::Unparsed
-pub fn papo::event::Unparsed::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Unparsed
-pub fn papo::event::Unparsed::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Unparsed
-impl core::ops::deref::Deref for papo::event::Unparsed
-pub type papo::event::Unparsed::Target = papo::Line
-pub fn papo::event::Unparsed::deref(&self) -> &Self::Target
-impl core::marker::Freeze for papo::event::Unparsed
-impl core::marker::Send for papo::event::Unparsed
-impl core::marker::Sync for papo::event::Unparsed
-impl core::marker::Unpin for papo::event::Unparsed
-impl core::marker::UnsafeUnpin for papo::event::Unparsed
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Unparsed
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Unparsed
 pub mod papo::fail
 pub const papo::fail::ACCOUNT_EXISTS: papo::ReplyCode
 pub const papo::fail::ACCOUNT_NAME_MUST_BE_NICK: papo::ReplyCode
@@ -1624,7 +1624,7 @@ pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::Motd(papo::event::Motd)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Notice(papo::event::Notice)
-pub papo::Event::Other(papo::event::Unparsed)
+pub papo::Event::Other(papo::event::Other)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceChanged(papo::PersistenceStatus)
 pub papo::Event::Quit(papo::event::Quit)
@@ -1707,7 +1707,7 @@ pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::
 impl papo::Event
 pub const fn papo::Event::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 impl papo::Event
-pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::event::Unparsed>
+pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::event::Other>
 impl papo::Event
 pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
 impl papo::Event
@@ -2094,7 +2094,7 @@ pub papo::RestrictedLine::CtcpReply(papo::event::CtcpReply)
 pub papo::RestrictedLine::Incomplete(papo::Incomplete)
 pub papo::RestrictedLine::Message(papo::Message)
 pub papo::RestrictedLine::Notice(papo::event::Notice)
-pub papo::RestrictedLine::Other(papo::event::Unparsed)
+pub papo::RestrictedLine::Other(papo::event::Other)
 pub papo::RestrictedLine::Reacted(papo::event::Reacted)
 pub papo::RestrictedLine::Redacted(papo::event::Redacted)
 pub papo::RestrictedLine::ServerNotice(papo::event::ServerNotice)
@@ -2111,7 +2111,7 @@ pub const fn papo::RestrictedLine::as_message(&self) -> core::option::Option<&pa
 impl papo::RestrictedLine
 pub const fn papo::RestrictedLine::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_other(&self) -> core::option::Option<&papo::event::Unparsed>
+pub const fn papo::RestrictedLine::as_other(&self) -> core::option::Option<&papo::event::Other>
 impl papo::RestrictedLine
 pub const fn papo::RestrictedLine::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
 impl papo::RestrictedLine
