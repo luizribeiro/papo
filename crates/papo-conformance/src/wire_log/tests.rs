@@ -1,6 +1,6 @@
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
-use super::{Direction, WireLog, redact::redact};
+use super::{Direction, Tapped, WireLog, redact::redact};
 
 fn tapped(
     log: &WireLog,
@@ -139,6 +139,32 @@ async fn split_writes_record_one_line_and_a_bare_lf_ends_a_line() {
         without_times(&log.render()),
         "wire log, in seconds since the scenario started:\n== client 1\n  \
          -> PRIVMSG #papo :release approved\n  -> PING :ergo.test"
+    );
+}
+
+#[test]
+fn a_line_that_never_ends_holds_at_most_8703_bytes() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    let (inner, _server) = duplex(16);
+    let mut stream = Tapped {
+        inner: Box::new(inner),
+        log: log.clone(),
+        client,
+        partial: [Vec::new(), Vec::new()],
+    };
+    for _ in 0..100 {
+        stream.observe(Direction::Received, &[b'a'; 1000]);
+        assert!(stream.partial[1].len() <= 512 + 8191);
+    }
+    assert_eq!(stream.partial[1].len(), 512 + 8191);
+    assert!(stream.partial[0].is_empty());
+    stream.observe(Direction::Received, b"\r\n");
+    assert!(stream.partial[1].is_empty());
+    assert!(
+        log.render().ends_with("<- <unparsed line, 8703 bytes>\n"),
+        "{}",
+        log.render()
     );
 }
 
