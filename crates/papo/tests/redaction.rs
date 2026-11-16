@@ -1,7 +1,5 @@
 //! Public credential formatting invariants.
 
-#[cfg(tls)]
-use papo::PrivateKey;
 use papo::{Client, NewAccount, Sasl, Secret, WebIrc};
 
 fn assert_redacted(value: &impl std::fmt::Debug, secret: &str) {
@@ -38,15 +36,16 @@ fn public_credentials_are_redacted_from_debug_output() {
         .flag("secure"),
         webirc_password,
     );
+}
 
-    #[cfg(tls)]
-    {
-        let private_key = "unique-private-key-7821";
-        assert_redacted(
-            &PrivateKey::new(private_key.as_bytes().to_vec()),
-            private_key,
-        );
-    }
+#[cfg(tls)]
+#[test]
+fn tls_private_keys_are_redacted_from_debug_output() {
+    let private_key = "unique-private-key-7821";
+    assert_redacted(
+        &papo::PrivateKey::new(private_key.as_bytes().to_vec()),
+        private_key,
+    );
 }
 
 #[test]
