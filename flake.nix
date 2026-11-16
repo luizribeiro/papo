@@ -268,6 +268,21 @@
             files = "(^|/)(crates/papo-core/src/cap\\.rs|crates/papo-conformance/coverage-checklist\\.toml|docs/conformance-coverage\\.md|docs/ircv3-support\\.md|scripts/ircv3-support(\\.toml)?)$";
             pass_filenames = false;
           };
+          banned-words = {
+            enable = true;
+            always_run = true;
+            pass_filenames = false;
+            entry = "${
+              pkgs.writeShellApplication {
+                name = "banned-words-hook";
+                runtimeInputs = [ pkgs.ripgrep ];
+                text = ''
+                  ${pkgs.bash}/bin/bash scripts/check-banned-words
+                  ${pkgs.bash}/bin/bash scripts/test_check_banned_words.sh
+                '';
+              }
+            }/bin/banned-words-hook";
+          };
           shellcheck.enable = true;
           actionlint.enable = true;
           yamllint.enable = true;

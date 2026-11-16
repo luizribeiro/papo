@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=${1:-.}
+cd "$root"
+
+# Spelled as patterns so this file does not match itself.
+banned=(
+  'author[s]hip'
+)
+
+# License texts are reproduced verbatim and keep their legal wording.
+for word in "${banned[@]}"; do
+  status=0
+  rg -n -i --hidden --glob '!.git' --glob '!**/LICENSE*' "$word" . || status=$?
+  case $status in
+    0)
+      echo "retired name matching '$word' is forbidden; use its replacement" >&2
+      exit 1
+      ;;
+    1) ;;
+    *)
+      echo "searching for '$word' failed" >&2
+      exit "$status"
+      ;;
+  esac
+done
