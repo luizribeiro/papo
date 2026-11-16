@@ -627,3 +627,36 @@ fn reconnect_resets_all_registration_state() {
         assert!(session.poll_timeout().is_some());
     });
 }
+
+fn welcome_time(session: &Session) -> Option<String> {
+    session.state().welcome_time().map(|time| time.to_string())
+}
+
+#[test]
+fn records_the_server_time_of_each_welcome() {
+    let reconnect = |transcript: Transcript| {
+        transcript
+            .disconnect()
+            .connect_default()
+            .server("CAP * LS :server-time")
+            .client("CAP REQ :server-time")
+            .server("CAP * ACK :server-time")
+            .client("CAP END")
+    };
+    let transcript = reconnect(Transcript::new(Config::default()).connect_default().disconnect())
+        .inspect(|session| assert_eq!(welcome_time(session), None))
+        .welcome("@time=2026-11-01T03:35:55.224Z :irc.papo.test 001 papo :Welcome to the papo Internet Relay Chat Network papo")
+        .server("@time=2026-11-01T03:36:10.000Z :alice!~alice@localhost PRIVMSG papo :later")
+        .event(|event| matches!(event, Event::Line(_)))
+        .inspect(|session| {
+            assert_eq!(welcome_time(session).as_deref(), Some("2026-11-01T03:35:55.224Z"));
+        });
+    let transcript = reconnect(transcript)
+        .welcome("@znc.in/server-time-iso=2026-11-16T09:00:00.412Z :irc.libera.chat 001 papo :Welcome to the Libera.Chat Internet Relay Chat Network papo")
+        .inspect(|session| {
+            assert_eq!(welcome_time(session).as_deref(), Some("2026-11-16T09:00:00.412Z"));
+        });
+    reconnect(transcript)
+        .welcome(":bouncer.papo.test 001 papo :Welcome to soju, papo")
+        .inspect(|session| assert_eq!(welcome_time(session), None));
+}

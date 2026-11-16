@@ -3819,6 +3819,7 @@ pub fn papo::State::typing(&self, impl papo::AsConversation) -> papo::Typers<'_>
 pub fn papo::State::user(&self, impl papo::AsNick) -> core::result::Result<core::option::Option<&papo::User>, papo::ForeignReference>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo::State::username(&self) -> &str
+pub fn papo::State::welcome_time(&self) -> core::option::Option<papo_proto::time::ServerTime>
 impl core::fmt::Debug for papo::State
 pub fn papo::State::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::State

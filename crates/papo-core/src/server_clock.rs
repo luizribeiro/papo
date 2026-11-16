@@ -1,10 +1,18 @@
 use std::time::Duration;
 
-use papo_proto::ServerTime;
+use papo_proto::{LineRef, ServerTime};
 use web_time::Instant;
 
 /// Covers ordinary timestamp-to-receipt delay without accepting a value one second ahead.
 const TOLERANCE: Duration = Duration::from_millis(250);
+
+// NONSTANDARD(znc): ZNC stamps lines with its legacy tag when a client asks for it.
+pub(crate) fn line_server_time(message: &LineRef<'_>) -> Option<ServerTime> {
+    message
+        .tag("time")
+        .or_else(|| message.tag("znc.in/server-time-iso"))
+        .and_then(|value| ServerTime::from_stored(&value).ok())
+}
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ServerClock {

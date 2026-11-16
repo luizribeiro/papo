@@ -111,6 +111,7 @@ impl State {
             let old_nick = self.nick.clone();
             self.rename_user(old_nick.as_str(), own_nick);
             self.nick = self.casemapping.nick(own_nick);
+            self.welcome_time = crate::server_clock::line_server_time(message);
         }
         self.apply_user_tags(message, enabled_caps, outbox);
     }

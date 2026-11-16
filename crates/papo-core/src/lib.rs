@@ -5570,11 +5570,7 @@ impl Session {
     }
 
     fn observe_server_time(&mut self, now: Instant, message: &LineRef<'_>) {
-        let Some(newest) = message
-            .tag("time")
-            .or_else(|| message.tag("znc.in/server-time-iso"))
-            .and_then(|value| papo_proto::ServerTime::from_stored(&value).ok())
-        else {
+        let Some(newest) = server_clock::line_server_time(message) else {
             return;
         };
         if self

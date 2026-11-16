@@ -80,6 +80,7 @@ pub struct State {
     last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     rejoin_creation_times: HashMap<NameKey<String>, ServerTime>,
+    welcome_time: Option<ServerTime>,
     reply_epoch: u64,
     channel_epoch: u64,
     departure_sequence: u64,
@@ -170,6 +171,7 @@ impl Clone for State {
             last_seen: self.last_seen.clone(),
             last_seen_order: self.last_seen_order.clone(),
             rejoin_creation_times: self.rejoin_creation_times.clone(),
+            welcome_time: self.welcome_time,
             reply_epoch: self.reply_epoch,
             channel_epoch: self.channel_epoch,
             departure_sequence: self.departure_sequence,
@@ -527,6 +529,7 @@ impl State {
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),
             rejoin_creation_times: HashMap::new(),
+            welcome_time: None,
             reply_epoch: 0,
             channel_epoch: 0,
             departure_sequence: 0,
@@ -1756,6 +1759,15 @@ impl State {
     #[must_use]
     pub fn nick(&self) -> &Nick {
         &self.nick
+    }
+
+    /// Returns the server time stamped on the latest welcome numeric (001), when it had one.
+    ///
+    /// A line stamped earlier by the same clock cannot be shown to be live on this connection,
+    /// because the server had not registered it yet. This also accepts ZNC's `znc.in/server-time-iso` tag.
+    #[must_use]
+    pub const fn welcome_time(&self) -> Option<ServerTime> {
+        self.welcome_time
     }
 
     /// Returns the connection epoch represented by this state.

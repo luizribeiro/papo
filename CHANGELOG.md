@@ -74,6 +74,9 @@ lines.
 `BotConfig::restricted_command`; `Command::audience` reports the sign and its replies keep it.
 `BotConfig::command` returns `None` for a restricted line's inner message.
 
+`State::welcome_time` returns the server time stamped on the connection's 001, the earliest moment a
+live line can carry.
+
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
 

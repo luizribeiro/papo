@@ -2189,6 +2189,7 @@ pub fn papo_core::State::typing(&self, &papo::Conversation) -> papo_core::Typers
 pub fn papo_core::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo_core::User>
 pub fn papo_core::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo_core::State::username(&self) -> &str
+pub const fn papo_core::State::welcome_time(&self) -> core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo_core::State
 pub fn papo_core::State::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::State

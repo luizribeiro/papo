@@ -497,6 +497,18 @@ impl State {
         self.core.nick()
     }
 
+    /// Returns the server time stamped on this connection's welcome numeric (001), when the
+    /// server stamped it.
+    ///
+    /// The server had not registered this connection before that moment, so a line stamped
+    /// earlier, by the same clock, cannot be shown to be live, even when it arrives outside any
+    /// history batch as a bouncer that cannot batch its playback sends it. Not every server stamps
+    /// 001. This also accepts ZNC's `znc.in/server-time-iso` tag.
+    #[must_use]
+    pub fn welcome_time(&self) -> Option<crate::ServerTime> {
+        self.core.welcome_time()
+    }
+
     /// Returns the client's account state.
     ///
     /// This is always [`Account::LoggedIn`] or [`Account::LoggedOut`]. Logged out also covers
@@ -937,6 +949,21 @@ mod name_tests {
             State::from_session(&seeded, false)
                 .known_name_rules()
                 .is_some()
+        );
+    }
+
+    #[test]
+    fn exposes_the_welcome_stamp_of_the_current_connection() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        session.handle_line(
+            now,
+            b"@time=2026-11-01T03:30:11.586Z :irc.papo.test 001 papo :Welcome to the papo IRC Network",
+        );
+        let welcome = State::from_session(&session, true).welcome_time();
+        assert_eq!(
+            welcome.map(|time| time.to_string()).as_deref(),
+            Some("2026-11-01T03:30:11.586Z")
         );
     }
 
