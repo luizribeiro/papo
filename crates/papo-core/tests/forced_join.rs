@@ -5,7 +5,7 @@ mod support;
 use std::time::Instant;
 
 use papo_core::{
-    Authorship, Config, Event, RateLimit, Refusal, RequestError, Session, StateLimit, WhoOnJoin,
+    Config, Event, Party, RateLimit, Refusal, RequestError, Session, StateLimit, WhoOnJoin,
 };
 use support::Transcript;
 
@@ -44,7 +44,7 @@ fn unrequested_own_join_builds_a_normal_membership() {
             Event::Joined {
                 channel,
                 nick,
-                authorship: Authorship::Own,
+                authorship: Party::Me,
                 ..
             } if channel == "#release" && nick == "papo"
         )

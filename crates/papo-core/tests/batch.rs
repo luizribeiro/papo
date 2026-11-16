@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use papo_core::{
-    Authorship, BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session,
+    BatchAbandonReason, Config, Conversation, Event, HistoryItem, Party, RateLimit, Session,
 };
 use papo_proto::{Line, LineRef};
 
@@ -303,7 +303,7 @@ fn multiline_classification_survives_a_nick_change_before_polling() {
         multiline.message.conversation(),
         Some(Conversation::Private(nick)) if nick == "bob"
     ));
-    assert_eq!(multiline.message.authorship(), Authorship::Other);
+    assert_eq!(multiline.message.authorship(), Party::Other);
 }
 
 #[test]
@@ -681,7 +681,7 @@ fn recorded_ergo_own_multiline_history_preserves_blank_lines_and_authorship() {
         message.line.as_ref().param(1),
         Some("first line\n\n\nlast line")
     );
-    assert_eq!(message.authorship, Authorship::Own);
+    assert_eq!(message.authorship, Party::Me);
     assert_eq!(
         message.line.as_ref().tag("account").as_deref(),
         Some("papo")
@@ -722,7 +722,7 @@ fn recorded_unreal_multiline_history_takes_sender_from_members() {
         message.line.as_ref().raw_source(),
         Some("writer!~writer@localhost")
     );
-    assert_eq!(message.authorship, Authorship::Own);
+    assert_eq!(message.authorship, Party::Me);
     assert_eq!(
         message.line.as_ref().param(1),
         Some("missed multiline one and its continuation")
@@ -761,7 +761,7 @@ fn live_multiline_with_server_opener_takes_sender_from_members() {
         multiline.message.as_ref().raw_source(),
         Some("writer!~writer@localhost")
     );
-    assert_eq!(multiline.message.authorship(), Authorship::Own);
+    assert_eq!(multiline.message.authorship(), Party::Me);
     assert_eq!(
         multiline.message.as_ref().param(1),
         Some("first line\nsecond line")
@@ -1041,7 +1041,7 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
     assert!(matches!(
         session.poll_event(),
         Some(Event::Quit { nick, netsplit: Some(split), authorship, .. })
-            if nick == "alice" && split.batch == "split" && authorship == Authorship::Other
+            if nick == "alice" && split.batch == "split" && authorship == Party::Other
     ));
     let extra = line(&mut session);
     assert_eq!(extra.batch_type(), Some("netsplit"));
@@ -1099,14 +1099,14 @@ fn netsplit_followed_by_netjoin_becomes_individual_events() {
     );
     session.handle_line(now, b":irc.example BATCH -join");
 
-    for (nick, authorship) in [("papo", Authorship::Own), ("bob", Authorship::Other)] {
+    for (nick, authorship) in [("papo", Party::Me), ("bob", Party::Other)] {
         assert!(matches!(
             session.poll_event(),
             Some(Event::Quit { nick: actual, netsplit: Some(split), authorship: actual_authorship, .. })
                 if actual == nick && actual_authorship == authorship && split.batch == "split"
         ));
     }
-    for (nick, authorship) in [("papo", Authorship::Own), ("bob", Authorship::Other)] {
+    for (nick, authorship) in [("papo", Party::Me), ("bob", Party::Other)] {
         assert!(matches!(
             session.poll_event(),
             Some(Event::Joined { nick: actual, netjoin: Some(split), authorship: actual_authorship, .. })

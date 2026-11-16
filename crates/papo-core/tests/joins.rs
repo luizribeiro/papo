@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Authorship, Config, Event};
+use papo_core::{Config, Event, Party};
 use support::Transcript;
 
 #[test]
@@ -17,7 +17,7 @@ fn reports_extended_and_plain_join_facts() {
                     envelope,
                     realname: Some(realname),
                     channel,
-                    authorship: Authorship::Other,
+                    authorship: Party::Other,
                     ..
                 } if actor == "alice!~a@host"
                     && envelope.account() == Some("alice")

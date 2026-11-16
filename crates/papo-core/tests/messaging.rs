@@ -5,7 +5,7 @@ mod support;
 use std::time::Instant;
 
 use papo_core::{
-    Authorship, Config, Conversation, CtcpReplies, Event, RateLimit, Session, TypingReason,
+    Config, Conversation, CtcpReplies, Event, Party, RateLimit, Session, TypingReason,
 };
 use papo_proto::{Line, Origin, Reaction, Typing};
 use support::Transcript;
@@ -47,7 +47,7 @@ fn reports_active_paused_and_done_typing() {
             panic!("expected typed notification")
         };
         assert_eq!(change.actor, "alice!~a@cloak");
-        assert_eq!(change.authorship, Authorship::Other);
+        assert_eq!(change.authorship, Party::Other);
         assert!(
             matches!(change.conversation, Conversation::Channel(ref channel)
                 if channel == "#papo" && channel.origin() == origin)
@@ -152,7 +152,7 @@ fn classifies_status_and_private_tag_messages() {
     let Some(Event::TypingChanged(own)) = session.poll_event() else {
         panic!("expected own typing event")
     };
-    assert_eq!(own.authorship, Authorship::Own);
+    assert_eq!(own.authorship, Party::Me);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn reports_redactions_with_and_without_a_reason() {
             panic!("expected redaction")
         };
         assert_eq!(redacted.actor, "alice!~a@cloak");
-        assert_eq!(redacted.authorship, Authorship::Other);
+        assert_eq!(redacted.authorship, Party::Other);
         assert!(
             matches!(redacted.conversation, Conversation::Channel(ref channel) if channel == "#papo")
         );

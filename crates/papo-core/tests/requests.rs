@@ -2315,7 +2315,7 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
     let Some(Event::Line(message)) = session.poll_event() else {
         panic!("expected confirming message before response")
     };
-    assert_eq!(message.authorship(), papo_core::Authorship::Own);
+    assert_eq!(message.authorship(), papo_core::Party::Me);
     assert_eq!(message.as_ref().param(1), Some("hello from papo"));
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected response")

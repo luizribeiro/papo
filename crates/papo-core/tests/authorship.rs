@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Authorship, Config, Event, HistoryItem, Sasl, Subject};
+use papo_core::{Config, Event, HistoryItem, Party, Sasl, Subject};
 use support::Transcript;
 
 #[test]
@@ -13,8 +13,8 @@ fn live_subject_facts_are_exact() {
             matches!(
                 event,
                 Event::Kicked {
-                    authorship: Authorship::Other,
-                    subject_authorship: Authorship::Own,
+                    authorship: Party::Other,
+                    subject_authorship: Party::Me,
                     ..
                 }
             )
@@ -24,8 +24,8 @@ fn live_subject_facts_are_exact() {
             matches!(
                 event,
                 Event::Invited {
-                    authorship: Authorship::Other,
-                    subject_authorship: Authorship::Own,
+                    authorship: Party::Other,
+                    subject_authorship: Party::Me,
                     ..
                 }
             )
@@ -36,8 +36,8 @@ fn live_subject_facts_are_exact() {
                 event,
                 Event::ModeChanged {
                     subject: Subject::User(nick),
-                    authorship: Authorship::Other,
-                    subject_authorship: Authorship::Own,
+                    authorship: Party::Other,
+                    subject_authorship: Party::Me,
                     ..
                 } if nick == "papo"
             )
@@ -54,7 +54,7 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
                 event,
                 Event::Joined {
                     nick,
-                    authorship: Authorship::Own,
+                    authorship: Party::Me,
                     ..
                 } if nick == "papo"
             )
@@ -65,7 +65,7 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
                 Event::NickChanged {
                     old,
                     new,
-                    authorship: Authorship::Own,
+                    authorship: Party::Me,
                     ..
                 } if old == "papo" && new == "papo-away"
             )
@@ -88,7 +88,7 @@ fn live_message_from_another_session_of_our_account_is_own() {
         .server("@account=papo;msgid=RfcBTzyxY120004 :papo-phone!~papo@localhost PRIVMSG #papo :deployment finished")
         .event(|event| {
             matches!(event, Event::Line(message)
-                if message.authorship() == Authorship::Own
+                if message.authorship() == Party::Me
                     && message.as_ref().param(1) == Some("deployment finished"))
         });
 }
@@ -115,7 +115,7 @@ fn sibling_device_away_is_own() {
     .event_until(|event| {
         matches!(event, Event::AwayChanged {
                 nick,
-                authorship: Authorship::Own,
+                authorship: Party::Me,
                 ..
             } if nick == "papo-phone")
     });
@@ -146,7 +146,7 @@ fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
         matches!(event, Event::NickChanged {
                 old,
                 channels,
-                authorship: Authorship::Own,
+                authorship: Party::Me,
                 ..
             } if old == "papo-phone" && *channels == ["#papo", "#rust"])
     })
@@ -155,7 +155,7 @@ fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
         matches!(event, Event::NickChanged {
                 old,
                 channels,
-                authorship: Authorship::Other,
+                authorship: Party::Other,
                 ..
             } if old == "emily" && *channels == ["#rust"])
     });
@@ -186,10 +186,10 @@ fn history_authorship_requires_an_account_tag() {
             };
             matches!(&items[..],
                 [HistoryItem::Message(own), HistoryItem::Message(other), HistoryItem::Message(unknown), HistoryItem::NickChanged(changed)]
-                if own.authorship == Authorship::Own
-                    && other.authorship == Authorship::Other
-                    && unknown.authorship == Authorship::Unknown
-                    && changed.authorship == Authorship::Own)
+                if own.authorship == Party::Me
+                    && other.authorship == Party::Other
+                    && unknown.authorship == Party::Unknown
+                    && changed.authorship == Party::Me)
         });
 }
 
@@ -217,12 +217,12 @@ fn history_mode_authorship_distinguishes_actor_and_subject() {
             };
             matches!(&items[..],
                 [HistoryItem::ModeChanged(own_channel), HistoryItem::ModeChanged(other_user), HistoryItem::ModeChanged(unknown_channel)]
-                if own_channel.authorship == Authorship::Own
-                    && own_channel.subject_authorship == Authorship::Other
-                    && other_user.authorship == Authorship::Other
-                    && other_user.subject_authorship == Authorship::Unknown
-                    && unknown_channel.authorship == Authorship::Unknown
-                    && unknown_channel.subject_authorship == Authorship::Other)
+                if own_channel.authorship == Party::Me
+                    && own_channel.subject_authorship == Party::Other
+                    && other_user.authorship == Party::Other
+                    && other_user.subject_authorship == Party::Unknown
+                    && unknown_channel.authorship == Party::Unknown
+                    && unknown_channel.subject_authorship == Party::Other)
         });
 }
 
@@ -235,8 +235,8 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 event,
                 Event::ModeChanged {
                     subject: Subject::User(nick),
-                    authorship: Authorship::Own,
-                    subject_authorship: Authorship::Own,
+                    authorship: Party::Me,
+                    subject_authorship: Party::Me,
                     ..
                 } if nick == "papo"
             )
@@ -250,8 +250,8 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 event,
                 Event::ModeChanged {
                     subject: Subject::Channel(channel),
-                    authorship: Authorship::Own,
-                    subject_authorship: Authorship::Other,
+                    authorship: Party::Me,
+                    subject_authorship: Party::Other,
                     ..
                 } if channel == "papo"
             )
@@ -263,7 +263,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 Event::NickChanged {
                     old,
                     new,
-                    authorship: Authorship::Other,
+                    authorship: Party::Other,
                     ..
                 } if old == "papo-old" && new == "papo"
             )
