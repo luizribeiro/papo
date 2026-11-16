@@ -98,11 +98,7 @@ async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
 /// exposes a SASL abort reply
 #[scenario(
     requires(caps = ["sasl"]),
-    covers = [
-        "core.sasl.reauth",
-        "ircv3.sasl.abort-906",
-        "ircv3.sasl.already-907"
-    ]
+    covers = ["ircv3.sasl.abort-906"]
 )]
 async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
@@ -130,14 +126,26 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         Warning::AuthenticationFailed { reason, .. } if !reason.is_empty()
     ));
     alice.expect_none(Event::as_disconnected).await?;
+    Ok(())
+}
 
-    if !matches!(
-        DeploymentProfile::from_env()?,
-        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent
-    ) {
-        return Ok(());
+/// refuses a second SASL exchange after a registered session authenticated
+#[scenario(
+    requires(caps = ["sasl"]),
+    covers = ["core.sasl.reauth", "ircv3.sasl.already-907"]
+)]
+async fn sasl_reauth_refused(s: Scenario) -> papo_testing::Result<()> {
+    match DeploymentProfile::from_env()? {
+        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent => {}
+        DeploymentProfile::SojuErgo => {
+            return s.skip("soju authenticates its own users, not the upstream account");
+        }
+        DeploymentProfile::InspIrcd
+        | DeploymentProfile::Solanum
+        | DeploymentProfile::UnrealIrcd => {
+            return s.skip("the server answers a registered AUTHENTICATE with + instead of 907");
+        }
     }
-
     let account = unique("reauth-account");
     create_account(&s.server, &account, PASSWORD)?;
     let bob = s
