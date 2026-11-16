@@ -861,22 +861,27 @@ fn assert_confirmed_as_seen(
     );
 }
 
-/// replies and reaction changes retain the referenced message identifier
-#[scenario(
-    requires(caps = ["echo-message", "labeled-response", "message-tags"]),
-    covers = [
-        "ircv3.message-tags.clienttagdeny",
-        "tag.reply",
-        "tag.react"
-    ]
-)]
-async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
-    alice.privmsg(&channel, "ship release 2.19").await?;
+async fn channel_original(
+    alice: &Peer,
+    bob: &mut Peer,
+    channel: &str,
+) -> papo_testing::Result<(papo::Message, papo::MessageId)> {
+    alice.privmsg(channel, "ship release 2.19").await?;
     let original = bob
         .wait_for(|event| message_text(event, "ship release 2.19"))
         .await?;
     let original_id = original.msgid().expect("message has an identifier").clone();
+    Ok((original, original_id))
+}
+
+/// a reply retains the referenced message identifier
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags"]),
+    covers = ["ircv3.message-tags.clienttagdeny", "tag.reply"]
+)]
+async fn replies(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let (original, original_id) = channel_original(&alice, &mut bob, &channel).await?;
 
     let sent = bob.reply(&original, "acknowledged").await?;
     if sent.fallbacks.contains(&Fallback::ReplyTagDropped) {
@@ -887,10 +892,18 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(reply.raw_text, "acknowledged");
     assert_eq!(reply.in_reply_to.as_ref(), Some(&original_id));
-    assert_eq!(
-        conversation_name(reply.conversation()),
-        Some(channel.clone())
-    );
+    assert_eq!(conversation_name(reply.conversation()), Some(channel));
+    Ok(())
+}
+
+/// reaction changes retain the referenced message identifier
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags"]),
+    covers = ["tag.react"]
+)]
+async fn reactions(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let (original, original_id) = channel_original(&alice, &mut bob, &channel).await?;
 
     let reacted = reaction_or_skip(bob.react(&original, "👍").await)?;
     let added = alice.wait_for(Event::as_reacted).await?;
