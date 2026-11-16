@@ -876,18 +876,20 @@ impl State {
     }
 
     fn new_user(&mut self, nick: &str, username: Option<&str>, host: Option<&str>) -> User {
+        self.forget_proven(nick);
+        let identity = self.next_identity();
+        self.user_with_identity(nick, username, host, identity)
+    }
+
+    fn next_identity(&mut self) -> crate::ReplyIdentity {
         self.departure_sequence = self
             .departure_sequence
             .checked_add(1)
             .expect("recipient identity space exhausted");
-        User::new(
-            nick,
-            username,
-            host,
-            self.casemapping,
-            self.reply_epoch,
-            self.departure_sequence,
-        )
+        crate::ReplyIdentity {
+            epoch: self.reply_epoch,
+            sequence: self.departure_sequence,
+        }
     }
 
     pub(crate) fn end_session_identities(&mut self) {
@@ -915,15 +917,51 @@ impl State {
     }
 
     pub(super) fn remember_departed(&mut self, user: &User) {
-        self.departed_identities.push_back((
+        self.remember_departed_identity(
             crate::ReplyIdentity {
                 epoch: user.reply_epoch,
                 sequence: user.departure_sequence,
             },
             user.nick.clone(),
-        ));
+        );
+    }
+
+    fn remember_departed_identity(&mut self, identity: crate::ReplyIdentity, nick: Nick) {
+        self.departed_identities.push_back((identity, nick));
         if self.departed_identities.len() > MAX_DEPARTED_IDENTITIES {
             self.departed_identities.pop_front();
+        }
+    }
+
+    fn user_with_identity(
+        &self,
+        nick: &str,
+        username: Option<&str>,
+        host: Option<&str>,
+        identity: crate::ReplyIdentity,
+    ) -> User {
+        User::new(
+            nick,
+            username,
+            host,
+            self.casemapping,
+            identity.epoch,
+            identity.sequence,
+        )
+    }
+
+    /// Ends every WHO proof for `nick`. A proof names whoever held the nick when WHO answered;
+    /// once papo sees the nick arrive, leave or change hands, the proof no longer says who holds it.
+    pub(super) fn forget_proven(&mut self, nick: &str) {
+        let casemapping = self.casemapping;
+        let (ended, kept) = std::mem::take(&mut self.proven_identities)
+            .into_iter()
+            .partition::<VecDeque<_>, _>(|(_, proven, _)| {
+                crate::names_equal(casemapping, proven.as_str(), nick)
+            });
+        self.proven_identities = kept;
+        for (identity, nick, _) in ended {
+            self.remember_departed_identity(identity, nick);
         }
     }
 
@@ -934,14 +972,7 @@ impl State {
             self.mark_changed();
             return recipient;
         }
-        self.departure_sequence = self
-            .departure_sequence
-            .checked_add(1)
-            .expect("recipient identity space exhausted");
-        let identity = crate::ReplyIdentity {
-            epoch: self.reply_epoch,
-            sequence: self.departure_sequence,
-        };
+        let identity = self.next_identity();
         self.proven_identities
             .push_back((identity, nick.clone(), account.clone()));
         if self.proven_identities.len() > MAX_PROVEN_IDENTITIES {
@@ -1067,6 +1098,7 @@ impl State {
             self.monitored = monitored;
             self.mark_changed();
         }
+        self.forget_proven(nick);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             if !self.users.contains_key(&key) {
                 self.prepare_identity_arrival(nick);

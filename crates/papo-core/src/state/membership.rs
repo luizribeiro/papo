@@ -280,8 +280,15 @@ impl State {
         }
     }
 
-    pub(super) fn remove_user(&mut self, nick: &str) {
+    /// Ends what papo knew about whoever held `nick`: its WHO proofs, and every in-flight WHO
+    /// sweep's rows for it, which may describe that earlier holder.
+    fn nick_holder_changed(&mut self, nick: &str) {
+        self.forget_proven(nick);
         self.sweep_member_changed(None, nick);
+    }
+
+    pub(super) fn remove_user(&mut self, nick: &str) {
+        self.nick_holder_changed(nick);
         let folded = self.casemapping.fold(nick);
         let Some(user) = self.users.remove(folded.as_ref()) else {
             return;
@@ -295,8 +302,8 @@ impl State {
     }
 
     pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
+        self.nick_holder_changed(old_nick);
         let mapping = self.casemapping;
-        self.sweep_member_changed(None, old_nick);
         if !crate::names_equal(mapping, old_nick, self.nick.as_str())
             && crate::names_equal(mapping, new_nick, self.nick.as_str())
         {

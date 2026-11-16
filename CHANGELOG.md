@@ -619,3 +619,5 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - A person known only from private lines (no shared channel, no MONITOR) whose next line shows
   another username, host or account is a new person: a new `UserHandle` identity, no inherited
   account or facts, and guarded sends to the earlier handle fail with `Error::TargetGone`.
+- A `WHO` proof of a person papo shares no channel with ends when papo sees that nick arrive,
+  quit, change nick or go offline in MONITOR, so a guarded send never reaches the next holder.

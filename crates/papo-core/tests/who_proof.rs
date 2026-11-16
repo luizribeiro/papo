@@ -124,3 +124,56 @@ fn who_rows_match_the_requested_nick_under_the_session_casemapping() {
         assert_eq!(proof.is_ok(), matches, "{casemapping}: proof of {asked}");
     }
 }
+
+#[test]
+fn a_who_proof_ends_when_papo_sees_its_nick_change_hands() {
+    for (name, lines) in [
+        (
+            "the proven person joins, quits, and another takes the nick",
+            &[
+                ":bob!~u@8ajhv7kxgp7ag.irc JOIN #review",
+                ":bob!~u@8ajhv7kxgp7ag.irc QUIT :Quit: bye",
+                ":bob!~u@kq2ccwrbbbw6a.irc JOIN #review",
+            ][..],
+        ),
+        (
+            "a channel member renames to the proven nick",
+            &[
+                ":carol!~u@kq2ccwrbbbw6a.irc JOIN #review",
+                ":carol!~u@kq2ccwrbbbw6a.irc NICK bob",
+            ],
+        ),
+        (
+            "the proven person renames away",
+            &[
+                ":bob!~u@8ajhv7kxgp7ag.irc JOIN #review",
+                ":bob!~u@8ajhv7kxgp7ag.irc NICK bobby",
+            ],
+        ),
+        (
+            "a QUIT names the proven nick",
+            &[":bob!~u@8ajhv7kxgp7ag.irc QUIT :Ping timeout: 120 seconds"],
+        ),
+        (
+            "MONITOR reports the proven nick offline",
+            &[":ergo.test 731 papo :bob"],
+        ),
+    ] {
+        let mut session = registered();
+        session.monitor_add(["bob"]);
+        server(&mut session, ":papo!~u@localhost JOIN #review");
+        while session.poll_transmit().is_some() {}
+        let proof = prove(&mut session, "bob", "bob-account").unwrap();
+        let other = prove(&mut session, "alice", "alice-account").unwrap();
+        assert_eq!(resolved(&session, &proof).as_deref(), Some("bob"), "{name}");
+        for line in lines {
+            server(&mut session, line);
+        }
+        assert_eq!(resolved(&session, &proof), None, "{name}");
+        assert_eq!(
+            resolved(&session, &other).as_deref(),
+            Some("alice"),
+            "{name}"
+        );
+    }
+}
