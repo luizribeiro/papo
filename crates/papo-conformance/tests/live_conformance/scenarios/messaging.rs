@@ -1,11 +1,11 @@
-use papo::{Error, Event, Fallback, Feature, MessageKind, Refusal, UnsupportedReason};
+use papo::{Error, Event, Fallback, MessageKind, Refusal};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
 use super::support::{
     any_message_text, assert_delivery_tags, confirmed_line, confirmed_redaction,
-    conversation_is_private, conversation_name, message_text, notice_text, restricted_line,
-    restricted_message, restricted_text,
+    conversation_is_private, conversation_name, message_text, notice_text, reaction_or_skip,
+    restricted_line, restricted_message, restricted_text,
 };
 use crate::{Peer, Scenario};
 
@@ -893,16 +893,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.clone())
     );
 
-    let reacted = match bob.react(&original, "👍").await {
-        Ok(reacted) => reacted,
-        Err(Error::Unsupported(unsupported))
-            if unsupported.feature == Feature::Reactions
-                && unsupported.reason == UnsupportedReason::TagDenied =>
-        {
-            return Ok(());
-        }
-        Err(error) => return Err(error.into()),
-    };
+    let reacted = reaction_or_skip(bob.react(&original, "👍").await)?;
     let added = alice.wait_for(Event::as_reacted).await?;
     assert_confirmed_as_seen(&reacted, &added, &channel);
     assert_eq!(
@@ -948,16 +939,7 @@ async fn private_reaction_to_away_user(s: Scenario) -> papo_testing::Result<()> 
     bob.set_away("out for lunch until 14:00").await?;
     assert!(matches!(bob.snapshot().away(), papo::Away::Away { .. }));
 
-    let reacted = match alice.react(&original, "👍").await {
-        Ok(reacted) => reacted,
-        Err(Error::Unsupported(unsupported))
-            if unsupported.feature == Feature::Reactions
-                && unsupported.reason == UnsupportedReason::TagDenied =>
-        {
-            return s.skip("server denies the reaction tag");
-        }
-        Err(error) => return Err(error.into()),
-    };
+    let reacted = reaction_or_skip(alice.react(&original, "👍").await)?;
     let seen = bob.wait_for(Event::as_reacted).await?;
     assert!(
         matches!(reacted.confirmation, papo::Confirmation::Confirmed { .. }),

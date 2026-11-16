@@ -1,7 +1,10 @@
 use std::time::Duration;
 
 use papo::event::ModeChanged;
-use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
+use papo::{
+    Account, AccountName, Conversation, Error, Event, Feature, Message, Refusal, State, Subject,
+    UnsupportedReason,
+};
 use papo_test_server::DeploymentProfile;
 
 use crate::Peer;
@@ -259,6 +262,19 @@ pub(super) async fn latest_history_with(
     }
 }
 
+/// Passes a reaction's result through, or skips the scenario when the server denies the reaction tag.
+pub(super) fn reaction_or_skip<T>(reaction: Result<T, Error>) -> papo_testing::Result<T> {
+    match reaction {
+        Err(Error::Unsupported(unsupported))
+            if unsupported.feature == Feature::Reactions
+                && unsupported.reason == UnsupportedReason::TagDenied =>
+        {
+            Err(papo_testing::skipped("server denies the reaction tag"))
+        }
+        reaction => Ok(reaction?),
+    }
+}
+
 pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {
     if peer
         .snapshot()
@@ -329,6 +345,41 @@ mod tests {
             failure.starts_with("scenario panicked: identity was not synchronized\nwire log"),
             "{failure}"
         );
+    }
+
+    use papo::{Error, Feature, Unsupported, UnsupportedReason};
+
+    use super::reaction_or_skip;
+
+    fn unsupported(feature: Feature, reason: UnsupportedReason) -> Result<(), Error> {
+        Err(Error::Unsupported(Unsupported::new(feature, reason)))
+    }
+
+    #[test]
+    fn a_denied_reaction_tag_skips_the_scenario() {
+        let denied = unsupported(Feature::Reactions, UnsupportedReason::TagDenied);
+        let error = reaction_or_skip(denied).unwrap_err();
+        assert_eq!(
+            papo_testing::skip_reason(&error),
+            Some("server denies the reaction tag")
+        );
+    }
+
+    #[test]
+    fn other_reaction_failures_fail_the_scenario() {
+        for failed in [
+            unsupported(Feature::Reactions, UnsupportedReason::NotOffered),
+            unsupported(Feature::Replies, UnsupportedReason::TagDenied),
+            Err(Error::TargetGone),
+        ] {
+            let error = reaction_or_skip(failed).unwrap_err();
+            assert_eq!(papo_testing::skip_reason(&error), None, "{error}");
+        }
+    }
+
+    #[test]
+    fn an_accepted_reaction_passes_through() {
+        assert_eq!(reaction_or_skip(Ok::<_, Error>("👍")).unwrap(), "👍");
     }
 
     use super::assert_delivery_tags;

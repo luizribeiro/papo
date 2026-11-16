@@ -2,8 +2,8 @@ use papo::{ModeAction, ModeArg, Typing};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{
-    any_message_text, confirmed_line, join_seen_by, message_text, restricted_line,
-    restricted_message, restricted_text, wait_channel_mode, wait_for_channel,
+    any_message_text, confirmed_line, join_seen_by, message_text, reaction_or_skip,
+    restricted_line, restricted_message, restricted_text, wait_channel_mode, wait_for_channel,
 };
 use crate::{Peer, Scenario};
 
@@ -225,7 +225,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .msgid()
         .expect("operators-only message has an identifier")
         .clone();
-    bob.react(&question, "🛡️").await?;
+    reaction_or_skip(bob.react(&question, "🛡️").await)?;
     let reaction = alice
         .wait_for(|event| {
             restricted_line(event, |line| {

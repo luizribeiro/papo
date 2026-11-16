@@ -3,7 +3,8 @@ use papo_conformance_macros::scenario;
 
 use super::support::{
     any_message_text, confirmed_line, confirmed_redaction, conversation_name, join_seen_by,
-    latest_history_with, restricted_line, restricted_message, restricted_text, wait_for_channel,
+    latest_history_with, reaction_or_skip, restricted_line, restricted_message, restricted_text,
+    wait_for_channel,
 };
 use crate::Scenario;
 
@@ -231,7 +232,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
         .expect_none(|event| any_message_text(event, "operators approve the deployment"))
         .await?;
 
-    desktop.react(&sent, "🛡️").await?;
+    reaction_or_skip(desktop.react(&sent, "🛡️").await)?;
     let added = phone
         .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_reacted))
         .await?;
