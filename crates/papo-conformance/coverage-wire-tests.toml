@@ -94,6 +94,9 @@
 "who_expected_account::an_account_carrying_handle_reaches_only_a_holder_logged_in_to_that_account" = [
   "security.guard-proof.who-expected-account",
 ]
+"unknown_casemapping::an_unknown_casemapping_never_merges_bracket_nicks" = [
+  "security.casemapping.unknown-token",
+]
 "security::ctcp_replies_refuse_nick_handoffs" = [
   "security.addr-10.ctcp-nick-handoff",
 ]
