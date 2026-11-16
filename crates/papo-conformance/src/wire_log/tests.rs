@@ -1,4 +1,61 @@
-use super::redact::redact;
+use super::{Direction, WireLog, redact::redact};
+
+fn without_times(render: &str) -> String {
+    let mut times = Vec::new();
+    let lines: Vec<String> = render
+        .lines()
+        .map(|line| match line.strip_prefix("  ") {
+            Some(entry) => {
+                let (time, rest) = entry.split_once(' ').unwrap();
+                times.push(time.parse::<f64>().unwrap());
+                format!("  {rest}")
+            }
+            None => line.to_owned(),
+        })
+        .collect();
+    assert!(times.is_sorted(), "{times:?}");
+    lines.join("\n")
+}
+
+#[test]
+fn records_redacted_lines_under_each_client_name() {
+    let log = WireLog::new();
+    let silent = log.add_client();
+    let alice = log.add_client();
+    log.rename(alice, "alice-4821");
+    for (direction, line) in [
+        (Direction::Sent, &b"NICK alice-4821"[..]),
+        (
+            Direction::Sent,
+            b"AUTHENTICATE YWxpY2UAYWxpY2UAcTdIeC0ybVpwXzl2TGNUNHdSZkI=",
+        ),
+        (
+            Direction::Received,
+            b":ergo.test 903 alice-4821 :SASL authentication successful",
+        ),
+    ] {
+        log.record(alice, direction, line);
+    }
+
+    assert_eq!(silent, 0);
+    assert_eq!(
+        without_times(&log.render()),
+        "wire log, in seconds since the scenario started:\n\
+         == client 1\n\
+         == client 2 (alice-4821)\n  \
+         -> NICK alice-4821\n  \
+         -> AUTHENTICATE <redacted, 44 bytes>\n  \
+         <- :ergo.test 903 alice-4821 :SASL authentication successful"
+    );
+}
+
+#[test]
+fn an_empty_log_renders_only_its_heading() {
+    assert_eq!(
+        WireLog::new().render(),
+        "wire log, in seconds since the scenario started:\n"
+    );
+}
 
 #[test]
 fn credentials_are_redacted_and_everything_else_is_kept() {
