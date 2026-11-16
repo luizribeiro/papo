@@ -2009,7 +2009,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
             actor: crate::Source::User(crate::UserHandle::from_nick(test_nick("oper"))),
-            authorship: crate::Party::Other,
+            actor_party: crate::Party::Other,
             reason: Some("Community renamed".into()),
         }),
     );

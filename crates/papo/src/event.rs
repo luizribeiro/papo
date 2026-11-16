@@ -2652,7 +2652,7 @@ pub(crate) fn from_core_with_receipt(
                 channel: channel_handle(channel),
                 subject: user_at_arrival(subject, Account::Unknown, token),
                 actor,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
                 subject_party: Party::from_core(subject_authorship),
                 receipt,
             })
@@ -2732,7 +2732,7 @@ pub(crate) fn from_core_with_receipt(
                 old,
                 new,
                 actor,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
@@ -2846,7 +2846,7 @@ pub(crate) fn from_core_with_receipt(
                     _ => return CoreEvent::Unknown,
                 },
                 actor,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
                 own_nick,
                 changes,
             })
@@ -2878,7 +2878,7 @@ pub(crate) fn from_core_with_receipt(
                 channel: channel_handle(channel),
                 topic: topic.map(|topic| papo_proto::display_text(&topic).into_owned()),
                 actor,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::StateLimitReached { limit, .. } => {
@@ -6067,7 +6067,7 @@ mod tests {
         let event = forwarded(session.poll_event().expect("mode event"));
         let mode = event.as_mode_changed().expect("typed mode event");
         assert!(mode.actor.nick().is_some_and(|nick| nick == "ChanServ"));
-        assert_eq!(mode.authorship, Party::Other);
+        assert_eq!(mode.actor_party, Party::Other);
         assert_eq!(
             mode.own_nick.as_ref().map(papo_proto::Nick::as_str),
             Some("emily")
@@ -6091,7 +6091,7 @@ mod tests {
                 papo_proto::Source::__user("ChanServ", Some("service"), Some("services.example")),
                 mapping,
             ),
-            authorship: Party::Other,
+            actor_party: Party::Other,
             changes: Vec::new(),
             own_nick: own_nick.map(|nick| mapping.nick(nick)),
         }
@@ -6738,7 +6738,7 @@ mod tests {
                     crate::Origin::NONE,
                 ),
                 actor,
-                authorship: Party::Other,
+                actor_party: Party::Other,
                 subject_party: Party::Me,
             }),
             Event::NickChanged(super::NickChanged {

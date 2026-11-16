@@ -825,7 +825,7 @@ fn topic_changed(
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
         actor,
-        authorship,
+        actor_party: authorship,
     }))
 }
 
@@ -891,7 +891,7 @@ fn mode_changed(
             crate::Subject::User(client.query(message.param(0)?).ok()?)
         },
         actor,
-        authorship,
+        actor_party: authorship,
         changes,
         own_nick: None,
     }))

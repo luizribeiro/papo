@@ -107,7 +107,7 @@ pub struct Invited {
     /// The user or server that sent the invitation.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// Whether the invited user is this client's user.
     pub subject_party: Party,
     pub(crate) receipt: crate::message_ref::Receipt,
@@ -130,7 +130,7 @@ pub struct TopicChanged {
     /// The user or server that changed the topic.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
 }
 
 /// A user or channel mode changed.
@@ -148,7 +148,7 @@ pub struct ModeChanged {
     /// The user or server that changed the modes.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// Parsed mode operations in wire order.
     pub changes: Vec<crate::ModeChange>,
     pub(crate) own_nick: Option<Nick>,
@@ -201,7 +201,7 @@ pub struct ChannelRenamed {
     /// The user or server that renamed the channel.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,
 }
