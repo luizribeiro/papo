@@ -296,6 +296,10 @@ fn credentials_are_redacted_and_everything_else_is_kept() {
             ":ergo.test 324 alice #papo +nt",
         ),
         (
+            ":ergo.test 324 alice #papo +lnt 25",
+            ":ergo.test 324 alice #papo +lnt 25",
+        ),
+        (
             "WEBPUSH REGISTER https://push.example/ep p256dh=BCVx;auth=FPss",
             "WEBPUSH REGISTER https://push.example/ep <redacted>",
         ),
