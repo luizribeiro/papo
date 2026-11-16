@@ -6,6 +6,10 @@ impl PeerState {
         Self
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "shares its signature with the unstable peer state, which reads itself"
+    )]
     pub(crate) fn scope(
         &self,
         _: &papo_core::State,
