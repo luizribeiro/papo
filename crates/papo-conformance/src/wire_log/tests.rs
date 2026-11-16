@@ -129,16 +129,40 @@ async fn split_writes_record_one_line_and_a_bare_lf_ends_a_line() {
     for chunk in [
         &b"PRIVMSG #papo :rel"[..],
         b"ease approved\r",
-        b"\nPING :ergo.test\nPONG",
+        b"\nPING :ergo.test\n",
     ] {
         stream.write_all(chunk).await.unwrap();
     }
-    stream.flush().await.unwrap();
-    stream.shutdown().await.unwrap();
     assert_eq!(
         without_times(&log.render()),
         "wire log, in seconds since the scenario started:\n== client 1\n  \
          -> PRIVMSG #papo :release approved\n  -> PING :ergo.test"
+    );
+}
+
+#[tokio::test]
+async fn closing_records_a_last_line_without_a_newline() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    let (mut stream, mut server) = tapped(&log, client);
+    stream.write_all(b"QUIT :restarting").await.unwrap();
+    stream.shutdown().await.unwrap();
+    let mut sent = Vec::new();
+    server.read_to_end(&mut sent).await.unwrap();
+    server
+        .write_all(b"ERROR :Closing Link: ergo.test (Quit: restarting)")
+        .await
+        .unwrap();
+    drop(server);
+    let mut received = Vec::new();
+    stream.read_to_end(&mut received).await.unwrap();
+
+    assert_eq!(sent, b"QUIT :restarting");
+    assert_eq!(
+        without_times(&log.render()),
+        "wire log, in seconds since the scenario started:\n== client 1\n  \
+         -> QUIT :restarting\n  \
+         <- ERROR :Closing Link: ergo.test (Quit: restarting)"
     );
 }
 
