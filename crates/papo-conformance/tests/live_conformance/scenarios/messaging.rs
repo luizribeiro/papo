@@ -877,7 +877,7 @@ async fn channel_original(
 /// a reply retains the referenced message identifier
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags"]),
-    covers = ["ircv3.message-tags.clienttagdeny", "tag.reply"]
+    covers = ["tag.reply"]
 )]
 async fn replies(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
@@ -930,6 +930,43 @@ async fn reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(removed.reacts_to, original_id);
     assert_eq!(removed.reaction, "👍");
     assert_eq!(removed.action, papo::event::ReactionAction::Removed);
+    Ok(())
+}
+
+/// a reaction whose tag the server's `CLIENTTAGDENY` blocks is refused before it is sent
+#[scenario(
+    requires(caps = ["message-tags"], isupport = ["CLIENTTAGDENY"]),
+    covers = ["ircv3.message-tags.clienttagdeny"]
+)]
+async fn client_tag_deny(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    if !bob
+        .snapshot()
+        .isupport()
+        .clienttagdeny()
+        .denies("+draft/react")
+    {
+        return s.skip("CLIENTTAGDENY allows the reaction tag");
+    }
+    let (original, _) = channel_original(&alice, &mut bob, &channel).await?;
+
+    let refused = bob.react(&original, "👍").await;
+    assert!(
+        matches!(
+            &refused,
+            Err(Error::Unsupported(unsupported))
+                if unsupported.feature == papo::Feature::Reactions
+                    && unsupported.reason == papo::UnsupportedReason::TagDenied
+        ),
+        "a denied reaction tag was not refused: {refused:?}"
+    );
+    assert!(
+        !s.rendered_wire_log()
+            .lines()
+            .any(|line| line.contains(" -> ") && line.contains(" TAGMSG ")),
+        "a refused reaction reached the wire"
+    );
+    alice.expect_none(Event::as_reacted).await?;
     Ok(())
 }
 
