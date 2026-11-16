@@ -1785,9 +1785,7 @@ fn end_request(
     end: event::RequestEnd,
 ) {
     join_keys.remove(&id);
-    if matches!(end, event::RequestEnd::Unsupported(_)) {
-        catchups.remove(&id);
-    }
+    catchups.remove(&id);
     if matches!(
         end,
         event::RequestEnd::RecipientGone | event::RequestEnd::CredentialsRefused

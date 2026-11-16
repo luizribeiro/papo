@@ -571,4 +571,44 @@ mod tests {
         assert!(catchups.is_empty());
         assert!(session.poll_transmit().is_none());
     }
+
+    #[test]
+    fn every_request_end_drops_its_catchup() {
+        use crate::event_impl::RequestEnd;
+        let unsupported = || {
+            papo_core::Unsupported::new(
+                papo_core::Feature::History,
+                papo_core::UnsupportedReason::NotOffered,
+            )
+        };
+        for end in [
+            RequestEnd::Untracked,
+            RequestEnd::TimedOut,
+            RequestEnd::Failed(papo_core::RequestError::PendingLimit),
+            RequestEnd::Aborted { transmitted: true },
+            RequestEnd::RecipientGone,
+            RequestEnd::CredentialsRefused,
+            RequestEnd::Unsupported(unsupported()),
+        ] {
+            let mut session = registered_history_session();
+            session.handle_bytes(
+                std::time::Instant::now(),
+                b"@time=2026-11-08T19:55:04.123Z;msgid=RfcBTzyxY120004 :alice!a@cloak PRIVMSG #papo :checkpoint\r\n",
+            );
+            while session.poll_event().is_some() {}
+            let mut catchups = BTreeMap::new();
+            super::begin_catchup(&mut session, &reconnect_defaults(true), &mut catchups);
+            let id = *catchups.keys().next().expect("catchup request");
+            super::super::end_request(
+                &mut session,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+                &mut catchups,
+                id,
+                end,
+            );
+
+            assert!(catchups.is_empty());
+        }
+    }
 }
