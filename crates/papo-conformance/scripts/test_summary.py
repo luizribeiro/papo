@@ -29,6 +29,15 @@ class SummaryTests(unittest.TestCase):
             "websocket -> ignored (PAPO_TEST_WS is not set up)\n",
         )
 
+    def test_runner_self_test_records_are_not_scenarios(self):
+        lines = SAMPLE.splitlines() + [
+            "test scenarios::support::tests::runner_reports_a_failing_body ... "
+            '{ "type": "scenario", "name": "harness:failing-body", "event": "failed", "reason": null }',
+            "ok",
+        ]
+        self.assertEqual(summarize(lines), summarize(SAMPLE.splitlines()))
+        self.assertEqual(missing_scenario_statuses(lines, summarize(lines)), [])
+
     def test_empty_input_has_no_scenarios(self):
         self.assertEqual(summarize(io.StringIO("")), {})
 
