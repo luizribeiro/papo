@@ -1627,10 +1627,14 @@ impl State {
                 .into_iter()
                 .map(|(nick, changes)| (NameKey::new(nick.original().to_owned(), mapping), changes))
                 .collect();
-            sweep.realname_changes = std::mem::take(&mut sweep.realname_changes)
-                .into_iter()
-                .map(|nick| NameKey::new(nick.original().to_owned(), mapping))
-                .collect();
+            let rekey = |nicks: &mut HashSet<NameKey<String>>| {
+                *nicks = std::mem::take(nicks)
+                    .into_iter()
+                    .map(|nick| NameKey::new(nick.original().to_owned(), mapping))
+                    .collect();
+            };
+            rekey(&mut sweep.realname_changes);
+            rekey(&mut sweep.changed_members);
             who_sweeps.insert(
                 self.casemapping
                     .origin()

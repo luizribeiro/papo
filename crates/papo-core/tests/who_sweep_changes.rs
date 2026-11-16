@@ -11,15 +11,23 @@ const DAN_ROW: &str = ":ergo.test 354 bob 152 #papo ~dan 127.0.0.1 dan H dan :Da
 const BOB_ROW: &str = ":ergo.test 354 bob 152 #papo ~bob 127.0.0.1 bob H 0 :Bob Jones";
 const ALICE_QUIT: &str = ":alice!~alice@127.0.0.1 QUIT :Quit: leaving";
 
-fn sweep_in_flight(config: Config) -> Transcript {
+fn join_and_start_sweep(config: Config, isupport: &str, names: &str) -> Transcript {
     Transcript::new(config.nick("bob"))
-        .server(":ergo.test 005 bob WHOX PREFIX=(ov)@+ :are supported")
+        .server(isupport)
         .server(":bob!~bob@127.0.0.1 JOIN #papo")
-        .server(":ergo.test 353 bob = #papo :@alice bob dan")
+        .server(names)
         .server(":ergo.test 366 bob #papo :End of NAMES list")
         .client("MODE #papo")
         .client("WHO #papo %tcuhnfar,152")
         .event_until(|event| matches!(event, Event::ChannelSynced { .. }))
+}
+
+fn sweep_in_flight(config: Config) -> Transcript {
+    join_and_start_sweep(
+        config,
+        ":ergo.test 005 bob WHOX PREFIX=(ov)@+ :are supported",
+        ":ergo.test 353 bob = #papo :@alice bob dan",
+    )
 }
 
 fn finish_sweep(transcript: Transcript, rows: &[&str]) -> Transcript {
@@ -124,4 +132,21 @@ fn rows_are_skipped_once_changes_outgrow_the_member_limit() {
             })
             .ignore_rest();
     }
+}
+
+#[test]
+fn changed_members_follow_a_casemapping_change_during_the_sweep() {
+    let transcript = join_and_start_sweep(
+        Config::default(),
+        ":ergo.test 005 bob WHOX CASEMAPPING=ascii :are supported",
+        ":ergo.test 353 bob = #papo :@alice[m] bob",
+    )
+    .server(":alice[m]!~alice@127.0.0.1 NICK ralice")
+    .server(":ergo.test 005 bob CASEMAPPING=rfc1459 :are supported");
+    finish_sweep(
+        transcript,
+        &[":ergo.test 354 bob 152 #papo ~alice 127.0.0.1 alice[m] H@ alice :Alice Smith"],
+    )
+    .inspect(|session| assert_eq!(member_nicks(session), ["bob", "ralice"]))
+    .ignore_rest();
 }
