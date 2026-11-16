@@ -47,14 +47,21 @@ async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder)
     drop((client, events));
 }
 
+macro_rules! probe_with {
+    ($input:ident; $builder:ident, $a:ident, $b:ident, $c:ident => $configured:expr) => {{
+        let ($a, $b, $c) = $input.clone();
+        check_builder(move |$builder| $configured).await;
+    }};
+}
+
+#[cfg(tls)]
+mod tls;
+
 #[tokio::test(flavor = "current_thread")]
 async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
-    for (first, second, third) in inputs() {
+    for input in inputs() {
         macro_rules! probe {
-            ($builder:ident, $a:ident, $b:ident, $c:ident => $configured:expr) => {{
-                let ($a, $b, $c) = (first.clone(), second.clone(), third.clone());
-                check_builder(move |$builder| $configured).await;
-            }};
+            ($($probe:tt)*) => { probe_with!(input; $($probe)*) };
         }
         probe!(builder, a, _b, _c => {
             drop(builder);
@@ -101,13 +108,6 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, _a, _b, _c => builder.reconnect(crate::Reconnect::never()));
         probe!(builder, a, _b, _c => builder.connect_timeout(Duration::from_secs(a.len() as u64)));
         probe!(builder, _a, _b, _c => builder.sts_store(papo_core::sts::MemoryStsStore::new()));
-        probe!(builder, a, _b, _c => builder.tls_ca_pem(a.into_bytes()));
-        probe!(builder, a, _b, _c => builder.tls_extra_ca_pem(a.into_bytes()));
-        probe!(builder, a, b, _c => builder.tls_client_cert(
-            crate::CertificateChain::new(a.into_bytes()),
-            crate::PrivateKey::new(b.into_bytes()),
-        ));
-        probe!(builder, a, _b, _c => builder.tls_server_name(a));
         probe!(builder, a, _b, _c => builder.bot(a.len() % 2 == 0));
         probe!(builder, a, b, _c => builder.autojoin([a, b]));
         probe!(builder, a, b, _c => builder.autojoin_with_key(a, crate::Secret::new(b)));
