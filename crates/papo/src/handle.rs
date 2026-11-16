@@ -345,6 +345,12 @@ impl UserHandle {
         self.0.historical && self.proof().is_none()
     }
 
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __names_a_past_line(&self) -> bool {
+        self.0.historical
+    }
+
     /// Returns the current nickname, or the last known nickname after departure.
     #[must_use]
     pub fn nick(&self) -> crate::Nick {
@@ -1085,6 +1091,7 @@ mod tests {
                 "{nick} historical={historical}"
             );
             assert_eq!(handle.is_unproven_history(), historical, "{nick}");
+            assert_eq!(handle.__names_a_past_line(), historical, "{nick}");
         }
     }
 
