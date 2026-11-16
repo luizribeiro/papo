@@ -268,7 +268,7 @@ impl UserHandle {
         token: papo_core::ReplyToken,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
-        Self::from_event(nick, account, Some(token), state, false)
+        Self::from_event(nick, account, Some(token), state)
     }
 
     pub(crate) fn from_event(
@@ -276,17 +276,36 @@ impl UserHandle {
         account: crate::Account,
         token: Option<papo_core::ReplyToken>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
+        Self::from_line(nick, account, state, false, |snapshot, nick, _| {
+            token.or_else(|| Some(snapshot.core.__reply_token_for(nick.as_str())))
+        })
+    }
+
+    pub(crate) fn from_history(
+        nick: crate::Nick,
+        account: crate::Account,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
+        Self::from_line(nick, account, state, true, historical_token)
+    }
+
+    fn from_line(
+        nick: crate::Nick,
+        account: crate::Account,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
         historical: bool,
+        token: impl FnOnce(
+            &crate::State,
+            &crate::Nick,
+            &crate::Account,
+        ) -> Option<papo_core::ReplyToken>,
     ) -> Self {
         let proof = state.and_then(|shared| {
             let snapshot = shared
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let token = if historical {
-                historical_token(&snapshot, &nick, &account)
-            } else {
-                token.or_else(|| Some(snapshot.core.__reply_token_for(nick.as_str())))
-            }?;
+            let token = token(&snapshot, &nick, &account)?;
             snapshot
                 .core
                 .__prove_event_user(token, nick.clone(), account.clone())
@@ -1011,46 +1030,27 @@ mod tests {
     fn historical_proof_rests_only_on_the_lines_account_tag() {
         let client = client_with_joined_users();
         let alice = client.query("Alice").unwrap();
-        let live_token = client.state().core.__reply_token_for("Alice");
         let mapping = client.state().casemapping();
-        for (account, token, linked) in [
+        for (account, linked) in [
             (
                 crate::Account::LoggedIn(mapping.account("alice-account")),
-                None,
-                true,
-            ),
-            (
-                crate::Account::LoggedIn(mapping.account("alice-account")),
-                Some(live_token),
                 true,
             ),
             (
                 crate::Account::LoggedIn(mapping.account("replacement-account")),
-                None,
                 false,
             ),
-            (
-                crate::Account::LoggedIn(mapping.account("replacement-account")),
-                Some(live_token),
-                false,
-            ),
-            (crate::Account::LoggedOut, Some(live_token), false),
-            (crate::Account::Unknown, Some(live_token), false),
+            (crate::Account::LoggedOut, false),
+            (crate::Account::Unknown, false),
         ] {
-            let historical = crate::UserHandle::from_event(
+            let historical = crate::UserHandle::from_history(
                 alice.0.nick.clone(),
                 account.clone(),
-                token,
                 Some(&client.state),
-                true,
             );
 
-            assert_eq!(
-                historical.proof().is_some(),
-                linked,
-                "{account:?} {token:?}"
-            );
-            assert_eq!(historical == alice, linked, "{account:?} {token:?}");
+            assert_eq!(historical.proof().is_some(), linked, "{account:?}");
+            assert_eq!(historical == alice, linked, "{account:?}");
         }
     }
 
@@ -1059,13 +1059,17 @@ mod tests {
         let client = client_with_joined_users();
         let evidence_free_token = client.state().core.__reply_token_for("carol");
         let event = |nick: &str, historical| {
-            crate::UserHandle::from_event(
-                client.state().casemapping().nick(nick),
-                crate::Account::Unknown,
-                Some(evidence_free_token),
-                Some(&client.state),
-                historical,
-            )
+            let nick = client.state().casemapping().nick(nick);
+            if historical {
+                crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state))
+            } else {
+                crate::UserHandle::from_event(
+                    nick,
+                    crate::Account::Unknown,
+                    Some(evidence_free_token),
+                    Some(&client.state),
+                )
+            }
         };
 
         for (nick, historical, proven) in [

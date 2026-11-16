@@ -216,13 +216,8 @@ mod tests {
         let driver = tokio::spawn(driver);
         complete_connect(&mut server, &mut events).await;
         let nick = client.state().name_rules().unwrap().nick("alice");
-        let handle = crate::UserHandle::from_event(
-            nick,
-            crate::Account::Unknown,
-            None,
-            Some(&client.state),
-            true,
-        );
+        let handle =
+            crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state));
 
         let proving = tokio::spawn({
             let client = client.clone();
