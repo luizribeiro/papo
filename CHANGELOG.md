@@ -29,6 +29,10 @@ while disconnected, it still skips the current backoff and retries immediately.
 the line arrives, from the nick and account you held then, and a replayed history line is `Me` or
 `Other` only when its `account` tag proves it.
 
+A history actor's handle equals a current member's, and can receive a reply, only when the line's
+own `account` tag names the account that member is logged into. A matching `nick!user@host`
+alone never links them.
+
 `Client::kickban` can be awaited only after `.nick(..)` and `.ban(..)`; an incomplete kickban does not
 compile.
 

@@ -48,9 +48,10 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     Ok(())
 }
 
-/// files a direct message replayed to an earlier nick under the other participant
+/// files a direct message replayed to an earlier nick under the other participant; the writer is
+/// logged in because only a history line's account tag identifies who to reply to
 #[scenario(
-    requires(caps = ["batch", "draft/chathistory"]),
+    requires(caps = ["account-tag", "batch", "draft/chathistory"]),
     covers = ["security.history.stale-dm-target"]
 )]
 async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
@@ -58,7 +59,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     if !matches!(profile.as_str(), "ergo-persistent" | "soju-ergo") {
         return s.skip("the selected profile does not retain raw direct-message targets");
     }
-    let mut writer = s.connect("writer").await?;
+    let mut writer = s.connect_as_account("writer").await?;
     let reader = s.connect("reader").await?;
     let old_nick = reader.snapshot().nick().clone();
     let new_nick = format!("r{old_nick}");

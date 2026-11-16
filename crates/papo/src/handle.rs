@@ -283,14 +283,7 @@ impl UserHandle {
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let token = if historical {
-                token.or_else(|| {
-                    let crate::Account::LoggedIn(expected) = &account else {
-                        return None;
-                    };
-                    let user = snapshot.user_local(&nick)?;
-                    (user.account().name() == Some(expected))
-                        .then(|| snapshot.core.__reply_token_for(nick.as_str()))
-                })
+                historical_token(&snapshot, &nick, &account)
             } else {
                 token.or_else(|| Some(snapshot.core.__reply_token_for(nick.as_str())))
             }?;
@@ -408,6 +401,21 @@ impl UserHandle {
             .unwrap_or_default();
         registry.acquire(self)
     }
+}
+
+/// A history line names the live member only through its own `account` tag: the user, host and
+/// nickname of a past line are shared by anyone who held the nickname behind the same cloak.
+fn historical_token(
+    snapshot: &crate::State,
+    nick: &crate::Nick,
+    account: &crate::Account,
+) -> Option<papo_core::ReplyToken> {
+    let crate::Account::LoggedIn(expected) = account else {
+        return None;
+    };
+    let user = snapshot.user_local(nick)?;
+    (user.account().name() == Some(expected))
+        .then(|| snapshot.core.__reply_token_for(nick.as_str()))
 }
 
 impl std::fmt::Debug for UserHandle {
@@ -1000,21 +1008,50 @@ mod tests {
     }
 
     #[test]
-    fn historical_account_proof_requires_the_current_account() {
+    fn historical_proof_rests_only_on_the_lines_account_tag() {
         let client = client_with_joined_users();
         let alice = client.query("Alice").unwrap();
-        let historical = |account| {
-            crate::UserHandle::from_event(
-                alice.0.nick.clone(),
-                crate::Account::LoggedIn(client.state().casemapping().account(account)),
+        let live_token = client.state().core.__reply_token_for("Alice");
+        let mapping = client.state().casemapping();
+        for (account, token, linked) in [
+            (
+                crate::Account::LoggedIn(mapping.account("alice-account")),
                 None,
+                true,
+            ),
+            (
+                crate::Account::LoggedIn(mapping.account("alice-account")),
+                Some(live_token),
+                true,
+            ),
+            (
+                crate::Account::LoggedIn(mapping.account("replacement-account")),
+                None,
+                false,
+            ),
+            (
+                crate::Account::LoggedIn(mapping.account("replacement-account")),
+                Some(live_token),
+                false,
+            ),
+            (crate::Account::LoggedOut, Some(live_token), false),
+            (crate::Account::Unknown, Some(live_token), false),
+        ] {
+            let historical = crate::UserHandle::from_event(
+                alice.0.nick.clone(),
+                account.clone(),
+                token,
                 Some(&client.state),
                 true,
-            )
-        };
+            );
 
-        assert!(historical("alice-account").proof().is_some());
-        assert!(historical("replacement-account").proof().is_none());
+            assert_eq!(
+                historical.proof().is_some(),
+                linked,
+                "{account:?} {token:?}"
+            );
+            assert_eq!(historical == alice, linked, "{account:?} {token:?}");
+        }
     }
 
     #[test]
