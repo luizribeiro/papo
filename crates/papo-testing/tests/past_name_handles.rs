@@ -1,4 +1,4 @@
-//! A person a stored line names is a past name: a send through it must not reach
+//! A person a stored or archived line names is a past name: a send through it must not reach
 //! whoever holds that nickname now.
 
 mod support {
@@ -7,7 +7,7 @@ mod support {
 
 use std::{sync::Arc, time::Duration};
 
-use papo::{Reconnect, UserHandle};
+use papo::{Event, Reconnect, UserHandle};
 use papo_testing::{Wire, wire};
 use support::direct::connected;
 
@@ -70,6 +70,39 @@ async fn ban_setter(client: &papo::Client, wire: &mut Wire) -> UserHandle {
     setter.cloned().unwrap()
 }
 
+async fn archived_actors(
+    client: &papo::Client,
+    wire: &mut Wire,
+) -> Vec<(&'static str, UserHandle)> {
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move { client.history("#release").latest().limit(10).await }
+    });
+    let label = sent_after_join_queries(wire, "CHATHISTORY LATEST #release * 10").await;
+    wire.server(format!("{label}:ergo.test BATCH +reply labeled-response"))
+        .await;
+    for line in [
+        "@batch=reply :ergo.test BATCH +history chathistory #release",
+        "@batch=history;time=2026-11-14T09:00:00.000Z;msgid=h-join :alice!~alice@cloak.example JOIN #release",
+        "@batch=history;time=2026-11-14T09:01:00.000Z;msgid=h-topic :alice!~alice@cloak.example TOPIC #release :ask alice for the token",
+        "@batch=history;time=2026-11-14T09:02:00.000Z;msgid=h-quit :alice!~alice@cloak.example QUIT :Quit: bye",
+        "@batch=reply :ergo.test BATCH -history",
+        ":ergo.test BATCH -reply",
+    ] {
+        wire.server(line).await;
+    }
+    let page = request.await.unwrap().unwrap();
+    page.items
+        .iter()
+        .filter_map(|item| match item {
+            Event::Joined(joined) => Some(("archived JOIN", joined.actor.clone())),
+            Event::TopicChanged(topic) => Some(("archived TOPIC", topic.actor.user()?.clone())),
+            Event::Quit(quit) => Some(("archived QUIT", quit.actor.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Sends to `target` while its nickname belongs to another account, answering any WHO papo
 /// asks, and requires the send to fail without a PRIVMSG.
 async fn send_is_refused(client: &papo::Client, wire: &mut Wire, kind: &str, target: UserHandle) {
@@ -120,8 +153,12 @@ async fn past_names_never_reach_the_current_holder() {
     let topic_setter = channel.topic_set_by().and_then(papo::Source::user);
     let mut targets = vec![("333 topic setter", topic_setter.cloned().unwrap())];
     targets.push(("367 ban setter", ban_setter(&client, &mut wire).await));
+    targets.extend(archived_actors(&client, &mut wire).await);
     let kinds: Vec<_> = targets.iter().map(|(kind, _)| *kind).collect();
-    assert_eq!(kinds.join(", "), "333 topic setter, 367 ban setter");
+    assert_eq!(
+        kinds.join(", "),
+        "333 topic setter, 367 ban setter, archived JOIN, archived TOPIC, archived QUIT"
+    );
 
     for (kind, target) in targets {
         send_is_refused(&client, &mut wire, kind, target).await;
