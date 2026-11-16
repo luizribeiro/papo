@@ -140,3 +140,14 @@ async fn build_validates_every_tls_setting_for_every_scheme() {
         }
     }
 }
+
+#[cfg(feature = "unstable")]
+#[test]
+fn bouncer_networks_inherit_the_tls_server_name() {
+    let (control, _events, _driver) = Builder::from_endpoint("ircs://soju.example:7443", "alice")
+        .tls_server_name("bouncer.example")
+        .build();
+
+    let network = control.bouncer().network(&crate::NetworkId::from("libera"));
+    assert_eq!(network.tls.server_name.as_deref(), Some("bouncer.example"));
+}

@@ -1318,7 +1318,6 @@ mod tests {
                 .rate_limit(RateLimit::unlimited())
                 .reconnect(reconnect)
                 .connect_timeout(Duration::from_secs(17))
-                .tls_server_name("bouncer.example")
                 .enable(crate::Feature::Relay)
                 .metadata_subscriptions([crate::MetadataKey::new("example.org/color")])
                 .event_capacity(17)
@@ -1351,7 +1350,6 @@ mod tests {
         assert!(!network.history_on_reconnect);
         assert_eq!(network.connect_timeout, Duration::from_secs(17));
         assert_eq!(network.reconnect, reconnect);
-        assert_eq!(network.tls.server_name.as_deref(), Some("bouncer.example"));
 
         let (stream, _server) = tokio::io::duplex(64);
         let (control, _events, _driver) = Builder::new("irc://custom.example")
