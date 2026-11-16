@@ -100,3 +100,28 @@ fn rows_for_members_who_changed_during_the_sweep_are_not_applied() {
             .ignore_rest();
     }
 }
+
+#[test]
+fn rows_are_skipped_once_changes_outgrow_the_member_limit() {
+    let changes = [
+        ":alice!~alice@127.0.0.1 NICK alice_",
+        ":alice_!~alice@127.0.0.1 NICK alice__",
+        ":alice__!~alice@127.0.0.1 PART #papo",
+        ":carol!~carol@198.51.100.7 JOIN #papo",
+    ];
+    for (extra_change, dan_row_applied) in [
+        (None, true),
+        (Some(":carol!~carol@198.51.100.7 PART #papo"), false),
+    ] {
+        let transcript = changes.iter().chain(&extra_change).fold(
+            sweep_in_flight(Config::default().max_members_per_channel(3)),
+            |transcript, line| transcript.server(line),
+        );
+        finish_sweep(transcript, &[DAN_ROW])
+            .inspect(|session| {
+                let dan = session.state().user("dan").unwrap();
+                assert_eq!(dan.account() == &logged_in("dan"), dan_row_applied);
+            })
+            .ignore_rest();
+    }
+}

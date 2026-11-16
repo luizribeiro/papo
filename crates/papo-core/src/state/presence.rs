@@ -557,15 +557,16 @@ impl State {
     /// Marks `nick` as changed in the sweep of `channel`, or of every channel when `None`.
     pub(super) fn sweep_member_changed(&mut self, channel: Option<&str>, nick: &str) {
         let nick = NameKey::new(nick.to_owned(), self.casemapping);
+        let limit = self.max_members_per_channel;
         match channel {
             Some(channel) => {
                 if let Some(sweep) = self.who_sweeps.get_mut(&self.casemapping.channel(channel)) {
-                    sweep.member_changed(nick);
+                    sweep.member_changed(nick, limit);
                 }
             }
             None => {
                 for sweep in self.who_sweeps.values_mut() {
-                    sweep.member_changed(nick.clone());
+                    sweep.member_changed(nick.clone(), limit);
                 }
             }
         }

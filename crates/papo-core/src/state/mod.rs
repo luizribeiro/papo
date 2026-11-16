@@ -114,8 +114,10 @@ struct WhoSweep {
     // SETNAME is a newer live value than any WHO snapshot still in flight for a shared channel.
     realname_changes: HashSet<NameKey<String>>,
     // A row for a nick that left or was renamed away while the sweep was in flight may describe an
-    // earlier holder of that nick, or an old spelling of it.
+    // earlier holder of that nick, or an old spelling of it. Past the member limit, every remaining
+    // row is treated so.
     changed_members: HashSet<NameKey<String>>,
+    changed_members_overflowed: bool,
 }
 
 impl WhoSweep {
@@ -125,15 +127,23 @@ impl WhoSweep {
             prefix_changes: HashMap::new(),
             realname_changes: HashSet::new(),
             changed_members: HashSet::new(),
+            changed_members_overflowed: false,
         }
     }
 
-    fn member_changed(&mut self, nick: NameKey<String>) {
-        self.changed_members.insert(nick);
+    fn member_changed(&mut self, nick: NameKey<String>, limit: usize) {
+        if self.changed_members.contains(&nick) {
+            return;
+        }
+        if self.changed_members.len() >= limit {
+            self.changed_members_overflowed = true;
+        } else {
+            self.changed_members.insert(nick);
+        }
     }
 
     fn row_is_stale(&self, nick: &NameKey<String>) -> bool {
-        self.changed_members.contains(nick)
+        self.changed_members_overflowed || self.changed_members.contains(nick)
     }
 }
 
