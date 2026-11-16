@@ -341,6 +341,8 @@
               # The workspace run unifies the unstable features papo-testing and papo-conformance enable.
               run_clippy -p papo -p papo-core -p papo-proto
               run_clippy --workspace --all-features
+              run_clippy -p papo --no-default-features
+              run_clippy -p papo --no-default-features --features unstable
             '';
           };
           wasi-checks = cargoHook {
