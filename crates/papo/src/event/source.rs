@@ -140,9 +140,15 @@ mod tests {
             super::from_line(super::LinePrefix::Core(core()), &envelope, mapping, origin),
             super::from_core(core(), origin),
         ];
-        for source in sources {
+        let unknown = crate::Account::Unknown;
+        for (source, account) in
+            sources
+                .iter()
+                .zip([&envelope.account, &envelope.account, &unknown])
+        {
             let user = source.as_ref().and_then(super::Source::user).unwrap();
             assert_eq!(user.nick().as_str(), "alice");
+            assert_eq!(user.account(), account, "{source:?}");
             assert!(user.is_unproven_history(), "{source:?}");
         }
 
