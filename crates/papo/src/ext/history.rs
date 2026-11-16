@@ -1498,6 +1498,46 @@ mod tests {
         assert_eq!(historical.actor, live.actor);
     }
 
+    #[test]
+    fn own_history_line_does_not_link_its_peer_to_the_current_nick_holder() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=ascii CHANTYPES=# :are supported".as_slice(),
+            b":papo!~u@papo.irc JOIN #release papo :Papo".as_slice(),
+            b":writer!~u@tor-network.onion JOIN #release writer :Writer".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        let (client, _) = client_with_commands(&session);
+        let live = client.query("writer").unwrap();
+        assert!(live.proof().is_some());
+        let conversation = crate::Conversation::Private(live.clone());
+        let mut sent = core_item(
+            "@time=2026-09-01T08:00:00.000Z;msgid=ErgoOld2 :papo!~u@papo.irc PRIVMSG writer :here is the deploy key",
+        );
+        sent.actor_party = papo_core::Party::Me;
+
+        let PageEvent::Message(message) = history_item(
+            papo_core::HistoryItem::Message(sent),
+            Some(&conversation),
+            &client,
+            UNIX_EPOCH,
+        ) else {
+            panic!("expected a historical message")
+        };
+        let crate::Conversation::Private(peer) = &message.conversation else {
+            panic!(
+                "expected a private conversation, got {:?}",
+                message.conversation
+            )
+        };
+
+        assert_eq!(peer.nick(), "writer");
+        assert!(peer.proof().is_none());
+        assert_ne!(*peer, live);
+    }
+
     fn review_session(members: &[&str]) -> Session {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));

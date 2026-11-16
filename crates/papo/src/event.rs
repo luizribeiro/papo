@@ -1308,7 +1308,7 @@ pub(crate) fn historical_conversation(
     if let Some(Conversation::Private(user)) = history_conversation {
         return Conversation::Private(crate::UserHandle::from_past_line(
             own_nick.origin().__nick(mapping, user.nick().as_str()),
-            user.account().clone(),
+            crate::Account::Unknown,
         ));
     }
     if actor_party != Party::Me
