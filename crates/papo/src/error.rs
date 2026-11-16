@@ -28,7 +28,7 @@ pub enum ConnectErrorKind {
     /// Opening the network or TLS connection timed out.
     TimedOut,
     /// The server certificate was rejected.
-    #[cfg(tls)]
+    #[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
     CertificateRejected,
     /// TLS or WebSocket negotiation failed.
     HandshakeFailed,

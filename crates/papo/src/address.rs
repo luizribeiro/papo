@@ -15,7 +15,7 @@ pub enum InvalidInput {
     #[error(transparent)]
     Url(#[from] crate::InvalidUrl),
     /// TLS trust, identity, or server-name input is invalid.
-    #[cfg(tls)]
+    #[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
     #[error("invalid TLS configuration: {0}")]
     TlsConfig(String),
     /// A known capability must be configured through its feature.
