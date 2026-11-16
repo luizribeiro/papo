@@ -1,71 +1,16 @@
 //! Client builder behavior against the runner-managed Ergo server.
-#![cfg(sockets)]
+#![cfg(all(sockets, any(tls, feature = "websocket")))]
 
 mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Sasl};
-use papo_test_server::{create_account, from_env, unique};
+use papo::{Client, Event};
+use papo_test_server::{from_env, unique};
 
 #[cfg(tls)]
 #[path = "live_builder/tls.rs"]
 mod tls;
-
-#[tokio::test(flavor = "current_thread")]
-async fn connects_with_sasl_and_applies_bot_defaults() {
-    within(async {
-        let server = from_env();
-        let account = unique("papo-builder");
-        let channel = format!("#{}", unique("papo-builder"));
-        let password = "q7Hx-2mZp_9vLcT4wRfB";
-        create_account(&server, &account, password).unwrap();
-
-        let (client, mut events) = Client::builder(
-            Endpoint::tls("localhost", server.tls_addr().port()).unwrap(),
-            support::nick(&account),
-        )
-        .sasl(Sasl::plain(&account, papo::Secret::new(password)))
-        .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
-        .bot(true)
-        .autojoin([&channel])
-        .connect()
-        .await
-        .unwrap();
-
-        wait_connected(&mut events, &account).await;
-        wait_joined(&mut events, &account, &channel).await;
-
-        assert_eq!(
-            client
-                .whois(support::nick(&account))
-                .await
-                .unwrap()
-                .unwrap()
-                .is_bot,
-            Some(true)
-        );
-        client.quit().await.unwrap();
-    })
-    .await;
-}
-
-async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
-    loop {
-        match events.next().await.map(|(event, _)| event) {
-            Some(Event::Joined(papo::event::Joined {
-                channel: joined,
-                actor,
-                ..
-            })) if joined == channel && actor.nick() == nick => return,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("disconnected while waiting for JOIN: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for JOIN"),
-        }
-    }
-}
 
 #[cfg(feature = "websocket")]
 #[tokio::test(flavor = "current_thread")]
