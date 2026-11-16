@@ -41,7 +41,7 @@ impl Session {
             return;
         }
         let mapping = self.isupport.value().casemapping();
-        let Some((label, _)) = self
+        let Some(label) = self
             .requests
             .iter()
             .filter(|(_, request)| {
@@ -54,23 +54,24 @@ impl Session {
                 })
             })
             .min_by_key(|(_, request)| request.id)
+            .map(|(label, _)| label.clone())
         else {
             return;
         };
-        let label = label.clone();
-        let echo = self
+        let Some(echo) = self
             .requests
             .get_mut(&label)
             .and_then(|request| request.echo.as_mut())
-            .expect("the request was found by its echo");
+        else {
+            return;
+        };
         if echo.reply.is_none() {
             echo.reply = Some(message.to_owned());
             return;
         }
-        let request = self
-            .requests
-            .remove(&label)
-            .expect("the request was just found");
+        let Some(request) = self.requests.remove(&label) else {
+            return;
+        };
         let enabled_features = self.supported_features();
         self.outbox.event(Event::Response(crate::Response {
             id: request.id,
