@@ -415,6 +415,7 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
 | `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&UserHandle`; `SetModes::prefix(mode, &user)` handles advertised custom prefix modes |
 | `kickban(channel, nick, reason, ban)` | `kickban(channel).nick(nick).ban(ban).reason(reason)` names the nickname and ban roles; `ban` is typed as `BanTarget` |
+| `Client::nick()` | `client.snapshot().nick()`; the state snapshot is the one place the current nickname lives |
 | `quit(reason)` | `quit()` disconnects without a reason; add one with `.reason(reason)` |
 | `kick(channel, nick, reason)` | `kick(channel, nick)` removes without a reason; add one with `.reason(reason)` |
 | `part(channel, reason)` | `part(channel)` leaves without a reason; add one with `.reason(reason)` |

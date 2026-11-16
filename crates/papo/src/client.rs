@@ -779,12 +779,6 @@ impl Client {
             && self.snapshot().connection_epoch() == state.connection_epoch()
     }
 
-    /// Returns the client's current nickname.
-    #[must_use]
-    pub fn nick(&self) -> crate::Nick {
-        self.state().nick().to_owned()
-    }
-
     pub(crate) fn require_feature(state: &State, feature: Feature) -> Result<(), Error> {
         match state.unsupported_reason(feature) {
             Some(reason) => Err(Error::Unsupported(Unsupported::new(feature, reason))),
