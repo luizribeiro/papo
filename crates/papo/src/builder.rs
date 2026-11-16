@@ -1912,17 +1912,31 @@ mod tests {
         assert!(next_event(&mut events).await.is_none());
     }
 
-    #[cfg(not(feature = "websocket"))]
     #[tokio::test(flavor = "current_thread")]
-    async fn websocket_without_feature_is_rejected_before_connecting() {
-        let (_client, _events, driver) = Builder::new("ws://irc.example.net/webirc")
-            .reconnect(crate::Reconnect::never())
-            .build();
-        assert!(matches!(
-            within(driver).await,
-            Err(Error::InvalidInput(InvalidInput::Url(
-                crate::InvalidUrl::UnsupportedScheme(scheme)
-            ))) if scheme == "ws"
-        ));
+    async fn unsupported_schemes_are_rejected_before_connecting() {
+        let websocket = cfg!(feature = "websocket");
+        let tls = cfg!(tls);
+        let cases = [
+            ("ws://irc.example.net/webirc", "ws", websocket),
+            ("ircs://irc.example.net:6697", "ircs", tls),
+            ("wss://irc.example.net/webirc", "wss", websocket && tls),
+        ];
+        for (url, expected_scheme, supported) in cases {
+            if supported {
+                continue;
+            }
+            let (_client, _events, driver) = Builder::new(url)
+                .reconnect(crate::Reconnect::never())
+                .build();
+            assert!(
+                matches!(
+                    within(driver).await,
+                    Err(Error::InvalidInput(InvalidInput::Url(
+                        crate::InvalidUrl::UnsupportedScheme(scheme)
+                    ))) if scheme == expected_scheme
+                ),
+                "{url} was not rejected as {expected_scheme}"
+            );
+        }
     }
 }
