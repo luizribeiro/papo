@@ -2657,3 +2657,40 @@ async fn a_who_proof_never_follows_its_nick_to_the_next_holder() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn without_account_tag_a_who_proven_account_is_not_lent_to_the_next_sender() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-admin")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    connected(&mut events).await;
+    let bob = client.query("bob").unwrap();
+    let first = tokio::spawn({
+        let client = client.clone();
+        let bob = bob.clone();
+        async move { client.privmsg(&bob, "deploy window opens at 14:00").await }
+    });
+    assert_eq!(wire.next_sent().await, "WHO bob %na");
+    wire.server(":offline.test 354 papo-admin bob bob").await;
+    wire.server(":offline.test 315 papo-admin bob :End of WHO list")
+        .await;
+    assert_eq!(
+        wire.next_sent().await,
+        "PRIVMSG bob :deploy window opens at 14:00"
+    );
+    first.await.unwrap().unwrap();
+
+    wire.server("@msgid=Qm4u8w2cR7tz1 :bob!~mallory@203.0.113.66 PRIVMSG papo-admin :!op bob")
+        .await;
+    let (message, state) = next_private_message(&mut events).await;
+
+    assert_eq!(
+        state_account(&state, &message.actor),
+        Some(papo::Account::Unknown)
+    );
+    client.privmsg(&bob, "noted, thanks").await.unwrap();
+    assert_eq!(wire.next_sent().await, "PRIVMSG bob :noted, thanks");
+}

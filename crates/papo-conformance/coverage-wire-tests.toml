@@ -82,6 +82,9 @@
 "security::a_who_proof_never_follows_its_nick_to_the_next_holder" = [
   "security.guard-proof.who-proof-nick-handoff",
 ]
+"security::without_account_tag_a_who_proven_account_is_not_lent_to_the_next_sender" = [
+  "security.guard-proof.no-account-tag-handoff",
+]
 "security::ctcp_replies_refuse_nick_handoffs" = [
   "security.addr-10.ctcp-nick-handoff",
 ]
