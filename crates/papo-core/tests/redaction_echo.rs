@@ -5,7 +5,9 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, Party, RateLimit, RequestId, Response, SentInfo, Session};
+use papo_core::{
+    Config, Event, Party, RateLimit, RequestId, Response, SentInfo, ServerError, Session,
+};
 use papo_proto::Line;
 
 const ERGO_ISUPPORT: &str = ":ergo.test 005 papo CASEMAPPING=ascii CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server";
@@ -15,6 +17,7 @@ const REDACTED_MSGID: &str = "b56bhkz4gmj7ig2jeg9hs7d2cs";
 const OWN_ECHO: &str = "@msgid=qsgqkhqcmnxm6x2dcricaf69f6;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs superseded";
 const ACK: &str = "@time=2026-11-16T07:39:12.791Z;label=0 :ergo.test ACK";
 const FOREIGN_REDACT: &str = "@msgid=4f6fb68i4ak2gs3dzkqdf2rwa6;time=2026-11-16T07:39:16.699Z :bob!~u@fa4ww98eysn9a.irc REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs :mod action";
+const UNKNOWN_MSGID: &str = "@time=2026-11-16T07:39:19.107Z;label=0 :ergo.test FAIL REDACT UNKNOWN_MSGID #papo b56bhkz4gmj7ig2jeg9hs7d2cs :This message does not exist or is too old";
 
 fn ergo(now: Instant, caps: &str) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -162,5 +165,62 @@ fn an_own_redaction_of_another_message_or_target_does_not_confirm_ours() {
         );
         let echoed = play(&mut session, now, OWN_ECHO);
         assert_eq!(response(&echoed[1]).id, id, "{unrelated}");
+    }
+}
+
+#[test]
+fn a_refused_redaction_reports_its_failure_without_an_identity() {
+    let now = Instant::now();
+    for before in [None, Some(FOREIGN_REDACT), Some(OWN_ECHO)] {
+        let mut session = ergo(now, REDACTION_CAPS);
+        let id = redact(&mut session, now);
+        if let Some(line) = before {
+            assert_eq!(play(&mut session, now, line).len(), 1, "{line}");
+        }
+        let failed = play(&mut session, now, UNKNOWN_MSGID);
+        assert_eq!(failed.len(), 1, "{before:?}: {failed:?}");
+        let response = response(&failed[0]);
+        assert_eq!(response.id, id);
+        assert_eq!(response.sent(), None, "{before:?}");
+        assert!(matches!(
+            response.error(),
+            Some(ServerError::Standard { ref code, .. }) if code == "UNKNOWN_MSGID"
+        ));
+    }
+}
+
+#[test]
+fn without_echo_message_the_ack_completes_and_ergos_echo_stays_an_event() {
+    let now = Instant::now();
+    let mut session = ergo(
+        now,
+        "draft/message-redaction labeled-response message-tags server-time",
+    );
+    let id = redact(&mut session, now);
+
+    let echoed = play(&mut session, now, OWN_ECHO);
+    assert_eq!(echoed.len(), 1, "{echoed:?}");
+    assert_eq!(redaction_by(&echoed[0]), Some(Party::Me));
+    let acked = play(&mut session, now, ACK);
+    assert_eq!(acked.len(), 1, "{acked:?}");
+    assert_eq!(response(&acked[0]).id, id);
+    assert_eq!(response(&acked[0]).sent(), None);
+}
+
+#[test]
+fn an_echo_without_a_msgid_confirms_without_an_identity() {
+    let now = Instant::now();
+    for order in [[OWN_ECHO, ACK], [ACK, OWN_ECHO]] {
+        let mut session = ergo(now, REDACTION_CAPS);
+        let id = redact(&mut session, now);
+        let events = order
+            .into_iter()
+            .map(|line| line.replace("msgid=qsgqkhqcmnxm6x2dcricaf69f6;", ""))
+            .flat_map(|line| play(&mut session, now, &line))
+            .collect::<Vec<_>>();
+        let response = response(events.last().expect("a response"));
+        assert_eq!(response.id, id);
+        assert_eq!(response.sent(), None);
+        assert_eq!(response.error(), None);
     }
 }
