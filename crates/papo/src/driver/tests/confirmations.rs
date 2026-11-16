@@ -4,17 +4,22 @@ use crate::{Confirmation, UnconfirmedReason};
 const LABELLED: &str = "labeled-response message-tags";
 const ERGO_ISUPPORT: &[u8] = b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported by this server\r\n";
 
-async fn answered<T: Send + 'static>(
+async fn answered<T, R>(
     caps: &str,
-    request: impl FnOnce(crate::Client) -> crate::RequestFuture<T>,
+    request: impl FnOnce(crate::Client) -> R,
     sent: &str,
     replies: &[&str],
-) -> Result<T, Error> {
+) -> Result<T, Error>
+where
+    T: Send + 'static,
+    R: IntoFuture<Output = Result<T, Error>>,
+    R::IntoFuture: Send + 'static,
+{
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps.split(' ')));
     let task = tokio::spawn(driver);
     complete_connect_caps(&mut server, &mut events, caps, caps).await;
     server_line(&mut server, ERGO_ISUPPORT).await;
-    let pending = tokio::spawn(request(client));
+    let pending = tokio::spawn(request(client).into_future());
     client_line(&mut server, format!("{sent}\r\n").as_bytes()).await;
     for reply in replies {
         server_line(&mut server, format!("{reply}\r\n").as_bytes()).await;
