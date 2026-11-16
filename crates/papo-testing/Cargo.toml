@@ -26,6 +26,7 @@ wasm-bindgen-futures = "0.4.79"
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 papo = { path = "../papo", version = "=0.1.0", default-features = false, features = ["tls-ring", "unstable", "websocket"] }
 papo-core = { path = "../papo-core", version = "=0.1.0" }
+papo-bot = { path = "../papo-bot" }
 
 [lints]
 workspace = true

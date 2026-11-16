@@ -73,6 +73,7 @@ ids = [
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",
   "security.history.untagged-actor-not-current-holder",
   "security.history.logged-out-own-dm-peer",
+  "security.history.unbatched-playback-command",
   "security.bot.private-reply-after-nick-takeover", "security.reply.broadcast-private",
   "security.st-1.metadata-nick-handoff",
   "security.routing.status-prefix-channel", "security.routing.status-prefix-reaction",
