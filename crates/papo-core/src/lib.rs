@@ -1832,7 +1832,7 @@ pub struct Response {
 }
 
 impl Response {
-    /// Returns identifiers assigned to an echoed `PRIVMSG`, `NOTICE` or `TAGMSG`.
+    /// Returns identifiers assigned to an echoed `PRIVMSG`, `NOTICE`, `TAGMSG` or `REDACT`.
     #[must_use]
     pub fn sent(&self) -> Option<SentInfo> {
         self.sent.clone()
@@ -5993,6 +5993,9 @@ impl Session {
             !response && !typing_handled && emit_unhandled && self.report_tag_message(message);
         let redacted =
             !response && !tag_message && emit_unhandled && self.report_redaction(message);
+        if redacted {
+            self.observe_redaction_echo(message);
+        }
         let invited =
             !response && !tag_message && !redacted && emit_unhandled && self.report_invite(message);
         let standard_reply = !response
