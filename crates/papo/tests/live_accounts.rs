@@ -7,7 +7,7 @@ mod support;
 use support::within;
 
 use papo::{AccountOutcome, Client, Endpoint, Event, NewAccount, Sasl};
-use papo_test_server::{create_account, from_env, unique};
+use papo_test_server::{from_env, unique};
 
 #[cfg(tls)]
 #[path = "live_accounts/tls.rs"]
@@ -66,29 +66,6 @@ async fn registers_then_logs_in_with_sasl() {
     .await;
 }
 
-async fn wait_account_message(
-    client: &Client,
-    events: &mut papo::Events,
-    sender: &str,
-    text: &str,
-) -> papo::Message {
-    let mut received = None;
-    loop {
-        match events.next().await.map(|(event, _)| event) {
-            Some(Event::Message(message)) if message.text == text => received = Some(message),
-            Some(Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
-            Some(_) => {}
-            None => panic!("driver stopped before account proof and private message"),
-        }
-        let account_proved = client.snapshot().user(sender).unwrap().is_some_and(
-            |user| matches!(user.account(), papo::Account::LoggedIn(account) if account == sender),
-        );
-        if account_proved && let Some(message) = received.take() {
-            return message;
-        }
-    }
-}
-
 async fn wait_connected(events: &mut papo::Events, nick: &str) {
     loop {
         match events.next().await.map(|(event, _)| event) {
@@ -98,21 +75,6 @@ async fn wait_connected(events: &mut papo::Events, nick: &str) {
             }
             Some(_) => {}
             None => panic!("driver stopped before registration"),
-        }
-    }
-}
-
-async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
-    loop {
-        match events.next().await.map(|(event, _)| event) {
-            Some(Event::Joined(joined))
-                if joined.actor.nick() == nick && joined.channel == channel =>
-            {
-                return;
-            }
-            Some(Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
-            Some(_) => {}
-            None => panic!("driver stopped before channel join"),
         }
     }
 }
