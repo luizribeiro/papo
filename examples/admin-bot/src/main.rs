@@ -1,8 +1,8 @@
-//! Parse bot commands and authorize an operator command by account.
+//! Authorize an operator command by account.
 
 use std::{env, error::Error};
 
-use papo::{Account, Client, Event, Message, State};
+use papo::{Account, Client, Event, User};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -19,57 +19,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let Event::Message(message) = event else {
             continue;
         };
-        let Some(body) = command_body(&state, &message) else {
+        let Some(nick) = message.text.strip_prefix("!op ") else {
             continue;
         };
-        let words = body.split_whitespace().collect::<Vec<_>>();
-        match words.as_slice() {
-            [command] if command.eq_ignore_ascii_case("ping") => {
-                reply(&client, &message, "pong").await;
-            }
-            [command, nick]
-                if command.eq_ignore_ascii_case("op")
-                    && matches!(
-                        state
-                            .user(&message.actor)
-                            .expect("an event actor belongs to its paired state")
-                            .map(papo::User::account),
-                        Some(Account::LoggedIn(account)) if account == admin.as_str()
-                    ) =>
-            {
-                let result = match client.query(*nick) {
-                    Ok(user) => client.mode(&channel).op(&user).await.map(|_| ()),
-                    Err(error) => Err(error),
-                };
-                if let Err(refusal) = result {
-                    reply(&client, &message, format!("cannot op {nick}: {refusal}")).await;
-                }
-            }
-            [command, nick] if command.eq_ignore_ascii_case("op") => {
-                reply(
-                    &client,
-                    &message,
-                    format!("cannot op {nick}: permission denied"),
-                )
-                .await;
-            }
-            _ => {}
+        let is_admin = matches!(
+            state.user(&message.actor)?.map(User::account),
+            Some(Account::LoggedIn(account)) if account == admin.as_str()
+        );
+        let reason = if !is_admin {
+            "permission denied".to_owned()
+        } else if let Err(error) = op(&client, &channel, nick).await {
+            error.to_string()
+        } else {
+            continue;
+        };
+        if let Err(error) = client
+            .reply(&message, format!("cannot op {nick}: {reason}"))
+            .await
+        {
+            eprintln!("could not reply: {error}");
         }
     }
     Ok(())
 }
 
-fn command_body<'a>(state: &State, message: &'a Message) -> Option<&'a str> {
-    if let Some(body) = message.text.strip_prefix('!') {
-        return Some(body.trim_start());
-    }
-    let boundary = message.text.find([':', ','])?;
-    let (address, body) = message.text.split_at(boundary);
-    (state.nick() == address.trim()).then(|| body[1..].trim_start())
-}
-
-async fn reply(client: &Client, message: &Message, text: impl Into<String>) {
-    if let Err(error) = client.reply(message, text).await {
-        eprintln!("could not reply: {error}");
-    }
+async fn op(client: &Client, channel: &str, nick: &str) -> Result<(), papo::Error> {
+    client.mode(channel).op(&client.query(nick)?).await?;
+    Ok(())
 }

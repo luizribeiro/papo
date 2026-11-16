@@ -13,7 +13,7 @@ use support::{
 use tokio::time::{sleep, timeout};
 
 #[tokio::test(flavor = "current_thread")]
-async fn parses_mentions_and_authorizes_by_account() {
+async fn ops_only_for_the_admin_account() {
     timeout(Duration::from_secs(25), async {
         let server = from_env();
         let bot_nick = unique("papo-admin-bot");
@@ -26,22 +26,6 @@ async fn parses_mentions_and_authorizes_by_account() {
 
         let (user, mut user_events) = connect(&server, &user_nick, &channels, false).await;
         let (admin, mut admin_events) = connect(&server, &admin_nick, &channels, true).await;
-
-        let ping = format!("{bot_nick}: ping");
-        let sent = user.privmsg(&channels[0], &ping).await.unwrap();
-        let [
-            papo::SentLine {
-                text,
-                confirmation: papo::Confirmation::Confirmed { msgid, .. },
-                ..
-            },
-        ] = sent.lines.as_slice()
-        else {
-            panic!("Ergo should confirm the ping as one line")
-        };
-        assert_eq!(text, &ping);
-        let response = wait_message(&mut user_events, "pong").await;
-        assert_eq!(response.in_reply_to.as_ref(), Some(msgid));
 
         user.privmsg(&channels[0], format!("!op {admin_nick}"))
             .await
@@ -90,20 +74,24 @@ async fn keeps_running_after_action_refusals() {
         let prefix = format!("cannot op {missing_nick}: ");
         let refusal = wait_message_starting_with(&mut events, &prefix).await;
         assert!(refusal.text.len() > prefix.len());
-        admin.privmsg(&channels[0], "!ping").await.unwrap();
-        wait_message(&mut events, "pong").await;
 
-        // Reset the default limit of two replies per five-second window.
-        sleep(Duration::from_millis(5_100)).await;
         admin.mode(&channels[0]).add('m').await.unwrap();
-        admin.privmsg(&channels[0], "!ping").await.unwrap();
+        admin
+            .privmsg(&channels[0], format!("!op {missing_nick}"))
+            .await
+            .unwrap();
         assert!(
             bot.next_error()
                 .starts_with("could not reply: server refusal 404:")
         );
         admin.mode(&channels[0]).remove('m').await.unwrap();
-        admin.privmsg(&channels[0], "!ping").await.unwrap();
-        wait_message(&mut events, "pong").await;
+        // Reset the default limit of two replies per five-second window.
+        sleep(Duration::from_millis(5_100)).await;
+        admin
+            .privmsg(&channels[0], format!("!op {missing_nick}"))
+            .await
+            .unwrap();
+        wait_message_starting_with(&mut events, &prefix).await;
 
         admin.quit().await.unwrap();
     })

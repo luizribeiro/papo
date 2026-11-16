@@ -81,7 +81,7 @@ So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out an
 
 | Example | What it shows |
 |---|---|
-| [admin-bot](examples/admin-bot) | Commands addressed by mention, with account-based permissions |
+| [admin-bot](examples/admin-bot) | An operator command allowed only for one account |
 | [bouncer-networks](examples/bouncer-networks) | Listing and adding soju networks, then binding a second client to one |
 | [browser-worker](examples/browser-worker) | Running a client inside a SharedWorker and forwarding its events to the page |
 | [catchup](examples/catchup) | Unread history for a channel, then moving the read marker forward |
