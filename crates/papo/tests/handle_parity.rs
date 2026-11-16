@@ -170,7 +170,7 @@ async fn stable_and_unstable_replay_identically() {
     let gone = tokio::spawn(client.privmsg(&peer, "classified").into_future());
     finish("departed", gone).await.unwrap_err();
 
-    let quit = tokio::spawn(client.quit_step().reason("release shipped").into_future());
+    let quit = tokio::spawn(client.quit().reason("release shipped").into_future());
     server.expect("QUIT :release shipped").await;
     drop(server);
     finish("quit", quit).await.unwrap();

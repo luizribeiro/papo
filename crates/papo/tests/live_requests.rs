@@ -71,7 +71,7 @@ async fn typed_requests_round_trip_against_ergo() {
 
         let missing = unique("papo-missing");
         assert_eq!(client.whois(support::nick(&missing)).await.unwrap(), None);
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }

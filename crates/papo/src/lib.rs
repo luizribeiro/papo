@@ -149,7 +149,7 @@
 //!             .connect()
 //!             .await?;
 //!
-//!     client.quit("shutting down").await?;
+//!     client.quit().reason("shutting down").await?;
 //!     while events.next().await.is_some() {}
 //!     Ok(())
 //! }

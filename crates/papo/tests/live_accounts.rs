@@ -41,7 +41,7 @@ async fn registers_then_logs_in_with_sasl() {
                 ..
             } if registered == account
         ));
-        registrar.quit_step().await.unwrap();
+        registrar.quit().await.unwrap();
 
         let (authenticated, mut authenticated_events) =
             Client::builder(address, support::nick(&account))
@@ -57,7 +57,7 @@ async fn registers_then_logs_in_with_sasl() {
                 if logged_in == account.as_str()
                     && logged_in.origin() == authenticated.origin()
         ));
-        authenticated.quit_step().await.unwrap();
+        authenticated.quit().await.unwrap();
     })
     .await;
 }
@@ -116,8 +116,8 @@ async fn tls_account_proof_produces_the_same_pin_on_refs_and_messages() {
             papo::PeerKeyCheck::Match
         ));
 
-        alice_client.quit_step().await.unwrap();
-        bob_client.quit_step().await.unwrap();
+        alice_client.quit().await.unwrap();
+        bob_client.quit().await.unwrap();
     })
     .await;
 }

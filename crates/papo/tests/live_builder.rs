@@ -41,7 +41,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
                 .is_bot,
             Some(true)
         );
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }
@@ -74,7 +74,7 @@ async fn connects_through_the_configured_websocket_url() {
             .await
             .unwrap();
         wait_connected(&mut events, &nick).await;
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }

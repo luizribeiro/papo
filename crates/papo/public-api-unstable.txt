@@ -2469,7 +2469,7 @@ pub fn papo::Client::part(&self, impl papo::AsChannel) -> papo::PartRequest
 pub fn papo::Client::pause_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::quit(&self) -> papo::QuitRequest
 pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::ReactOutcome>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>

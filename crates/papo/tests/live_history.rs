@@ -103,7 +103,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             client.fetch_read_marker(&channel).await.unwrap(),
             papo::ReadMarker::ReadUntil(newest)
         );
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }
@@ -172,7 +172,7 @@ async fn latest_after_returns_the_newest_page_and_reports_a_gap() {
             &texts[2..]
         );
         assert!(complete.end);
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }
@@ -240,7 +240,7 @@ async fn cursor_pages_every_message_once() {
         let mut actual = pages.into_iter().flatten().collect::<Vec<_>>();
         actual.sort();
         assert_eq!(actual, expected);
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }

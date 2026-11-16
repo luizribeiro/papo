@@ -31,7 +31,7 @@ static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 ///     .connect()
 ///     .await?;
 /// client.privmsg("#papo", "hello from the docs").await?;
-/// client.quit("example complete").await?;
+/// client.quit().reason("example complete").await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -2138,22 +2138,28 @@ impl Client {
     /// The wait is limited to ten seconds. The driver still completes cleanly
     /// when that limit is reached. An I/O failure while waiting for closure
     /// also resolves to `Ok(())`. A timed-out acknowledgement is recorded in
-    /// the final [`crate::Event::Disconnected`].
-    /// An empty `reason` means no reason.
+    /// the final [`crate::Event::Disconnected`]. Add a reason with [`QuitRequest::reason`]:
+    ///
+    /// ```no_run
+    /// # async fn leave(client: &papo::Client) -> Result<(), papo::Error> {
+    /// client.quit().reason("Upgrading").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
     /// Returns an error only if the QUIT message is invalid.
-    pub fn quit(&self, reason: impl Into<String>) -> crate::RequestFuture<()> {
-        self.quit_request(reason.into())
-    }
-
-    #[doc(hidden)]
-    pub fn quit_step(&self) -> QuitRequest {
+    pub fn quit(&self) -> QuitRequest {
         QuitRequest {
             client: self.clone(),
             reason: String::new(),
         }
+    }
+
+    #[doc(hidden)]
+    pub fn quit_step(&self) -> QuitRequest {
+        self.quit()
     }
 
     fn quit_request(&self, reason: String) -> crate::RequestFuture<()> {

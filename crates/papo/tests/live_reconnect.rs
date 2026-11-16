@@ -82,8 +82,8 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
             .collect::<Vec<_>>();
         reconnect_and_rejoin(&client, &mut events, &nick, &channel).await;
         assert_no_repeated_history(&mut events, &channel, &delivered_ids).await;
-        poster.quit_step().await.unwrap();
-        client.quit_step().await.unwrap();
+        poster.quit().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }

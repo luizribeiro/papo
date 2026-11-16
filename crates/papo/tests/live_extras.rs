@@ -42,7 +42,7 @@ async fn metadata_wildcard_sets_the_current_user() {
                 None => panic!("client stopped before the metadata echo"),
             }
         }
-        client.quit_step().await.unwrap();
+        client.quit().await.unwrap();
     })
     .await;
 }
@@ -104,8 +104,8 @@ async fn subscriber_receives_another_clients_metadata() {
                 None => panic!("reader stopped before metadata arrived"),
             }
         }
-        reader.quit_step().await.unwrap();
-        writer.quit_step().await.unwrap();
+        reader.quit().await.unwrap();
+        writer.quit().await.unwrap();
     })
     .await;
 }
@@ -193,8 +193,8 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                 None => panic!("member stopped before the relayed message arrived"),
             }
         }
-        member.quit_step().await.unwrap();
-        operator.quit_step().await.unwrap();
+        member.quit().await.unwrap();
+        operator.quit().await.unwrap();
     })
     .await;
 }

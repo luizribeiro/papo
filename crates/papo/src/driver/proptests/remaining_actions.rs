@@ -28,7 +28,7 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
         .await;
         check_action({
             let first = first.clone();
-            move |client| action(client.quit_step().reason(first))
+            move |client| action(client.quit().reason(first))
         })
         .await;
         check_action({

@@ -112,12 +112,7 @@ fn request_futures_are_send() {
     assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
     assert_send_static(client.clear_topic(mapping.channel("#papo")));
     assert_send_static(client.list().into_future());
-    assert_send_static(
-        client
-            .quit_step()
-            .reason("trait check complete")
-            .into_future(),
-    );
+    assert_send_static(client.quit().reason("trait check complete").into_future());
 
     assert_extension_futures_are_send(&client, mapping);
 

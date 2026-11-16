@@ -37,7 +37,6 @@ const UNIT_REQUESTS: &[(&str, Reason)] = &[
     ("papo::Client::invite", Reason::EchoesInputOnly),
     ("papo::Client::oper", Reason::FixedTextNumeric),
     ("papo::Client::pause_reconnect", Reason::LocalOnly),
-    ("papo::Client::quit", Reason::CloseIsConfirmation),
     ("papo::Client::reconnect", Reason::LocalOnly),
     ("papo::Client::redact", Reason::EchoOutsideResponse),
     ("papo::Client::resume_reconnect", Reason::LocalOnly),
