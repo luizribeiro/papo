@@ -424,7 +424,7 @@ impl State {
             return None;
         }
         let flags = reply.flags(isupport)?;
-        self.apply_who_user(
+        let applied = self.apply_who_user(
             WhoUser {
                 channel,
                 nick,
@@ -435,16 +435,24 @@ impl State {
             &flags,
             outbox,
         );
-        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
+        if applied && let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.update_account(Account::from_notify(reply.account, self.casemapping));
         }
         Some(Handled::Yes)
     }
 
-    fn apply_who_user(&mut self, reply: WhoUser<'_>, flags: &WhoxFlags, outbox: &mut Outbox) {
+    fn apply_who_user(
+        &mut self,
+        reply: WhoUser<'_>,
+        flags: &WhoxFlags,
+        outbox: &mut Outbox,
+    ) -> bool {
         let channel = self.casemapping.channel(reply.channel);
         let nick = NameKey::new(reply.nick.to_owned(), self.casemapping);
         let sweep = self.who_sweeps.get(&channel);
+        if sweep.is_some_and(|sweep| sweep.row_is_stale(&nick)) {
+            return false;
+        }
         let prefix_changes = sweep
             .and_then(|sweep| sweep.prefix_changes.get(&nick))
             .cloned();
@@ -484,6 +492,7 @@ impl State {
             };
             user.is_bot = Some(flags.bot);
         }
+        true
     }
 
     fn handle_plain_who(
@@ -543,6 +552,23 @@ impl State {
             outbox,
         );
         Some(Handled::Yes)
+    }
+
+    /// Marks `nick` as changed in the sweep of `channel`, or of every channel when `None`.
+    pub(super) fn sweep_member_changed(&mut self, channel: Option<&str>, nick: &str) {
+        let nick = NameKey::new(nick.to_owned(), self.casemapping);
+        match channel {
+            Some(channel) => {
+                if let Some(sweep) = self.who_sweeps.get_mut(&self.casemapping.channel(channel)) {
+                    sweep.member_changed(nick);
+                }
+            }
+            None => {
+                for sweep in self.who_sweeps.values_mut() {
+                    sweep.member_changed(nick.clone());
+                }
+            }
+        }
     }
 
     pub(super) fn start_who(&mut self, channel: &str, isupport: &Isupport, outbox: &mut Outbox) {

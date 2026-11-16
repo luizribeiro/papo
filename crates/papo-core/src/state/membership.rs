@@ -253,6 +253,7 @@ impl State {
     }
 
     pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {
+        self.sweep_member_changed(Some(channel), nick);
         let channel_name = self.casemapping.channel(channel);
         let nick_name = self.casemapping.nick(nick);
         let nick_key = self.casemapping.fold(nick);
@@ -280,6 +281,7 @@ impl State {
     }
 
     pub(super) fn remove_user(&mut self, nick: &str) {
+        self.sweep_member_changed(None, nick);
         let folded = self.casemapping.fold(nick);
         let Some(user) = self.users.remove(folded.as_ref()) else {
             return;
@@ -294,6 +296,7 @@ impl State {
 
     pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
         let mapping = self.casemapping;
+        self.sweep_member_changed(None, old_nick);
         if !crate::names_equal(mapping, old_nick, self.nick.as_str())
             && crate::names_equal(mapping, new_nick, self.nick.as_str())
         {

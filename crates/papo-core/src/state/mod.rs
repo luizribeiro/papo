@@ -113,6 +113,9 @@ struct WhoSweep {
     prefix_changes: HashMap<NameKey<String>, HashMap<Prefix, papo_proto::ModeAction>>,
     // SETNAME is a newer live value than any WHO snapshot still in flight for a shared channel.
     realname_changes: HashSet<NameKey<String>>,
+    // A row for a nick that left or was renamed away while the sweep was in flight may describe an
+    // earlier holder of that nick, or an old spelling of it.
+    changed_members: HashSet<NameKey<String>>,
 }
 
 impl WhoSweep {
@@ -121,7 +124,16 @@ impl WhoSweep {
             count: 1,
             prefix_changes: HashMap::new(),
             realname_changes: HashSet::new(),
+            changed_members: HashSet::new(),
         }
+    }
+
+    fn member_changed(&mut self, nick: NameKey<String>) {
+        self.changed_members.insert(nick);
+    }
+
+    fn row_is_stale(&self, nick: &NameKey<String>) -> bool {
+        self.changed_members.contains(nick)
     }
 }
 
