@@ -20,7 +20,7 @@ fn chat_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::M
         .filter(|message| message.raw_text == text)
 }
 
-/// routes one session's channel send to its sibling exactly once with own authorship
+/// routes one session's channel send to its sibling exactly once as `Party::Me`
 #[scenario(
     requires(caps = ["echo-message"]),
     covers = ["multidevice.message-fanout"]

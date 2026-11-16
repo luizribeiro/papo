@@ -175,21 +175,21 @@ pub(crate) fn history_item(
     );
     let mut event = match item {
         papo_core::HistoryItem::Message(item) => {
-            let authorship = crate::Party::from_core(item.actor_party);
+            let actor_party = crate::Party::from_core(item.actor_party);
             crate::event_impl::historical_message_event(
                 item.line,
-                authorship,
+                actor_party,
                 history_conversation,
                 client,
                 received_at,
             )
         }
         papo_core::HistoryItem::Incomplete(item) => {
-            let authorship = crate::Party::from_core(item.actor_party);
+            let actor_party = crate::Party::from_core(item.actor_party);
             let raw = item.line.clone();
             let event = crate::event_impl::historical_message_event(
                 item.line,
-                authorship,
+                actor_party,
                 history_conversation,
                 client,
                 received_at,
@@ -347,7 +347,7 @@ fn shared_history_actor_token(
 
 fn historical_tagmsg(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
@@ -368,7 +368,7 @@ fn historical_tagmsg(
     );
     let conversation = crate::event_impl::historical_conversation(
         message,
-        authorship,
+        actor_party,
         conversation,
         history_conversation,
         state.nick(),
@@ -394,7 +394,7 @@ fn historical_tagmsg(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        actor_party: authorship,
+        actor_party,
         conversation,
         status,
         receipt,
@@ -441,7 +441,7 @@ fn user_from_line(
 #[allow(clippy::too_many_arguments)]
 fn reaction(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     mapping: crate::Casemapping,
     origin: crate::Origin,
     own_nick: &crate::Nick,
@@ -462,7 +462,7 @@ fn reaction(
     let conversation = crate::Conversation::from_core(conversation, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
-        authorship,
+        actor_party,
         conversation,
         history_conversation,
         own_nick,
@@ -493,7 +493,7 @@ fn reaction(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        actor_party: authorship,
+        actor_party,
         conversation,
         status,
         receipt,
@@ -510,7 +510,7 @@ fn reaction(
 #[allow(clippy::too_many_arguments)]
 fn redaction(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     mapping: crate::Casemapping,
     origin: crate::Origin,
     own_nick: &crate::Nick,
@@ -530,7 +530,7 @@ fn redaction(
     let conversation = crate::Conversation::from_core(conversation, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
-        authorship,
+        actor_party,
         conversation,
         history_conversation,
         own_nick,
@@ -556,7 +556,7 @@ fn redaction(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        actor_party: authorship,
+        actor_party,
         conversation,
         status,
         receipt,
@@ -570,7 +570,7 @@ fn redaction(
 
 fn joined(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -578,7 +578,7 @@ fn joined(
     let mapping = state.casemapping();
     crate::event_impl::joined_from_line(
         message,
-        authorship,
+        actor_party,
         mapping,
         client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
@@ -593,7 +593,7 @@ fn joined(
 
 fn parted(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -630,7 +630,7 @@ fn parted(
         actor,
         facts: None,
         channel: client.channel(message.param(0)?).ok()?,
-        actor_party: authorship,
+        actor_party,
         reason: message
             .param(1)
             .filter(|reason| !reason.is_empty())
@@ -640,7 +640,7 @@ fn parted(
 
 fn quit(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
@@ -679,15 +679,15 @@ fn quit(
             Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
             _ => Vec::new(),
         },
-        actor_party: authorship,
+        actor_party,
         netsplit: None,
     }))
 }
 
 fn kicked(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
-    subject_authorship: crate::Party,
+    actor_party: crate::Party,
+    subject_party: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -726,8 +726,8 @@ fn kicked(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         channel: client.channel(message.param(0)?).ok()?,
-        actor_party: authorship,
-        subject_party: subject_authorship,
+        actor_party,
+        subject_party,
         subject: crate::UserHandle::from_event(
             state.known_name_rules()?.nick(nick),
             crate::Account::Unknown,
@@ -746,7 +746,7 @@ fn kicked(
 
 fn nick_changed(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     client: &Client,
     history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
@@ -784,7 +784,7 @@ fn nick_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        actor_party: authorship,
+        actor_party,
         old,
         new,
         channels: match history_conversation {
@@ -796,7 +796,7 @@ fn nick_changed(
 
 fn topic_changed(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
+    actor_party: crate::Party,
     mapping: crate::Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
@@ -825,14 +825,14 @@ fn topic_changed(
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
         actor,
-        actor_party: authorship,
+        actor_party,
     }))
 }
 
 fn mode_changed(
     message: &papo_proto::LineRef<'_>,
-    authorship: crate::Party,
-    _subject_authorship: crate::Party,
+    actor_party: crate::Party,
+    _subject_party: crate::Party,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -891,7 +891,7 @@ fn mode_changed(
             crate::Subject::User(client.query(message.param(0)?).ok()?)
         },
         actor,
-        actor_party: authorship,
+        actor_party,
         changes,
         own_nick: None,
     }))
@@ -1917,7 +1917,7 @@ mod tests {
     }
 
     #[test]
-    fn preserves_proven_history_authorship_and_activity_context() {
+    fn preserves_proven_history_parties_and_activity_context() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().allow_insecure_auth(true).sasl(
             Sasl::plain("papo", crate::Secret::new("correct horse battery staple")),

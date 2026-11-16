@@ -4703,12 +4703,12 @@ mod tests {
         let live = classify(Line::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert!(!live.is_own());
 
-        let route = |line, authorship| {
+        let route = |line, actor_party| {
             let isupport = Isupport::default();
             message_event_from_line(
                 line,
                 None,
-                authorship,
+                actor_party,
                 Conversation::Channel(channel(isupport.casemapping().channel("#papo"))),
                 None,
                 None,
@@ -4861,7 +4861,7 @@ mod tests {
     }
 
     #[test]
-    fn queued_event_keeps_authorship_across_a_nick_change() {
+    fn queued_event_keeps_its_party_across_a_nick_change() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(now, b":papo!papo@localhost JOIN #papo");
