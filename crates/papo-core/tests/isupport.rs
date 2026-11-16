@@ -293,3 +293,14 @@ fn a_withdrawn_unknown_casemapping_keeps_bracket_nicks_apart() {
     );
     assert!(!session.__name_rules_known());
 }
+
+#[test]
+fn utf8mapping_alone_keeps_bracket_nicks_apart() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    join_release_with_alice(&mut session, "UTF8MAPPING=rfc8265");
+
+    assert_eq!(
+        session.state().channel("#release").unwrap().members().len(),
+        3
+    );
+}

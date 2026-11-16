@@ -10,8 +10,7 @@ use crate::{AccountName, ChannelName, Mask, Nick, Origin};
 /// Servers define these rules. The default is [`Rfc1459`](Self::Rfc1459), as required before a
 /// server advertises `CASEMAPPING` in `RPL_ISUPPORT`. Ergo advertises PRECIS through
 /// `UTF8MAPPING`; the `Precis` variant and support for that advertisement require the `precis`
-/// feature. Without it, `UTF8MAPPING=rfc8265` falls back to the advertised `CASEMAPPING` (or
-/// RFC 1459 when absent), and [`papo::Warning::Utf8CasemappingUnsupported`](https://docs.rs/papo/latest/papo/enum.Warning.html#variant.Utf8CasemappingUnsupported)
+/// feature. Without it, `UTF8MAPPING=rfc8265` falls back to [`Ascii`](Self::Ascii), and [`papo::Warning::Utf8CasemappingUnsupported`](https://docs.rs/papo/latest/papo/enum.Warning.html#variant.Utf8CasemappingUnsupported)
 /// is emitted once per connection.
 ///
 /// Applications using `papo` build typed names through [`papo::State`](https://docs.rs/papo/latest/papo/struct.State.html)

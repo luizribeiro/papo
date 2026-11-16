@@ -328,9 +328,13 @@ impl Isupport {
     #[doc(hidden)]
     #[must_use]
     pub fn __advertised_casemapping(&self) -> Option<Result<Casemapping, UnknownCasemapping>> {
-        #[cfg(feature = "precis")]
         if self.value("UTF8MAPPING") == Some("rfc8265") {
-            return Some(Ok(Casemapping::Precis));
+            // `rfc7613` names PRECIS and parses only when the `precis` feature is built. Without it,
+            // ascii is the one fold that stays within every rule PRECIS applies.
+            return Some("rfc7613".parse().or(match self.value("CASEMAPPING") {
+                Some("ascii") => Ok(Casemapping::Ascii),
+                _ => Err(UnknownCasemapping),
+            }));
         }
         match self.get("CASEMAPPING") {
             Advertised::Absent => None,

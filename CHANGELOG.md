@@ -529,6 +529,9 @@ their `NameRules` replacements are `nick`, `channel`, `account`, `mask`, `conver
 A `CASEMAPPING` token papo doesn't know, such as `rfc8265`, leaves `State::name_rules()` `None`
 even when `Builder::casemapping` seeded rules, and papo compares names as `ascii` meanwhile, so two
 nicks the server keeps apart, such as `alice[m]` and `alice{m}`, are never merged.
+Rules seeded with `Builder::casemapping` apply until the server advertises its own, a withdrawn
+`CASEMAPPING` keeps its rules, and `UTF8MAPPING=rfc8265` in a build without `precis` folds as
+`ascii`.
 
 Names now remember both their producing client and casemapping, and equality, ordering, and hashing
 include those facts. Text comparisons still apply the name's fold. The public
