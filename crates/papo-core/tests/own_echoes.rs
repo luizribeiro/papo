@@ -47,7 +47,7 @@ struct Case {
     unlabelled: &'static str,
 }
 
-fn cases() -> [Case; 5] {
+fn cases() -> [Case; 6] {
     [
         Case {
             command: Line::new("NICK").with_params(["Papo2"]),
@@ -74,6 +74,12 @@ fn cases() -> [Case; 5] {
             unlabelled: "@msgid=k8gq9fd2udzi77ghui3v88y482;time=2026-11-15T20:07:22.160Z :papo!~u@3t4fgnf9zitka.irc KICK #papo bob bye",
         },
         Case {
+            command: Line::new("MODE").with_params(["#papo", "+t"]),
+            matcher: ResponseMatcher::Mode("#papo".into()),
+            labelled: "@time=2026-11-15T20:07:20.004Z;label=0;msgid=rb8w2q5hx4unmhcbg6fsw4qkfe :papo!~u@3t4fgnf9zitka.irc MODE #papo +t",
+            unlabelled: "@time=2026-11-15T20:07:24.118Z;msgid=c3mfu9eqb4hzk2a8wnt7r6jxsd :papo!~u@3t4fgnf9zitka.irc MODE #papo +t",
+        },
+        Case {
             command: Line::new("PART").with_params(["#papo", "leaving"]),
             matcher: ResponseMatcher::Part("#papo".into()),
             labelled: "@msgid=x95ke2uf27w64gbhhcnccekj8s;time=2026-11-15T20:07:35.242Z;label=0 :papo!~u@3t4fgnf9zitka.irc PART #papo leaving",
@@ -82,16 +88,40 @@ fn cases() -> [Case; 5] {
     ]
 }
 
+fn answer_pings(session: &mut Session, now: Instant) {
+    let pongs: Vec<String> = std::iter::from_fn(|| session.poll_transmit())
+        .filter_map(|wire| {
+            let text = String::from_utf8(wire.as_ref().to_vec()).unwrap();
+            let line = LineRef::parse(text.trim_end()).unwrap();
+            (line.command() == Command::Ping)
+                .then(|| format!(":ergo.test PONG ergo.test :{}", line.param(0).unwrap()))
+        })
+        .collect();
+    for pong in pongs {
+        session.handle_line(now, pong.as_bytes());
+    }
+}
+
+fn deliver_echo(session: &mut Session, now: Instant, echo: &str) {
+    session.handle_line(now, echo.as_bytes());
+    answer_pings(session, now);
+}
+
 fn assert_echo_kept(response: Option<Response>, echo: &str) {
     let response = response.unwrap_or_else(|| panic!("{echo} should end its request"));
     let expected = LineRef::parse(echo).unwrap();
-    let [kept] = response.lines.as_slice() else {
+    let replies: Vec<_> = response
+        .lines
+        .iter()
+        .map(|line| line.as_ref())
+        .filter(|line| line.command() != Command::Pong)
+        .collect();
+    let [kept] = replies[..] else {
         panic!(
-            "{echo} should be the only line kept, got {:?}",
+            "{echo} should be the only reply kept besides the PING fence, got {:?}",
             response.lines
         );
     };
-    let kept = kept.as_ref();
     assert_eq!(kept.command(), expected.command(), "{echo}");
     assert!(kept.params().eq(expected.params()), "{echo}");
     for tag in ["msgid", "time"] {
@@ -105,7 +135,7 @@ fn a_labelled_response_keeps_the_ergo_echo_of_our_command() {
     for case in cases() {
         let mut session = ergo(now, "labeled-response message-tags server-time setname");
         session.request(now, case.command).unwrap();
-        session.handle_line(now, case.labelled.as_bytes());
+        deliver_echo(&mut session, now, case.labelled);
         assert_echo_kept(response(&mut session), case.labelled);
     }
 }
@@ -118,7 +148,7 @@ fn an_unlabelled_response_keeps_the_ergo_echo_that_matched_it() {
         session
             .request_with_matcher(now, case.command, case.matcher)
             .unwrap();
-        session.handle_line(now, case.unlabelled.as_bytes());
+        deliver_echo(&mut session, now, case.unlabelled);
         assert_echo_kept(response(&mut session), case.unlabelled);
     }
 }
@@ -144,38 +174,10 @@ fn another_users_echo_of_the_same_command_does_not_end_our_request() {
             let foreign = case.unlabelled.replace(OWN_SOURCE, CHANOP_SOURCE);
             session.handle_line(now, foreign.as_bytes());
             assert!(response(&mut session).is_none(), "{caps}: {foreign}");
-            session.handle_line(now, echo.as_bytes());
+            deliver_echo(&mut session, now, echo);
             assert_echo_kept(response(&mut session), echo);
         }
     }
-}
-
-#[test]
-fn another_operators_mode_change_is_not_kept_as_our_mode_echo() {
-    let now = Instant::now();
-    let mut session = ergo(now, "message-tags server-time");
-    session
-        .request_with_matcher(
-            now,
-            Line::new("MODE").with_params(["#papo", "+t"]),
-            ResponseMatcher::Mode("#papo".into()),
-        )
-        .unwrap();
-    for line in [
-        ":chanop!~u@9f3xcwqwgz5yq.irc MODE #papo +m",
-        ":ergo.test PONG ergo.test :papo-mode-0",
-    ] {
-        session.handle_line(now, line.as_bytes());
-    }
-    let response = response(&mut session).expect("the PONG fence ends the MODE request");
-    assert!(
-        response
-            .lines
-            .iter()
-            .all(|line| line.as_ref().command() != Command::Mode),
-        "{:?}",
-        response.lines
-    );
 }
 
 const CHANOP_KICK: &str = "@msgid=5ia6vq2kbpzgbsmpq9kbdrm7kc;time=2026-11-15T20:07:21.402Z :chanop!~u@9f3xcwqwgz5yq.irc KICK #papo bob :spam";
