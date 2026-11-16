@@ -242,6 +242,38 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         return Ok(());
     }
 
+    peers
+        .bob
+        .typing(question.return_address(), Typing::Active)
+        .await?;
+    let typing = peers
+        .alice
+        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
+        .await?;
+    assert_eq!(typing.audience.symbol(), '@');
+    assert_eq!(
+        typing.line.as_typing_changed().map(|typing| typing.state),
+        Some(Typing::Active)
+    );
+    unseen_by_non_operators(
+        &mut peers,
+        papo::RestrictedLine::as_typing_changed,
+        Event::as_typing_changed,
+    )
+    .await
+}
+
+/// preserves an operators-only audience when reacting to a status message
+#[scenario(
+    requires(
+        caps = ["echo-message", "labeled-response", "message-tags"],
+        isupport = ["STATUSMSG"]
+    ),
+    covers = ["security.routing.status-prefix-reaction"]
+)]
+async fn statusmsg_reaction_ops(s: Scenario) -> papo_testing::Result<()> {
+    let mut peers = statusmsg_peers(&s).await?;
+    let question = ops_question(&mut peers).await?;
     let question_id = question
         .msgid()
         .expect("operators-only message has an identifier")
@@ -263,26 +295,6 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         &mut peers,
         papo::RestrictedLine::as_reacted,
         Event::as_reacted,
-    )
-    .await?;
-
-    peers
-        .bob
-        .typing(question.return_address(), Typing::Active)
-        .await?;
-    let typing = peers
-        .alice
-        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
-        .await?;
-    assert_eq!(typing.audience.symbol(), '@');
-    assert_eq!(
-        typing.line.as_typing_changed().map(|typing| typing.state),
-        Some(Typing::Active)
-    );
-    unseen_by_non_operators(
-        &mut peers,
-        papo::RestrictedLine::as_typing_changed,
-        Event::as_typing_changed,
     )
     .await
 }
