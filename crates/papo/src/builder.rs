@@ -963,7 +963,7 @@ mod tests {
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
         ));
-        let actor = crate::UserHandle::from_parts(
+        let actor = crate::UserHandle::current_name(
             actor.nick().clone(),
             actor.account().clone(),
             None,

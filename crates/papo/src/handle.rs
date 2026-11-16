@@ -179,7 +179,7 @@ struct UserInner {
 #[allow(dead_code)]
 impl UserHandle {
     pub(crate) fn from_nick(nick: crate::Nick) -> Self {
-        Self::from_parts(nick, crate::Account::Unknown, None, None)
+        Self::current_name(nick, crate::Account::Unknown, None, None)
     }
 
     pub(crate) fn new(
@@ -188,10 +188,13 @@ impl UserHandle {
         account: crate::Account,
         proof: Option<papo_core::Proven>,
     ) -> Self {
-        Self::from_parts(nick, account, proof, Some(&client.state))
+        Self::current_name(nick, account, proof, Some(&client.state))
     }
 
-    pub(crate) fn from_parts(
+    /// Builds the handle for a name that stands for its holder now: one the application named,
+    /// the client's own nick, or a person papo-core proves present. A line naming a person in
+    /// the past goes through [`Self::from_past_line`].
+    pub(crate) fn current_name(
         nick: crate::Nick,
         account: crate::Account,
         proof: Option<papo_core::Proven>,
@@ -240,7 +243,7 @@ impl UserHandle {
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
         let Some(shared) = state else {
-            return Self::from_parts(nick, crate::Account::Unknown, None, None);
+            return Self::current_name(nick, crate::Account::Unknown, None, None);
         };
         let snapshot = shared
             .read()
@@ -254,7 +257,7 @@ impl UserHandle {
             .__prove_event_user(token, nick.clone(), account.clone())
             .ok();
         drop(snapshot);
-        Self::from_parts(nick, account, proof, Some(shared))
+        Self::current_name(nick, account, proof, Some(shared))
     }
 
     /// Builds the handle for a person a live event names from the identity papo-core recorded

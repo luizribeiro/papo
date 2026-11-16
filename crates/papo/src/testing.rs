@@ -165,7 +165,7 @@ pub fn user_handle(nick: impl Into<Nick>) -> crate::UserHandle {
 pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate::Source {
     match source {
         papo_proto::Source::User { nick, .. } => {
-            crate::Source::User(crate::UserHandle::from_parts(
+            crate::Source::User(crate::UserHandle::current_name(
                 crate::Origin::NONE.__nick(casemapping, nick),
                 crate::Account::Unknown,
                 None,
@@ -230,7 +230,7 @@ pub fn message(
 
 /// Sets the account fact on a test message actor.
 pub fn set_message_account(message: &mut Message, account: crate::Account) {
-    message.actor = crate::UserHandle::from_parts(message.actor.nick(), account, None, None);
+    message.actor = crate::UserHandle::current_name(message.actor.nick(), account, None, None);
     if let crate::Conversation::Private(user) = &mut message.conversation {
         *user = message.actor.clone();
     }

@@ -645,7 +645,7 @@ impl Change {
                     Some(Argument::ProvenNick(_, proof)) => Some(proof.clone()),
                     _ => None,
                 };
-                crate::UserHandle::from_parts(
+                crate::UserHandle::current_name(
                     nick,
                     crate::Account::Unknown,
                     proof,

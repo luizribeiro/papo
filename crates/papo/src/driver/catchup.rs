@@ -291,7 +291,7 @@ mod tests {
             None,
             None,
         ));
-        let actor = crate::UserHandle::from_parts(
+        let actor = crate::UserHandle::current_name(
             actor.nick().clone(),
             actor.account().clone(),
             None,

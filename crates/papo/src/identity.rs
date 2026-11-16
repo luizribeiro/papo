@@ -256,7 +256,7 @@ mod tests {
         let mapping = session.isupport().casemapping();
         let account = Account::LoggedIn(mapping.account("alice-account"));
         let handle =
-            crate::UserHandle::from_parts(mapping.nick("alice"), account.clone(), None, None);
+            crate::UserHandle::current_name(mapping.nick("alice"), account.clone(), None, None);
         (handle, account)
     }
 

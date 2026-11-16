@@ -550,7 +550,7 @@ mod tests {
         let mapping = crate::Casemapping::default();
         let actor = crate::__testing::user_handle(mapping.nick("alice"));
         let receipt = Receipt::new(
-            crate::Source::User(crate::UserHandle::from_parts(
+            crate::Source::User(crate::UserHandle::current_name(
                 actor.nick().clone(),
                 actor.account().clone(),
                 None,

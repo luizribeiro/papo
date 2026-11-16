@@ -279,7 +279,7 @@ impl State {
         conversation: &crate::Conversation,
         address: String,
     ) -> crate::message_ref::Receipt {
-        let actor = crate::Source::User(crate::UserHandle::from_parts(
+        let actor = crate::Source::User(crate::UserHandle::current_name(
             self.nick().clone(),
             self.account().clone(),
             None,
