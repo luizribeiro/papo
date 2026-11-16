@@ -1,6 +1,6 @@
 //! Observe channel membership through events and state snapshots.
 
-use std::{env, error::Error, io::Write as _};
+use std::{env, error::Error};
 
 use papo::{Client, Event};
 
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while let Some((event, state)) = events.next().await {
         match event {
             Event::ChannelSynced(synced) => {
-                let Some(channel) = state.__channel_local(&synced.channel) else {
+                let Some(channel) = state.channel(&synced.channel)? else {
                     continue;
                 };
                 let mut members = channel
@@ -45,9 +45,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Event::NickChanged(changed) => {
                 println!("nick {} -> {}", changed.old, changed.new);
             }
-            _ => continue,
+            _ => {}
         }
-        std::io::stdout().flush()?;
     }
     Ok(())
 }
