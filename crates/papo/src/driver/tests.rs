@@ -6,6 +6,7 @@ mod confirmations;
 mod history_message;
 mod ops_only;
 mod reactions;
+mod reasons;
 mod sends;
 
 macro_rules! disconnected {
