@@ -788,6 +788,13 @@ impl Config {
         config
     }
 
+    #[cfg_attr(
+        not(feature = "unstable"),
+        expect(
+            clippy::unused_self,
+            reason = "only the unstable build can select a bouncer network"
+        )
+    )]
     pub(crate) fn selected_bouncer_network(&self) -> Option<&str> {
         #[cfg(feature = "unstable")]
         return self.bouncer_network.as_ref().map(AsRef::as_ref);
