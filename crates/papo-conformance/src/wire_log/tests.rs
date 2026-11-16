@@ -168,28 +168,113 @@ async fn closing_records_a_last_line_without_a_newline() {
 
 #[test]
 fn a_line_that_never_ends_holds_at_most_8703_bytes() {
+    for (direction, pending, other, arrow) in [
+        (Direction::Sent, 0, 1, "->"),
+        (Direction::Received, 1, 0, "<-"),
+    ] {
+        let log = WireLog::new();
+        let client = log.add_client();
+        let (inner, _server) = duplex(16);
+        let mut stream = Tapped {
+            inner: Box::new(inner),
+            log: log.clone(),
+            client,
+            partial: [Vec::new(), Vec::new()],
+        };
+        for _ in 0..100 {
+            stream.observe(direction, &[b'a'; 1000]);
+            assert!(stream.partial[pending].len() <= 512 + 8191);
+        }
+        assert_eq!(stream.partial[pending].len(), 512 + 8191);
+        assert!(stream.partial[other].is_empty());
+        stream.observe(direction, b"\r\n");
+        assert!(stream.partial[pending].is_empty());
+        let render = log.render();
+        assert!(
+            render.ends_with(&format!("{arrow} <unparsed line, 8703 bytes>\n")),
+            "{render}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn lines_crossing_short_reads_and_writes_are_recorded_once() {
     let log = WireLog::new();
     let client = log.add_client();
-    let (inner, _server) = duplex(16);
-    let mut stream = Tapped {
-        inner: Box::new(inner),
-        log: log.clone(),
-        client,
-        partial: [Vec::new(), Vec::new()],
-    };
-    for _ in 0..100 {
-        stream.observe(Direction::Received, &[b'a'; 1000]);
-        assert!(stream.partial[1].len() <= 512 + 8191);
-    }
-    assert_eq!(stream.partial[1].len(), 512 + 8191);
-    assert!(stream.partial[0].is_empty());
-    stream.observe(Direction::Received, b"\r\n");
-    assert!(stream.partial[1].is_empty());
-    assert!(
-        log.render().ends_with("<- <unparsed line, 8703 bytes>\n"),
-        "{}",
-        log.render()
+    let (client_end, server) = duplex(16);
+    let (mut stream_reader, mut stream_writer) =
+        tokio::io::split(log.tap(client, Box::new(client_end)));
+    let (mut server_reader, mut server_writer) = tokio::io::split(server);
+    let sent = b"PRIVMSG #papo :the release notes are ready for review\r\n";
+    let received = b":bob!bob@localhost PRIVMSG #papo :thanks, reading them now\r\n";
+
+    let ((), (), echoed, read) = tokio::join!(
+        async { stream_writer.write_all(sent).await.unwrap() },
+        async { server_writer.write_all(received).await.unwrap() },
+        async {
+            let mut echoed = vec![0; sent.len()];
+            server_reader.read_exact(&mut echoed).await.unwrap();
+            echoed
+        },
+        async {
+            let mut read = Vec::new();
+            let mut chunk = [0; 7];
+            while read.len() < received.len() {
+                let count = stream_reader.read(&mut chunk).await.unwrap();
+                read.extend_from_slice(&chunk[..count]);
+            }
+            read
+        },
     );
+
+    assert_eq!(
+        (echoed.as_slice(), read.as_slice()),
+        (&sent[..], &received[..])
+    );
+    assert_eq!(
+        without_times(&log.render()),
+        "wire log, in seconds since the scenario started:\n== client 1\n  \
+         -> PRIVMSG #papo :the release notes are ready for review\n  \
+         <- :bob!bob@localhost PRIVMSG #papo :thanks, reading them now"
+    );
+}
+
+#[tokio::test]
+async fn flushing_the_tap_flushes_the_connection() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    let (client_end, mut server) = duplex(1024);
+    let mut stream = log.tap(client, Box::new(tokio::io::BufWriter::new(client_end)));
+    stream.write_all(b"PING :ergo.test\r\n").await.unwrap();
+    stream.flush().await.unwrap();
+
+    let mut sent = [0; 17];
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        server.read_exact(&mut sent),
+    )
+    .await
+    .expect("the flush reached the connection")
+    .unwrap();
+    assert_eq!(&sent, b"PING :ergo.test\r\n");
+}
+
+#[test]
+fn times_count_seconds_since_the_log_started() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    log.record(client, Direction::Sent, b"PING :ergo.test");
+    let render = log.render();
+    let time: f64 = render
+        .lines()
+        .last()
+        .and_then(|line| line.trim_start().split_once(' '))
+        .unwrap()
+        .0
+        .parse()
+        .unwrap();
+    assert!((0.02..60.0).contains(&time), "{render}");
 }
 
 #[test]
