@@ -1509,6 +1509,7 @@ impl ResponseMatcher {
         };
         let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
         let current_own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, state.nick().as_str()));
+        let own_echo = |command| own_source && message.command() == command;
         match self {
             Self::Whois(nick) => {
                 if Self::standard_failure(message, "WHOIS")
@@ -1565,7 +1566,7 @@ impl ResponseMatcher {
                 }) {
                     return Some(true);
                 }
-                if message.command() == Command::Join && own_source && named(0) {
+                if own_echo(Command::Join) && named(0) {
                     return Some(state.channel(channel).is_some_and(Channel::is_synced));
                 }
                 if Self::own_channel_departure(message, channel, mapping, own_nick, own_source) {
@@ -1576,8 +1577,7 @@ impl ResponseMatcher {
                         .then_some(true)
                 })
             }
-            Self::Part(channel) => ((message.command() == Command::Part
-                && own_source
+            Self::Part(channel) => ((own_echo(Command::Part)
                 && Self::target_is(message, 0, channel, mapping))
                 || (numeric.is_some_and(|numeric| matches!(numeric.code(), 403 | 442))
                     && Self::target_is(message, 1, channel, mapping))
@@ -1608,7 +1608,7 @@ impl ResponseMatcher {
             }
             Self::Kick { channel, nick } => {
                 let named = |index, expected| Self::target_is(message, index, expected, mapping);
-                ((message.command() == Command::Kick && named(0, channel) && named(1, nick))
+                ((own_echo(Command::Kick) && named(0, channel) && named(1, nick))
                     || numeric.is_some_and(|numeric| match numeric.code() {
                         401 => named(1, nick),
                         403 | 442 | 482 => named(1, channel),
@@ -1631,8 +1631,7 @@ impl ResponseMatcher {
                 }) || Self::standard_failure(message, "INVITE"))
                 .then_some(true)
             }
-            Self::Nick(nick) => ((message.command() == Command::Nick
-                && own_source
+            Self::Nick(nick) => ((own_echo(Command::Nick)
                 && Self::target_is(message, 0, nick, mapping))
                 || numeric.is_some_and(|numeric| {
                     numeric == Numeric::ERR_NONICKNAMEGIVEN

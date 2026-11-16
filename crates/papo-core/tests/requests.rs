@@ -1023,7 +1023,7 @@ fn matches_unlabelled_membership_and_nick_actions() {
         &mut session,
         Line::new("KICK").with_params(["#papo", "spambot", "flooding"]),
         ResponseMatcher::__kick("#papo".into(), "spambot".into()),
-        &[":alice!~a@localhost KICK #papo spambot :flooding"],
+        &[":papo!~u@localhost KICK #papo spambot :flooding"],
     );
     assert_unlabelled(
         &mut session,

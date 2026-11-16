@@ -311,6 +311,12 @@ matching from observing a later event.
 Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`; complete
 `Event::Message` and `Event::Notice` values always include the batch's closing proof.
 
+### Fixed
+
+- `Client::kick` succeeds only on the echo of our own `KICK`, matched by our nick under the server
+  casemapping or by its label. Another operator's `KICK` of the same nick still arrives as
+  `Event::Kicked`, but it no longer completes our pending kick or masks our `482` refusal.
+
 ### Migration from the 2026-10-24 API
 
 This section covers breaking changes since `46c832d`. Papo had not been released at that point,

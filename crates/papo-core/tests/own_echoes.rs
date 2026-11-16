@@ -122,3 +122,113 @@ fn an_unlabelled_response_keeps_the_ergo_echo_that_matched_it() {
         assert_echo_kept(response(&mut session), case.unlabelled);
     }
 }
+
+const CHANOP_KICK: &str = "@msgid=5ia6vq2kbpzgbsmpq9kbdrm7kc;time=2026-11-15T20:07:21.402Z :chanop!~u@9f3xcwqwgz5yq.irc KICK #papo bob :spam";
+
+struct KickMode {
+    caps: &'static str,
+    label: &'static str,
+}
+
+const KICK_MODES: [KickMode; 2] = [
+    KickMode {
+        caps: "labeled-response message-tags server-time",
+        label: "label=0;",
+    },
+    KickMode {
+        caps: "message-tags server-time",
+        label: "",
+    },
+];
+
+fn kick_bob(now: Instant, mode: &KickMode) -> Session {
+    let mut session = ergo(now, mode.caps);
+    session
+        .request_with_matcher(
+            now,
+            Line::new("KICK").with_params(["#papo", "bob", "bye"]),
+            ResponseMatcher::__kick("#papo".into(), "bob".into()),
+        )
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session
+}
+
+fn handle_events(session: &mut Session, now: Instant, line: &str) -> Vec<Event> {
+    session.handle_line(now, line.as_bytes());
+    std::iter::from_fn(|| session.poll_event()).collect()
+}
+
+fn responses(events: &[Event]) -> Vec<&Response> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn another_operators_kick_leaves_our_kick_pending_until_our_echo() {
+    let now = Instant::now();
+    for mode in &KICK_MODES {
+        let mut session = kick_bob(now, mode);
+        let foreign = handle_events(&mut session, now, CHANOP_KICK);
+        assert!(responses(&foreign).is_empty(), "{}", mode.caps);
+        assert!(
+            foreign
+                .iter()
+                .any(|event| matches!(event, Event::Kicked { .. })),
+            "{}",
+            mode.caps
+        );
+
+        let echo = format!(
+            "@{}msgid=k8gq9fd2udzi77ghui3v88y482;time=2026-11-15T20:07:22.160Z :papo!~u@3t4fgnf9zitka.irc KICK #papo bob bye",
+            mode.label
+        );
+        assert_echo_kept(
+            responses(&handle_events(&mut session, now, &echo))
+                .pop()
+                .cloned(),
+            &echo,
+        );
+    }
+}
+
+#[test]
+fn a_refused_kick_is_not_completed_by_another_operators_kick() {
+    let now = Instant::now();
+    for mode in &KICK_MODES {
+        let mut session = kick_bob(now, mode);
+        assert!(responses(&handle_events(&mut session, now, CHANOP_KICK)).is_empty());
+
+        let refusal = format!(
+            "@{}time=2026-11-15T20:07:22.160Z :ergo.test 482 papo #papo :You're not a channel operator",
+            mode.label
+        );
+        let events = handle_events(&mut session, now, &refusal);
+        let [response] = responses(&events)[..] else {
+            panic!("482 should end the kick under {}", mode.caps);
+        };
+        let [line] = response.lines.as_slice() else {
+            panic!(
+                "only the refusal belongs to the kick, got {:?}",
+                response.lines
+            );
+        };
+        let expected = LineRef::parse(&refusal).unwrap();
+        assert_eq!(line.as_ref().command(), expected.command(), "{}", mode.caps);
+    }
+}
+
+#[test]
+fn our_kick_echo_matches_our_nick_under_the_server_casemapping() {
+    let now = Instant::now();
+    let mut session = kick_bob(now, &KICK_MODES[1]);
+    let echo = "@time=2026-11-15T20:07:22.160Z :PaPo!~u@3t4fgnf9zitka.irc KICK #Papo BOB :bye";
+    let events = handle_events(&mut session, now, echo);
+    assert_eq!(responses(&events).len(), 1);
+}
