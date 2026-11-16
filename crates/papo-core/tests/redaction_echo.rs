@@ -90,6 +90,7 @@ fn ergos_echo_before_the_ack_confirms_the_redaction() {
     assert_eq!(response.id, id);
     assert_eq!(response.sent(), Some(own_echo_identity()));
     assert_eq!(response.error(), None);
+    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
 }
 
 #[test]
@@ -152,6 +153,7 @@ fn an_own_redaction_of_another_message_or_target_does_not_confirm_ours() {
         "@msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #papo kcq8m7mfjjd2vde7gcqaxxe2se superseded",
         "@msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #ergo b56bhkz4gmj7ig2jeg9hs7d2cs superseded",
         "@msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc PRIVMSG #papo b56bhkz4gmj7ig2jeg9hs7d2cs",
+        "@label=7;msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu :papo!~u@fa4ww98eysn9a.irc REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs superseded",
     ] {
         let mut session = ergo(now, REDACTION_CAPS);
         let id = redact(&mut session, now);
