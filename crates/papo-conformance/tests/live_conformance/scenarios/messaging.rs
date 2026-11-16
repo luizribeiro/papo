@@ -26,7 +26,7 @@ async fn fixture_pair_with(
     let channel = context.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     let joined = alice
         .wait_for(|event| {
             event
@@ -43,8 +43,18 @@ async fn fixture_pair_with(
             .__channel_local(&channel)
             .expect("joined channel is in state");
         assert!(members.is_synced());
-        assert!(members.member(alice.nick().as_str()).unwrap().is_some());
-        assert!(members.member(bob.nick().as_str()).unwrap().is_some());
+        assert!(
+            members
+                .member(alice.snapshot().nick().as_str())
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            members
+                .member(bob.snapshot().nick().as_str())
+                .unwrap()
+                .is_some()
+        );
     }
     Ok((alice, bob, channel))
 }
@@ -59,7 +69,7 @@ async fn assert_unverified_context(
     context: &str,
     text: &'static str,
 ) -> papo_testing::Result<()> {
-    let direct = sender.query(recipient.nick().as_str())?;
+    let direct = sender.query(recipient.snapshot().nick().as_str())?;
     let context_tag_allowed = context_tag_allowed(sender);
     let sent = sender
         .privmsg(&direct, text)
@@ -101,7 +111,7 @@ async fn part_for_unverified_context(
 ) -> papo_testing::Result<()> {
     // PART is setup for the unverified-context checks, so do not make this scenario depend on
     // the server completing a separate labelled PART request.
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice
         .send_raw(papo::Line::part_with_reason(
             channel,
@@ -173,7 +183,7 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.kind, MessageKind::Text);
     assert_eq!(
         crate::source_nick(&message.actor),
-        Some(alice.nick().as_str())
+        Some(alice.snapshot().nick().as_str())
     );
     assert_eq!(
         conversation_name(message.conversation()),
@@ -283,7 +293,7 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.kind, papo::MessageKind::Text);
     assert_eq!(
         crate::source_nick(&message.actor),
-        Some(alice.nick().as_str())
+        Some(alice.snapshot().nick().as_str())
     );
     assert_eq!(
         conversation_name(&message.conversation),
@@ -320,7 +330,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
 
-    let bob_direct = alice.query(bob.nick().as_str())?;
+    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
     let sent = alice.privmsg(&bob_direct, "private hello").await?;
     let received = bob
         .wait_for(|event| message_text(event, "private hello"))
@@ -328,9 +338,9 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.kind, MessageKind::Text);
     assert_eq!(
         conversation_name(received.conversation()),
-        Some(alice.nick().to_string())
+        Some(alice.snapshot().nick().to_string())
     );
-    assert_eq!(received.return_address(), alice.nick().as_str());
+    assert_eq!(received.return_address(), alice.snapshot().nick().as_str());
     assert_eq!(received.raw_text, "private hello");
     assert!(is_private(&received));
     let (id, _, server_time) = confirmed_line(&sent);
@@ -342,7 +352,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
 
-    let alice_direct = bob.query(alice.nick().as_str())?;
+    let alice_direct = bob.query(alice.snapshot().nick().as_str())?;
     let sent = bob.notice(&alice_direct, "private notice").await?;
     let received = alice
         .wait_for(|event| notice_text(event, "private notice"))
@@ -350,7 +360,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.kind, papo::MessageKind::Text);
     assert!(
         matches!(&received.conversation, papo::Conversation::Private(nick)
-        if nick == bob.nick().as_str())
+        if nick == bob.snapshot().nick().as_str())
     );
     assert_eq!(received.raw_text, "private notice");
     let (id, _, server_time) = confirmed_line(&sent);
@@ -362,11 +372,11 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
 
-    let own = alice.query(alice.nick())?;
+    let own = alice.query(alice.snapshot().nick().clone())?;
     let sent = alice.privmsg(own, "note to self").await?;
     assert_eq!(
         conversation_name(&sent.conversation),
-        Some(alice.nick().to_string())
+        Some(alice.snapshot().nick().to_string())
     );
     let (_, sent_text, _) = confirmed_line(&sent);
     assert_eq!(sent_text, "note to self");
@@ -377,8 +387,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|message| message.raw_text == "note to self")
         })
         .await?;
-    assert_eq!(alice.snapshot().nick(), &alice.nick());
-    assert_eq!(bob.snapshot().nick(), &bob.nick());
+    assert_eq!(alice.snapshot().nick(), &alice.snapshot().nick().clone());
+    assert_eq!(bob.snapshot().nick(), &bob.snapshot().nick().clone());
 
     let channel = s.channel_name();
     alice.join(&channel).await?;
@@ -511,7 +521,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let mut charlie = s.connect("charlie").await?;
     charlie.join(&channel).await?;
-    let charlie_nick = charlie.nick();
+    let charlie_nick = charlie.snapshot().nick().clone();
     alice
         .wait_for(|event| {
             event
@@ -520,7 +530,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
 
-    let bob_direct = alice.query(bob.nick().as_str())?;
+    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
     alice.mode(&channel).voice(&bob_direct).await?;
     let sent = alice
         .privmsg(format!("+{channel}"), "voiced members only")
@@ -539,7 +549,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         bob.snapshot()
             .__channel_local(&channel)
-            .and_then(|members| members.member(bob.nick()).unwrap())
+            .and_then(|members| members.member(bob.snapshot().nick().clone()).unwrap())
             .is_some_and(|member| member
                 .prefixes()
                 .iter()
@@ -571,8 +581,8 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
 
-    let bob_direct = alice.query(bob.nick().as_str())?;
-    let carol_direct = alice.query(carol.nick().as_str())?;
+    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
+    let carol_direct = alice.query(carol.snapshot().nick().as_str())?;
     alice.mode(&channel).op(&bob_direct).await?;
     alice.mode(&channel).voice(&carol_direct).await?;
     let sent = carol
@@ -644,7 +654,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 
     alice
         .send_raw(papo::Line::notice(
-            bob.nick().as_str(),
+            bob.snapshot().nick().as_str(),
             "\u{1}ACTION nods hello\u{1}",
         ))
         .await?;
@@ -655,7 +665,8 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 
     alice
         .send_raw(
-            papo::Line::new("PRIVMSG").with_params([bob.nick().as_str(), "\u{1}VERSION\u{1}"]),
+            papo::Line::new("PRIVMSG")
+                .with_params([bob.snapshot().nick().as_str(), "\u{1}VERSION\u{1}"]),
         )
         .await?;
     let _query = bob
@@ -669,7 +680,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| ctcp.actor.nick().as_str() == bob.nick().as_str())
+                .filter(|ctcp| ctcp.actor.nick().as_str() == bob.snapshot().nick().as_str())
         })
         .await?;
     assert_eq!(reply.command, "VERSION");
@@ -681,10 +692,10 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 
     let mut carol = s.connect("carol").await?;
     alice
-        .send_raw(
-            papo::Line::new("PRIVMSG")
-                .with_params([carol.nick().as_str(), "\u{1}PING 1735689600\u{1}"]),
-        )
+        .send_raw(papo::Line::new("PRIVMSG").with_params([
+            carol.snapshot().nick().as_str(),
+            "\u{1}PING 1735689600\u{1}",
+        ]))
         .await?;
     let query = carol
         .wait_for(|event| event.as_ctcp_query().filter(|ctcp| ctcp.command == "PING"))
@@ -693,7 +704,8 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let reply = alice
         .wait_for(|event| {
             event.as_ctcp_reply().filter(|ctcp| {
-                ctcp.actor.nick().as_str() == carol.nick().as_str() && ctcp.command == "PING"
+                ctcp.actor.nick().as_str() == carol.snapshot().nick().as_str()
+                    && ctcp.command == "PING"
             })
         })
         .await?;
@@ -734,15 +746,15 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| ctcp.actor.nick().as_str() == bob.nick().as_str())
+                .filter(|ctcp| ctcp.actor.nick().as_str() == bob.snapshot().nick().as_str())
         })
         .await?;
     bob.ctcp_reply(&query, "papo conformance client").await?;
     let reply = alice
         .wait_for(|event| {
             event.as_ctcp_reply().filter(|ctcp| {
-                conversation_name(ctcp.conversation()) == Some(bob.nick().to_string())
-                    && ctcp.actor.nick().as_str() == bob.nick().as_str()
+                conversation_name(ctcp.conversation()) == Some(bob.snapshot().nick().to_string())
+                    && ctcp.actor.nick().as_str() == bob.snapshot().nick().as_str()
             })
         })
         .await?;
@@ -764,7 +776,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
     }
     let mut alice = s.connect("alice").await?;
     let (mut bob, network) = s.connect_as_account_with_key("bob").await?;
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     bob.quit().await?;
     bob.wait_for(Event::as_disconnected).await?;
 
@@ -781,7 +793,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
 
     let phone = s.connect_account_session("bob-phone", network).await?;
     let history = phone
-        .history(alice.nick().as_str())
+        .history(alice.snapshot().nick().as_str())
         .latest()
         .limit(10)
         .await?;
@@ -900,7 +912,10 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(added.reacts_to, original_id);
     assert_eq!(added.reaction, "👍");
     assert_eq!(added.action, papo::event::ReactionAction::Added);
-    assert_eq!(crate::source_nick(&added.actor), Some(bob.nick().as_str()));
+    assert_eq!(
+        crate::source_nick(&added.actor),
+        Some(bob.snapshot().nick().as_str())
+    );
 
     let unreacted = bob.unreact(&original, "👍").await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
@@ -923,8 +938,8 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
 async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     let bob_direct = alice.query(bob_nick.as_str())?;
 
     alice.typing(&bob_direct, Typing::Active).await?;
@@ -968,7 +983,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     bob.join(channel.as_str()).await?;
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
-    let bob_direct = alice.query(bob.nick().as_str())?;
+    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
     alice.mode(&channel).op(&bob_direct).await?;
 
     let target = format!("@{channel}");
@@ -980,7 +995,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let typing = restricted.line.as_typing_changed().expect("typing line");
     assert_eq!(
         crate::source_nick(&typing.actor),
-        Some(alice.nick().as_str())
+        Some(alice.snapshot().nick().as_str())
     );
     assert_eq!(
         conversation_name(&typing.conversation),
@@ -1077,7 +1092,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(redacted.reason.as_deref(), Some("superseded"));
     assert_eq!(
         crate::source_nick(&redacted.actor),
-        Some(alice.nick().as_str())
+        Some(alice.snapshot().nick().as_str())
     );
     bob.expect_none(Event::as_redacted).await?;
 
