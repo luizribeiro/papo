@@ -132,6 +132,14 @@ impl Tapped {
             }
         }
     }
+
+    /// Records a last line the peer never terminated, often the one that explains a failure.
+    fn finish(&mut self, direction: Direction) {
+        let line = std::mem::take(&mut self.partial[direction as usize]);
+        if !line.is_empty() {
+            self.log.record(self.client, direction, &line);
+        }
+    }
 }
 
 impl AsyncRead for Tapped {
@@ -143,6 +151,9 @@ impl AsyncRead for Tapped {
         let this = self.get_mut();
         let before = buffer.filled().len();
         ready!(Pin::new(&mut this.inner).poll_read(context, buffer))?;
+        if buffer.filled().len() == before {
+            this.finish(Direction::Received);
+        }
         this.observe(Direction::Received, &buffer.filled()[before..]);
         Poll::Ready(Ok(()))
     }
@@ -165,6 +176,7 @@ impl AsyncWrite for Tapped {
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.finish(Direction::Sent);
         Pin::new(&mut self.inner).poll_shutdown(context)
     }
 }
