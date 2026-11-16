@@ -414,14 +414,13 @@ fn actor_from_line(
     envelope: &crate::event_impl::EventEnvelope,
     mapping: crate::Casemapping,
     origin: crate::Origin,
-    prove_not_bot: bool,
+    _prove_not_bot: bool,
 ) -> Option<crate::Source> {
     crate::event_impl::source::from_line(
         crate::event_impl::source::LinePrefix::Raw(message.raw_source()?),
         envelope,
         mapping,
         origin,
-        prove_not_bot,
     )
 }
 

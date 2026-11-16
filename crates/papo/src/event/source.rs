@@ -51,7 +51,6 @@ pub(crate) fn from_line(
     envelope: &super::EventEnvelope,
     casemapping: Casemapping,
     origin: crate::Origin,
-    _prove_not_bot: bool,
 ) -> Option<Source> {
     let nick = match prefix {
         LinePrefix::Raw(prefix) => {

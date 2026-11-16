@@ -517,7 +517,6 @@ fn ctcp_from_line(
     status: Option<Prefix>,
     isupport: &Isupport,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Result<Event, ProtoLine> {
@@ -533,7 +532,6 @@ fn ctcp_from_line(
         status,
         isupport,
         account_tag_enabled,
-        prove_not_bot,
         received_at,
         reply_token,
     ) else {
@@ -595,7 +593,6 @@ fn broadcast_from_line(
     origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Result<Event, ProtoLine> {
     let message = raw.as_ref();
@@ -622,7 +619,6 @@ fn broadcast_from_line(
         &envelope,
         isupport.casemapping(),
         origin,
-        prove_not_bot,
     ) else {
         return Err(raw);
     };
@@ -666,7 +662,7 @@ pub(crate) fn incoming_from_core(
     origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
+    _prove_not_bot: bool,
     received_at: SystemTime,
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> Event {
@@ -706,7 +702,6 @@ pub(crate) fn incoming_from_core(
             origin,
             isupport,
             account_tag_enabled,
-            prove_not_bot,
             received_at,
         ) {
             Ok(mut event) => {
@@ -726,7 +721,6 @@ pub(crate) fn incoming_from_core(
             origin,
             isupport,
             account_tag_enabled,
-            prove_not_bot,
             received_at,
             Some(reply_token),
         )
@@ -753,7 +747,6 @@ pub(crate) fn incoming_from_core(
         channel_context,
         isupport,
         account_tag_enabled,
-        prove_not_bot,
         received_at,
         Some(reply_token),
     );
@@ -857,7 +850,6 @@ impl Message {
             None,
             isupport,
             false,
-            false,
             received_at,
             None,
         )
@@ -873,7 +865,6 @@ impl Message {
         channel_context: Option<crate::ChannelHandle>,
         isupport: &Isupport,
         account_tag_enabled: bool,
-        prove_not_bot: bool,
         received_at: SystemTime,
         reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
@@ -901,7 +892,6 @@ impl Message {
             status,
             isupport,
             account_tag_enabled,
-            prove_not_bot,
             received_at,
             reply_token,
         ) else {
@@ -995,7 +985,6 @@ impl Notice {
         channel_context: Option<crate::ChannelHandle>,
         isupport: &Isupport,
         account_tag_enabled: bool,
-        prove_not_bot: bool,
         received_at: SystemTime,
         reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
@@ -1023,7 +1012,6 @@ impl Notice {
             status,
             isupport,
             account_tag_enabled,
-            prove_not_bot,
             received_at,
             reply_token,
         ) else {
@@ -1094,7 +1082,6 @@ impl ServerNotice {
         origin: crate::Origin,
         isupport: &Isupport,
         account_tag_enabled: bool,
-        prove_not_bot: bool,
         received_at: SystemTime,
         reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
@@ -1147,7 +1134,6 @@ impl ServerNotice {
             &envelope,
             isupport.casemapping(),
             origin,
-            prove_not_bot,
         ) else {
             return Err(raw);
         };
@@ -1201,7 +1187,6 @@ fn message_event_from_line(
     channel_context: Option<crate::ChannelHandle>,
     isupport: &Isupport,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Event {
@@ -1215,7 +1200,6 @@ fn message_event_from_line(
             origin,
             isupport,
             account_tag_enabled,
-            prove_not_bot,
             received_at,
             reply_token,
         )
@@ -1232,7 +1216,6 @@ fn message_event_from_line(
         status,
         isupport,
         account_tag_enabled,
-        prove_not_bot,
         received_at,
         reply_token,
     ) {
@@ -1249,7 +1232,6 @@ fn message_event_from_line(
             channel_context,
             isupport,
             account_tag_enabled,
-            prove_not_bot,
             received_at,
             reply_token,
         )
@@ -1264,7 +1246,6 @@ fn message_event_from_line(
         channel_context,
         isupport,
         account_tag_enabled,
-        prove_not_bot,
         received_at,
         reply_token,
     )
@@ -1313,7 +1294,6 @@ pub(crate) fn historical_message_event(
         channel_context,
         snapshot.isupport().inner(),
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-        false,
         received_at,
         reply_token,
     )
@@ -1360,7 +1340,6 @@ fn message_metadata(
     status: Option<Prefix>,
     isupport: &Isupport,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<MessageMetadata> {
@@ -1380,7 +1359,6 @@ fn message_metadata(
         &envelope,
         isupport.casemapping(),
         origin,
-        prove_not_bot,
     )?;
     let tags = Tags::from_message(message);
     let reply_to = tag_owned(message, &["+reply", "+draft/reply"]).map(MessageId::from);
@@ -1475,7 +1453,7 @@ pub(crate) fn joined_from_line(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
+    _prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
@@ -1492,7 +1470,6 @@ pub(crate) fn joined_from_line(
         &envelope,
         casemapping,
         origin,
-        prove_not_bot,
     )?;
     let Source::User(actor) = actor else {
         return None;
@@ -2184,7 +2161,7 @@ pub(crate) fn from_core_with_receipt(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-    prove_not_bot: bool,
+    _prove_not_bot: bool,
     received_at: SystemTime,
     reply_state: Option<&papo_core::State>,
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
@@ -2204,7 +2181,6 @@ pub(crate) fn from_core_with_receipt(
             envelope,
             casemapping,
             origin,
-            prove_not_bot,
         )
     };
     let user_at_arrival =
@@ -2619,7 +2595,6 @@ pub(crate) fn from_core_with_receipt(
                 &envelope,
                 casemapping,
                 origin,
-                prove_not_bot,
             ) else {
                 return CoreEvent::Unknown;
             };
@@ -2848,7 +2823,6 @@ pub(crate) fn from_core_with_receipt(
                 &envelope,
                 casemapping,
                 origin,
-                prove_not_bot,
             ) else {
                 return CoreEvent::Unknown;
             };
@@ -2894,7 +2868,6 @@ pub(crate) fn from_core_with_receipt(
                 &envelope,
                 casemapping,
                 origin,
-                prove_not_bot,
             ) else {
                 return CoreEvent::Unknown;
             };
@@ -3100,7 +3073,6 @@ mod tests {
             &envelope,
             mapping,
             origin,
-            false,
         ) else {
             panic!("expected user source")
         };
@@ -3140,7 +3112,6 @@ mod tests {
                 Party::Other,
                 crate::Origin::NONE,
                 &Isupport::default(),
-                false,
                 false,
                 UNIX_EPOCH,
             )
@@ -3295,7 +3266,6 @@ mod tests {
             status,
             None,
             isupport,
-            false,
             false,
             received_at,
             None,
@@ -3693,7 +3663,6 @@ mod tests {
                 None,
                 &isupport,
                 false,
-                false,
                 UNIX_EPOCH,
                 None,
             );
@@ -3778,7 +3747,6 @@ mod tests {
             None,
             &isupport,
             false,
-            false,
             UNIX_EPOCH,
             None,
         );
@@ -3800,7 +3768,6 @@ mod tests {
             None,
             &isupport,
             true,
-            false,
             UNIX_EPOCH,
             None,
         );
@@ -3958,7 +3925,6 @@ mod tests {
                 None,
                 &isupport,
                 false,
-                false,
                 UNIX_EPOCH,
                 None,
             )
@@ -4024,7 +3990,6 @@ mod tests {
                 None,
                 &isupport,
                 true,
-                false,
                 UNIX_EPOCH,
                 None,
             )
@@ -4741,7 +4706,6 @@ mod tests {
                 None,
                 None,
                 &isupport,
-                false,
                 false,
                 UNIX_EPOCH,
                 None,
@@ -5464,7 +5428,6 @@ mod tests {
             None,
             state.isupport().inner(),
             true,
-            false,
             UNIX_EPOCH,
             None,
         );
