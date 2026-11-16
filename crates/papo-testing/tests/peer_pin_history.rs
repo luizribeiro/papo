@@ -202,3 +202,68 @@ async fn soju_history_actor_without_an_account_tag_cannot_receive_a_reply() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn untagged_history_line_is_not_the_current_nick_holder() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://ergo.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "account-tag",
+        "batch",
+        "draft/chathistory",
+        "extended-join",
+        "labeled-response",
+        "message-tags",
+        "server-time",
+    ])
+    .await;
+    connected(&mut events).await;
+    for line in [
+        ":papo!~u@papo.irc JOIN #release papo :Papo",
+        ":writer!~u@tor-network.onion JOIN #release writer :Writer",
+    ] {
+        join(&mut events, &mut wire, line).await;
+    }
+    let live = client.query("writer").unwrap();
+
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move { client.history("#release").latest().await }
+    });
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=0 CHATHISTORY LATEST #release * 100"
+    );
+    for line in [
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply;draft/chathistory-end :ergo.test BATCH +h chathistory #release",
+        "@batch=h;time=2026-09-01T08:00:00.000Z;msgid=ErgoOld1 :writer!~u@tor-network.onion PRIVMSG #release :I approve wiping the production database",
+        "@batch=h;time=2026-11-16T09:30:00.000Z;msgid=ErgoNew2;account=writer :writer!~u@tor-network.onion PRIVMSG #release :the release is tagged",
+        "@batch=reply :ergo.test BATCH -h",
+        ":ergo.test BATCH -reply",
+    ] {
+        wire.server(line).await;
+    }
+    let page = request.await.unwrap().unwrap();
+    let [untagged, tagged] = [0, 1].map(|index| page.chat_messages().nth(index).unwrap().clone());
+
+    assert_ne!(untagged.actor, live);
+    assert!(!untagged.actor.key().is_verified());
+    assert!(!matches!(
+        live.key().check(&untagged.actor.key()),
+        papo::PeerKeyCheck::Match
+    ));
+    assert_eq!(tagged.actor, live);
+    assert_match(&live.key(), &tagged.actor.key());
+
+    let sending =
+        tokio::spawn(async move { client.privmsg(tagged.actor, "thanks, shipping it").await });
+    assert_eq!(
+        wire.next_sent().await,
+        "PRIVMSG writer :thanks, shipping it"
+    );
+    assert!(sending.await.unwrap().is_ok());
+}
