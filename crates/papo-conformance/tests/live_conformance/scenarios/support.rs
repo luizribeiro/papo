@@ -27,6 +27,26 @@ pub(super) fn confirmed_line(
     (id, text, *server_time)
 }
 
+/// The msgid a one-line redaction removed, and the msgid and time of the echo that confirmed it.
+pub(super) fn confirmed_redaction(
+    outcome: &papo::RedactOutcome,
+) -> (&papo::MessageId, &papo::MessageId, Option<papo::ServerTime>) {
+    let [
+        papo::RedactedLine {
+            redacts,
+            confirmation:
+                papo::Confirmation::Confirmed {
+                    msgid, server_time, ..
+                },
+            ..
+        },
+    ] = outcome.lines.as_slice()
+    else {
+        panic!("server should confirm the redaction of one line, got {outcome:?}")
+    };
+    (redacts, msgid, *server_time)
+}
+
 pub(super) fn assert_delivery_tags(
     received_id: Option<&papo::MessageId>,
     received_time: Option<papo::ServerTime>,
