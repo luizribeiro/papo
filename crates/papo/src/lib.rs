@@ -348,8 +348,8 @@ pub use builder::Builder;
 #[cfg(not(browser))]
 pub use builder::StreamSecurity;
 pub use client::{
-    Client, Fallback, JoinChannel, Kickban, KickbanNick, KickbanRequest, PartRequest, ReactOutcome,
-    SendMessage, SendOutcome, SentLine,
+    Client, Fallback, JoinChannel, KickRequest, Kickban, KickbanNick, KickbanRequest, PartRequest,
+    ReactOutcome, SendMessage, SendOutcome, SentLine,
 };
 pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;

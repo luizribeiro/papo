@@ -68,7 +68,9 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
             move |client: &crate::Client| {
                 let mapping = crate::Casemapping::default();
-                client.kick(mapping.channel(first), mapping.nick(second), third)
+                client
+                    .kick(mapping.channel(first), mapping.nick(second))
+                    .reason(third)
             }
         });
         check!({

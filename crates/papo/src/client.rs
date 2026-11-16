@@ -288,6 +288,39 @@ impl IntoFuture for PartRequest {
     }
 }
 
+/// A channel removal request; add an optional reason with [`KickRequest::reason`].
+#[must_use = "requests do nothing unless awaited"]
+pub struct KickRequest {
+    client: Client,
+    channel: crate::target::sealed::Parts<'static>,
+    nick: crate::target::sealed::Parts<'static>,
+    reason: String,
+}
+
+impl std::fmt::Debug for KickRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("KickRequest", formatter)
+    }
+}
+
+impl KickRequest {
+    /// Sets the human-readable kick reason; an empty reason sends none.
+    pub fn reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = reason.into();
+        self
+    }
+}
+
+impl IntoFuture for KickRequest {
+    type Output = Result<crate::KickOutcome, Error>;
+    type IntoFuture = crate::RequestFuture<crate::KickOutcome>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        self.client
+            .kick_request(self.channel, self.nick, self.reason)
+    }
+}
+
 impl std::fmt::Debug for JoinChannel {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         crate::opaque_debug("JoinChannel", formatter)
@@ -1644,7 +1677,15 @@ impl Client {
     /// Removes `nick` from `channel` and resolves to the server's echo of our `KICK`.
     ///
     /// A [`crate::UserHandle`] follows its proven identity; text or [`crate::Nick`] addresses
-    /// whoever currently holds that nickname. An empty `reason` means no reason.
+    /// whoever currently holds that nickname. Add a reason with [`KickRequest::reason`]:
+    ///
+    /// ```no_run
+    /// # async fn remove(client: &papo::Client) -> Result<(), papo::Error> {
+    /// client.kick("#papo", "spambot").await?;
+    /// client.kick("#papo", "mallory").reason("Flooding").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// ```compile_fail
     /// # fn swapped(
@@ -1652,7 +1693,7 @@ impl Client {
     /// #     nick: &papo::Nick,
     /// #     channel: &papo::ChannelName,
     /// # ) {
-    /// let _ = client.kick(nick, channel, "spam");
+    /// let _ = client.kick(nick, channel);
     /// # }
     /// ```
     ///
@@ -1660,16 +1701,22 @@ impl Client {
     ///
     /// Returns [`Error::NotVerified`] when the server answers without the echo, or a typed server
     /// refusal, invalid-input error, timeout, or disconnect.
-    pub fn kick(
+    pub fn kick(&self, channel: impl crate::AsChannel, nick: impl crate::AsNick) -> KickRequest {
+        KickRequest {
+            client: self.clone(),
+            channel: crate::AsChannel::__parts(&channel).into_owned(),
+            nick: crate::AsNick::__parts(&nick).into_owned(),
+            reason: String::new(),
+        }
+    }
+
+    fn kick_request(
         &self,
-        channel: impl crate::AsChannel,
-        nick: impl crate::AsNick,
-        reason: impl Into<String>,
+        channel: crate::target::sealed::Parts<'static>,
+        nick: crate::target::sealed::Parts<'static>,
+        reason: String,
     ) -> crate::RequestFuture<crate::KickOutcome> {
         let client = self.clone();
-        let channel = crate::AsChannel::__parts(&channel).into_owned();
-        let nick = crate::AsNick::__parts(&nick).into_owned();
-        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("kick: channel"), channel)?;
             let state = client.state();

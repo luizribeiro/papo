@@ -168,18 +168,10 @@ impl Peer {
     }
 
     /// Removes `nick` from `channel` using this peer's server rules.
-    ///
-    /// An empty `reason` means no reason.
-    pub fn kick(
-        &self,
-        channel: impl AsRef<str>,
-        nick: impl AsRef<str>,
-        reason: impl Into<String>,
-    ) -> papo::RequestFuture<papo::KickOutcome> {
+    pub fn kick(&self, channel: impl AsRef<str>, nick: impl AsRef<str>) -> papo::KickRequest {
         self.client.kick(
             self.with_name_rules(|names| names.channel(channel.as_ref())),
             self.with_name_rules(|names| names.nick(nick.as_ref())),
-            reason,
         )
     }
 

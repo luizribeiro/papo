@@ -96,7 +96,7 @@ fn request_futures_are_send() {
             .reason("tests complete")
             .into_future(),
     );
-    assert_send_static(client.kick("#papo", "spambot", "flooding"));
+    assert_send_static(client.kick("#papo", "spambot").reason("flooding"));
     assert_send_static(client.set_nick("papo-away"));
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());

@@ -985,7 +985,10 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     let reason = "refresh channel membership";
-    alice.kick(&channel, bob_nick.as_str(), reason).await?;
+    alice
+        .kick(&channel, bob_nick.as_str())
+        .reason(reason)
+        .await?;
     let observed = alice.wait_for(Event::as_kicked).await?;
     let own = bob.wait_for(Event::as_kicked).await?;
 
@@ -1074,7 +1077,8 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     carol.join(&channel).await?;
 
     assert_refusal(
-        bob.kick(&channel, carol_nick.as_str(), "not permitted")
+        bob.kick(&channel, carol_nick.as_str())
+            .reason("not permitted")
             .await
             .unwrap_err(),
         Refusal::ChannelOperatorPrivilegesNeeded,
@@ -1187,7 +1191,8 @@ async fn kick_missing_member(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
 
     let refusal = match alice
-        .kick(&channel, bob_nick.as_str(), "not a channel member")
+        .kick(&channel, bob_nick.as_str())
+        .reason("not a channel member")
         .await
         .unwrap_err()
     {

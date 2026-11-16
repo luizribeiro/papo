@@ -770,11 +770,11 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         ),
         (
             "kick from a foreign channel",
-            done(second.kick(channel, "alice", "Flooding").await),
+            done(second.kick(channel, "alice").reason("Flooding").await),
         ),
         (
             "kick a foreign nick",
-            done(second.kick("#papo", nick, "Flooding").await),
+            done(second.kick("#papo", nick).reason("Flooding").await),
         ),
         ("invite a foreign user", second.invite(alice, "#papo").await),
         (

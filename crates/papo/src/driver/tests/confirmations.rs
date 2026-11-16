@@ -252,7 +252,7 @@ async fn a_removal_resolves_to_the_echo_of_our_kick() {
     for (caps, sent, reply, expected) in cases {
         let result = answered(
             caps,
-            |client| client.kick("#papo", "bob", "bye"),
+            |client| client.kick("#papo", "bob").reason("bye"),
             sent,
             &[reply],
         )

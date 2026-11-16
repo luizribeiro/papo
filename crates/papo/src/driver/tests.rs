@@ -5605,7 +5605,7 @@ async fn role_errors_identify_the_invalid_argument() {
     let client = crate::Client::disconnected_for_test();
 
     assert!(matches!(
-        client.kick("alice", "bob", "policy violation").await,
+        client.kick("alice", "bob").reason("policy violation").await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
             argument: "kick: channel",
             name,
@@ -5613,7 +5613,7 @@ async fn role_errors_identify_the_invalid_argument() {
         })) if name == "alice"
     ));
     assert!(matches!(
-        client.kick("#papo", "#ops", "policy violation").await,
+        client.kick("#papo", "#ops").reason("policy violation").await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
             argument: "kick: nick",
             name,
@@ -5725,8 +5725,8 @@ async fn every_name_taking_method_returns_invalid_name() {
             Method::Whois => client.whois(bad).await.map(drop),
             Method::Who => client.who(bad).await.map(drop),
             Method::Part => client.part(bad).reason("leaving").await.map(drop),
-            Method::KickChannel => client.kick(bad, "alice", "spam").await.map(drop),
-            Method::KickNick => client.kick("#staff", bad, "spam").await.map(drop),
+            Method::KickChannel => client.kick(bad, "alice").reason("spam").await.map(drop),
+            Method::KickNick => client.kick("#staff", bad).reason("spam").await.map(drop),
             Method::KickbanChannel => kickban(&client, bad, "alice", "*!*@host", "spam")
                 .await
                 .map(drop),
@@ -6183,7 +6183,7 @@ async fn membership_actions_confirm_success_and_refusal() {
         let client = client.clone();
         async move {
             client
-                .kick(test_channel("#papo"), test_nick("spambot"), "")
+                .kick(test_channel("#papo"), test_nick("spambot"))
                 .await
         }
     });
@@ -6245,7 +6245,7 @@ async fn kick_reasons_obey_advertised_byte_limits() {
         let kick = tokio::spawn({
             let client = client.clone();
             let exact = exact.clone();
-            async move { client.kick("#papo", "spambot", exact).await }
+            async move { client.kick("#papo", "spambot").reason(exact).await }
         });
         client_line(
             &mut server,
@@ -6261,7 +6261,7 @@ async fn kick_reasons_obey_advertised_byte_limits() {
 
         let too_long = format!("{exact}é");
         assert!(matches!(
-            client.kick("#papo", "spambot", &too_long).await,
+            client.kick("#papo", "spambot").reason(&too_long).await,
             Err(Error::InvalidInput(crate::InvalidInput::KickReasonTooLong {
                 maximum: advertised,
                 actual,
@@ -6649,7 +6649,7 @@ async fn typed_numeric_refusals_reach_action_futures() {
     ] {
         assert_action_refusal(
             &mut server,
-            client.kick(channel, "carol", ""),
+            client.kick(channel, "carol").into_future(),
             &format!("KICK {channel} carol\r\n"),
             incoming,
             numeric,

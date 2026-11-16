@@ -46,7 +46,8 @@ async fn call_with_handed_off_person(
         "papo::Client::action" => client.action(alice, "waves").await.map(drop),
         "papo::Client::invite" => client.invite(alice, "#review").await,
         "papo::Client::kick" => client
-            .kick("#review", alice, "repeated flooding")
+            .kick("#review", alice)
+            .reason("repeated flooding")
             .await
             .map(drop),
         "papo::Client::notice" => client.notice(alice, "classified").await.map(drop),
