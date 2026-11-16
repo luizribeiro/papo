@@ -250,39 +250,48 @@ fn our_own_untagged_line_keeps_the_account_from_sasl() {
     );
 }
 
+fn prove_logged_in_bob(session: &mut Session) -> papo_core::Proven {
+    let names = session.state().casemapping();
+    let bob = logged_in(session, "bob");
+    session
+        .__prove_who_user(
+            names.nick("bob"),
+            bob,
+            &[papo_proto::Line::new("354").with_params(["papo-admin", "bob", "bob"])],
+        )
+        .unwrap()
+}
+
 #[test]
 fn a_who_proven_persons_first_line_keeps_the_proof_only_with_the_proven_account() {
-    for (caps, line, kept) in [
+    for (caps, line, kept, line_account) in [
         (
             "account-tag message-tags",
             "@account=bob :bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
             true,
+            Some("bob"),
         ),
         (
             "account-tag message-tags",
             "@account=mallory :bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
             false,
+            Some("mallory"),
         ),
         (
             "account-tag message-tags",
             ":bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
             false,
+            None,
         ),
         (
             "message-tags",
             ":bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
             true,
+            Some(""),
         ),
     ] {
         let mut session = registered(caps);
-        let names = session.state().casemapping();
-        let proof = session
-            .__prove_who_user(
-                names.nick("bob"),
-                logged_in(&session, "bob"),
-                &[papo_proto::Line::new("354").with_params(["papo-admin", "bob", "bob"])],
-            )
-            .unwrap();
+        let proof = prove_logged_in_bob(&mut session);
         server(&mut session, line);
         assert_eq!(
             session
@@ -296,6 +305,61 @@ fn a_who_proven_persons_first_line_keeps_the_proof_only_with_the_proven_account(
             token(&session, "bob") == proof.__recipient().unwrap().__token(),
             kept,
             "{line} with {caps}: the sender takes over the proven identity"
+        );
+        let expected = match line_account {
+            Some("") => Account::Unknown,
+            Some(name) => logged_in(&session, name),
+            None => Account::LoggedOut,
+        };
+        assert_eq!(
+            account(&session, "bob"),
+            Some(expected),
+            "{line} with {caps}"
+        );
+    }
+}
+
+#[test]
+fn without_account_tag_a_newcomer_on_a_proven_nick_is_not_logged_in_as_the_proven_account() {
+    let mut session = registered("message-tags");
+    let proof = prove_logged_in_bob(&mut session);
+    server(
+        &mut session,
+        "@msgid=Qm4u8w2cR7tz1 :bob!~mallory@203.0.113.66 PRIVMSG papo-admin :!op bob",
+    );
+    drain(&mut session);
+
+    assert_eq!(account(&session, "bob"), Some(Account::Unknown));
+    assert!(
+        session
+            .state()
+            .__resolve_proven(&proof)
+            .is_ok_and(|nick| nick == "bob"),
+        "a send to the proven nick still reaches whoever holds it"
+    );
+}
+
+#[test]
+fn an_account_learned_after_a_carried_proof_decides_the_proof() {
+    for (line, kept) in [
+        (":bob!~u@8ajhv7kxgp7ag.irc ACCOUNT bob", true),
+        (":bob!~u@8ajhv7kxgp7ag.irc ACCOUNT *", false),
+        (":bob!~u@8ajhv7kxgp7ag.irc ACCOUNT mallory", false),
+    ] {
+        let mut session = registered("account-notify message-tags");
+        let proof = prove_logged_in_bob(&mut session);
+        server(
+            &mut session,
+            ":bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
+        );
+        server(&mut session, line);
+        assert_eq!(
+            session
+                .state()
+                .__resolve_proven(&proof)
+                .is_ok_and(|nick| nick == "bob"),
+            kept,
+            "{line}"
         );
     }
 }

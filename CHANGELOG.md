@@ -329,6 +329,9 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
   `Event::Kicked`, but it no longer completes our pending kick or masks our `482` refusal.
 - Without labeled-response, topic and mode requests likewise end only at our own `TOPIC` or `MODE`
   echo; another operator's change to the same channel stays an ordinary event.
+- Without `account-tag`, a peer's first private line no longer takes the account a `WHO` proof saw:
+  `User::account` stays unknown, so whoever holds the proven nick is never reported as logged in.
+  Sends to the proven nick still succeed.
 
 ### Migration from the 2026-10-24 API
 

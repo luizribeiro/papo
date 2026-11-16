@@ -245,6 +245,7 @@ pub struct User {
     username: Option<String>,
     host: Option<String>,
     account: Account,
+    proven_account: Account,
     account_id: Option<String>,
     away: Away,
     realname: Option<String>,
@@ -756,7 +757,7 @@ impl State {
                     && expected.sequence == user.departure_sequence
                     && match &guard.account {
                         Account::LoggedIn(account) => {
-                            matches!(&user.account, Account::LoggedIn(actual) if actual == account)
+                            matches!(user.guard_account(), Account::LoggedIn(actual) if actual == account)
                         }
                         Account::Unknown | Account::LoggedOut => true,
                     }
@@ -2316,6 +2317,7 @@ impl User {
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
+            proven_account: Account::Unknown,
             account_id: None,
             away: Away::Unknown,
             realname: None,
@@ -2324,6 +2326,17 @@ impl User {
             channels: BTreeSet::new(),
             reply_epoch,
             departure_sequence,
+        }
+    }
+
+    /// The account a recipient guard checks: what the user's lines said, or, while they have said
+    /// nothing, what a WHO proof saw for the nick. Only the first is the user's account, because
+    /// the proof cannot say the sender is still the person WHO saw. A guarded send still goes to
+    /// whoever holds the nick, as every send to a nick papo cannot follow does.
+    fn guard_account(&self) -> &Account {
+        match self.account {
+            Account::Unknown => &self.proven_account,
+            _ => &self.account,
         }
     }
 
