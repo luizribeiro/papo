@@ -22,7 +22,6 @@ use crate::address::Protocol;
 use crate::{Error, Event, InvalidInput, Reconnect};
 
 #[cfg(any(sockets, browser))]
-#[allow(unused_variables)]
 pub(crate) async fn open_connection(
     plan: ConnectionPlan,
     progress: mpsc::UnboundedSender<papo_core::ConnectPhase>,
@@ -34,36 +33,33 @@ pub(crate) async fn open_connection(
         let security = match plan.address.protocol {
             Protocol::Irc | Protocol::Ws => transport::Security::Plaintext,
             #[cfg(tls)]
-            Protocol::Ircs | Protocol::Wss => {
-                _ = progress.send(papo_core::ConnectPhase::Tls);
-                transport::Security::Tls(plan.tls)
-            }
+            Protocol::Ircs | Protocol::Wss => transport::Security::Tls(plan.tls),
             #[cfg(not(tls))]
             Protocol::Ircs | Protocol::Wss => {
-                unreachable!("connection plans reject TLS without a provider")
+                return Err(Error::InvalidInput(plan.address.unsupported_scheme()));
             }
         };
-        if let Some(url) = plan.address.websocket_url() {
-            #[cfg(feature = "websocket")]
-            return transport::connect_websocket(&url, &security)
-                .await
-                .map_err(Error::transport);
-            #[cfg(not(feature = "websocket"))]
-            {
-                _ = url;
-                unreachable!("connection plans reject WebSocket endpoints without support");
-            }
+        if plan.address.is_secure() {
+            _ = progress.send(papo_core::ConnectPhase::Tls);
         }
-        transport::connect(&plan.address.host, plan.address.port, &security)
-            .await
-            .map_err(Error::transport)
+        match plan.address.websocket_url() {
+            None => transport::connect(&plan.address.host, plan.address.port, &security)
+                .await
+                .map_err(Error::transport),
+            #[cfg(feature = "websocket")]
+            Some(url) => transport::connect_websocket(&url, &security)
+                .await
+                .map_err(Error::transport),
+            #[cfg(not(feature = "websocket"))]
+            Some(_) => Err(Error::InvalidInput(plan.address.unsupported_scheme())),
+        }
     }
     #[cfg(browser)]
     {
         let url = plan
             .address
             .websocket_url()
-            .expect("browser connection plans use WebSocket endpoints");
+            .ok_or_else(|| Error::InvalidInput(plan.address.unsupported_scheme()))?;
         if plan.address.is_secure() {
             _ = progress.send(papo_core::ConnectPhase::Tls);
         }

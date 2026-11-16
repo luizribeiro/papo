@@ -369,6 +369,10 @@ impl ServerAddress {
         }
     }
 
+    pub(crate) fn unsupported_scheme(&self) -> crate::InvalidInput {
+        crate::InvalidUrl::UnsupportedScheme(self.scheme().into()).into()
+    }
+
     pub(crate) const fn is_supported(&self) -> bool {
         match self.protocol {
             Protocol::Irc => cfg!(sockets),

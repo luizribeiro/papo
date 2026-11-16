@@ -757,7 +757,7 @@ impl Builder {
                 return Err(error);
             }
             if connector.is_none() && !address.is_supported() {
-                return Err(crate::InvalidUrl::UnsupportedScheme(address.scheme().into()).into());
+                return Err(address.unsupported_scheme());
             }
             if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
                 return Err(InvalidInput::InsecureAuthentication);
@@ -1912,30 +1912,52 @@ mod tests {
         assert!(next_event(&mut events).await.is_none());
     }
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn unsupported_schemes_are_rejected_before_connecting() {
+    fn unsupported_endpoints() -> impl Iterator<Item = (&'static str, &'static str)> {
         let websocket = cfg!(feature = "websocket");
         let tls = cfg!(tls);
-        let cases = [
+        [
             ("ws://irc.example.net/webirc", "ws", websocket),
             ("ircs://irc.example.net:6697", "ircs", tls),
             ("wss://irc.example.net/webirc", "wss", websocket && tls),
-        ];
-        for (url, expected_scheme, supported) in cases {
-            if supported {
-                continue;
-            }
+        ]
+        .into_iter()
+        .filter(|&(_, _, supported)| !supported)
+        .map(|(url, scheme, _)| (url, scheme))
+    }
+
+    fn is_unsupported_scheme<T>(result: &Result<T, Error>, expected: &str) -> bool {
+        matches!(
+            result,
+            Err(Error::InvalidInput(InvalidInput::Url(
+                crate::InvalidUrl::UnsupportedScheme(scheme)
+            ))) if scheme == expected
+        )
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn unsupported_schemes_are_rejected_before_connecting() {
+        for (url, scheme) in unsupported_endpoints() {
             let (_client, _events, driver) = Builder::new(url)
                 .reconnect(crate::Reconnect::never())
                 .build();
+            let result = within(driver).await;
+            assert!(is_unsupported_scheme(&result, scheme), "{url}: {result:?}");
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn wrapped_connections_reject_unsupported_schemes() {
+        for (url, scheme) in unsupported_endpoints() {
+            let builder = Builder::new(url).reconnect(crate::Reconnect::never());
+            let result = within(crate::__testing::wrapped::connect_wrapped(
+                builder,
+                |stream| stream,
+            ))
+            .await;
             assert!(
-                matches!(
-                    within(driver).await,
-                    Err(Error::InvalidInput(InvalidInput::Url(
-                        crate::InvalidUrl::UnsupportedScheme(scheme)
-                    ))) if scheme == expected_scheme
-                ),
-                "{url} was not rejected as {expected_scheme}"
+                is_unsupported_scheme(&result, scheme),
+                "{url}: {:?}",
+                result.err()
             );
         }
     }
