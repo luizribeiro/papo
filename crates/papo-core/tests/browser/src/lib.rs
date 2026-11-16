@@ -38,10 +38,7 @@ mod driver {
             .connect()
             .await
             .map_err(js_error)?;
-        client
-            .quit("browser probe complete")
-            .await
-            .map_err(js_error)
+        client.quit_step().await.map_err(js_error)
     }
 
     fn js_error(error: impl std::fmt::Display) -> wasm_bindgen::JsValue {

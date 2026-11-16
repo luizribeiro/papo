@@ -260,7 +260,7 @@ async fn probe(
     let welcome = wait_connected(&connection.client, &mut connection.events).await?;
     connection
         .client
-        .quit("conformance probe complete")
+        .quit_step()
         .await
         .map_err(|error| error.to_string())?;
     connection

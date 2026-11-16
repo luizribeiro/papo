@@ -302,7 +302,7 @@ pub(super) async fn server_password_waits_for_live_sts(_s: Scenario) -> papo_tes
     let (client, _events) = result.unwrap_or_else(|error| {
         panic!("STS reconnect failed: {error}; client={from_client:?}; server={from_server:?}")
     });
-    client.quit("live STS credential check complete").await?;
+    client.quit_step().await?;
     Ok(())
 }
 

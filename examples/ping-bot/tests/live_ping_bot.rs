@@ -52,7 +52,7 @@ async fn joins_and_replies_to_channel_pings() {
         let reply = wait_message(&mut events, "pong").await;
         assert_eq!(reply.in_reply_to.as_ref(), Some(msgid));
 
-        user.quit("ping bot test complete").await.unwrap();
+        user.quit_step().await.unwrap();
     })
     .await
     .expect("live ping bot test did not finish within 20 seconds");

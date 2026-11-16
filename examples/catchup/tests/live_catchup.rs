@@ -36,10 +36,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .send_raw(Line::new("PERSISTENCE").with_params(["SET", "ON"]))
             .await
             .unwrap();
-        persistent
-            .quit("persistent catchup test account ready")
-            .await
-            .unwrap();
+        persistent.quit_step().await.unwrap();
 
         let (poster, mut poster_events) = Client::builder(endpoint.clone(), &poster_nick)
             .autojoin([&channel])
@@ -100,8 +97,8 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             reader.fetch_read_marker(&channel).await.unwrap(),
             papo::ReadMarker::ReadUntil(stored) if Some(stored) >= newest
         ));
-        reader.quit("marker checked").await.unwrap();
-        poster.quit("catchup test complete").await.unwrap();
+        reader.quit_step().await.unwrap();
+        poster.quit_step().await.unwrap();
     })
     .await
     .expect("live catchup test did not finish within 20 seconds");

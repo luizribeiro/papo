@@ -185,7 +185,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
         .await?;
     assert!(observer.snapshot().metadata(alice_nick.as_str()).is_some());
 
-    alice.quit("handoff").await?;
+    alice.quit_step().await?;
     observer
         .wait_for(|event| {
             event

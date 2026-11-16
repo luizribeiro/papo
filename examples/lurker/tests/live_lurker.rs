@@ -52,7 +52,7 @@ async fn prints_membership_snapshot_and_changes() {
         peer.set_nick(&renamed).await.unwrap();
         peer.part(CHANNEL).reason("leaving the example").await.unwrap();
         lurker.wait_for(&format!("part {CHANNEL} {renamed}")).await;
-        user.quit("lurker test complete").await.unwrap();
+        user.quit_step().await.unwrap();
         lurker.wait_for(&format!("quit {user_nick}")).await;
 
         let output = lurker.finish();

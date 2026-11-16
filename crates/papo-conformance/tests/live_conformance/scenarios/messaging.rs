@@ -765,7 +765,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let (mut bob, network) = s.connect_as_account_with_key("bob").await?;
     let bob_nick = bob.nick();
-    bob.quit("detach before backlog delivery").await?;
+    bob.quit_step().await?;
     bob.wait_for(Event::as_disconnected).await?;
 
     alice

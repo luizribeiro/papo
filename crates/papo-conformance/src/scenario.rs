@@ -239,7 +239,7 @@ impl Scenario {
         );
         let mut first: Option<Error> = None;
         for client in clients {
-            match client.quit("test scenario complete").await {
+            match client.quit_step().await {
                 Ok(()) | Err(papo::Error::Disconnected(_)) => {}
                 Err(error) if first.is_none() => first = Some(error.into()),
                 Err(_) => {}

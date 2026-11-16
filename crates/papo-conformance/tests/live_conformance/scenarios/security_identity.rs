@@ -38,7 +38,7 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
         .wait_for(|event| message_text(event, "release credentials"))
         .await?;
 
-    alice.quit("handoff").await?;
+    alice.quit_step().await?;
     bot.wait_for(|event| {
         event
             .as_quit()

@@ -57,7 +57,7 @@ async fn sigterm_sends_quit_and_exits_successfully() {
             .read_to_string(&mut stderr)
             .unwrap();
         assert_eq!(stderr, "shutting down\n");
-        observer.quit("shutdown test complete").await.unwrap();
+        observer.quit_step().await.unwrap();
     })
     .await
     .expect("graceful shutdown test did not finish within 20 seconds");

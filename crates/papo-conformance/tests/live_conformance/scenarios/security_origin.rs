@@ -355,7 +355,7 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
         Err(Error::TargetGone)
     ));
 
-    alice.quit("identity handoff during outage").await?;
+    alice.quit_step().await?;
     let stranger = s
         .connect_with(Client::builder(upstream_endpoint, &alice_nick))
         .await?;

@@ -944,7 +944,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     let reason = "conformance review complete";
 
-    alice.quit(reason).await?;
+    alice.quit_step().reason(reason).await?;
     let disconnected = alice.wait_for(Event::as_disconnected).await?;
     let observed = bob.wait_for(Event::as_quit).await?;
 
