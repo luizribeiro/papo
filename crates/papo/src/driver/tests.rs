@@ -8,7 +8,7 @@ mod ops_only;
 mod reactions;
 mod reasons;
 mod sends;
-#[cfg(tls)]
+#[cfg_attr(not(tls), path = "tests/no_tls.rs")]
 mod tls;
 
 macro_rules! disconnected {
