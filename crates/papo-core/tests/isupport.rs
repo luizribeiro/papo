@@ -266,3 +266,30 @@ fn seeded_rules_decide_who_we_are_before_any_005() {
         .collect();
     assert_eq!(parties, [papo_core::Party::Other, papo_core::Party::Me]);
 }
+
+#[test]
+fn a_withdrawn_unknown_casemapping_keeps_bracket_nicks_apart() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    for line in [
+        ":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo",
+        ":ergo.test 005 papo CASEMAPPING=rfc8265 CHANTYPES=# :are supported by this server",
+        ":ergo.test 005 papo -CASEMAPPING :are supported by this server",
+        ":papo!~u@papo.irc JOIN #release",
+        ":ergo.test 353 papo = #release :@papo alice[m]",
+        ":ergo.test 366 papo #release :End of /NAMES list",
+        ":alice{m}!~u@3qkv8a5h7d2xw.irc JOIN #release",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    assert_eq!(
+        session.isupport().casemapping(),
+        papo_proto::Casemapping::Ascii
+    );
+    assert_eq!(
+        session.state().channel("#release").unwrap().members().len(),
+        3
+    );
+    assert!(!session.__name_rules_known());
+}
