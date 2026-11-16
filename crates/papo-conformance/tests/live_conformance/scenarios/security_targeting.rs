@@ -10,7 +10,11 @@ async fn comma_separated_targets_are_rejected(s: Scenario) -> papo_testing::Resu
     let alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
-    let target = format!("{},{}", bob.nick(), carol.nick());
+    let target = format!(
+        "{},{}",
+        bob.snapshot().nick().clone(),
+        carol.snapshot().nick().clone()
+    );
     let text = "private release credentials";
 
     assert!(matches!(

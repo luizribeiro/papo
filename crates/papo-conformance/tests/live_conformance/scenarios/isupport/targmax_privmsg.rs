@@ -16,7 +16,7 @@ const RECIPIENT_NAMES: [&str; 5] = ["bob", "carol", "dave", "erin", "frank"];
 )]
 async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let state = alice.snapshot();
     let support = state.isupport();
     let Some(LimitValue::Limited(limit)) = support
@@ -57,7 +57,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
 
     let nicks = recipients
         .iter()
-        .map(|peer| peer.nick())
+        .map(|peer| peer.snapshot().nick().clone())
         .collect::<Vec<_>>();
     let (within_nicks, over_nicks) = nicks.split_at(limit);
     let frank_nick = over_nicks[0].clone();

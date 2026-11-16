@@ -930,7 +930,7 @@ mod tests {
         );
         let mut private = crate::__testing::message(
             Some(actor.clone()),
-            first.nick().to_string(),
+            first.snapshot().nick().to_string(),
             "release ready",
             true,
         );

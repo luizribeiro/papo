@@ -8,8 +8,8 @@ use crate::Scenario;
 async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
 
     let state = alice.snapshot();
     let support = state.isupport();

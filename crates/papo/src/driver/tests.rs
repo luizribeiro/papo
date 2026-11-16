@@ -5995,7 +5995,7 @@ async fn raw_request_returns_state_changing_lines_without_an_event() {
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].command(), "NICK");
     assert_eq!(lines[0].params(), ["papo-renamed"]);
-    assert_eq!(client.nick(), "papo-renamed");
+    assert_eq!(client.snapshot().nick().clone(), "papo-renamed");
     assert!(
         tokio::time::timeout(Duration::from_millis(1), events.next())
             .await
@@ -10516,7 +10516,7 @@ async fn public_state_accessors_report_the_registered_session() {
     .await;
     within(away).await.unwrap().unwrap();
 
-    let nick: crate::Nick = client.nick();
+    let nick: crate::Nick = client.snapshot().nick().clone();
     assert_eq!(nick, "papo-driver");
     let state = client.state();
     assert_eq!(state.nick(), &nick);

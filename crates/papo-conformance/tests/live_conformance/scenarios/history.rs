@@ -64,7 +64,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     for message in messages {
         assert_eq!(
             crate::source_nick(&message.actor),
-            Some(writer.nick().as_str())
+            Some(writer.snapshot().nick().as_str())
         );
         assert!(message.tags.get("time").is_some());
     }
@@ -426,7 +426,7 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(topic.topic.as_deref(), Some("incident response completed"));
     assert_eq!(
         crate::source_nick(&topic.actor),
-        Some(writer.nick().as_str())
+        Some(writer.snapshot().nick().as_str())
     );
     Ok(())
 }

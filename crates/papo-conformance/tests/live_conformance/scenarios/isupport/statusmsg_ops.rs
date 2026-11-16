@@ -21,9 +21,9 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
-    let carol_nick = carol.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
+    let carol_nick = carol.snapshot().nick().clone();
 
     alice.join(&channel).await?;
     wait_for_channel(&mut alice, &channel).await?;
@@ -136,7 +136,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         mut dave,
         channel,
     } = statusmsg_peers(&s).await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
 
     let sent = alice
         .privmsg(format!("@{channel}"), "operators only")

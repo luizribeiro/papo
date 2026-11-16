@@ -18,7 +18,10 @@ use crate::{Peer, Scenario};
 async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let (alice_nick, bob_nick) = (alice.nick(), bob.nick());
+    let (alice_nick, bob_nick) = (
+        alice.snapshot().nick().clone(),
+        bob.snapshot().nick().clone(),
+    );
     let channel = s.channel_name();
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
@@ -167,7 +170,7 @@ async fn assert_carol_view(
             .contains_key(&papo::cap::MULTI_PREFIX)
     );
     carol.join(channel).await?;
-    let carol_nick = carol.nick();
+    let carol_nick = carol.snapshot().nick().clone();
     assert_eq!(
         member_prefixes(&carol.snapshot(), channel, bob_nick.as_str()),
         ['@']

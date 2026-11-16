@@ -16,14 +16,14 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     let mut bot = s.connect("bot").await?;
     let mut alice = s.connect("alice").await?;
     let mut mallory = s.connect("mallory").await?;
-    let alice_nick = alice.nick();
-    let mallory_nick = mallory.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let mallory_nick = mallory.snapshot().nick().clone();
     let channel = s.channel_name();
     bot.join(&channel).await?;
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    let bot_direct = alice.query(bot.nick().as_str())?;
+    let bot_direct = alice.query(bot.snapshot().nick().as_str())?;
     alice.privmsg(&bot_direct, "control request").await?;
     let control = bot
         .wait_for(|event| message_text(event, "control request"))
@@ -104,7 +104,7 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert_eq!(
         crate::source_nick(&broadcast.actor),
-        Some(oper.nick().as_str())
+        Some(oper.snapshot().nick().as_str())
     );
     Ok(())
 }

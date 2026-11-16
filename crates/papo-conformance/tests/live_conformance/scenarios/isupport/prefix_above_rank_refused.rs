@@ -14,8 +14,8 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
     join_seen_by(&carol, &mut alice, &channel).await?;

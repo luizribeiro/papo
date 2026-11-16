@@ -49,7 +49,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
         None
     );
 
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.mode(&channel).add('m').await?;
     for peer in [&mut alice, &mut bob] {
         let changed = wait_channel_mode(peer, &channel, 'm').await?;

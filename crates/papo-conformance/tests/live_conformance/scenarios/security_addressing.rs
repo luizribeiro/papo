@@ -17,7 +17,7 @@ use crate::scenarios::support::{conversation_name, join_seen_by, message_text};
 async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let old_nick = bob.nick();
+    let old_nick = bob.snapshot().nick().clone();
     let new_nick = format!("r{old_nick}");
     let text = "deployment is ready\nplease approve the release";
     let channel = s.channel_name();
@@ -30,9 +30,9 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     let message = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(
         conversation_name(message.conversation()),
-        Some(alice.nick().to_string())
+        Some(alice.snapshot().nick().to_string())
     );
-    assert_eq!(message.return_address(), alice.nick().as_str());
+    assert_eq!(message.return_address(), alice.snapshot().nick().as_str());
 
     bob.reply(&message, "release approved").await?;
     let reply = alice
@@ -58,7 +58,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     }
     let mut writer = s.connect("writer").await?;
     let reader = s.connect("reader").await?;
-    let old_nick = reader.nick();
+    let old_nick = reader.snapshot().nick().clone();
     let new_nick = format!("r{old_nick}");
     let text = "can you send the incident report?";
     let channel = s.channel_name();
@@ -69,7 +69,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     writer.privmsg(&reader_direct, text).await?;
     reader.set_nick(&new_nick).await?;
     let page = reader
-        .history(writer.nick().as_str())
+        .history(writer.snapshot().nick().as_str())
         .latest()
         .limit(10)
         .await?;
@@ -79,9 +79,9 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
         .expect("direct-message history contains the stored message");
     assert_eq!(
         conversation_name(message.conversation()),
-        Some(writer.nick().to_string())
+        Some(writer.snapshot().nick().to_string())
     );
-    assert_eq!(message.return_address(), writer.nick().as_str());
+    assert_eq!(message.return_address(), writer.snapshot().nick().as_str());
 
     reader.reply(message, "the report is attached").await?;
     Ok(())

@@ -46,15 +46,15 @@ fn pick_dialect(alice: &Peer) -> Option<Dialect> {
 async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let Some(dialect) = pick_dialect(&alice) else {
         return s.skip("server advertises neither a q list mode nor a mute extban");
     };
 
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
-    let bob_nick = bob.nick();
-    let carol_nick = carol.nick();
+    let bob_nick = bob.snapshot().nick().clone();
+    let carol_nick = carol.snapshot().nick().clone();
     let mask = format!("{carol_nick}!*@*");
     let (letter, arg, echoed_arg) = dialect.mode(&mask);
 

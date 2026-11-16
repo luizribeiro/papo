@@ -195,7 +195,7 @@ pub(super) async fn join_seen_by(
     observer: &mut Peer,
     channel: &str,
 ) -> papo_testing::Result<()> {
-    let member_nick = member.nick().to_string();
+    let member_nick = member.snapshot().nick().to_string();
     member.join(channel).await?;
     let joined = observer
         .wait_for(|event| {

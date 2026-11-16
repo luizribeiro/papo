@@ -173,8 +173,8 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
     observer.metadata().subscribe([key.clone()]).await?;
     require_metadata_capacity(&s, &alice, "Alice Admin")?;
 
-    let alice_nick = alice.nick();
-    let mallory_nick = mallory.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let mallory_nick = mallory.snapshot().nick().clone();
     alice.metadata().set(key.clone(), "Alice Admin").await?;
     observer
         .wait_for(|event| {
@@ -347,7 +347,7 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     let reason = "the project moved";
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;
 
@@ -388,7 +388,7 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
         .connect_with(s.configure("bob")?.enable(papo::Feature::Relay))
         .await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 

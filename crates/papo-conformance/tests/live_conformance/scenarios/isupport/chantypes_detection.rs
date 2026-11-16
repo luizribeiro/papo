@@ -10,8 +10,8 @@ const UNADVERTISED_CHANTYPES_CANDIDATES: [char; 4] = ['#', '&', '!', '+'];
 async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
 
     let types = {
         let state = alice.snapshot();

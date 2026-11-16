@@ -19,7 +19,7 @@ fn rfc1459_nick(value: &str) -> papo::Nick {
 async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
 
     let state = alice.snapshot();
     let support = state.isupport();
@@ -54,7 +54,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick().as_str() == curly.nick().as_str())
+                .filter(|joined| joined.actor.nick().as_str() == curly.snapshot().nick().as_str())
         })
         .await?;
     assert_eq!(joined.channel.name().as_str(), mixed_channel);
@@ -74,7 +74,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(curly.snapshot().__channel_local(&mixed_channel).is_some());
 
-    let base = alice.nick().to_string();
+    let base = alice.snapshot().nick().to_string();
     let alice_nick = format!("{base}[x]");
     alice.set_nick(alice_nick.clone()).await?;
     let changed = alice.wait_for(Event::as_nick_changed).await?;

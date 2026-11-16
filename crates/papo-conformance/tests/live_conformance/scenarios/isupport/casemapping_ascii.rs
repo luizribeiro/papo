@@ -74,8 +74,8 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(curly.snapshot().__channel_local(&mixed_channel).is_some());
 
-    let base = alice.nick();
-    let bob_original = bob.nick();
+    let base = alice.snapshot().nick().clone();
+    let bob_original = bob.snapshot().nick().clone();
 
     let alice_square_nick = format!("{base}[x]");
     alice.set_nick(alice_square_nick.clone()).await?;

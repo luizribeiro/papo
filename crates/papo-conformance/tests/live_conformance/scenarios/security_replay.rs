@@ -176,7 +176,7 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
         .connect_with(s.configure("bob")?.disable(papo::Feature::LabeledResponse))
         .await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     bob.ping().await?;
@@ -275,7 +275,7 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
     let mut bob = s
         .connect_with(s.configure("bob")?.ctcp_replies(CtcpReplies::off()))
         .await?;
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
 
     alice
         .send_raw(papo::Line::privmsg(bob_nick.as_str(), "\u{1}VERSION\u{1}"))
@@ -296,14 +296,14 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
         )
         .await?;
     let page = phone
-        .history(alice.nick().as_str())
+        .history(alice.snapshot().nick().as_str())
         .latest()
         .limit(10)
         .await?;
     assert!(page.items.iter().any(|item| {
         matches!(item, papo::Event::CtcpQuery(query)
             if query.command == "VERSION"
-                && query.actor.nick().as_str() == alice.nick().as_str())
+                && query.actor.nick().as_str() == alice.snapshot().nick().as_str())
     }));
     alice
         .expect_none(|event| {

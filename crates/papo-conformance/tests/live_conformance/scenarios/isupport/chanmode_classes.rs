@@ -17,7 +17,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
 

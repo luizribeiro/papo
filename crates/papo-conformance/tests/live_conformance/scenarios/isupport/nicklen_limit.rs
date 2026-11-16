@@ -10,7 +10,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let original = bob.nick();
+    let original = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
 
