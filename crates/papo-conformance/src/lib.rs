@@ -24,6 +24,7 @@ use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 mod peer;
 mod runner;
 mod scenario;
+mod wire_log;
 
 #[doc(hidden)]
 pub use peer::Peer;
