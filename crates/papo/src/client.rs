@@ -204,6 +204,19 @@ impl std::fmt::Debug for SendMessage {
     }
 }
 
+macro_rules! reason_step {
+    ($request:ty, $action:literal) => {
+        impl $request {
+            #[doc = concat!("Sets the human-readable ", $action, " reason; an empty reason sends none.")]
+            pub fn reason(mut self, reason: impl Into<String>) -> Self {
+                self.reason = reason.into();
+                self
+            }
+        }
+    };
+}
+pub(crate) use reason_step;
+
 /// Builds a channel join request.
 #[must_use = "requests do nothing unless awaited"]
 pub struct JoinChannel {
@@ -271,13 +284,7 @@ impl std::fmt::Debug for PartRequest {
     }
 }
 
-impl PartRequest {
-    /// Sets the human-readable part reason; an empty reason sends none.
-    pub fn reason(mut self, reason: impl Into<String>) -> Self {
-        self.reason = reason.into();
-        self
-    }
-}
+reason_step!(PartRequest, "part");
 
 impl IntoFuture for PartRequest {
     type Output = Result<crate::PartOutcome, Error>;
@@ -303,13 +310,7 @@ impl std::fmt::Debug for KickRequest {
     }
 }
 
-impl KickRequest {
-    /// Sets the human-readable kick reason; an empty reason sends none.
-    pub fn reason(mut self, reason: impl Into<String>) -> Self {
-        self.reason = reason.into();
-        self
-    }
-}
+reason_step!(KickRequest, "kick");
 
 impl IntoFuture for KickRequest {
     type Output = Result<crate::KickOutcome, Error>;
@@ -334,13 +335,7 @@ impl std::fmt::Debug for QuitRequest {
     }
 }
 
-impl QuitRequest {
-    /// Sets the human-readable quit reason; an empty reason sends none.
-    pub fn reason(mut self, reason: impl Into<String>) -> Self {
-        self.reason = reason.into();
-        self
-    }
-}
+reason_step!(QuitRequest, "quit");
 
 impl IntoFuture for QuitRequest {
     type Output = Result<(), Error>;
@@ -407,13 +402,7 @@ impl KickbanNick {
     }
 }
 
-impl KickbanRequest {
-    /// Sets the optional human-readable kick reason.
-    pub fn reason(mut self, reason: impl Into<String>) -> Self {
-        self.reason = reason.into();
-        self
-    }
-}
+reason_step!(KickbanRequest, "kick");
 
 impl IntoFuture for JoinChannel {
     type Output = Result<crate::ChannelHandle, Error>;

@@ -50,13 +50,7 @@ impl RenameChannel {
     }
 }
 
-impl RenameChannelRequest {
-    /// Sets the optional human-readable rename reason.
-    pub fn reason(mut self, reason: impl Into<String>) -> Self {
-        self.reason = reason.into();
-        self
-    }
-}
+crate::client::reason_step!(RenameChannelRequest, "rename");
 
 impl IntoFuture for RenameChannelRequest {
     type Output = Result<crate::ChannelHandle, crate::Error>;
