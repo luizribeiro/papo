@@ -574,7 +574,7 @@ fn remove_sts_policy(store: &dyn StsStore, host: &str) {
 }
 
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
-    if matches!(error, Error::Connect(error) if error.is_configuration_failure()) {
+    if matches!(error, Error::Connect(error) if error.is_fatal_tls_failure()) {
         return true;
     }
     if matches!(
@@ -590,9 +590,6 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
                 | papo_core::CloseKind::CapabilityUnavailable
         )
     ) {
-        return true;
-    }
-    if matches!(error, Error::Connect(error) if error.is_certificate_rejected()) {
         return true;
     }
     false

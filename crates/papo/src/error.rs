@@ -97,18 +97,26 @@ impl ConnectError {
         self.kind
     }
 
-    pub(crate) fn is_configuration_failure(&self) -> bool {
+    #[cfg_attr(
+        not(tls),
+        expect(
+            clippy::unused_self,
+            reason = "only TLS failures are fatal by themselves"
+        )
+    )]
+    pub(crate) fn is_fatal_tls_failure(&self) -> bool {
         #[cfg(tls)]
-        return self
-            .source
-            .downcast_ref::<crate::transport::ConnectError>()
-            .is_some_and(|error| {
-                matches!(
-                    error,
-                    crate::transport::ConnectError::InvalidServerName(_)
-                        | crate::transport::ConnectError::InvalidTlsConfiguration(_)
-                )
-            });
+        return self.kind == ConnectErrorKind::CertificateRejected
+            || self
+                .source
+                .downcast_ref::<crate::transport::ConnectError>()
+                .is_some_and(|error| {
+                    matches!(
+                        error,
+                        crate::transport::ConnectError::InvalidServerName(_)
+                            | crate::transport::ConnectError::InvalidTlsConfiguration(_)
+                    )
+                });
         #[cfg(not(tls))]
         false
     }
@@ -117,13 +125,6 @@ impl ConnectError {
         if self.kind == ConnectErrorKind::HandshakeFailed {
             return true;
         }
-        #[cfg(tls)]
-        return self.kind == ConnectErrorKind::CertificateRejected;
-        #[cfg(not(tls))]
-        false
-    }
-
-    pub(crate) fn is_certificate_rejected(&self) -> bool {
         #[cfg(tls)]
         return self.kind == ConnectErrorKind::CertificateRejected;
         #[cfg(not(tls))]
