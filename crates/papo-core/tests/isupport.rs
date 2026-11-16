@@ -129,3 +129,118 @@ fn warns_once_when_isupport_storage_reaches_its_bound() {
         })
         .no_event();
 }
+
+fn join_release_with_alice(session: &mut Session, isupport: &str) {
+    let now = std::time::Instant::now();
+    let welcome =
+        format!(":ergo.test 005 papo {isupport} CHANTYPES=# :are supported by this server");
+    for line in [
+        ":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo",
+        welcome.as_str(),
+        ":papo!~u@papo.irc JOIN #release",
+        ":ergo.test 353 papo = #release :@papo alice[m]",
+        ":ergo.test 366 papo #release :End of /NAMES list",
+        ":alice{m}!~u@3qkv8a5h7d2xw.irc JOIN #release",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+}
+
+#[test]
+fn unknown_casemapping_keeps_bracket_nicks_apart() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    join_release_with_alice(&mut session, "CASEMAPPING=rfc8265");
+
+    let state = session.state();
+    assert_eq!(state.casemapping(), papo_proto::Casemapping::Ascii);
+    let channel = state.channel("#release").unwrap();
+    assert_eq!(channel.members().len(), 3);
+    assert_eq!(
+        channel.member("alice[m]").unwrap().nick().as_str(),
+        "alice[m]"
+    );
+    assert_eq!(
+        channel.member("ALICE{M}").unwrap().nick().as_str(),
+        "alice{m}"
+    );
+    assert_eq!(state.user("alice[m]").unwrap().host(), None);
+    assert_eq!(
+        state.user("alice{m}").unwrap().host(),
+        Some("3qkv8a5h7d2xw.irc")
+    );
+    assert!(!session.__name_rules_known());
+}
+
+#[test]
+fn unknown_casemapping_overrides_a_seeded_one() {
+    let seeded = Config::default()
+        .nick("papo")
+        .casemapping(papo_proto::Casemapping::Rfc1459);
+    let mut session = Session::new(seeded);
+    join_release_with_alice(&mut session, "CASEMAPPING=rfc8265");
+
+    assert_eq!(
+        session.state().casemapping(),
+        papo_proto::Casemapping::Ascii
+    );
+    assert_eq!(
+        session.state().channel("#release").unwrap().members().len(),
+        3
+    );
+    assert!(!session.__name_rules_known());
+}
+
+#[test]
+fn known_casemapping_still_folds_brackets() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    join_release_with_alice(&mut session, "CASEMAPPING=rfc1459");
+
+    assert_eq!(
+        session.state().channel("#release").unwrap().members().len(),
+        2
+    );
+    assert!(session.__name_rules_known());
+}
+
+#[test]
+fn casemapping_advertisements_set_rules_and_whether_they_are_known() {
+    use papo_proto::Casemapping::{Ascii, Rfc1459};
+    for (seed, token, rules, known) in [
+        (Some(Ascii), "NETWORK=ErgoTest", Rfc1459, true),
+        (None, "NETWORK=ErgoTest", Rfc1459, false),
+        (None, "CASEMAPPING", Ascii, false),
+        (Some(Rfc1459), "CASEMAPPING", Ascii, false),
+        (Some(Ascii), "CASEMAPPING=rfc1459", Rfc1459, true),
+    ] {
+        let config = Config::default().nick("papo");
+        let mut session = Session::new(match seed {
+            Some(seed) => config.casemapping(seed),
+            None => config,
+        });
+        join_release_with_alice(&mut session, token);
+        assert_eq!(session.state().casemapping(), rules, "{seed:?} {token}");
+        assert_eq!(session.__name_rules_known(), known, "{seed:?} {token}");
+    }
+}
+
+#[test]
+fn a_later_unknown_casemapping_makes_known_rules_unknown() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    join_release_with_alice(&mut session, "CASEMAPPING=rfc1459");
+    while session.poll_event().is_some() {}
+
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CASEMAPPING=rfc8265 :are supported by this server",
+    );
+
+    assert_eq!(
+        session.poll_event(),
+        Some(Event::__casemapping_changed(
+            papo_proto::Casemapping::Rfc1459,
+            papo_proto::Casemapping::Ascii,
+        ))
+    );
+    assert!(!session.__name_rules_known());
+}
