@@ -141,7 +141,7 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
 }
 
 #[tokio::test]
-async fn soju_history_actor_matching_a_shared_user_can_receive_a_reply() {
+async fn soju_history_actor_without_an_account_tag_cannot_receive_a_reply() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "reader")
             .rate_limit(papo::RateLimit::unlimited())
@@ -188,9 +188,17 @@ async fn soju_history_actor_matching_a_shared_user_can_receive_a_reply() {
     let message = page.chat_messages().next().unwrap().clone();
 
     let reply = tokio::spawn(async move { client.reply(&message, "the report is attached").await });
-    assert_eq!(
-        wire.next_sent().await,
-        "@+reply=rtaqwb2dxm8u85ap38mvhqxy62 PRIVMSG writer :the report is attached"
+    assert_eq!(wire.next_sent().await, "@label=1 WHO writer %na");
+    wire.server("@label=1 BATCH +who labeled-response").await;
+    wire.server("@batch=who :offline.test 354 reader writer 0")
+        .await;
+    wire.server("@batch=who :offline.test 315 reader writer :End of WHO list")
+        .await;
+    wire.server("BATCH -who").await;
+    assert!(matches!(reply.await.unwrap(), Err(Error::TargetGone)));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
     );
-    assert!(reply.await.unwrap().is_ok());
 }

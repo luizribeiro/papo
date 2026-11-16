@@ -21,8 +21,16 @@ async fn fixture_pair_with(
     context: &Scenario,
     alice_builder: papo::Builder,
 ) -> papo_testing::Result<(Peer, Peer, String)> {
-    let mut alice = context.connect_with(alice_builder).await?;
+    let alice = context.connect_with(alice_builder).await?;
     let bob = context.connect("bob").await?;
+    joined_pair(context, alice, bob).await
+}
+
+async fn joined_pair(
+    context: &Scenario,
+    mut alice: Peer,
+    bob: Peer,
+) -> papo_testing::Result<(Peer, Peer, String)> {
     let channel = context.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -1197,13 +1205,16 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// a private history message keeps the channel context its line names, and replies keep it
+/// a private history message keeps the channel context its line names, and replies keep it; the
+/// sender is logged in because only a history line's account tag identifies who to reply to
 #[scenario(
-    requires(caps = ["batch", "draft/chathistory", "message-tags"]),
+    requires(caps = ["account-tag", "batch", "draft/chathistory", "message-tags"]),
     covers = ["tag.channel-context"]
 )]
 async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let alice = s.connect("alice").await?;
+    let bob = s.connect_as_account("bob").await?;
+    let (mut alice, mut bob, channel) = joined_pair(&s, alice, bob).await?;
     if !context_tag_allowed(&bob) {
         return s.skip("the server denies the channel-context client tag");
     }
