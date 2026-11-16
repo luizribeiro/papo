@@ -499,6 +499,7 @@
               cargo test -p papo --features websocket --locked --target wasm32-wasip2
               cargo test -p papo-proto --all-features --locked --target wasm32-wasip2
               cargo test -p papo-bot --locked --target wasm32-wasip2
+              cargo test -p papo-testing --locked --target wasm32-wasip2
             '';
             stages = [ "pre-push" ];
           };
