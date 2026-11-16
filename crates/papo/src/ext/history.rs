@@ -1542,8 +1542,8 @@ mod tests {
         HistoryLine {
             line: LineRef::parse(message).unwrap().to_owned(),
             context: false,
-            authorship: papo_core::Authorship::Unknown,
-            subject_authorship: papo_core::Authorship::Unknown,
+            authorship: papo_core::Party::Unknown,
+            subject_authorship: papo_core::Party::Unknown,
         }
     }
 
@@ -1657,8 +1657,8 @@ mod tests {
             papo_core::HistoryItem::Parted(HistoryLine {
                 line: LineRef::parse(raw).unwrap().to_owned(),
                 context: false,
-                authorship: papo_core::Authorship::Other,
-                subject_authorship: papo_core::Authorship::Unknown,
+                authorship: papo_core::Party::Other,
+                subject_authorship: papo_core::Party::Unknown,
             }),
             None,
             &crate::Client::disconnected_for_test(),

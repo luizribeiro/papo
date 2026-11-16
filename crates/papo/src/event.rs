@@ -249,10 +249,10 @@ pub enum Authorship {
 }
 
 impl Authorship {
-    pub(crate) const fn from_core(value: papo_core::Authorship) -> Self {
+    pub(crate) const fn from_core(value: papo_core::Party) -> Self {
         match value {
-            papo_core::Authorship::Own => Self::Own,
-            papo_core::Authorship::Other => Self::Other,
+            papo_core::Party::Me => Self::Own,
+            papo_core::Party::Other => Self::Other,
             _ => Self::Unknown,
         }
     }
@@ -4054,7 +4054,7 @@ mod tests {
             papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
             None,
             Some(payload.into()),
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
         )) else {
             panic!("expected part")
         };
@@ -4069,8 +4069,8 @@ mod tests {
                 Casemapping::default(),
             ),
             papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
-            papo_core::Authorship::Other,
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
+            papo_core::Party::Other,
             Some(payload.into()),
         )) else {
             panic!("expected kick")
@@ -4083,7 +4083,7 @@ mod tests {
             None,
             Some(payload.into()),
             vec![Casemapping::default().channel("#papo")],
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
             None,
         )) else {
             panic!("expected quit")
@@ -4092,7 +4092,7 @@ mod tests {
             Casemapping::default().channel("#papo"),
             Casemapping::default().channel("#papo-chat"),
             "ergo.test".into(),
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
             Some(payload.into()),
         )) else {
             panic!("expected channel rename")
@@ -4106,7 +4106,7 @@ mod tests {
                 Casemapping::default(),
             ),
             papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
         )) else {
             panic!("expected topic")
         };
@@ -4115,7 +4115,7 @@ mod tests {
             actor: "alice!~alice@cloak.example".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Authorship::Other,
+            authorship: papo_core::Party::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
             status: None,
             return_address: "#papo".into(),
@@ -4752,8 +4752,8 @@ mod tests {
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("papo"),
             "emily!~emily@localhost".to_owned(),
-            papo_core::Authorship::Other,
-            papo_core::Authorship::Own,
+            papo_core::Party::Other,
+            papo_core::Party::Me,
         ));
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
@@ -4772,7 +4772,7 @@ mod tests {
                 Casemapping::Ascii.channel("#Papo[dev]"),
                 Casemapping::Ascii.nick("Alice[bot]"),
                 papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
                 None,
             ),
             Casemapping::Rfc1459,
@@ -5005,7 +5005,7 @@ mod tests {
                 actor: "alice!~a@cloak".into(),
                 actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
                 peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-                authorship: papo_core::Authorship::Other,
+                authorship: papo_core::Party::Other,
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#ops"),
                 ),
@@ -5035,7 +5035,7 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Authorship::Other,
+            authorship: papo_core::Party::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
             return_address: "@#ops".into(),
@@ -5050,7 +5050,7 @@ mod tests {
             actor: "papo!~p@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Authorship::Own,
+            authorship: papo_core::Party::Me,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: None,
             return_address: "#ops".into(),
@@ -5081,7 +5081,7 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            authorship: papo_core::Authorship::Other,
+            authorship: papo_core::Party::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
             return_address: "@#ops".into(),
@@ -5262,7 +5262,7 @@ mod tests {
     #[test]
     fn maps_channel_renames() {
         assert!(matches!(
-            forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "alice!a@localhost".into(), papo_core::Authorship::Other, Some("Project renamed".into()))),
+            forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "alice!a@localhost".into(), papo_core::Party::Other, Some("Project renamed".into()))),
             Event::ChannelRenamed(renamed)
                 if renamed.old == "#rust"
                     && renamed.new == "#rust-lang"
@@ -5271,7 +5271,7 @@ mod tests {
         ));
 
         assert!(matches!(
-            forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "ergo.test".into(), papo_core::Authorship::Other, None)),
+            forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "ergo.test".into(), papo_core::Party::Other, None)),
             Event::ChannelRenamed(renamed)
                 if matches!(renamed.actor, Source::Server(ref name) if name == "ergo.test")
                     && renamed.reason.is_none()
@@ -5651,7 +5651,7 @@ mod tests {
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
             papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
             None,
         ));
         let joined = event.as_joined().unwrap();
@@ -5769,7 +5769,7 @@ mod tests {
                 papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
                 None,
                 Some("Leaving for lunch".into()),
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
             )),
             Event::Parted(parted)
                 if parted.channel == "#papo"
@@ -5797,8 +5797,8 @@ mod tests {
                     Casemapping::default(),
                 ),
                 papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
-                papo_core::Authorship::Other,
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
+                papo_core::Party::Other,
                 Some("Flooding".into()),
             )),
             Event::Kicked(kicked)
@@ -5824,7 +5824,7 @@ mod tests {
                     Casemapping::default().channel("#papo"),
                     Casemapping::default().channel("#rust"),
                 ],
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
                 None,
             )),
             Event::Quit(quit)
@@ -5879,7 +5879,7 @@ mod tests {
             Casemapping::default().nick("em"),
             papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             vec![Casemapping::default().channel("#papo")],
-            papo_core::Authorship::Other,
+            papo_core::Party::Other,
         )) else {
             panic!("expected nickname change")
         };
@@ -5898,7 +5898,7 @@ mod tests {
                 Casemapping::default().nick("emily"),
                 Account::LoggedIn(Casemapping::default().account("emily")),
                 papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
             )),
             Event::AccountChanged(changed)
                 if changed.actor.nick() == "emily" && changed.new.name().is_some_and(|account| account == "emily")
@@ -5914,7 +5914,7 @@ mod tests {
                 Casemapping::default().nick("emily"),
                 Away::__away_value(Some("Gone to lunch".into())),
                 papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
             )),
             Event::AwayChanged(changed)
                 if changed.actor.nick() == "emily"
@@ -5948,7 +5948,7 @@ mod tests {
                 "~em".into(),
                 "users/emily".into(),
                 papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
-                papo_core::Authorship::Other,
+                papo_core::Party::Other,
             )),
             Event::HostChanged(changed)
                 if changed.actor.nick() == "emily" && changed.new_username == "~em" && changed.new_host == "users/emily"
@@ -5981,7 +5981,7 @@ mod tests {
             )),
         )];
         assert!(matches!(
-            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Authorship::Other, papo_core::Authorship::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
+            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Party::Other, papo_core::Party::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
@@ -6157,7 +6157,7 @@ mod tests {
     #[test]
     fn maps_topic_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(crate::Origin::NONE), papo_core::Authorship::Other)),
+            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(crate::Origin::NONE), papo_core::Party::Other)),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
@@ -6597,14 +6597,14 @@ mod tests {
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),
                     context: false,
-                    authorship: papo_core::Authorship::Other,
-                    subject_authorship: papo_core::Authorship::Unknown,
+                    authorship: papo_core::Party::Other,
+                    subject_authorship: papo_core::Party::Unknown,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryLine {
                     line: Line::new("WALLOPS").with_params(["Network maintenance begins soon"]),
                     context: false,
-                    authorship: papo_core::Authorship::Unknown,
-                    subject_authorship: papo_core::Authorship::Unknown,
+                    authorship: papo_core::Party::Unknown,
+                    subject_authorship: papo_core::Party::Unknown,
                 }),
             ],
             true,

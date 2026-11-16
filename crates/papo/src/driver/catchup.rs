@@ -341,8 +341,8 @@ mod tests {
         papo_core::HistoryLine {
             line: LineRef::parse(line).unwrap().to_owned(),
             context: false,
-            authorship: papo_core::Authorship::Unknown,
-            subject_authorship: papo_core::Authorship::Unknown,
+            authorship: papo_core::Party::Unknown,
+            subject_authorship: papo_core::Party::Unknown,
         }
     }
 
@@ -500,8 +500,8 @@ mod tests {
                 .unwrap()
                 .to_owned(),
             context: false,
-            authorship: papo_core::Authorship::Own,
-            subject_authorship: papo_core::Authorship::Unknown,
+            authorship: papo_core::Party::Me,
+            subject_authorship: papo_core::Party::Unknown,
         });
         let cursor = super::newest_cursor(&[item]).unwrap();
         assert_eq!(cursor.reference(true), Some(MsgRef::Timestamp(time)));

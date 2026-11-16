@@ -415,15 +415,6 @@ pub enum Party {
     Unknown,
 }
 
-#[doc(hidden)]
-pub type Authorship = Party;
-
-#[allow(non_upper_case_globals)]
-impl Party {
-    #[doc(hidden)]
-    pub const Own: Self = Self::Me;
-}
-
 /// Classifies the IRC conversation and lowest-ranked `STATUSMSG` prefix addressed by a line.
 #[doc(hidden)]
 pub fn classify_conversation(
