@@ -91,6 +91,7 @@ ids = [
   "security.s6.scram-iteration-cap",
   "security.secrets.no-wire-line-in-debug",
   "security.secrets.wiped-on-drop",
+  "security.wire-log.sasl-redacted",
   "security.api.explicit-secrets",
   "security.api.typed-tls-identity",
   "security.api.explicit-channel-keys",

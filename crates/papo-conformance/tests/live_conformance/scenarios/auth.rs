@@ -24,6 +24,31 @@ async fn sasl_plain(s: Scenario) -> papo_testing::Result<()> {
     authenticate(s, false).await
 }
 
+/// keeps the SASL PLAIN password out of the wire log a failure prints
+#[scenario(requires(caps = ["sasl"]), covers = ["security.wire-log.sasl-redacted"])]
+async fn sasl_wire_log_redacts_the_password(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect_as_account("alice").await?;
+    alice.wait_for(Event::as_connected).await?;
+    let log = s.rendered_wire_log();
+    let sent: Vec<&str> = log
+        .lines()
+        .filter_map(|line| line.split_once(" -> AUTHENTICATE ").map(|(_, step)| step))
+        .collect();
+
+    assert!(!log.contains(PASSWORD), "{log}");
+    assert_eq!(sent.first().copied(), Some("PLAIN"), "{log}");
+    assert!(
+        sent[1..].iter().any(|step| step.starts_with("<redacted, ")),
+        "{log}"
+    );
+    assert!(
+        sent.iter()
+            .all(|step| matches!(*step, "PLAIN" | "+") || step.starts_with("<redacted, ")),
+        "{log}"
+    );
+    Ok(())
+}
+
 /// authenticates an account with SCRAM-SHA-256
 #[scenario(
     requires(caps = ["sasl=SCRAM-SHA-256"]),
