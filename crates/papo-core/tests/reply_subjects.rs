@@ -5,7 +5,9 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, RateLimit, Response, ResponseMatcher, Session};
+use papo_core::{
+    Account, Config, Event, ProofFailure, RateLimit, ReplyToken, Response, ResponseMatcher, Session,
+};
 use papo_proto::Line;
 
 struct Reply {
@@ -103,11 +105,25 @@ fn response(session: &mut Session, reply: &Reply, labelled: bool, between: &[&st
         .unwrap_or_else(|| panic!("{}: no response", reply.row))
 }
 
+fn resolve(session: &Session, token: ReplyToken) -> Result<String, ProofFailure> {
+    let nick = session.state().casemapping().nick("alice");
+    let proof = session
+        .state()
+        .__prove_event_user(token, nick, Account::Unknown)?;
+    session
+        .state()
+        .__resolve_proven(&proof)
+        .map(|nick| nick.to_string())
+}
+
 #[test]
 fn a_reply_row_records_the_person_it_describes_when_it_arrives() {
     for labelled in [false, true] {
         for reply in &REPLIES {
-            for departure in [QUIT, RENAME] {
+            for (departure, expected) in [
+                (QUIT, Err(ProofFailure::IdentityChanged)),
+                (RENAME, Ok("alice_away".to_owned())),
+            ] {
                 let case = format!("{} labelled={labelled} after {departure}", reply.row);
                 let mut session = session(labelled);
                 let alice = session.state().__reply_token_for("alice");
@@ -116,9 +132,26 @@ fn a_reply_row_records_the_person_it_describes_when_it_arrives() {
                 assert_ne!(alice, newcomer, "{case}: no handoff happened");
 
                 assert_eq!(response.__subject_token(0), Some(alice), "{case}");
+                assert_eq!(resolve(&session, alice), expected, "{case}");
                 let end = response.lines.len() - 1;
                 assert_eq!(response.__subject_token(end), None, "{case}");
             }
+        }
+    }
+}
+
+#[test]
+fn a_reply_row_about_an_untracked_person_records_no_identity() {
+    for labelled in [false, true] {
+        for reply in &REPLIES {
+            let case = format!("{} labelled={labelled}", reply.row);
+            let mut session = session(labelled);
+            session.handle_line(Instant::now(), QUIT.as_bytes());
+            while session.poll_event().is_some() {}
+            let response = response(&mut session, reply, labelled, &[]);
+
+            let token = response.__subject_token(0);
+            assert!(token.is_some_and(|token| !token.__is_known()), "{case}");
         }
     }
 }
