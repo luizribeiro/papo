@@ -6547,6 +6547,18 @@ impl Session {
         self.remembered_casemapping = new;
     }
 
+    fn dispatch_batch_messages(
+        &mut self,
+        now: Instant,
+        messages: &[Line],
+        context: &DispatchContext,
+        request: Option<RequestId>,
+    ) {
+        for message in messages {
+            self.dispatch_message(now, &message.as_ref(), context, request.is_none(), request);
+        }
+    }
+
     fn dispatch_response_batch(&mut self, now: Instant, response: BatchEvent) {
         let BatchEvent::Response {
             label,
@@ -6577,15 +6589,12 @@ impl Session {
         let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
         if history.is_none() && !bouncer_batch {
-            for message in &messages {
-                self.dispatch_message(
-                    now,
-                    &message.as_ref(),
-                    &context,
-                    request.is_none(),
-                    request.as_ref().map(|request| request.id),
-                );
-            }
+            self.dispatch_batch_messages(
+                now,
+                &messages,
+                &context,
+                request.as_ref().map(|request| request.id),
+            );
         }
         if !emit_events {
             self.outbox.events.truncate(queued_events);
