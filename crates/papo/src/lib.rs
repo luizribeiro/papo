@@ -162,6 +162,19 @@
 //! [graceful-shutdown example](https://github.com/luizribeiro/papo/tree/main/examples/graceful-shutdown)
 //! shows the complete lifecycle.
 //!
+//! # Platforms
+//!
+//! Some items exist only on some targets, and their documentation badges name two platform
+//! groups:
+//!
+//! - **sockets**: targets with outbound TCP sockets, which are native targets plus
+//!   `wasm32-wasip2` and `wasm32-wasip3`. `wasm32-wasip1` has no outbound sockets.
+//! - **browser**: `wasm32-unknown-unknown`, where the client connects through the host's
+//!   WebSocket. **non-browser** is every other target.
+//!
+//! TLS items also need a TLS provider feature (`tls-ring` or `tls-aws-lc`), and their badges say
+//! so.
+//!
 //! # WASI
 //!
 //! `wasm32-wasip2` and `wasm32-wasip3` need `--cfg tokio_unstable`; this repository sets it for
