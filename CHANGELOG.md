@@ -77,6 +77,9 @@ lines.
 `State::welcome_time` returns the server time stamped on the connection's 001, the earliest moment a
 live line can carry.
 
+`papo_bot` ignores a command stamped before the connection's 001, and one from a server that stamps
+lines but neither stamps 001 nor offers `batch`, so a bouncer's unbatched playback never runs again.
+
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
 

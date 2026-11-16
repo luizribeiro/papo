@@ -9,8 +9,10 @@
 //!
 //! Pass the receiving [`Client`], event state, and each [`papo::Message`] event payload to
 //! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
-//! ignores known bots by default. Unlike raw `papo` event handling, it rejects replayed messages
-//! itself. Authorize privileged commands with
+//! ignores known bots by default. Unlike raw `papo` event handling, it ignores a line papo cannot
+//! show is live, such as a bouncer's unbatched playback (see [`BotConfig::command`]). Pass only
+//! [`papo::Event::Message`] payloads: a [`papo::HistoryPage`] item is not live even when it is
+//! stamped after the connection's welcome. Authorize privileged commands with
 //! [`Command::account_in`], which checks the message's account tag; a nickname alone is not an
 //! identity. [`Command::reply`] applies the configuration's shared reply limit. Its default is two
 //! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
@@ -180,7 +182,12 @@ impl BotConfig {
 
     /// Parses `message` as a live command using its event's `state`.
     ///
-    /// Replayed messages and messages produced by another client are ignored. So is the message
+    /// A message must show it arrived live. When the welcome is stamped, the message needs a stamp
+    /// no earlier than [`State::welcome_time`], so a bouncer whose clock runs ahead of its network
+    /// loses commands until the network catches up. When the welcome is not stamped, a stamped
+    /// message needs `batch`, which carries the server's playback. An unstamped line on a server
+    /// without `server-time` cannot be told from a replay and is accepted. Messages produced by
+    /// another client are ignored. So is the message
     /// inside a [`papo::Event::Restricted`] line, such as one sent to `@#ops`: its command would
     /// report no [`Command::audience`] while its replies reach only that audience, so the one way
     /// to accept it is [`BotConfig::restricted_command`]. See [`papo::Conversation`] for
@@ -227,6 +234,19 @@ fn reaches_a_status_audience(state: &State, message: &ChatMessage) -> bool {
             .is_channel(message.return_address().as_ref())
 }
 
+// A server that stamps lines but cannot batch its playback replays them as plain lines, so a
+// stamp no earlier than our own 001 is the only proof such a line is live.
+fn arrived_live(state: &State, message: &ChatMessage) -> bool {
+    match state.welcome_time() {
+        Some(welcome) => message.server_time.is_some_and(|sent| sent >= welcome),
+        None => {
+            state.caps().contains_key(&papo::cap::BATCH)
+                || message.server_time.is_none()
+                    && !state.caps().contains_key(&papo::cap::SERVER_TIME)
+        }
+    }
+}
+
 /// The outcome of attempting a bot response.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[must_use = "the response may not have been sent"]
@@ -262,6 +282,7 @@ impl Command {
         config: &BotConfig,
     ) -> Option<Self> {
         if message.actor_party == papo::Party::Me
+            || !arrived_live(state, message)
             || message.kind != MessageKind::Text
             || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
@@ -749,6 +770,67 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn accepts_only_lines_shown_to_arrive_after_registration() {
+        let welcome = "@time=2026-11-01T03:35:55.224Z ";
+        for (caps, welcome_stamp, line_stamp, live) in [
+            (
+                "server-time",
+                welcome,
+                "@time=2026-11-01T03:36:02.731Z ",
+                true,
+            ),
+            (
+                "server-time",
+                welcome,
+                "@time=2026-11-01T03:35:55.224Z ",
+                true,
+            ),
+            (
+                "server-time",
+                welcome,
+                "@time=2026-11-01T03:35:55.223Z ",
+                false,
+            ),
+            ("server-time", welcome, "", false),
+            (
+                "batch server-time",
+                "",
+                "@time=2026-11-01T03:31:52.503Z ",
+                true,
+            ),
+            ("server-time", "", "@time=2026-11-01T03:31:52.503Z ", false),
+            ("batch", "", "", true),
+            (
+                "",
+                "",
+                "@znc.in/server-time-iso=2026-11-01T03:31:52.503Z ",
+                false,
+            ),
+            ("", "", "", true),
+        ] {
+            let transcript = format!(
+                ":irc.papo.test CAP * LS :{caps}\r\n\
+                 :irc.papo.test CAP papo{{bot}} ACK :{caps}\r\n\
+                 {welcome_stamp}:irc.papo.test 001 papo{{bot}} :Welcome to the papo IRC Network\r\n\
+                 :irc.papo.test 422 papo{{bot}} :MOTD File is missing\r\n\
+                 {line_stamp}:emily!~emily@localhost PRIVMSG papo{{bot}} :!deploy staging\r\n",
+            );
+            let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
+                .stream(TranscriptStream::new(&transcript))
+                .build();
+            let driver = tokio::spawn(driver);
+            let incoming = next_message(&mut events).await;
+            let command = BotConfig::new("!").command(&client, &incoming.state, &incoming);
+            assert_eq!(
+                command.is_some(),
+                live,
+                "{caps:?} {welcome_stamp:?} {line_stamp:?}"
+            );
+            driver.abort();
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn ignores_a_message_from_another_client() {
         let transcript = concat!(
             ":ergo.test CAP * LS :\r\n",
@@ -1091,9 +1173,9 @@ mod tests {
     }
 
     const OPS_ONLY: &str = concat!(
-        ":ergo.test CAP * LS :message-tags\r\n",
-        ":ergo.test CAP papo{bot} ACK :message-tags\r\n",
-        ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+        ":ergo.test CAP * LS :message-tags server-time\r\n",
+        ":ergo.test CAP papo{bot} ACK :message-tags server-time\r\n",
+        "@time=2026-11-15T00:13:50.002Z :ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
         ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(qaohv)~&@%+ STATUSMSG=~&@%+ :are supported\r\n",
         ":ergo.test 422 papo{bot} :MOTD File is missing\r\n",
         ":papo{bot}!papo@localhost JOIN #ops\r\n",
