@@ -1,7 +1,9 @@
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{conversation_name, join_seen_by, message_text};
+use crate::scenarios::support::{
+    conversation_name, join_seen_by, latest_history_with, message_text,
+};
 
 /// keeps a multiline direct-message reply bound to its sender across a local nick change
 #[scenario(
@@ -68,11 +70,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     let reader_direct = writer.query(old_nick.as_str())?;
     writer.privmsg(&reader_direct, text).await?;
     reader.set_nick(&new_nick).await?;
-    let page = reader
-        .history(writer.snapshot().nick().as_str())
-        .latest()
-        .limit(10)
-        .await?;
+    let page = latest_history_with(&reader, writer.snapshot().nick().as_str(), text).await?;
     let message = page
         .chat_messages()
         .find(|message| message.text == text)

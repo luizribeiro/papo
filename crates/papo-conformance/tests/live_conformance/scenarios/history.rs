@@ -3,7 +3,7 @@ use std::time::Duration;
 use papo::{Account, Client, Endpoint, Error, Event, Party, Sasl, SendOutcome};
 use papo_conformance_macros::scenario;
 
-use crate::scenarios::support::{confirmed_line, conversation_name};
+use crate::scenarios::support::{confirmed_line, conversation_name, latest_history_with};
 use crate::{Peer, Scenario};
 
 fn read_marker_time() -> papo::ServerTime {
@@ -38,7 +38,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
         "history ends with a health check",
     ];
     let (writer, mut reader, channel, sent) = history_peers(&s, &texts).await?;
-    let page = reader.history(&channel).latest().limit(10).await?;
+    let page = latest_history_with(&reader, &channel, texts[2]).await?;
     assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
     assert!(page.end);
     let messages = page
@@ -99,7 +99,7 @@ async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
     let expected_account = writer.snapshot().account().clone();
     assert!(matches!(expected_account, Account::LoggedIn(_)));
 
-    let page = writer.history(&channel).latest().limit(10).await?;
+    let page = latest_history_with(&writer, &channel, &text).await?;
     let replayed = page
         .chat_messages()
         .find(|message| message.raw_text == text)
@@ -413,7 +413,7 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
 
     let reader = s.connect("reader").await?;
     reader.join(&channel).await?;
-    let page = reader.history(&channel).latest().limit(10).await?;
+    let page = latest_history_with(&reader, &channel, "service is healthy").await?;
     let topic = page
         .items
         .iter()

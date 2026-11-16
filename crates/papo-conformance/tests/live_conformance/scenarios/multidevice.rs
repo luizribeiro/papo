@@ -3,7 +3,7 @@ use papo_conformance_macros::scenario;
 
 use super::support::{
     any_message_text, confirmed_line, confirmed_redaction, conversation_name, join_seen_by,
-    restricted_line, restricted_message, restricted_text, wait_for_channel,
+    latest_history_with, restricted_line, restricted_message, restricted_text, wait_for_channel,
 };
 use crate::Scenario;
 
@@ -403,7 +403,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
     }
 
     let mut reconnected = s.connect_account_session("alice-phone", account).await?;
-    let page = reconnected.history(&channel).latest().limit(10).await?;
+    let page = latest_history_with(&reconnected, &channel, texts[1]).await?;
     assert_eq!(page.reason, papo::HistoryReason::Requested);
     assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
     let own = page
