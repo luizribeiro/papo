@@ -366,6 +366,7 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | Browser builds exposed TCP endpoint constructors and failed only when connecting | TCP endpoint constructors are absent in browser builds; passing a TCP endpoint to `Client::builder` records `InvalidUrl::UnsupportedScheme` |
 | Missing TLS or WebSocket support failed during connection as `ConnectErrorKind::Unavailable` | Transport-specific setters and credential types are absent when their target or Cargo feature cannot use them; unsupported URL schemes are `InvalidUrl::UnsupportedScheme` |
 | Many URL-shaped `InvalidInput` variants and an unexported network URL error | `InvalidInput::Url(InvalidUrl)` and `Endpoint::Err = InvalidUrl` |
+| `InvalidInput::UnknownCapability(name)` for a `without_caps` name papo did not request | Removed with `without_caps`; `request_caps` refuses a known name as `InvalidInput::KnownCapability { capability, feature }`, one set by a typed builder method as `ManagedCapability(Cap)`, and an unstable one in a stable build as `UnstableCapability(Cap)` |
 | `Builder::device` | `Sasl::plain(...).device(...)` or another SASL mechanism builder |
 | No SASL authorization identity | `Sasl::authzid(...)`; PLAIN transmits it too |
 | Empty `away_on_connect("")` silently meant no away | Empty initial away text is `Error::InvalidInput`; omit the setting to stay present |
@@ -373,6 +374,7 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | TLS certificate and key accepted interchangeable bytes | `tls_client_cert(CertificateChain, PrivateKey)` makes swaps fail and redacts the key |
 | Text converted implicitly into `Secret` | Wrap credentials explicitly with `Secret::new(...)`; identifier/secret swaps now fail to compile |
 | `Secret` accepted bytes and `expose()` returned `Option<&str>` | `Secret` is text-only and `expose()` returns `&str`; arbitrary TLS bytes no longer pass through it |
+| `InvalidInput::BinarySecret` for a secret that was not text | Removed: a `Secret` is always text, so the error cannot occur |
 | Public-field `WebIrc` literal | `WebIrc::new(gateway, password, ip).hostname(...).flag(...)` |
 | `sts_store` required an owned, mutable store | `StsStore` methods take `&self`, the value must be `Send + Sync`, and `Arc<T>` can share one store across clients and application persistence |
 | Bad TLS PEM appeared as a late `ConnectErrorKind::Other` | TLS configuration is validated eagerly as `Error::InvalidInput` |
@@ -546,6 +548,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | Boxed `Event::{Message, Notice, ServerNotice, History}` payloads | Unboxed payloads; the Box-specific `MessageRef` conversions were removed |
 | Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` and `as_auto_join_failed()` |
 | `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Party::Me` |
+| The earlier actor-relation enum and its actor and subject fields on events and `Message` | `Party::{Me, Other, Unknown}` with `actor_party` and `subject_party`; `ModeChanged::subject_party(&change)` gives it per member mode change |
 | Own sends could also arrive as message events | A correlated send resolves to `SendOutcome`; applications that log chat insert their own sends from that value |
 | `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
 | `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
@@ -660,6 +663,9 @@ match event {
     event => handle(event, &state),
 }
 ```
+
+`DisconnectCause::SlowConsumer` is removed: a slow consumer is never disconnected and gets
+`Event::Lagged` instead.
 
 `Lagged::dropped` counts all discarded events. Each bounded `MessageGap` identifies its
 conversation, dropped count, and first/last known msgid and server time. Use the state paired with
