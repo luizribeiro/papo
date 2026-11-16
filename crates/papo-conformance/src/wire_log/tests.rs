@@ -1,4 +1,14 @@
+use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
+
 use super::{Direction, WireLog, redact::redact};
+
+fn tapped(
+    log: &WireLog,
+    client: usize,
+) -> (Box<dyn papo::__testing::wrapped::Stream>, DuplexStream) {
+    let (client_end, server_end) = duplex(64 * 1024);
+    (log.tap(client, Box::new(client_end)), server_end)
+}
 
 fn without_times(render: &str) -> String {
     let mut times = Vec::new();
@@ -81,6 +91,55 @@ fn each_client_keeps_only_its_last_200_lines() {
             lines[199]
         );
     }
+}
+
+#[tokio::test]
+async fn a_tapped_stream_records_what_passes_both_ways() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    let (mut stream, mut server) = tapped(&log, client);
+    stream
+        .write_all(b"CAP LS 302\r\nAUTHENTICATE YWxpY2UAYWxpY2UAcTdIeC0ybVpwXzl2TGNUNHdSZkI=\r\n")
+        .await
+        .unwrap();
+    let reply = b":ergo.test CAP * LS :sasl=PLAIN,SCRAM-SHA-256\r\n:ergo.test 903 alice-4821 :SASL authentication successful\r\n";
+    server.write_all(reply).await.unwrap();
+    let mut received = vec![0; reply.len()];
+    stream.read_exact(&mut received).await.unwrap();
+    let mut sent = vec![0; 71];
+    server.read_exact(&mut sent).await.unwrap();
+
+    assert_eq!(received, reply);
+    assert!(sent.starts_with(b"CAP LS 302\r\nAUTHENTICATE YWxp"));
+    assert_eq!(
+        without_times(&log.render()),
+        "wire log, in seconds since the scenario started:\n== client 1\n  \
+         -> CAP LS 302\n  \
+         -> AUTHENTICATE <redacted, 44 bytes>\n  \
+         <- :ergo.test CAP * LS :sasl=PLAIN,SCRAM-SHA-256\n  \
+         <- :ergo.test 903 alice-4821 :SASL authentication successful"
+    );
+}
+
+#[tokio::test]
+async fn split_writes_record_one_line_and_a_bare_lf_ends_a_line() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    let (mut stream, _server) = tapped(&log, client);
+    for chunk in [
+        &b"PRIVMSG #papo :rel"[..],
+        b"ease approved\r",
+        b"\nPING :ergo.test\nPONG",
+    ] {
+        stream.write_all(chunk).await.unwrap();
+    }
+    stream.flush().await.unwrap();
+    stream.shutdown().await.unwrap();
+    assert_eq!(
+        without_times(&log.render()),
+        "wire log, in seconds since the scenario started:\n== client 1\n  \
+         -> PRIVMSG #papo :release approved\n  -> PING :ergo.test"
+    );
 }
 
 #[test]
