@@ -3761,3 +3761,20 @@ fn reports_only_well_formed_unlabelled_standard_replies() {
         matches!(session.poll_event(), Some(Event::Line(message)) if message.as_ref().command_is("WARN"))
     );
 }
+
+#[test]
+fn a_secret_message_request_stays_redacted_while_awaiting_its_echo() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    session
+        .request(
+            now,
+            Line::new("PRIVMSG")
+                .param("NickServ")
+                .param(Secret::new("IDENTIFY alice services-password-5129")),
+        )
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    support::queue_debug_marker(&mut session);
+    support::assert_session_debug_redacts(&session, "services-password-5129");
+}

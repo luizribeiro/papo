@@ -442,9 +442,7 @@ impl Session {
         }
         let line = message.encode()?;
         if let Some(label) = label {
-            let echo = sent
-                .then(|| SentEcho::from_message(&message.as_ref()))
-                .flatten();
+            let echo = sent.then(|| SentEcho::from_message(&message)).flatten();
             self.requests.insert(
                 label,
                 PendingRequest {

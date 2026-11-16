@@ -189,7 +189,7 @@ use web_time::Instant;
 
 use papo_proto::{
     AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
-    MAX_TAG_SECTION_LEN, Mask, Nick, Numeric, Source as ProtoSource,
+    MAX_TAG_SECTION_LEN, Mask, Nick, Numeric, Param, Source as ProtoSource,
     StandardReply as StandardReplyView, StandardReplyKind, escape_tag_value,
 };
 
@@ -3573,29 +3573,32 @@ struct PendingMarkRead {
 struct SentEcho {
     command: Command<'static>,
     target: String,
-    /// The text of a message, or the msgid a `REDACT` names.
-    subject: String,
+    /// The text of a message, or the msgid a `REDACT` names, keeping its secret provenance.
+    subject: Param,
     reply: Option<Line>,
 }
 
 impl SentEcho {
-    fn new(command: Command<'static>, target: &str, subject: &str) -> Self {
+    fn new(command: Command<'static>, target: &str, subject: impl Into<Param>) -> Self {
         Self {
             command,
             target: target.to_owned(),
-            subject: subject.to_owned(),
+            subject: subject.into(),
             reply: None,
         }
     }
 
-    fn from_message(message: &LineRef<'_>) -> Option<Self> {
-        let command = match message.command() {
+    fn from_message(message: &Line) -> Option<Self> {
+        let command = match message.as_ref().command() {
             Command::Privmsg => Command::Privmsg,
             Command::Notice => Command::Notice,
             Command::Redact => Command::Redact,
             _ => return None,
         };
-        Some(Self::new(command, message.param(0)?, message.param(1)?))
+        let [target, subject, ..] = message.params() else {
+            return None;
+        };
+        Some(Self::new(command, target, subject.clone()))
     }
 
     fn matches(&self, message: &LineRef<'_>, mapping: Casemapping) -> bool {
@@ -3603,7 +3606,7 @@ impl SentEcho {
             && message
                 .param(0)
                 .is_some_and(|target| names_equal(mapping, target, &self.target))
-            && message.param(1) == Some(self.subject.as_str())
+            && message.param(1) == Some(&*self.subject)
     }
 }
 
@@ -6943,9 +6946,10 @@ mod tests {
 
     #[test]
     fn sent_echo_matches_command_target_and_text() {
-        let echo = SentEcho::from_message(
-            &Line::privmsg("Alice[", "the review can wait until you return").as_ref(),
-        )
+        let echo = SentEcho::from_message(&Line::privmsg(
+            "Alice[",
+            "the review can wait until you return",
+        ))
         .unwrap();
         assert!(echo.matches(
             &Line::privmsg("alice{", "the review can wait until you return").as_ref(),
@@ -6958,16 +6962,16 @@ mod tests {
         ] {
             assert!(!echo.matches(&mismatch.as_ref(), Casemapping::Rfc1459));
         }
-        assert!(SentEcho::from_message(&Line::new("PING").param("irc.example").as_ref()).is_none());
+        assert!(SentEcho::from_message(&Line::new("PING").param("irc.example")).is_none());
     }
 
     #[test]
     fn sent_echo_matches_a_redaction_by_target_and_msgid() {
-        let echo = SentEcho::from_message(
-            &Line::new("REDACT")
-                .with_params(["#Papo", "b56bhkz4gmj7ig2jeg9hs7d2cs", "superseded"])
-                .as_ref(),
-        )
+        let echo = SentEcho::from_message(&Line::new("REDACT").with_params([
+            "#Papo",
+            "b56bhkz4gmj7ig2jeg9hs7d2cs",
+            "superseded",
+        ]))
         .unwrap();
         assert!(
             echo.matches(
