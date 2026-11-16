@@ -283,6 +283,21 @@
               }
             }/bin/banned-words-hook";
           };
+          example-api = {
+            enable = true;
+            files = "(^|/)(examples/.*|scripts/(check-example-api|test_check_example_api\\.sh))$";
+            pass_filenames = false;
+            entry = "${
+              pkgs.writeShellApplication {
+                name = "example-api-hook";
+                runtimeInputs = [ pkgs.ripgrep ];
+                text = ''
+                  ${pkgs.bash}/bin/bash scripts/check-example-api
+                  ${pkgs.bash}/bin/bash scripts/test_check_example_api.sh
+                '';
+              }
+            }/bin/example-api-hook";
+          };
           shellcheck.enable = true;
           actionlint.enable = true;
           yamllint.enable = true;

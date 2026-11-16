@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=${1:-.}
+cd "$root"
+
+failed=0
+
+reject() {
+  echo "$1" >&2
+  failed=1
+}
+
+search_sources() {
+  local pattern=$1
+  local status=0
+  rg -n "$pattern" examples/*/src --glob '*.rs' || status=$?
+  if ((status > 1)); then
+    echo "searching examples for '$pattern' failed" >&2
+    exit "$status"
+  fi
+  return "$status"
+}
+
+if search_sources '(^|[^A-Za-z0-9_])__[A-Za-z0-9_]'; then
+  reject 'examples must not use doc-hidden __-prefixed API'
+fi
+
+if search_sources 'Casemapping::default\b'; then
+  reject 'examples must not build names with Casemapping::default(); pass plain text'
+fi
+
+exit "$failed"
