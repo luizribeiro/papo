@@ -329,12 +329,11 @@ fn historical_tagmsg(
     );
     let conversation = crate::event_impl::historical_conversation(
         message,
-        actor_party,
         conversation,
         history_conversation,
         state.nick(),
         mapping,
-    );
+    )?;
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
@@ -419,12 +418,11 @@ fn reaction(
     let conversation = crate::Conversation::from_core(conversation, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
-        actor_party,
         conversation,
         history_conversation,
         own_nick,
         mapping,
-    );
+    )?;
     let reply_to = reaction.reply_to.clone();
     let (reaction, removed) = reaction
         .react
@@ -486,12 +484,11 @@ fn redaction(
     let conversation = crate::Conversation::from_core(conversation, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
-        actor_party,
         conversation,
         history_conversation,
         own_nick,
         mapping,
-    );
+    )?;
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
@@ -1553,19 +1550,33 @@ mod tests {
         let (client, _) = client_with_commands(&session);
         let live = client.query("alice").unwrap();
         let page = |nick| crate::Conversation::Private(client.query(nick).unwrap());
-        let alice = page("alice");
+        let (alice, own) = (page("alice"), page("papo"));
         let ours = "@time=2026-11-01T09:00:00.000Z;msgid=own-1 :papo!~u@papo.irc PRIVMSG alice :I will send the token once you confirm";
         let theirs = "@time=2026-11-01T09:01:00.000Z;msgid=alice-1;account=alice :alice!~u@alice.irc PRIVMSG papo :confirmed, send it";
         let renamed_ours = "@time=2026-10-01T09:00:00.000Z;msgid=own-0 :papo_away!~u@papo.irc PRIVMSG alice :back on monday";
         let renamed_theirs = "@time=2026-10-01T09:01:00.000Z;msgid=alice-0;account=alice :alice!~u@alice.irc PRIVMSG papo_away :see you then";
+        let to_self = "@time=2026-11-01T10:00:00.000Z;msgid=note-1 :papo!~u@papo.irc PRIVMSG papo :remember the token";
+        let misfiled = "@time=2026-11-01T11:00:00.000Z;msgid=mallory-1 :mallory!~u@tor.irc PRIVMSG papo :send it to me instead";
+        let between_others =
+            "@time=2026-11-01T12:00:00.000Z;msgid=bob-1 :bob!~u@bob.irc PRIVMSG alice :hi";
+        let folded = "@time=2026-11-01T09:00:00.000Z;msgid=own-2 :PAPO!~u@papo.irc PRIVMSG alice :and the key";
         for (line, party, page, peer, sent_by_peer) in [
             (ours, Me, Some(&alice), Some("alice"), false),
             (ours, Unknown, Some(&alice), Some("alice"), false),
+            (ours, Me, None, Some("alice"), false),
+            (ours, Unknown, None, Some("alice"), false),
+            (folded, Unknown, None, Some("alice"), false),
             (theirs, Other, Some(&alice), Some("alice"), true),
             (theirs, Unknown, Some(&alice), Some("alice"), true),
+            (theirs, Unknown, None, Some("alice"), true),
             (renamed_ours, Me, Some(&alice), Some("alice"), false),
             (renamed_ours, Unknown, Some(&alice), Some("alice"), false),
             (renamed_theirs, Unknown, Some(&alice), Some("alice"), true),
+            (renamed_theirs, Other, None, None, false),
+            (to_self, Me, Some(&own), None, false),
+            (to_self, Unknown, None, None, false),
+            (misfiled, Unknown, Some(&alice), None, false),
+            (between_others, Unknown, None, None, false),
         ] {
             let mut item = core_item(line);
             item.actor_party = party;
@@ -1577,7 +1588,11 @@ mod tests {
             );
             let case = format!("{line} {party:?} {page:?}");
             let PageEvent::Message(message) = event else {
-                panic!("{case}: expected a historical message")
+                assert!(
+                    peer.is_none() && matches!(event, PageEvent::Other(_)),
+                    "{case}"
+                );
+                continue;
             };
             let crate::Conversation::Private(handle) = &message.conversation else {
                 panic!("{case}: expected a private conversation")

@@ -1271,14 +1271,15 @@ pub(crate) fn historical_message_event(
     .map(|channel| channel_context_handle(channel, client.origin(), Some(&client.state)));
     let conversation =
         Conversation::from_core_with_state(conversation, client.origin(), &client.state, &snapshot);
-    let conversation = historical_conversation(
+    let Some(conversation) = historical_conversation(
         &raw.as_ref(),
-        actor_party,
         conversation,
         history_conversation,
         snapshot.nick(),
         snapshot.casemapping(),
-    );
+    ) else {
+        return other_from_line(raw, received_at);
+    };
     let reply_token = snapshot.reply_token(&conversation);
     message_event_from_line(
         raw,
@@ -1294,35 +1295,56 @@ pub(crate) fn historical_message_event(
     )
 }
 
+/// Builds an archived line's conversation, or `None` for a private line whose peer it does not
+/// show.
 pub(crate) fn historical_conversation(
     message: &LineRef<'_>,
-    actor_party: Party,
     conversation: Conversation,
     history_conversation: Option<&Conversation>,
     own_nick: &crate::Nick,
     mapping: Casemapping,
-) -> Conversation {
+) -> Option<Conversation> {
     if !matches!(conversation, Conversation::Private(_)) {
-        return crate::message_ref::stamp_conversation(conversation, own_nick.origin());
-    }
-    if let Some(Conversation::Private(user)) = history_conversation {
-        return Conversation::Private(crate::UserHandle::from_past_line(
-            own_nick.origin().__nick(mapping, user.nick().as_str()),
-            crate::Account::Unknown,
+        return Some(crate::message_ref::stamp_conversation(
+            conversation,
+            own_nick.origin(),
         ));
     }
-    if actor_party != Party::Me
-        && message
-            .param(0)
-            .is_some_and(|target| own_nick.origin().__nick(mapping, target) != *own_nick)
-        && let Some(papo_proto::Source::User { nick, .. }) = message.source()
-    {
-        return Conversation::Private(crate::UserHandle::from_past_line(
-            own_nick.origin().__nick(mapping, nick),
-            Account::Unknown,
-        ));
-    }
-    crate::message_ref::stamp_conversation(conversation, own_nick.origin())
+    let page_peer = match history_conversation {
+        Some(Conversation::Private(user)) => {
+            Some(own_nick.origin().__nick(mapping, user.nick().as_str()))
+        }
+        _ => None,
+    };
+    let peer = archived_private_peer(message, page_peer, own_nick, mapping)?;
+    Some(Conversation::Private(crate::UserHandle::from_past_line(
+        peer,
+        Account::Unknown,
+    )))
+}
+
+/// The other person on an archived private line, decided by nicknames: papo-core marks a line as
+/// ours only through its account tag, which a logged-out session's own lines lack. A direct page's peer must appear on the line, since our nickname may have changed
+/// since it was written; without a page, one side must be our current nickname. The peer is
+/// never us.
+fn archived_private_peer(
+    message: &LineRef<'_>,
+    page_peer: Option<crate::Nick>,
+    own_nick: &crate::Nick,
+    mapping: Casemapping,
+) -> Option<crate::Nick> {
+    let Some(papo_proto::Source::User { nick: source, .. }) = message.source() else {
+        return None;
+    };
+    let name = |text| own_nick.origin().__nick(mapping, text);
+    let (source, target) = (name(source), name(message.param(0)?));
+    let peer = match page_peer {
+        Some(page) => (page == source || page == target).then_some(page)?,
+        None if source == *own_nick => target,
+        None if target == *own_nick => source,
+        None => return None,
+    };
+    (peer != *own_nick).then_some(peer)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5360,28 +5382,6 @@ mod tests {
                 panic!("expected live fallback notice")
             };
             assert_eq!(live.text, "live batch");
-        }
-    }
-
-    #[test]
-    fn historical_private_messages_use_the_batch_or_actor_conversation() {
-        let client = crate::Client::disconnected_for_test();
-        let batch = Conversation::Private(user_handle(Casemapping::default().nick("alice")));
-        for history_conversation in [Some(&batch), None] {
-            let Event::Message(message) = historical_message_event(
-                Line::privmsg("papo_away", "can you send me the invoice?")
-                    .with_source("alice!~a@host"),
-                Party::Other,
-                history_conversation,
-                &client,
-                UNIX_EPOCH,
-            ) else {
-                panic!("expected a historical message")
-            };
-            assert!(matches!(
-                message.conversation,
-                Conversation::Private(ref nick) if nick == "alice"
-            ));
         }
     }
 
