@@ -236,31 +236,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         peer.expect_none(|event| any_message_text(event, "operators-only answer"))
             .await?;
     }
-
-    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
-    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
-        return Ok(());
-    }
-
-    peers
-        .bob
-        .typing(question.return_address(), Typing::Active)
-        .await?;
-    let typing = peers
-        .alice
-        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
-        .await?;
-    assert_eq!(typing.audience.symbol(), '@');
-    assert_eq!(
-        typing.line.as_typing_changed().map(|typing| typing.state),
-        Some(Typing::Active)
-    );
-    unseen_by_non_operators(
-        &mut peers,
-        papo::RestrictedLine::as_typing_changed,
-        Event::as_typing_changed,
-    )
-    .await
+    Ok(())
 }
 
 /// preserves an operators-only audience when reacting to a status message
@@ -295,6 +271,44 @@ async fn statusmsg_reaction_ops(s: Scenario) -> papo_testing::Result<()> {
         &mut peers,
         papo::RestrictedLine::as_reacted,
         Event::as_reacted,
+    )
+    .await
+}
+
+/// preserves an operators-only audience when typing in answer to a status message
+#[scenario(
+    requires(caps = ["message-tags"], isupport = ["STATUSMSG"]),
+    covers = ["security.routing.status-prefix-typing"]
+)]
+async fn statusmsg_typing_ops(s: Scenario) -> papo_testing::Result<()> {
+    let mut peers = statusmsg_peers(&s).await?;
+    let question = ops_question(&mut peers).await?;
+
+    let typed = peers
+        .bob
+        .typing(question.return_address(), Typing::Active)
+        .await;
+    if matches!(
+        &typed,
+        Err(papo::Error::Unsupported(unsupported))
+            if unsupported.reason == papo::UnsupportedReason::TagDenied
+    ) {
+        return s.skip("server denies the typing tag");
+    }
+    typed?;
+    let typing = peers
+        .alice
+        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
+        .await?;
+    assert_eq!(typing.audience.symbol(), '@');
+    assert_eq!(
+        typing.line.as_typing_changed().map(|typing| typing.state),
+        Some(Typing::Active)
+    );
+    unseen_by_non_operators(
+        &mut peers,
+        papo::RestrictedLine::as_typing_changed,
+        Event::as_typing_changed,
     )
     .await
 }
