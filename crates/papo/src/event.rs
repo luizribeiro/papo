@@ -5113,6 +5113,24 @@ mod tests {
     }
 
     #[test]
+    fn maps_request_failed_with_its_error() {
+        let now = Instant::now();
+        let mut session = labelled_session(now, Config::default());
+        let id = session
+            .request(now, Line::new("MODE").with_params(["#papo"]))
+            .unwrap();
+        let failed =
+            papo_core::Event::RequestFailed(id, papo_core::RequestError::InsecureAuthentication);
+        assert!(matches!(
+            from_core(failed),
+            CoreEvent::RequestEnded {
+                id: mapped,
+                end: RequestEnd::Failed(papo_core::RequestError::InsecureAuthentication),
+            } if mapped == id
+        ));
+    }
+
+    #[test]
     fn maps_request_aborted() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
