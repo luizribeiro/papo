@@ -458,11 +458,21 @@
             runtimeInputs = [ pkgs.cargo-nextest ];
             text = ''
               cargo nextest run --workspace --locked
-              cargo nextest run -p papo-core --lib --locked
-              cargo nextest run -p papo --locked
               cargo nextest run -p papo --no-default-features --features tls-aws-lc --locked
               cargo nextest run -p papo --features websocket --locked
               cargo nextest run --workspace --all-features --locked
+            '';
+            stages = [ "pre-push" ];
+          };
+          package-tests = cargoHook {
+            name = "package-tests-hook";
+            runtimeInputs = [ pkgs.cargo-nextest ];
+            # Workspace runs unify features (papo-conformance enables papo's websocket and
+            # unstable), hiding a package that breaks under its own default features.
+            text = ''
+              for package in papo-proto papo-core papo papo-testing papo-bot; do
+                cargo nextest run -p "$package" --locked
+              done
             '';
             stages = [ "pre-push" ];
           };
