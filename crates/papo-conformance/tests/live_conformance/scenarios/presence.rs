@@ -13,7 +13,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect_as_account("alice").await?;
     let mut bob = s.connect("bob").await?;
     let account = crate::scenarios::support::logged_in_account(&alice.snapshot()).clone();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -75,7 +75,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
 async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -128,7 +128,7 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     bob.join(&channel).await?;
     alice.join(&channel).await?;
     let away = "reviewing the IRCv3 specification";
@@ -169,8 +169,8 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
 async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     let away = "reviewing private-message delivery";
     alice.set_away(away).await?;
 
@@ -217,15 +217,15 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
 
     let connected = alice.wait_for(Event::as_connected).await?;
-    assert_eq!(connected.nick, alice.nick());
+    assert_eq!(connected.nick, alice.snapshot().nick().clone());
     assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
     assert_eq!(alice.snapshot().away(), &Away::__away_value(None));
 
     let whois = bob
-        .whois(alice.nick().as_str())
+        .whois(alice.snapshot().nick().as_str())
         .await?
         .expect("WHOIS target exists");
-    assert_eq!(whois.nick, alice.nick().as_str());
+    assert_eq!(whois.nick, alice.snapshot().nick().as_str());
     assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
@@ -237,7 +237,7 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     let realname = "Papo Conformance Client";
@@ -292,7 +292,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     alice.oper(oper_name, papo::Secret::new(password)).await?;
@@ -345,7 +345,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
 async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     let _watch = alice.query(bob_nick.as_str())?.watch();
     let online = alice.wait_for(Event::as_monitor_online).await?;
 
@@ -401,7 +401,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
 async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect_with(s.configure("alice")?.bot(true)).await?;
     let mut bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let channel = s.channel_name();
     let changed = alice
         .wait_for(|event| {
@@ -478,7 +478,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let state = bob.snapshot();
     let mapping = state.casemapping();
     let expected_bot = state.isupport().bot_mode().map(|_| false);
@@ -580,7 +580,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -624,7 +624,7 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
     let mut charlie = s.connect("charlie").await?;
     let diana = s.connect("diana").await?;
     let channel = s.channel_name();
-    let charlie_nick = charlie.nick();
+    let charlie_nick = charlie.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     charlie.join(&channel).await?;
@@ -678,7 +678,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     alice.oper(oper_name, papo::Secret::new(password)).await?;
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     bob.send_raw(papo::Line::new("MODE").with_params([bob_nick.as_str(), "+w"]))
         .await?;
     bob.wait_for(|event| {
@@ -711,7 +711,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
 async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
 
     let whois = bob
         .whois(alice_nick.as_str())
@@ -729,7 +729,7 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(covers = ["base.whois.host-cert"])]
 async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     let mapping = alice.snapshot().casemapping();
 
     // The host and certificate numerics have no richer public result type.

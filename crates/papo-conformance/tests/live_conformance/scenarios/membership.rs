@@ -94,8 +94,8 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut alice = s.connect_as_account("alice").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     let account = crate::scenarios::support::logged_in_account(&alice.snapshot()).clone();
     bob.join(&channel).await?;
     let joined = bob.wait_for(Event::as_joined).await?;
@@ -147,8 +147,8 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
 
     bob.join(&channel).await?;
@@ -282,7 +282,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
 async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     assert!(
         alice
             .snapshot()
@@ -324,7 +324,7 @@ async fn server_forced_join(s: Scenario) -> papo_testing::Result<()> {
     let oper = s.connect("oper").await?;
     let mut alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     oper.oper(
         papo_test_server::OPER_NAME,
         papo::Secret::new(papo_test_server::OPER_PASSWORD),
@@ -374,7 +374,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let first = s.channel_name();
     let second = s.channel_name();
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     let channels = format!("{first},{second}");
     let keys = "first-channel-key,second-channel-key";
     alice.join(&first).await?;
@@ -576,7 +576,7 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
     let alice = s
         .connect_with(s.configure_realname("alice", "Alice Example")?)
         .await?;
-    let nick = alice.nick();
+    let nick = alice.snapshot().nick().clone();
 
     let entries = alice.who(nick.as_str()).await?;
     let entry = entries
@@ -606,8 +606,8 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
 
     let alice_direct = alice.query(&alice_nick)?;
@@ -674,9 +674,9 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
-    let carol_nick = carol.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
+    let carol_nick = carol.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -753,8 +753,8 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let channel = s.channel_name();
-    let bob_nick = bob.nick();
-    let carol_nick = carol.nick();
+    let bob_nick = bob.snapshot().nick().clone();
+    let carol_nick = carol.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     alice
@@ -837,7 +837,7 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -877,7 +877,7 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let first = s.channel_name();
     let second = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     for channel in [&first, &second] {
         alice.join(channel).await?;
         bob.join(channel).await?;
@@ -939,7 +939,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     let reason = "conformance review complete";
@@ -979,8 +979,8 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -1021,7 +1021,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     let ban = format!("repeat-{bob_nick}!*@gateway.example");
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
@@ -1069,9 +1069,9 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
-    let carol_nick = carol.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
+    let carol_nick = carol.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -1187,7 +1187,7 @@ async fn kick_missing_member(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let bob_nick = bob.nick();
+    let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
 
     let refusal = match alice
@@ -1218,8 +1218,8 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let old_nick = alice.nick();
-    let bob_nick = bob.nick();
+    let old_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
     let new_nick = format!("r{old_nick}");
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -1276,7 +1276,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(covers = ["base.nick.empty", "base.nick.invalid-chars"])]
 async fn nick_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let original = alice.nick();
+    let original = alice.snapshot().nick().clone();
 
     // Empty and malformed wire parameters are needed to observe 431 and 432.
     let empty = alice
@@ -1303,7 +1303,7 @@ async fn nick_errors(s: Scenario) -> papo_testing::Result<()> {
 async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
-    let claimed = format!("race-{}", alice.nick());
+    let claimed = format!("race-{}", alice.snapshot().nick().clone());
     let alice_client = papo::Client::clone(&alice);
     let bob_client = papo::Client::clone(&bob);
     let mapping = alice.snapshot().casemapping();
@@ -1348,7 +1348,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -1648,7 +1648,7 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
 ])]
 async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let nick = alice.nick();
+    let nick = alice.snapshot().nick().clone();
 
     // User-mode query and error numerics have no richer public result type.
     let initial = alice
@@ -1729,9 +1729,9 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let channel = s.channel_name();
-    let alice_nick = alice.nick();
-    let bob_nick = bob.nick();
-    let carol_nick = carol.nick();
+    let alice_nick = alice.snapshot().nick().clone();
+    let bob_nick = bob.snapshot().nick().clone();
+    let carol_nick = carol.snapshot().nick().clone();
     let key = "correct-horse-key";
     let channel_key = || papo::Secret::new(key);
     alice.join(&channel).await?;
