@@ -8278,10 +8278,20 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
         b"@label=2 REDACT #papo RfcBTzyxY120005 superseded\r\n",
     )
     .await;
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120005 superseded\r\n",
+    )
+    .await;
     server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
     client_line(
         &mut server,
         b"@label=3 REDACT #papo RfcBTzyxY120006 superseded\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120008 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120006 superseded\r\n",
     )
     .await;
     server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;

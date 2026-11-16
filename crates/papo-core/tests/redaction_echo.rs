@@ -87,3 +87,37 @@ fn ergos_echo_before_the_ack_confirms_the_redaction() {
     assert_eq!(response.sent(), Some(own_echo_identity()));
     assert_eq!(response.error(), None);
 }
+
+#[test]
+fn an_echo_after_the_ack_confirms_the_redaction_after_its_event() {
+    let now = Instant::now();
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+
+    assert_eq!(play(&mut session, now, ACK), []);
+    let echoed = play(&mut session, now, OWN_ECHO);
+    assert_eq!(echoed.len(), 2, "{echoed:?}");
+    assert_eq!(redaction_by(&echoed[0]), Some(Party::Me));
+    let response = response(&echoed[1]);
+    assert_eq!(response.id, id);
+    assert_eq!(response.sent(), Some(own_echo_identity()));
+    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
+}
+
+#[test]
+fn an_ack_whose_echo_never_arrives_times_out() {
+    let now = Instant::now();
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+    assert_eq!(play(&mut session, now, ACK), []);
+
+    let deadline = session
+        .poll_timeout()
+        .expect("the redaction has a deadline");
+    session.handle_timeout(deadline);
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::RequestTimedOut { id: timed_out, .. }) if timed_out == id
+    ));
+    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
+}
