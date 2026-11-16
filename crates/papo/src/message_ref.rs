@@ -441,11 +441,9 @@ pub(crate) fn stamp_conversation(
 ) -> Conversation {
     match conversation {
         Conversation::Channel(channel) => Conversation::Channel(channel),
-        Conversation::Private(user) => Conversation::Private(crate::UserHandle::from_parts(
+        Conversation::Private(user) => Conversation::Private(crate::UserHandle::from_past_line(
             origin.__nick(user.nick().casemapping(), user.nick().into_string()),
             user.account().clone(),
-            None,
-            None,
         )),
     }
 }

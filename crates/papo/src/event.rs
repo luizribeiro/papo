@@ -1306,11 +1306,9 @@ pub(crate) fn historical_conversation(
         return crate::message_ref::stamp_conversation(conversation, own_nick.origin());
     }
     if let Some(Conversation::Private(user)) = history_conversation {
-        return Conversation::Private(crate::UserHandle::from_parts(
+        return Conversation::Private(crate::UserHandle::from_past_line(
             own_nick.origin().__nick(mapping, user.nick().as_str()),
             user.account().clone(),
-            None,
-            None,
         ));
     }
     if actor_party != Party::Me
@@ -1319,8 +1317,9 @@ pub(crate) fn historical_conversation(
             .is_some_and(|target| own_nick.origin().__nick(mapping, target) != *own_nick)
         && let Some(papo_proto::Source::User { nick, .. }) = message.source()
     {
-        return Conversation::Private(crate::UserHandle::from_nick(
+        return Conversation::Private(crate::UserHandle::from_past_line(
             own_nick.origin().__nick(mapping, nick),
+            Account::Unknown,
         ));
     }
     crate::message_ref::stamp_conversation(conversation, own_nick.origin())
