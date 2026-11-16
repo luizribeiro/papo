@@ -1041,59 +1041,76 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn request_errors_retain_their_public_categories() {
+    type RequestCase = (papo_core::RequestError, Box<dyn Fn(&Error) -> bool>);
+
+    fn case(
+        request: papo_core::RequestError,
+        expected: impl Fn(&Error) -> bool + 'static,
+    ) -> RequestCase {
+        (request, Box::new(expected))
+    }
+
+    fn invalid_input_case(request: papo_core::RequestError, expected: InvalidInput) -> RequestCase {
+        case(
+            request,
+            move |error| matches!(error, Error::InvalidInput(actual) if *actual == expected),
+        )
+    }
+
+    fn stable_request_cases() -> Vec<RequestCase> {
         use papo_core::RequestError as Request;
 
-        assert!(matches!(
-            Error::request(Request::PendingLimit),
-            Error::TooManyPendingRequests
-        ));
-        assert!(matches!(
-            Error::request(Request::Build(papo_proto::BuildError::InvalidParam(1))),
-            Error::InvalidInput(InvalidInput::WireMessage(
-                papo_proto::BuildError::InvalidParam(1)
-            ))
-        ));
-        assert!(matches!(
-            Error::request(Request::InvalidMessageReference),
-            Error::InvalidInput(InvalidInput::UnusableMessageReference)
-        ));
-        assert!(matches!(
-            Error::request(Request::StateLimit(StateLimit::ReadMarkers)),
-            Error::StateLimit(StateLimit::ReadMarkers)
-        ));
-        assert!(matches!(
-            Error::request(Request::EmailRequired),
-            Error::InvalidInput(InvalidInput::EmailRequired)
-        ));
-        assert!(matches!(
-            Error::request(Request::CustomAccountNameUnsupported),
-            Error::InvalidInput(InvalidInput::AccountNameMustMatchNick)
-        ));
-        assert!(matches!(
-            Error::request(Request::__invalid_metadata_key(
-                "draft/example".into(),
-                papo_proto::InvalidIdentifier::InvalidCharacter('/'),
-            )),
-            Error::InvalidInput(InvalidInput::InvalidMetadataKey { key, reason, .. })
-                if key == "draft/example"
-                    && reason == papo_proto::InvalidIdentifier::InvalidCharacter('/')
-        ));
-        assert!(matches!(
-            Error::request(Request::__metadata_value_too_long(512, 513)),
-            Error::InvalidInput(InvalidInput::MetadataValueTooLong {
-                maximum: 512,
-                actual: 513,
-            })
-        ));
-        assert!(matches!(
-            Error::request(Request::__too_many_metadata_subscriptions(10, 11)),
-            Error::InvalidInput(InvalidInput::TooManyMetadataSubscriptions {
-                maximum: 10,
-                actual: 11,
-            })
-        ));
+        let metadata_key = crate::InvalidIdentifier::InvalidCharacter('/');
+        vec![
+            invalid_input_case(
+                Request::Build(papo_proto::BuildError::InvalidParam(1)),
+                InvalidInput::WireMessage(papo_proto::BuildError::InvalidParam(1)),
+            ),
+            case(Request::PendingLimit, |error| {
+                matches!(error, Error::TooManyPendingRequests)
+            }),
+            invalid_input_case(
+                Request::InvalidMessageReference,
+                InvalidInput::UnusableMessageReference,
+            ),
+            case(Request::StateLimit(StateLimit::ReadMarkers), |error| {
+                matches!(error, Error::StateLimit(StateLimit::ReadMarkers))
+            }),
+            invalid_input_case(Request::EmailRequired, InvalidInput::EmailRequired),
+            invalid_input_case(
+                Request::CustomAccountNameUnsupported,
+                InvalidInput::AccountNameMustMatchNick,
+            ),
+            invalid_input_case(
+                Request::__invalid_metadata_key("draft/example".into(), metadata_key),
+                InvalidInput::InvalidMetadataKey {
+                    key: "draft/example".into(),
+                    reason: metadata_key,
+                },
+            ),
+            invalid_input_case(
+                Request::__metadata_value_too_long(512, 513),
+                InvalidInput::MetadataValueTooLong {
+                    maximum: 512,
+                    actual: 513,
+                },
+            ),
+            invalid_input_case(
+                Request::__too_many_metadata_subscriptions(10, 11),
+                InvalidInput::TooManyMetadataSubscriptions {
+                    maximum: 10,
+                    actual: 11,
+                },
+            ),
+        ]
+    }
+
+    #[test]
+    fn request_errors_map_to_typed_errors() {
+        for (request, expected) in stable_request_cases() {
+            let display = format!("{request:?}");
+            assert!(expected(&Error::request(request)), "{display}");
+        }
     }
 
     #[test]
