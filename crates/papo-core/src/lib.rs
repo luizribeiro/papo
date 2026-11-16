@@ -6546,14 +6546,11 @@ impl Session {
     }
 
     fn remember_casemapping(&mut self) {
-        let advertised = matches!(
-            self.isupport.value().get("CASEMAPPING"),
-            papo_proto::Advertised::Value(value) if value.parse::<Casemapping>().is_ok()
-        );
-        let new = if advertised {
-            self.isupport.value().casemapping()
-        } else {
+        let advertised = self.isupport.value().get("CASEMAPPING");
+        let new = if advertised == papo_proto::Advertised::Absent {
             self.remembered_casemapping
+        } else {
+            self.isupport.value().casemapping()
         };
         self.state.update_isupport(self.isupport.value(), new);
         if self.utf8_casemapping_warning == Utf8CasemappingWarning::Pending
@@ -6572,7 +6569,12 @@ impl Session {
                 new,
             });
         }
-        self.name_rules_known |= advertised;
+        if advertised != papo_proto::Advertised::Absent {
+            self.name_rules_known = matches!(
+                advertised,
+                papo_proto::Advertised::Value(value) if value.parse::<Casemapping>().is_ok()
+            );
+        }
         self.remembered_casemapping = new;
     }
 
