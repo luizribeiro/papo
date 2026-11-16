@@ -7,6 +7,10 @@ use super::{EventSink, PostConnect, now};
 use crate::{Client, Event};
 use papo_core::{HistoryQuery, RequestId, Response, Session};
 
+// A live msgid can only repeat a catchup item while fewer than 1,000 items precede it, and one
+// more page may be in flight when it arrives.
+const LIVE_SEEN_LIMIT: usize = 1_000 + 100;
+
 pub(super) struct Catchup {
     pub(super) target: String,
     pub(super) items: Vec<papo_core::HistoryItem>,
@@ -27,7 +31,8 @@ pub(super) fn remember_live_event<'a>(
         return;
     };
     for catchup in catchups {
-        if event_applies_to_channel(event, &catchup.target) {
+        if catchup.seen.len() < LIVE_SEEN_LIMIT && event_applies_to_channel(event, &catchup.target)
+        {
             catchup.seen.insert(msgid.to_string());
         }
     }
@@ -275,14 +280,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn gap_fill_deduplicates_a_live_reaction_by_msgid() {
+    fn live_reaction(msgid: &str) -> crate::Event {
         let mapping = papo_proto::Casemapping::default();
-        let mut catchup = super::Catchup {
-            target: "#papo".into(),
-            items: Vec::new(),
-            seen: std::collections::HashSet::new(),
-        };
         let actor = crate::__testing::user_handle(mapping.nick("emily"));
         let conversation = crate::Conversation::Channel(crate::ChannelHandle::from_parts(
             mapping.channel("#papo"),
@@ -301,8 +300,8 @@ mod tests {
             None,
             "#papo".into(),
         );
-        let live = crate::event::Reacted {
-            msgid: Some("RfcBTzyxY120010".into()),
+        crate::Event::Reacted(crate::event::Reacted {
+            msgid: Some(msgid.into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             actor,
@@ -313,8 +312,35 @@ mod tests {
             reacts_to: "RfcBTzyxY120008".into(),
             reaction: "👍".into(),
             action: crate::event::ReactionAction::Added,
-        };
-        super::remember_live_event(std::iter::once(&mut catchup), &crate::Event::Reacted(live));
+        })
+    }
+
+    fn papo_catchup() -> super::Catchup {
+        super::Catchup {
+            target: "#papo".into(),
+            items: Vec::new(),
+            seen: std::collections::HashSet::new(),
+        }
+    }
+
+    #[test]
+    fn live_msgids_stop_at_the_catchup_limit_plus_one_page() {
+        let mut catchup = papo_catchup();
+        for index in 0..3_000 {
+            let live = live_reaction(&format!("RfcBTzyxY{index:06}"));
+            super::remember_live_event(std::iter::once(&mut catchup), &live);
+        }
+
+        assert_eq!(catchup.seen.len(), 1_000 + 100);
+        assert!(catchup.seen.contains("RfcBTzyxY001099"));
+        assert!(!catchup.seen.contains("RfcBTzyxY001100"));
+    }
+
+    #[test]
+    fn gap_fill_deduplicates_a_live_reaction_by_msgid() {
+        let mut catchup = papo_catchup();
+        let live = live_reaction("RfcBTzyxY120010");
+        super::remember_live_event(std::iter::once(&mut catchup), &live);
         super::extend_catchup(
             &mut catchup,
             [
