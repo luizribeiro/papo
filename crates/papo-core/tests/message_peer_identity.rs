@@ -271,7 +271,7 @@ fn a_who_proven_persons_first_line_keeps_the_proof_only_with_the_proven_account(
         (
             "message-tags",
             ":bob!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :thanks for the invite",
-            false,
+            true,
         ),
     ] {
         let mut session = registered(caps);
@@ -301,21 +301,27 @@ fn a_who_proven_persons_first_line_keeps_the_proof_only_with_the_proven_account(
 }
 
 #[test]
-fn a_logged_out_who_proof_never_passes_to_the_next_logged_out_sender() {
+fn a_logged_out_who_proven_peer_keeps_the_proof_through_their_first_reply() {
     let mut session = registered("account-tag message-tags");
     let names = session.state().casemapping();
     let proof = session
         .__prove_who_user(
-            names.nick("guest"),
+            names.nick("bob"),
             Account::LoggedOut,
-            &[papo_proto::Line::new("354").with_params(["papo-admin", "guest", "0"])],
+            &[papo_proto::Line::new("354").with_params(["papo-admin", "bob", "0"])],
         )
         .unwrap();
     server(
         &mut session,
-        ":guest!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :who is this?",
+        "@msgid=7ttq2fiwd9bk2 :bob!~u@8ajhv7kxgp7ag.irc NOTICE papo-admin :private notice",
     );
-    assert!(session.state().__resolve_proven(&proof).is_err());
+    assert!(
+        session
+            .state()
+            .__resolve_proven(&proof)
+            .is_ok_and(|nick| nick == "bob")
+    );
+    assert_eq!(account(&session, "bob"), Some(Account::LoggedOut));
 }
 
 #[test]
