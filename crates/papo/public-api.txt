@@ -2381,7 +2381,7 @@ pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<
 pub fn papo::Client::quit(&self) -> papo::QuitRequest
 pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::ReactOutcome>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::RedactOutcome>
 pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
 pub fn papo::Client::resume_reconnect(&self) -> papo::RequestFuture<()>
@@ -3350,6 +3350,43 @@ impl core::marker::Unpin for papo::Reconnect
 impl core::marker::UnsafeUnpin for papo::Reconnect
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Reconnect
 impl core::panic::unwind_safe::UnwindSafe for papo::Reconnect
+#[non_exhaustive] pub struct papo::RedactOutcome
+pub papo::RedactOutcome::conversation: papo::Conversation
+pub papo::RedactOutcome::lines: alloc::vec::Vec<papo::RedactedLine>
+pub papo::RedactOutcome::status: core::option::Option<papo::Prefix>
+impl core::clone::Clone for papo::RedactOutcome
+pub fn papo::RedactOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::RedactOutcome
+impl core::cmp::PartialEq for papo::RedactOutcome
+pub fn papo::RedactOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RedactOutcome
+pub fn papo::RedactOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RedactOutcome
+impl core::marker::Freeze for papo::RedactOutcome
+impl core::marker::Send for papo::RedactOutcome
+impl core::marker::Sync for papo::RedactOutcome
+impl core::marker::Unpin for papo::RedactOutcome
+impl core::marker::UnsafeUnpin for papo::RedactOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RedactOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::RedactOutcome
+#[non_exhaustive] pub struct papo::RedactedLine
+pub papo::RedactedLine::confirmation: papo::Confirmation
+pub papo::RedactedLine::redacts: papo::MessageId
+impl core::clone::Clone for papo::RedactedLine
+pub fn papo::RedactedLine::clone(&self) -> Self
+impl core::cmp::Eq for papo::RedactedLine
+impl core::cmp::PartialEq for papo::RedactedLine
+pub fn papo::RedactedLine::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RedactedLine
+pub fn papo::RedactedLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RedactedLine
+impl core::marker::Freeze for papo::RedactedLine
+impl core::marker::Send for papo::RedactedLine
+impl core::marker::Sync for papo::RedactedLine
+impl core::marker::Unpin for papo::RedactedLine
+impl core::marker::UnsafeUnpin for papo::RedactedLine
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RedactedLine
+impl core::panic::unwind_safe::UnwindSafe for papo::RedactedLine
 pub struct papo::RenameChannel
 impl papo::RenameChannel
 pub fn papo::RenameChannel::to(self, impl papo::AsChannel) -> papo::RenameChannelRequest

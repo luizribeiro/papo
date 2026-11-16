@@ -92,6 +92,11 @@ reply is `Unset`; it fails with `Error::NotVerified` when the reply leaves no ma
 and status audience, and a `Confirmation` that is `Confirmed { msgid, server_time }` from the
 labelled echo, or `Unconfirmed` with an `UnconfirmedReason` when the server cannot confirm it.
 
+`Client::redact` resolves to a `RedactOutcome` instead of `()`: its conversation and status
+audience, and one `RedactedLine { redacts, confirmation }` per redacted line, confirmed by our
+`REDACT` echo, which Ergo sends outside the labelled response. That echo is still emitted as
+`Event::Redacted`.
+
 `Sent` is renamed `SendOutcome`.
 
 `SentOutcome`, `ConfirmedLines` and `SendOutcome::outcome()` are removed: each `SentLine` in
@@ -620,6 +625,7 @@ order as one driver-owned composite operation.
 | `client.list(ListFilter::default().channels(...))` | `client.list().channels(...).await`; omit `channels` for all visible channels |
 | `Metadata::get(target, keys)` returned the whole cache | It returns exactly each requested key mapped to `Option<MetadataValue>` |
 | Mixed `AsRef<str>` / `Into<String>` reason parameters and mandatory part text | Every reason is an optional `.reason(..)` step taking `Into<String>`; an empty reason sends none |
+| `Client::redact` resolved to `()` | `RedactOutcome::lines` holds one `RedactedLine { redacts, confirmation }` per redacted line |
 | `ModesApplied { applied, refused }` could report a partial batch as complete | `ModesOutcome::failed: Vec<(ModeChange, Error)>` and `is_complete()` expose changes the request could not finish |
 | Dropping mode, kickban, or multiline-redact futures could stop midway | Once accepted by the driver, composite actions continue even if the caller drops its future |
 | `State::read_marker() -> Option<SystemTime>` conflated unknown and explicitly unset | `Option<ReadMarker>` distinguishes unknown, `Unset`, and `ReadUntil(time)` |

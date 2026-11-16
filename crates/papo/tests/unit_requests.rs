@@ -26,8 +26,6 @@ enum Reason {
     QueuedEventCarriesResult,
     /// The notification is never stored or referenced, so its echo carries nothing to keep.
     Ephemeral,
-    /// The server confirms with an ACK and sends its echo outside the labelled response.
-    EchoOutsideResponse,
 }
 
 const UNIT_REQUESTS: &[(&str, Reason)] = &[
@@ -38,7 +36,6 @@ const UNIT_REQUESTS: &[(&str, Reason)] = &[
     ("papo::Client::oper", Reason::FixedTextNumeric),
     ("papo::Client::pause_reconnect", Reason::LocalOnly),
     ("papo::Client::reconnect", Reason::LocalOnly),
-    ("papo::Client::redact", Reason::EchoOutsideResponse),
     ("papo::Client::resume_reconnect", Reason::LocalOnly),
     ("papo::Client::send_raw", Reason::UnlabelledByDesign),
     ("papo::Client::set_away", Reason::FixedTextNumeric),

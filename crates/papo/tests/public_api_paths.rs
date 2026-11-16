@@ -100,6 +100,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::History,
     ),
     (
+        "pub papo::RedactOutcome::conversation: papo::Conversation",
+        ConversationClass::Outgoing,
+    ),
+    (
         "pub papo::SendOutcome::conversation: papo::Conversation",
         ConversationClass::Outgoing,
     ),

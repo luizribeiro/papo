@@ -38,7 +38,7 @@ fn moderate_message(client: &papo::Client, event: papo::Event) {
     };
     let _: papo::RequestFuture<papo::ReactOutcome> = client.react(&message, "👍");
     let _: papo::RequestFuture<papo::ReactOutcome> = client.unreact(&message, "👍");
-    let _: papo::RequestFuture<()> = client.redact(&message, "superseded");
+    let _: papo::RequestFuture<papo::RedactOutcome> = client.redact(&message, "superseded");
 }
 
 fn inspect_source(source: &papo::Source) {

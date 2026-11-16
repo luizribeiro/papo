@@ -297,6 +297,16 @@ pub(crate) fn confirmed_line(
     }
 }
 
+pub(crate) fn redacted_line(
+    redacts: &str,
+    confirmation: crate::Confirmation,
+) -> crate::RedactedLine {
+    crate::RedactedLine {
+        redacts: redacts.into(),
+        confirmation,
+    }
+}
+
 pub(crate) async fn welcome_burst(server: &mut DuplexStream) {
     let expected = b"CAP LS 302\r\nNICK papo-driver\r\nUSER papo 0 * :papo driver test\r\n";
     let mut actual = vec![0; expected.len()];

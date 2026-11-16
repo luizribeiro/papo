@@ -114,6 +114,37 @@ pub struct ReactOutcome {
     pub confirmation: crate::Confirmation,
 }
 
+/// The result of redacting a message with [`Client::redact`].
+///
+/// The server's echo of each redaction is also emitted as [`crate::Event::Redacted`], before the
+/// request resolves.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct RedactOutcome {
+    /// IRC conversation in which the message was redacted.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    pub conversation: crate::Conversation,
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    pub status: Option<crate::Prefix>,
+    /// Each line papo redacted, in send order, with the server's confirmation of it.
+    ///
+    /// A message sent as several lines has one entry per line.
+    pub lines: Vec<RedactedLine>,
+}
+
+/// One redacted line of a [`RedactOutcome`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct RedactedLine {
+    /// The server message identifier of the line that was redacted.
+    pub redacts: crate::MessageId,
+    /// Whether the server confirmed the redaction, with the identity it gave the `REDACT` echo.
+    pub confirmation: crate::Confirmation,
+}
+
 /// A compatibility fallback applied to an outgoing chat message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
@@ -1365,6 +1396,11 @@ impl Client {
     /// the first error, and any earlier lines remain redacted.
     /// An empty `reason` means no reason.
     ///
+    /// Resolves to a [`RedactOutcome`]. With `echo-message`, each line's confirmation comes from
+    /// our `REDACT` echo, which Ergo sends outside the labelled response; without it, the
+    /// confirmation is [`crate::Confirmation::Unconfirmed`] with
+    /// [`crate::UnconfirmedReason::NoEchoMessage`].
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`Feature::Redaction`] with reason
@@ -1381,7 +1417,7 @@ impl Client {
         &self,
         message: impl Into<crate::MessageRef>,
         reason: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<RedactOutcome> {
         let client = self.clone();
         let message = message.into();
         let reason = reason.into();
@@ -1397,11 +1433,13 @@ impl Client {
                 .await?;
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
+            let (status, conversation) = target.conversation(&client, &state)?;
             drop(state);
             let commands = client.commands.clone();
             let (result, receiver) = oneshot::channel();
             let task = Box::pin(async move {
                 let outcome = async {
+                    let mut lines = Vec::with_capacity(message.msgids().len());
                     for message_id in message.msgids() {
                         message_id.check().map_err(|error| {
                             InvalidInput::invalid_name(message_id.to_string(), error)
@@ -1413,9 +1451,16 @@ impl Client {
                         let response = client
                             .correlated_chat(&target, Line::new("REDACT").with_params(params))
                             .await?;
-                        crate::requests::empty(&response)?;
+                        lines.push(RedactedLine {
+                            redacts: message_id.clone(),
+                            confirmation: client.labelled_confirmation(&response)?,
+                        });
                     }
-                    Ok(())
+                    Ok(RedactOutcome {
+                        conversation,
+                        status,
+                        lines,
+                    })
                 }
                 .await;
                 _ = result.send(outcome);
