@@ -106,3 +106,46 @@ fn secret_and_wire_buffers_are_wiped_on_drop() {
     drop(line);
     assert!(WIPED.load(Ordering::SeqCst));
 }
+
+#[tokio::test]
+async fn the_echo_of_a_secret_request_stays_redacted() {
+    const PASSWORD: &str = "services-password-5129";
+    let (client, mut events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .allow_insecure_auth(true)
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never()),
+    );
+    wire.register(&["echo-message", "labeled-response", "message-tags"])
+        .await;
+    let request = tokio::spawn(async move {
+        client
+            .request_raw(
+                Line::new("PRIVMSG")
+                    .param("NickServ")
+                    .param(Secret::new(format!("IDENTIFY alice {PASSWORD}"))),
+            )
+            .await
+    });
+    assert_eq!(
+        wire.next_sent().await,
+        format!("@label=0 PRIVMSG NickServ :IDENTIFY alice {PASSWORD}")
+    );
+    wire.server(format!(
+        "@label=0;msgid=RfcBTzyxY120006;time=2026-11-16T09:12:01.123Z :papo-wire!~papo@client.example PRIVMSG NickServ :IDENTIFY alice {PASSWORD}"
+    ))
+    .await;
+    wire.server(":NickServ!NickServ@localhost NOTICE papo-wire :You're now logged in as alice")
+        .await;
+
+    let lines = request.await.unwrap().unwrap();
+    assert!(
+        format!("{lines:?}").ends_with("PRIVMSG NickServ :<redacted>]"),
+        "{lines:?}"
+    );
+    let mut seen = Vec::new();
+    while !format!("{seen:?}").contains("now logged in") {
+        seen.push(events.next().await.expect("driver stopped").0);
+    }
+    assert!(!format!("{seen:?}").contains(PASSWORD), "{seen:?}");
+}

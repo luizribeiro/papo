@@ -172,6 +172,9 @@
 "secrets::secret_and_wire_buffers_are_wiped_on_drop" = [
   "security.secrets.wiped-on-drop",
 ]
+"secrets::the_echo_of_a_secret_request_stays_redacted" = [
+  "security.secrets.echo-awaiting-request",
+]
 "security::stored_sts_matches_a_normalized_hostname" = [
   "security.t4.sts-normalized-host",
 ]
