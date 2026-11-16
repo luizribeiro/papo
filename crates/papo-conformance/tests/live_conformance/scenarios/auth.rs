@@ -36,7 +36,11 @@ async fn sasl_wire_log_redacts_the_password(s: Scenario) -> papo_testing::Result
         .collect();
 
     assert!(!log.contains(PASSWORD), "{log}");
-    assert_eq!(sent.first().copied(), Some("PLAIN"), "{log}");
+    assert!(
+        !sent.is_empty(),
+        "the wire log shows no AUTHENTICATE line sent:\n{log}"
+    );
+    assert_eq!(sent[0], "PLAIN", "{log}");
     assert!(
         sent[1..].iter().any(|step| step.starts_with("<redacted, ")),
         "{log}"
