@@ -666,8 +666,15 @@ impl Builder {
     /// [`Error::Connect`] when the transport cannot open or IRC login fails before welcome or an
     /// account-verification challenge.
     pub async fn connect(self) -> Result<(crate::Client, crate::Events), Error> {
+        self.connect_through(None).await
+    }
+
+    pub(crate) async fn connect_through(
+        self,
+        connector: Option<crate::driver::Connector>,
+    ) -> Result<(crate::Client, crate::Events), Error> {
         let (sender, receiver) = oneshot::channel();
-        let (client, events, driver) = self.build_with_connect(Some(sender), None);
+        let (client, events, driver) = self.build_with_connect(Some(sender), connector);
         crate::rt::spawn(driver);
         receiver.await.map_err(|_| Error::connection_lost())??;
         Ok((client, events))
