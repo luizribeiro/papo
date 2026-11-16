@@ -16,7 +16,7 @@ use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup, server_res
 
 use connect::apply_sts_action;
 #[cfg(any(sockets, browser))]
-use connect::open_connection;
+pub(crate) use connect::open_connection;
 use connect::run_plan;
 
 use std::{
@@ -58,7 +58,7 @@ pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const MAX_REJOIN_CHANNELS: usize = 10_000;
 
-type BoxConnection = Box<dyn Io>;
+pub(crate) type BoxConnection = Box<dyn Io>;
 type ConnectFuture = BoxFuture<Result<BoxConnection, Error>>;
 type CompositeFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 pub(crate) type Connector = Arc<

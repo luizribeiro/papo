@@ -23,7 +23,7 @@ use crate::{Error, Event, InvalidInput, Reconnect};
 
 #[cfg(any(sockets, browser))]
 #[allow(unused_variables)]
-pub(super) async fn open_connection(
+pub(crate) async fn open_connection(
     plan: ConnectionPlan,
     progress: mpsc::UnboundedSender<papo_core::ConnectPhase>,
 ) -> Result<crate::transport::stream::Stream, Error> {

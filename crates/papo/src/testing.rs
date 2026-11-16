@@ -5,6 +5,10 @@ use std::{sync::Arc, time::SystemTime};
 use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[cfg(sockets)]
+#[path = "testing/wrapped.rs"]
+pub mod wrapped;
+
 use crate::{
     AccountName, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind, Nick, Party,
     State, Tags, UserHandle,
