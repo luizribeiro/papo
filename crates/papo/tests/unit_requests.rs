@@ -162,7 +162,7 @@ fn every_unit_request_names_why_it_has_no_confirmation() {
         .filter(|(_, ty)| *ty == "()")
         .map(|(path, _)| path)
         .collect();
-    assert_listed(&unit, UNIT_REQUESTS, "classify under R15");
+    assert_listed(&unit, UNIT_REQUESTS, "classify why it has no confirmation");
 }
 
 #[test]
