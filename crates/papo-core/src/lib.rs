@@ -1990,9 +1990,9 @@ pub struct HistoryLine {
     pub line: Line,
     /// Whether the server supplied it as context outside the requested limit.
     pub context: bool,
-    /// Whether the line's actor is this session's user.
+    /// Who the line's actor is relative to this session's user.
     pub actor_party: Party,
-    /// Whether the line's distinct subject is this session's user.
+    /// Who the line's distinct subject is relative to this session's user.
     pub subject_party: Party,
 }
 
@@ -2278,7 +2278,7 @@ pub struct TagMessage {
     pub actor_token: ReplyToken,
     #[doc(hidden)]
     pub peer_token: ReplyToken,
-    /// Whether the actor is this session's user.
+    /// Who the actor is relative to this session's user.
     pub actor_party: Party,
     /// IRC conversation addressed by the message.
     ///
@@ -2313,7 +2313,7 @@ pub struct Redacted {
     pub actor_token: ReplyToken,
     #[doc(hidden)]
     pub peer_token: ReplyToken,
-    /// Whether the actor is this session's user.
+    /// Who the actor is relative to this session's user.
     pub actor_party: Party,
     /// IRC conversation containing the message.
     ///
@@ -2872,7 +2872,7 @@ pub enum Event {
         nick: Nick,
         /// Identity of the joining user once the join was applied.
         token: ReplyToken,
-        /// Whether the joining user is this session's user.
+        /// Who the joining user is relative to this session's user.
         actor_party: Party,
         /// The netjoin batch that carried this join, when applicable.
         netjoin: Option<SplitServers>,
@@ -2906,7 +2906,7 @@ pub enum Event {
         facts: Option<User>,
         /// The optional part reason.
         reason: Option<String>,
-        /// Whether the departing user is this session's user.
+        /// Who the departing user is relative to this session's user.
         actor_party: Party,
     },
     /// A user was removed from a shared channel with `KICK`.
@@ -2926,9 +2926,9 @@ pub enum Event {
         actor: Source,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
-        /// Whether the actor is this session's user.
+        /// Who the actor is relative to this session's user.
         actor_party: Party,
-        /// Whether the removed user is this session's user.
+        /// Who the removed user is relative to this session's user.
         subject_party: Party,
         /// The optional kick reason.
         reason: Option<String>,
@@ -2948,9 +2948,9 @@ pub enum Event {
         actor: String,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
-        /// Whether the actor is this session's user.
+        /// Who the actor is relative to this session's user.
         actor_party: Party,
-        /// Whether the invited user is this session's user.
+        /// Who the invited user is relative to this session's user.
         subject_party: Party,
     },
     /// A user sharing channels with the session disconnected.
@@ -2970,7 +2970,7 @@ pub enum Event {
         reason: Option<String>,
         /// Shared channels captured before the user was removed.
         channels: Vec<ChannelName>,
-        /// Whether the disconnected user is this session's user.
+        /// Who the disconnected user is relative to this session's user.
         actor_party: Party,
         /// The netsplit batch that carried this quit, when applicable.
         netsplit: Option<SplitServers>,
@@ -2990,7 +2990,7 @@ pub enum Event {
         token: ReplyToken,
         /// Shared channels where papo knows the user is a member.
         channels: Vec<ChannelName>,
-        /// Whether the renamed user is this session's user.
+        /// Who the renamed user is relative to this session's user.
         actor_party: Party,
     },
     /// A joined channel was renamed.
@@ -3006,7 +3006,7 @@ pub enum Event {
         actor: String,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
-        /// Whether the actor is this session's user.
+        /// Who the actor is relative to this session's user.
         actor_party: Party,
         /// The server-supplied reason, when present and non-empty.
         reason: Option<String>,
@@ -3024,7 +3024,7 @@ pub enum Event {
         account: Account,
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
-        /// Whether the affected user is this session's user.
+        /// Who the affected user is relative to this session's user.
         actor_party: Party,
     },
     /// A user's away state changed.
@@ -3040,7 +3040,7 @@ pub enum Event {
         away: Away,
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
-        /// Whether the affected user is this session's user.
+        /// Who the affected user is relative to this session's user.
         actor_party: Party,
     },
     /// A user's username or hostname changed.
@@ -3058,7 +3058,7 @@ pub enum Event {
         host: String,
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
-        /// Whether the affected user is this session's user.
+        /// Who the affected user is relative to this session's user.
         actor_party: Party,
     },
     /// A user's real name changed.
@@ -3076,7 +3076,7 @@ pub enum Event {
         realname: String,
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
-        /// Whether the affected user is this session's user.
+        /// Who the affected user is relative to this session's user.
         actor_party: Party,
     },
     /// A user or channel mode changed.
@@ -3092,9 +3092,9 @@ pub enum Event {
         actor: Source,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
-        /// Whether the actor is this session's user.
+        /// Who the actor is relative to this session's user.
         actor_party: Party,
-        /// Whether the distinct subject is this session's user.
+        /// Who the distinct subject is relative to this session's user.
         subject_party: Party,
         /// This session's nickname when the event was built.
         own_nick: Option<Nick>,
@@ -3114,7 +3114,7 @@ pub enum Event {
         actor: Source,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
-        /// Whether the actor is this session's user.
+        /// Who the actor is relative to this session's user.
         actor_party: Party,
     },
 }
@@ -3450,7 +3450,7 @@ impl ReceivedLine {
         self.batch_type.as_deref()
     }
 
-    /// Returns whether the line's actor is this session's user.
+    /// Returns who the line's actor is relative to this session's user.
     #[must_use]
     pub const fn actor_party(&self) -> Party {
         self.actor_party

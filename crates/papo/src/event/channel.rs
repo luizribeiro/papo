@@ -20,7 +20,7 @@ pub struct Joined {
     pub channel: ChannelHandle,
     /// The joining user.
     pub actor: crate::UserHandle,
-    /// Whether the joining user is this client's user.
+    /// Who the joining user is relative to you.
     pub actor_party: Party,
     /// The netjoin batch that carried this join, when applicable.
     pub netjoin: Option<super::SplitServers>,
@@ -60,7 +60,7 @@ pub struct Parted {
     pub channel: ChannelHandle,
     /// The optional part reason.
     pub reason: Option<String>,
-    /// Whether the departing user is this client's user.
+    /// Who the departing user is relative to you.
     pub actor_party: Party,
 }
 
@@ -82,9 +82,9 @@ pub struct Kicked {
     pub facts: Option<crate::User>,
     /// The user or server that issued the kick.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
-    /// Whether the removed user is this client's user.
+    /// Who the removed user is relative to you.
     pub subject_party: Party,
     /// The optional kick reason.
     pub reason: Option<String>,
@@ -106,9 +106,9 @@ pub struct Invited {
     pub subject: crate::UserHandle,
     /// The user or server that sent the invitation.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
-    /// Whether the invited user is this client's user.
+    /// Who the invited user is relative to you.
     pub subject_party: Party,
     pub(crate) receipt: crate::message_ref::Receipt,
 }
@@ -129,7 +129,7 @@ pub struct TopicChanged {
     pub topic: Option<String>,
     /// The user or server that changed the topic.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
 }
 
@@ -147,7 +147,7 @@ pub struct ModeChanged {
     pub subject: Subject,
     /// The user or server that changed the modes.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// Parsed mode operations in wire order.
     pub changes: Vec<crate::ModeChange>,
@@ -200,7 +200,7 @@ pub struct ChannelRenamed {
     pub new: ChannelName,
     /// The user or server that renamed the channel.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,

@@ -22,7 +22,7 @@ pub struct Quit {
     pub reason: Option<String>,
     /// Shared channels where papo knows the user is a member.
     pub channels: Vec<crate::ChannelHandle>,
-    /// Whether the disconnected user is this client's user.
+    /// Who the disconnected user is relative to you.
     pub actor_party: Party,
     /// The netsplit batch that carried this quit, when applicable.
     pub netsplit: Option<SplitServers>,
@@ -46,7 +46,7 @@ pub struct NickChanged {
     pub new: Nick,
     /// Shared channels where papo knows the user is a member.
     pub channels: Vec<crate::ChannelHandle>,
-    /// Whether the renamed user is this client's user.
+    /// Who the renamed user is relative to you.
     pub actor_party: Party,
 }
 
@@ -65,7 +65,7 @@ pub struct AwayChanged {
     pub actor: crate::UserHandle,
     /// The user's new presence state.
     pub new: Away,
-    /// Whether the affected user is this client's user.
+    /// Who the affected user is relative to you.
     pub actor_party: Party,
 }
 
@@ -86,7 +86,7 @@ pub struct AccountChanged {
     ///
     /// This is retained because it describes the change itself.
     pub new: Account,
-    /// Whether the affected user is this client's user.
+    /// Who the affected user is relative to you.
     pub actor_party: Party,
 }
 
@@ -107,7 +107,7 @@ pub struct HostChanged {
     pub new_username: String,
     /// The user's new hostname.
     pub new_host: String,
-    /// Whether the affected user is this client's user.
+    /// Who the affected user is relative to you.
     pub actor_party: Party,
 }
 
@@ -123,7 +123,7 @@ pub struct RealnameChanged {
     pub actor: crate::UserHandle,
     /// The user's new real name.
     pub new: String,
-    /// Whether the affected user is this client's user.
+    /// Who the affected user is relative to you.
     pub actor_party: Party,
 }
 

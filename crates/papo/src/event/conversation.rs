@@ -22,7 +22,7 @@ pub enum Broadcast {
 pub struct BroadcastCtcp {
     /// The user or server that sent the CTCP message.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
@@ -46,7 +46,7 @@ pub struct BroadcastCtcp {
 pub struct BroadcastTagMsg {
     /// The user or server that sent the message.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
@@ -110,7 +110,7 @@ pub struct Reacted {
     pub received_at: SystemTime,
     /// The user that changed the reaction.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The IRC conversation containing the message.
     ///
@@ -142,7 +142,7 @@ pub struct Redacted {
     pub received_at: SystemTime,
     /// The user or server that removed the message.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The IRC conversation containing the message.
     ///
@@ -173,7 +173,7 @@ pub struct TypingChanged {
     pub received_at: SystemTime,
     /// The user or server that sent the notification.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The IRC conversation where typing is occurring.
     ///
@@ -201,7 +201,7 @@ pub struct TagMsg {
     pub received_at: SystemTime,
     /// The user or server that sent the message.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The IRC conversation addressed by the message.
     ///

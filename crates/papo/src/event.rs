@@ -104,7 +104,7 @@ pub enum Audience {
 pub struct CtcpQuery {
     /// The user that sent the CTCP message.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The IRC conversation to which the CTCP message belongs.
     ///
@@ -137,7 +137,7 @@ pub struct CtcpQuery {
 pub struct CtcpReply {
     /// The user that sent the CTCP reply.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The IRC conversation to which the CTCP reply belongs.
     ///
@@ -241,17 +241,18 @@ ctcp_reference_accessors!(CtcpQuery, CtcpReply);
 /// papo decides it when the line arrives, from the nick and account you held at that moment,
 /// and stores it in the event. Read it instead of comparing the sender with your own nick.
 /// [`Events::next`](crate::Events::next) pairs each event with the state captured right after
-/// it was applied, so an event from before a later rename of yours still compares correctly
-/// with that state, but the comparison is wrong in these cases:
+/// it was applied, so a rename of yours that comes later does not change the comparison. It is
+/// still wrong in these cases, where papo answers correctly:
 ///
 /// - Your own `NICK`: the paired state already holds your new nick, so comparing it with
 ///   [`NickChanged::old`](crate::event::NickChanged::old) says someone else renamed. papo says
 ///   [`Party::Me`].
 /// - Your account on another connection, such as another device behind a bouncer: it can use a
 ///   different nick, but the line's `account` tag matches yours, so it is [`Party::Me`].
-/// - History: nobody can prove who held a nick back then, so a replayed line is
-///   [`Party::Unknown`] unless its `account` tag proves who sent it.
-/// - A live line from a server is [`Party::Other`].
+/// - History: nobody can prove who held a nick back then, so a nick comparison guesses. papo
+///   says [`Party::Unknown`] unless the replayed line's `account` tag proves who sent it.
+///
+/// A live line from a server has no nick to compare; papo says [`Party::Other`].
 ///
 /// Comparing with [`Client::snapshot`](crate::Client::snapshot), the latest state instead of
 /// the paired one, also goes wrong whenever your nick changed after the event.
@@ -296,7 +297,7 @@ impl Party {
 pub struct Message {
     /// The user that sent the message.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The chat conversation to which the message belongs.
     ///
@@ -341,7 +342,7 @@ pub struct Message {
 pub struct Notice {
     /// The user that sent the notice.
     pub actor: crate::UserHandle,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The chat conversation to which the notice belongs.
     ///
@@ -441,7 +442,7 @@ impl Incomplete {
 pub struct ServerNotice {
     /// The server or operator that sent the notice.
     pub actor: Source,
-    /// Whether the actor is this client's user.
+    /// Who the actor is relative to you.
     pub actor_party: Party,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,

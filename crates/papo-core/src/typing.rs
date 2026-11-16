@@ -37,7 +37,7 @@ pub struct TypingChanged {
     pub actor: String,
     actor_token: ReplyToken,
     peer_token: ReplyToken,
-    /// Whether the user is this session's user.
+    /// Who the user is relative to this session's user.
     pub actor_party: Party,
     /// The IRC conversation where typing is occurring.
     ///
