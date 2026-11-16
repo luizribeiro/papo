@@ -215,7 +215,7 @@ async fn a_departure_resolves_to_the_echo_of_our_part() {
     for (caps, sent, reply, expected) in cases {
         let result = answered(
             caps,
-            |client| client.part("#papo", "leaving"),
+            |client| client.part("#papo").reason("leaving"),
             sent,
             &[reply],
         )

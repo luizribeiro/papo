@@ -50,7 +50,7 @@ async fn prints_membership_snapshot_and_changes() {
         .await;
         wait_for(&mut events, |event| matches!(event, Event::Joined(_))).await;
         peer.set_nick(&renamed).await.unwrap();
-        peer.part(CHANNEL, "leaving the example").await.unwrap();
+        peer.part(CHANNEL).reason("leaving the example").await.unwrap();
         lurker.wait_for(&format!("part {CHANNEL} {renamed}")).await;
         user.quit("lurker test complete").await.unwrap();
         lurker.wait_for(&format!("quit {user_nick}")).await;

@@ -275,7 +275,10 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         chanserv.conversation,
         papo::Conversation::Private(_)
     ));
-    alice.part(&channel, "checking the founder grant").await?;
+    alice
+        .part(&channel)
+        .reason("checking the founder grant")
+        .await?;
     alice.join(&channel).await?;
     let state = alice.snapshot();
     let founder = state

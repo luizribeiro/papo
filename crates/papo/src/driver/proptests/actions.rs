@@ -59,7 +59,9 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         check!({
             let (first, second) = (first.clone(), second.clone());
             move |client: &crate::Client| {
-                client.part(crate::Casemapping::default().channel(first), second)
+                client
+                    .part(crate::Casemapping::default().channel(first))
+                    .reason(second)
             }
         });
         check!({

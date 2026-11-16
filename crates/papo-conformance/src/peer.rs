@@ -162,17 +162,9 @@ impl Peer {
     }
 
     /// Leaves `channel` using this peer's server rules.
-    ///
-    /// An empty `reason` means no reason.
-    pub fn part(
-        &self,
-        channel: impl AsRef<str>,
-        reason: impl Into<String>,
-    ) -> papo::RequestFuture<papo::PartOutcome> {
-        self.client.part(
-            self.with_name_rules(|names| names.channel(channel.as_ref())),
-            reason,
-        )
+    pub fn part(&self, channel: impl AsRef<str>) -> papo::PartRequest {
+        self.client
+            .part(self.with_name_rules(|names| names.channel(channel.as_ref())))
     }
 
     /// Removes `nick` from `channel` using this peer's server rules.

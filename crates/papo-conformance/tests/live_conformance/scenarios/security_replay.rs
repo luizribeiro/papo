@@ -154,7 +154,9 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
 
     let (message, part) = tokio::join!(
         bob.privmsg(&channel, "blocked while unvoiced"),
-        bob.part(&channel, "leaving after the rejected message"),
+        bob.part(&channel)
+            .reason("leaving after the rejected message")
+            .into_future(),
     );
     message?;
     part?;

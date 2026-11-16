@@ -555,7 +555,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
         let client = client.clone();
         async move {
             let channel = client.state().casemapping().channel("#papo");
-            client.part(channel, "tests complete").await
+            client.part(channel).reason("tests complete").await
         }
     });
     client_line(server, b"@label=5 PART #papo :tests complete\r\n").await;

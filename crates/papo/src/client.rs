@@ -257,6 +257,37 @@ pub struct KickbanRequest {
     reason: String,
 }
 
+/// A channel departure request; add an optional reason with [`PartRequest::reason`].
+#[must_use = "requests do nothing unless awaited"]
+pub struct PartRequest {
+    client: Client,
+    channel: crate::target::sealed::Parts<'static>,
+    reason: String,
+}
+
+impl std::fmt::Debug for PartRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("PartRequest", formatter)
+    }
+}
+
+impl PartRequest {
+    /// Sets the human-readable part reason; an empty reason sends none.
+    pub fn reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = reason.into();
+        self
+    }
+}
+
+impl IntoFuture for PartRequest {
+    type Output = Result<crate::PartOutcome, Error>;
+    type IntoFuture = crate::RequestFuture<crate::PartOutcome>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        self.client.part_request(self.channel, self.reason)
+    }
+}
+
 impl std::fmt::Debug for JoinChannel {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         crate::opaque_debug("JoinChannel", formatter)
@@ -1550,7 +1581,15 @@ impl Client {
 
     /// Leaves a channel and resolves to the server's echo of our `PART`.
     ///
-    /// An empty `reason` means no reason.
+    /// Add a reason with [`PartRequest::reason`]:
+    ///
+    /// ```no_run
+    /// # async fn leave(client: &papo::Client) -> Result<(), papo::Error> {
+    /// client.part("#papo").await?;
+    /// client.part("#rust").reason("Back tomorrow").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// While disconnected, this removes the channel from the automatic rejoin set and returns
     /// [`Error::Disconnected`] without writing a `PART`. If a bouncer restores the channel after
@@ -1563,14 +1602,20 @@ impl Client {
     /// [`crate::Refusal::Other`] when refused, and [`Error::NotVerified`] when answered without
     /// the echo. It can also return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`],
     /// [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn part(
+    pub fn part(&self, channel: impl crate::AsChannel) -> PartRequest {
+        PartRequest {
+            client: self.clone(),
+            channel: crate::AsChannel::__parts(&channel).into_owned(),
+            reason: String::new(),
+        }
+    }
+
+    fn part_request(
         &self,
-        channel: impl crate::AsChannel,
-        reason: impl Into<String>,
+        channel: crate::target::sealed::Parts<'static>,
+        reason: String,
     ) -> crate::RequestFuture<crate::PartOutcome> {
         let client = self.clone();
-        let channel = crate::AsChannel::__parts(&channel).into_owned();
-        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("part: channel"), channel)?;
             let channel = client

@@ -90,7 +90,12 @@ fn request_futures_are_send() {
     assert_send_static(client.whois("emily"));
     assert_send_static(client.who(mapping.mask("#papo").to_string()));
     assert_send_static(client.join("#papo").into_future());
-    assert_send_static(client.part(mapping.channel("#papo"), "tests complete"));
+    assert_send_static(
+        client
+            .part(mapping.channel("#papo"))
+            .reason("tests complete")
+            .into_future(),
+    );
     assert_send_static(client.kick("#papo", "spambot", "flooding"));
     assert_send_static(client.set_nick("papo-away"));
     assert_send_static(client.set_away("reviewing patches"));

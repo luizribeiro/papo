@@ -2360,7 +2360,7 @@ pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, papo::Secret) -> papo::RequestFuture<()>
 pub const fn papo::Client::origin(&self) -> papo::Origin
-pub fn papo::Client::part(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::PartOutcome>
+pub fn papo::Client::part(&self, impl papo::AsChannel) -> papo::PartRequest
 pub fn papo::Client::pause_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
@@ -3146,6 +3146,22 @@ impl core::marker::Unpin for papo::PartOutcome
 impl core::marker::UnsafeUnpin for papo::PartOutcome
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PartOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::PartOutcome
+pub struct papo::PartRequest
+impl papo::PartRequest
+pub fn papo::PartRequest::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::PartRequest
+pub fn papo::PartRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::PartRequest
+pub type papo::PartRequest::IntoFuture = papo::RequestFuture<papo::PartOutcome>
+pub type papo::PartRequest::Output = core::result::Result<papo::PartOutcome, papo::Error>
+pub fn papo::PartRequest::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::PartRequest
+impl core::marker::Send for papo::PartRequest
+impl core::marker::Sync for papo::PartRequest
+impl core::marker::Unpin for papo::PartRequest
+impl core::marker::UnsafeUnpin for papo::PartRequest
+impl core::panic::unwind_safe::RefUnwindSafe for papo::PartRequest
+impl core::panic::unwind_safe::UnwindSafe for papo::PartRequest
 pub struct papo::PeerKey
 impl papo::PeerKey
 pub fn papo::PeerKey::as_verified_str(&self) -> core::option::Option<&str>

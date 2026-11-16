@@ -842,7 +842,7 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     let reason = "leaving for the specification review";
-    alice.part(&channel, reason).await?;
+    alice.part(&channel).reason(reason).await?;
     let (own, own_state) = alice.wait_for_with_state(Event::as_parted).await?;
     let (observed, observed_state) = bob.wait_for_with_state(Event::as_parted).await?;
 
@@ -921,7 +921,11 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
     }
 
     assert_refusal(
-        alice.part(&first, "not joined here").await.unwrap_err(),
+        alice
+            .part(&first)
+            .reason("not joined here")
+            .await
+            .unwrap_err(),
         Refusal::NotOnChannel,
         "442",
     );

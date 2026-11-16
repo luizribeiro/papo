@@ -2858,7 +2858,12 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         Err(disconnected!())
     ));
     assert!(matches!(
-        within(client.part(test_channel("#papo"), "leaving while offline")).await,
+        within(
+            client
+                .part(test_channel("#papo"))
+                .reason("leaving while offline")
+        )
+        .await,
         Err(disconnected!())
     ));
 
@@ -2933,11 +2938,21 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert!(matches!(
-        within(client.part(test_channel("#papo"), "leaving while offline")).await,
+        within(
+            client
+                .part(test_channel("#papo"))
+                .reason("leaving while offline")
+        )
+        .await,
         Err(disconnected!())
     ));
     assert!(matches!(
-        within(client.part(test_channel("#rust"), "leaving while offline")).await,
+        within(
+            client
+                .part(test_channel("#rust"))
+                .reason("leaving while offline")
+        )
+        .await,
         Err(disconnected!())
     ));
 
@@ -3070,7 +3085,7 @@ async fn channel_handle_follows_rename() {
     client_line(&mut second_server, b"WHO #staff-archive\r\n").await;
     let leaving = tokio::spawn({
         let client = client.clone();
-        async move { client.part(test_channel("#staff-archive"), "").await }
+        async move { client.part(test_channel("#staff-archive")).await }
     });
     client_line(&mut second_server, b"PART #staff-archive\r\n").await;
     server_line(
@@ -5385,7 +5400,7 @@ async fn joined_channel_handle_sends_only_during_its_membership() {
 
     let parting = tokio::spawn({
         let client = client.clone();
-        async move { client.part("#review", "review complete").await }
+        async move { client.part("#review").reason("review complete").await }
     });
     client_line(&mut server, b"PART #review :review complete\r\n").await;
     server_line(
@@ -5709,7 +5724,7 @@ async fn every_name_taking_method_returns_invalid_name() {
             }
             Method::Whois => client.whois(bad).await.map(drop),
             Method::Who => client.who(bad).await.map(drop),
-            Method::Part => client.part(bad, "leaving").await.map(drop),
+            Method::Part => client.part(bad).reason("leaving").await.map(drop),
             Method::KickChannel => client.kick(bad, "alice", "spam").await.map(drop),
             Method::KickNick => client.kick("#staff", bad, "spam").await.map(drop),
             Method::KickbanChannel => kickban(&client, bad, "alice", "*!*@host", "spam")
@@ -7256,7 +7271,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let part = tokio::spawn({
         let client = client.clone();
-        async move { client.part(test_channel("#papo"), "").await }
+        async move { client.part(test_channel("#papo")).await }
     });
     client_line(&mut server, b"PART #papo\r\n").await;
     server_line(
