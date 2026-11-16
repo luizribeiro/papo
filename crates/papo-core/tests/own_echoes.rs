@@ -130,15 +130,23 @@ const CHANOP_SOURCE: &str = "chanop!~u@9f3xcwqwgz5yq.irc";
 fn another_users_echo_of_the_same_command_does_not_end_our_request() {
     let now = Instant::now();
     for case in cases() {
-        let mut session = ergo(now, "message-tags server-time setname");
-        session
-            .request_with_matcher(now, case.command, case.matcher)
-            .unwrap();
-        let foreign = case.unlabelled.replace(OWN_SOURCE, CHANOP_SOURCE);
-        session.handle_line(now, foreign.as_bytes());
-        assert!(response(&mut session).is_none(), "{foreign}");
-        session.handle_line(now, case.unlabelled.as_bytes());
-        assert_echo_kept(response(&mut session), case.unlabelled);
+        for (caps, echo) in [
+            (
+                "labeled-response message-tags server-time setname",
+                case.labelled,
+            ),
+            ("message-tags server-time setname", case.unlabelled),
+        ] {
+            let mut session = ergo(now, caps);
+            session
+                .request_with_matcher(now, case.command.clone(), case.matcher.clone())
+                .unwrap();
+            let foreign = case.unlabelled.replace(OWN_SOURCE, CHANOP_SOURCE);
+            session.handle_line(now, foreign.as_bytes());
+            assert!(response(&mut session).is_none(), "{caps}: {foreign}");
+            session.handle_line(now, echo.as_bytes());
+            assert_echo_kept(response(&mut session), echo);
+        }
     }
 }
 

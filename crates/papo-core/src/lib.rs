@@ -1515,7 +1515,6 @@ impl ResponseMatcher {
             _ => None,
         };
         let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
-        let current_own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, state.nick().as_str()));
         let own_echo = |command| own_source && message.command() == command;
         match self {
             Self::Whois(nick) => {
@@ -1657,7 +1656,7 @@ impl ResponseMatcher {
                     || Self::numeric_names_command(message, numeric, "AWAY")
             }) || Self::standard_failure(message, "AWAY"))
             .then_some(true),
-            Self::SetName => ((message.command() == Command::Setname && current_own_source)
+            Self::SetName => (own_echo(Command::Setname)
                 || numeric.is_some_and(|numeric| {
                     Self::numeric_names_command(message, numeric, "SETNAME")
                 })
