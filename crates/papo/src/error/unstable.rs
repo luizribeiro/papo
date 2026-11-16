@@ -11,36 +11,44 @@ pub(super) fn invalid_input(error: &Request) -> Option<InvalidInput> {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(all(test, not(browser)))]
+pub(super) mod tests {
     use papo_core::RequestError as Request;
 
-    use crate::{Error, InvalidInput, Refusal, ServerError};
+    use crate::{
+        InvalidInput, Refusal, ServerError,
+        error::tests::{RequestCase, invalid_input_case},
+    };
+
+    const UNSTABLE_REQUEST_ERRORS: [(Request, InvalidInput, &str); 3] = [
+        (
+            Request::InvalidRelayNickname,
+            InvalidInput::InvalidRelayNickname,
+            "relayed nickname has no allowed separator",
+        ),
+        (
+            Request::InvalidWebPushEndpoint,
+            InvalidInput::InvalidWebPushEndpoint,
+            "invalid Web Push endpoint",
+        ),
+        (
+            Request::InvalidWebPushKey,
+            InvalidInput::InvalidWebPushKey,
+            "invalid Web Push key",
+        ),
+    ];
+
+    pub(in crate::error) fn request_cases() -> Vec<RequestCase> {
+        UNSTABLE_REQUEST_ERRORS
+            .into_iter()
+            .map(|(request, expected, _)| invalid_input_case(request, expected))
+            .collect()
+    }
 
     #[test]
-    fn unstable_request_errors_map_to_their_invalid_input() {
-        for (request, expected, message) in [
-            (
-                Request::InvalidRelayNickname,
-                InvalidInput::InvalidRelayNickname,
-                "relayed nickname has no allowed separator",
-            ),
-            (
-                Request::InvalidWebPushEndpoint,
-                InvalidInput::InvalidWebPushEndpoint,
-                "invalid Web Push endpoint",
-            ),
-            (
-                Request::InvalidWebPushKey,
-                InvalidInput::InvalidWebPushKey,
-                "invalid Web Push key",
-            ),
-        ] {
-            assert_eq!(expected.to_string(), message);
-            assert!(matches!(
-                Error::request(request),
-                Error::InvalidInput(actual) if actual == expected
-            ));
+    fn unstable_invalid_inputs_describe_themselves() {
+        for (_, input, message) in UNSTABLE_REQUEST_ERRORS {
+            assert_eq!(input.to_string(), message);
         }
     }
 

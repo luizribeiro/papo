@@ -671,14 +671,14 @@ impl Error {
             Request::TooManyMetadataSubscriptions {
                 maximum, actual, ..
             } => Self::InvalidInput(InvalidInput::TooManyMetadataSubscriptions { maximum, actual }),
-            _ => Self::InvalidInput(InvalidInput::InvalidRequest(error.to_string())),
+            _ => unreachable!("papo pins papo-core exactly and maps every RequestError variant"),
         }
     }
 }
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::{io, time::Duration};
+    use std::{collections::BTreeSet, io, time::Duration};
 
     use super::{
         ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal, ServerError,
@@ -1020,7 +1020,7 @@ mod tests {
         ));
     }
 
-    type RequestCase = (papo_core::RequestError, Box<dyn Fn(&Error) -> bool>);
+    pub(super) type RequestCase = (papo_core::RequestError, Box<dyn Fn(&Error) -> bool>);
 
     fn case(
         request: papo_core::RequestError,
@@ -1029,7 +1029,10 @@ mod tests {
         (request, Box::new(expected))
     }
 
-    fn invalid_input_case(request: papo_core::RequestError, expected: InvalidInput) -> RequestCase {
+    pub(super) fn invalid_input_case(
+        request: papo_core::RequestError,
+        expected: InvalidInput,
+    ) -> RequestCase {
         case(
             request,
             move |error| matches!(error, Error::InvalidInput(actual) if *actual == expected),
@@ -1153,11 +1156,49 @@ mod tests {
         ]
     }
 
+    fn core_request_error_variants(snapshot: &str) -> BTreeSet<&str> {
+        snapshot
+            .lines()
+            .filter_map(|line| {
+                let variant = line
+                    .trim_start_matches("#[non_exhaustive] ")
+                    .strip_prefix("pub papo_core::RequestError::")?;
+                let name = variant.split('(').next()?;
+                (!name.contains("::")).then_some(name)
+            })
+            .collect()
+    }
+
+    fn variant_name(request: &papo_core::RequestError) -> String {
+        format!("{request:?}")
+            .chars()
+            .take_while(char::is_ascii_alphanumeric)
+            .collect()
+    }
+
     #[test]
     fn request_errors_map_to_typed_errors() {
-        for (request, expected) in stable_request_cases() {
-            let display = format!("{request:?}");
-            assert!(expected(&Error::request(request)), "{display}");
+        let mut cases = Vec::new();
+        cases.extend(stable_request_cases());
+        #[cfg(feature = "unstable")]
+        cases.extend(super::unstable::tests::request_cases());
+        let snapshot = if cfg!(feature = "unstable") {
+            include_str!("../../papo-core/public-api-unstable.txt")
+        } else {
+            include_str!("../../papo-core/public-api.txt")
+        };
+        let mapped: BTreeSet<String> = cases
+            .iter()
+            .map(|(request, _)| variant_name(request))
+            .collect();
+        let core: BTreeSet<String> = core_request_error_variants(snapshot)
+            .into_iter()
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(mapped, core);
+        for (request, expected) in cases {
+            let name = variant_name(&request);
+            assert!(expected(&Error::request(request)), "{name}");
         }
     }
 
