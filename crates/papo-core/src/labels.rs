@@ -67,11 +67,17 @@ impl Session {
             .any(|request| request.id == id)
         {
             let enabled_features = self.supported_features();
+            let echo = if message.command_is("ACK") {
+                lines.first().map(Line::as_ref)
+            } else {
+                Some(*message)
+            };
+            let sent = echo
+                .filter(|echo| request.sent && is_echoed(echo.command()))
+                .and_then(|echo| sent_info(&echo));
             self.outbox.event(Event::Response(Response {
                 id,
-                sent: (request.sent && is_echoed(message.command()))
-                    .then(|| sent_info(message))
-                    .flatten(),
+                sent,
                 lines,
                 history: None,
                 history_targets: None,
@@ -93,8 +99,10 @@ impl Session {
             .iter()
             .filter_map(|(label, request)| {
                 let echo = request.echo.as_ref()?;
-                (echo.reply.is_some() && echo.matches(message, mapping))
-                    .then_some((request.id, label))
+                (echo.command != Command::Redact
+                    && echo.reply.is_some()
+                    && echo.matches(message, mapping))
+                .then_some((request.id, label))
             })
             .min_by_key(|(id, _)| *id)
             .map(|(_, label)| label.clone())
@@ -474,7 +482,7 @@ pub(super) fn encode_label(mut value: u64) -> String {
 fn is_echoed(command: Command) -> bool {
     matches!(
         command,
-        Command::Privmsg | Command::Notice | Command::Tagmsg
+        Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact
     )
 }
 
