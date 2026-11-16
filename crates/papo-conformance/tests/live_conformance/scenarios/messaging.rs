@@ -865,7 +865,6 @@ fn assert_confirmed_as_seen(
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags"]),
     covers = [
-        "ircv3.labeled-response.ack-no-reply",
         "ircv3.message-tags.clienttagdeny",
         "tag.reply",
         "tag.react"
@@ -1082,6 +1081,13 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// Whether the server answered one of this scenario's labeled requests with a bare `ACK`.
+fn received_labeled_ack(s: &Scenario) -> bool {
+    s.rendered_wire_log()
+        .lines()
+        .any(|line| line.contains(" <- @") && line.contains("label=") && line.ends_with(" ACK"))
+}
+
 /// redacts a delivered channel message
 #[scenario(
     requires(caps = [
@@ -1093,7 +1099,8 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
     ]),
     covers = [
         "draft.message-redaction.redact",
-        "draft.message-redaction.errors"
+        "draft.message-redaction.errors",
+        "ircv3.labeled-response.ack-no-reply"
     ]
 )]
 async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
@@ -1106,6 +1113,10 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(&id, confirmed_line(&sent).0);
 
     let outcome = alice.redact(&sent, "superseded").await?;
+    assert!(
+        received_labeled_ack(&s),
+        "the redaction was not acknowledged with a labeled ACK"
+    );
     let redacted = bob.wait_for(Event::as_redacted).await?;
     let (redacts, echo, echo_time) = confirmed_redaction(&outcome);
     assert_eq!(redacts, &id);
