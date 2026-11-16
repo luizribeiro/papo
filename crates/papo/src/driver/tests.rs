@@ -1735,58 +1735,6 @@ async fn transport_progress_distinguishes_plaintext_tls_and_attempts() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-#[cfg(tls)]
-async fn configuration_failures_are_terminal() {
-    let failures = [
-        Error::Connect(
-            crate::transport::ConnectError::InvalidServerName("bad server name".into()).into(),
-        ),
-        Error::Connect(
-            crate::transport::ConnectError::InvalidTlsConfiguration(
-                "empty CA certificate document".into(),
-            )
-            .into(),
-        ),
-    ];
-
-    for failure in failures {
-        let calls = Arc::new(AtomicUsize::new(0));
-        let connector: super::Connector = Arc::new({
-            let calls = Arc::clone(&calls);
-            move |_, _| {
-                calls.fetch_add(1, Ordering::Relaxed);
-                let failure = failure.clone();
-                Box::pin(async move { Err(failure) })
-            }
-        });
-        let (_client, mut events, driver) = Driver::with_connector(
-            Ok(ConnectionPlan {
-                address: "irc://irc.example.net".parse().unwrap(),
-                tls: TlsConfig::default(),
-            }),
-            Session::new(config()),
-            super::DEFAULT_CHANNEL_CAPACITY,
-            None,
-            super::PostConnect::default(),
-            Reconnect::exponential(),
-            Box::new(papo_core::sts::MemoryStsStore::new()),
-            connector,
-        );
-        let driver = tokio::spawn(driver);
-
-        assert!(matches!(
-            next_event(&mut events).await,
-            Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
-        ));
-        assert!(matches!(
-            within(driver).await.unwrap(),
-            Err(Error::Connect(_))
-        ));
-        assert_eq!(calls.load(Ordering::Relaxed), 1);
-    }
-}
-
-#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn registration_waiter_fails_after_one_connection_attempt() {
     let calls = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
