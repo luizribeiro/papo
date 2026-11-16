@@ -9,23 +9,20 @@ const CHANNEL: &str = "#papo";
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args().skip(1);
-    let bouncer_url = args
-        .next()
-        .ok_or("usage: bouncer-networks BOUNCER UPSTREAM")?;
-    let upstream_url = args
-        .next()
-        .ok_or("usage: bouncer-networks BOUNCER UPSTREAM")?;
+    let (Some(bouncer_url), Some(upstream_url)) = (args.next(), args.next()) else {
+        return Err("usage: bouncer-networks BOUNCER UPSTREAM".into());
+    };
     let nick = env::var("IRC_NICK")?;
     let account = env::var("IRC_ACCOUNT")?;
     let password = env::var("IRC_PASSWORD")?;
 
-    let builder = || {
-        Client::builder(bouncer_url.clone(), &nick)
-            .sasl(Sasl::plain(&account, Secret::new(password.clone())))
-            .allow_insecure_auth(bouncer_url.starts_with("irc://"))
-            .enable(Feature::Bouncer)
-    };
-    let (manager, mut manager_events) = builder().connect().await?;
+    let insecure = bouncer_url.starts_with("irc://");
+    let (manager, mut manager_events) = Client::builder(bouncer_url, &nick)
+        .sasl(Sasl::plain(&account, Secret::new(password)))
+        .allow_insecure_auth(insecure)
+        .enable(Feature::Bouncer)
+        .connect()
+        .await?;
     for network in manager.bouncer().networks().await? {
         print_network("network", &network);
     }
@@ -68,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 fn print_network(prefix: &str, network: &papo::BouncerNetwork) {
     let state = network
         .state
-        .map_or_else(|| "unknown".to_owned(), |state| state.to_string());
+        .map_or("unknown".into(), |state| state.to_string());
     println!(
         "{prefix} {}: {} {} {}",
         network.id,
