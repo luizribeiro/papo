@@ -11,6 +11,7 @@ const SASL_STEPS: &[&str] = &[
     "SCRAM-SHA-256",
     "SCRAM-SHA-512",
 ];
+const SERVICE_ALIASES: &[&str] = &["ACCOUNT", "CS", "HS", "NS", "OS"];
 
 /// Returns one wire line as sent, or re-encoded with every credential-bearing parameter replaced.
 pub(super) fn redact(raw: &[u8]) -> String {
@@ -40,22 +41,31 @@ fn secret_params(command: &str, params: &[&str]) -> Vec<usize> {
         "AUTHENTICATE" if !SASL_STEPS.iter().any(|step| first_is(step)) => from(0),
         "PASS" | "IDENTIFY" => from(0),
         "WEBIRC" => (0..params.len().min(1)).collect(),
-        "OPER" | "VERIFY" | "JOIN" | "ACCOUNT" | "NS" | "CS" | "HS" => from(1),
-        service if service.ends_with("SERV") => from(1),
+        "OPER" | "VERIFY" | "JOIN" | "SAREGISTER" => from(1),
+        service if is_service(service) => from(1),
         "PRIVMSG" | "NOTICE" | "SQUERY"
             if params
                 .first()
-                .is_some_and(|target| target.to_ascii_uppercase().ends_with("SERV")) =>
+                .is_some_and(|targets| targets.split(',').any(is_service)) =>
         {
             from(1)
         }
         "REGISTER" => from(2),
         "WEBPUSH" if first_is("REGISTER") => from(2),
-        "MODE" if params.get(1).is_some_and(|modes| modes.contains('k')) => from(2),
+        "MODE" | "SAMODE" if params.get(1).is_some_and(|modes| modes.contains('k')) => from(2),
         "324" if params.get(2).is_some_and(|modes| modes.contains('k')) => from(3),
         "BOUNCER" => (0..params.len())
-            .filter(|&index| params[index].contains("pass="))
+            .filter(|&index| params[index].to_ascii_lowercase().contains("pass="))
             .collect(),
         _ => Vec::new(),
     }
+}
+
+/// Services take credentials as message text, whether addressed by nick, alias or `nick@server`.
+fn is_service(name: &str) -> bool {
+    let nick = name.split_once('@').map_or(name, |(nick, _)| nick);
+    nick.to_ascii_uppercase().ends_with("SERV")
+        || SERVICE_ALIASES
+            .iter()
+            .any(|alias| nick.eq_ignore_ascii_case(alias))
 }

@@ -176,10 +176,21 @@ fn an_empty_log_renders_only_its_heading() {
     );
 }
 
+fn assert_redacted(cases: &[(&str, &str)]) {
+    for (line, expected) in cases {
+        assert_eq!(redact(line.as_bytes()), *expected, "{line}");
+    }
+}
+
 #[test]
-fn credentials_are_redacted_and_everything_else_is_kept() {
-    for (line, expected) in [
+fn sasl_steps_stay_visible_and_payloads_are_redacted() {
+    assert_redacted(&[
         ("AUTHENTICATE PLAIN", "AUTHENTICATE PLAIN"),
+        ("AUTHENTICATE ANONYMOUS", "AUTHENTICATE ANONYMOUS"),
+        ("AUTHENTICATE EXTERNAL", "AUTHENTICATE EXTERNAL"),
+        ("AUTHENTICATE OAUTHBEARER", "AUTHENTICATE OAUTHBEARER"),
+        ("AUTHENTICATE SCRAM-SHA-1", "AUTHENTICATE SCRAM-SHA-1"),
+        ("AUTHENTICATE SCRAM-SHA-512", "AUTHENTICATE SCRAM-SHA-512"),
         ("AUTHENTICATE scram-sha-256", "AUTHENTICATE scram-sha-256"),
         ("AUTHENTICATE +", "AUTHENTICATE +"),
         ("AUTHENTICATE *", "AUTHENTICATE *"),
@@ -191,16 +202,35 @@ fn credentials_are_redacted_and_everything_else_is_kept() {
             "AUTHENTICATE cj1meWtvK2QybGJiRmdPTlJ2OXFreGRhd0wzcmZjTkhZSlkxWlZ2V1ZzN2oscz1RU1hDUitRNnNlazhiZjkyLGk9NDA5Ng==",
             "AUTHENTICATE <redacted, 96 bytes>",
         ),
-        ("PASS soju-bouncer-pass", "PASS <redacted>"),
-        ("IDENTIFY alice q7Hx-2mZp", "IDENTIFY <redacted> <redacted>"),
+    ]);
+}
+
+#[test]
+fn service_credentials_are_redacted_by_command_or_target() {
+    assert_redacted(&[
+        ("CS REGISTER #papo", "CS REGISTER <redacted>"),
+        ("HS REQUEST alice.example", "HS REQUEST <redacted>"),
         (
-            "WEBIRC gateway-pass cgiirc 192.0.2.10 192.0.2.10",
-            "WEBIRC <redacted> cgiirc 192.0.2.10 192.0.2.10",
+            "OS SAREGISTER alice q7Hx-2mZp",
+            "OS SAREGISTER <redacted> <redacted>",
         ),
-        ("OPER oper q7Hx-2mZp", "OPER oper <redacted>"),
-        ("VERIFY alice 39gvdm6j8dsbm", "VERIFY alice <redacted>"),
-        ("JOIN #papo,#ops k3y,0ps", "JOIN #papo,#ops <redacted>"),
-        ("JOIN #papo", "JOIN #papo"),
+        (
+            "PRIVMSG NS :IDENTIFY alice q7Hx-2mZp",
+            "PRIVMSG NS :<redacted>",
+        ),
+        (
+            "PRIVMSG #papo,NickServ@services.example :IDENTIFY q7Hx-2mZp",
+            "PRIVMSG #papo,NickServ@services.example :<redacted>",
+        ),
+        (
+            "NOTICE ChanServ :IDENTIFY q7Hx",
+            "NOTICE ChanServ :<redacted>",
+        ),
+        (
+            "SQUERY NickServ :IDENTIFY q7Hx",
+            "SQUERY NickServ :<redacted>",
+        ),
+        ("PRIVMSG Nessie :hello there", "PRIVMSG Nessie :hello there"),
         ("NS IDENTIFY q7Hx-2mZp", "NS IDENTIFY <redacted>"),
         (
             "NICKSERV REGISTER q7Hx-2mZp",
@@ -218,6 +248,34 @@ fn credentials_are_redacted_and_everything_else_is_kept() {
         (
             ":NickServ!NickServ@localhost NOTICE alice :Account created",
             ":NickServ!NickServ@localhost NOTICE alice :Account created",
+        ),
+    ]);
+}
+
+#[test]
+fn credentials_are_redacted_and_everything_else_is_kept() {
+    assert_redacted(&[
+        ("pass soju-bouncer-pass", "pass <redacted>"),
+        ("PASS soju-bouncer-pass", "PASS <redacted>"),
+        ("IDENTIFY alice q7Hx-2mZp", "IDENTIFY <redacted> <redacted>"),
+        ("SAREGISTER alice q7Hx-2mZp", "SAREGISTER alice <redacted>"),
+        ("SAMODE #papo +k k3y", "SAMODE #papo +k <redacted>"),
+        ("MODE #papo -k k3y", "MODE #papo -k <redacted>"),
+        (
+            "WEBIRC gateway-pass cgiirc 192.0.2.10 192.0.2.10",
+            "WEBIRC <redacted> cgiirc 192.0.2.10 192.0.2.10",
+        ),
+        ("OPER oper q7Hx-2mZp", "OPER oper <redacted>"),
+        ("VERIFY alice 39gvdm6j8dsbm", "VERIFY alice <redacted>"),
+        ("JOIN #papo,#ops k3y,0ps", "JOIN #papo,#ops <redacted>"),
+        ("JOIN #papo", "JOIN #papo"),
+        (
+            "webpush register https://push.example/ep p256dh=BCVx;auth=FPss",
+            "webpush register https://push.example/ep <redacted>",
+        ),
+        (
+            "BOUNCER CHANGENETWORK 42 PASS=unique-9241",
+            "BOUNCER CHANGENETWORK 42 <redacted>",
         ),
         (
             "@label=7 PRIVMSG #papo :release approved",
@@ -250,9 +308,7 @@ fn credentials_are_redacted_and_everything_else_is_kept() {
             "BOUNCER ADDNETWORK <redacted>",
         ),
         ("BOUNCER LISTNETWORKS", "BOUNCER LISTNETWORKS"),
-    ] {
-        assert_eq!(redact(line.as_bytes()), expected, "{line}");
-    }
+    ]);
 }
 
 #[test]
