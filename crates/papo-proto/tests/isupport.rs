@@ -249,6 +249,16 @@ fn ergo_utf8mapping_keeps_ascii_without_precis() {
     let mut support = Isupport::default();
     support.apply_tokens(["CASEMAPPING=ascii", "UTF8MAPPING=rfc8265"]);
     assert_eq!(support.casemapping(), Casemapping::Ascii);
+    assert_eq!(
+        support.__advertised_casemapping(),
+        Some(Ok(Casemapping::Ascii))
+    );
+
+    support.apply_tokens(["-CASEMAPPING"]);
+    assert_eq!(
+        support.__advertised_casemapping(),
+        Some(Err(papo_proto::UnknownCasemapping))
+    );
 }
 
 #[test]
