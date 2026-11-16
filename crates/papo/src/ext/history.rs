@@ -559,13 +559,8 @@ fn parted(
         received_at,
     );
     let actor = user_from_line(message, &envelope, mapping, client.origin())?;
-    let actor = crate::UserHandle::from_event(
-        actor.nick(),
-        actor.account().clone(),
-        None,
-        Some(&client.state),
-        true,
-    );
+    let actor =
+        crate::UserHandle::from_history(actor.nick(), actor.account().clone(), Some(&client.state));
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -637,12 +632,10 @@ fn kicked(
     );
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
-        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_event(
+        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_history(
             user.nick(),
             user.account().clone(),
-            None,
             Some(&client.state),
-            true,
         )),
         crate::Source::Server(server) => crate::Source::Server(server),
     };
@@ -653,12 +646,10 @@ fn kicked(
         channel: client.channel(message.param(0)?).ok()?,
         actor_party,
         subject_party,
-        subject: crate::UserHandle::from_event(
+        subject: crate::UserHandle::from_history(
             state.known_name_rules()?.nick(nick),
             crate::Account::Unknown,
-            None,
             Some(&client.state),
-            true,
         ),
         facts: None,
         actor,
@@ -688,13 +679,8 @@ fn nick_changed(
     let old = state.known_name_rules()?.nick(source_nick(message)?);
     let new = state.known_name_rules()?.nick(message.param(0)?);
     let source = user_from_line(message, &envelope, mapping, client.origin())?;
-    let actor = crate::UserHandle::from_event(
-        new.clone(),
-        source.account().clone(),
-        None,
-        Some(&client.state),
-        true,
-    );
+    let actor =
+        crate::UserHandle::from_history(new.clone(), source.account().clone(), Some(&client.state));
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -774,25 +760,17 @@ fn mode_changed(
             mapping,
             client.origin(),
             |nick| {
-                crate::UserHandle::from_event(
-                    nick,
-                    crate::Account::Unknown,
-                    None,
-                    Some(&client.state),
-                    true,
-                )
+                crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state))
             },
         )
     })
     .collect();
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
-        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_event(
+        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_history(
             user.nick(),
             user.account().clone(),
-            None,
             Some(&client.state),
-            true,
         )),
         crate::Source::Server(server) => crate::Source::Server(server),
     };

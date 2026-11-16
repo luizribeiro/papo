@@ -1922,13 +1922,11 @@ fn event_handle(
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
 ) -> crate::UserHandle {
-    crate::UserHandle::from_event(
-        handle.nick(),
-        handle.account().clone(),
-        token,
-        state,
-        historical,
-    )
+    if historical {
+        crate::UserHandle::from_history(handle.nick(), handle.account().clone(), state)
+    } else {
+        crate::UserHandle::from_event(handle.nick(), handle.account().clone(), token, state)
+    }
 }
 
 /// The identities papo-core recorded with a line for its actor and its private peer.
