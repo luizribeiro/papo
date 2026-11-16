@@ -166,11 +166,14 @@ impl State {
         }
         let mut changed = false;
         if !self.users.contains_key(&key) {
-            let mut user = match self.take_proven(nick, line_account.as_ref()) {
-                Some(identity) => self.user_with_identity(nick, username, host, identity),
-                None => self.new_user(nick, username, host),
+            let (mut user, proven_account) = match self.take_proven(nick, line_account.as_ref()) {
+                Some((identity, account)) => (
+                    self.user_with_identity(nick, username, host, identity),
+                    Some(account),
+                ),
+                None => (self.new_user(nick, username, host), None),
             };
-            if let Some(account) = line_account {
+            if let Some(account) = line_account.or(proven_account) {
                 user.update_account(account);
             }
             self.users.insert(key.clone(), user);
