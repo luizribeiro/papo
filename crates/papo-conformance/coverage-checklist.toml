@@ -127,6 +127,7 @@ ids = [
   "security.guard-proof.unseen-message-peer-handoff",
   "security.guard-proof.who-proof-nick-handoff",
   "security.guard-proof.no-account-tag-handoff",
+  "security.guard-proof.who-expected-account",
   "security.send-path-23-26.guarded-moderation",
   "security.channel-guard.receipt-targets",
   "security.channel-guard.stale-handle-requests",
