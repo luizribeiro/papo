@@ -132,41 +132,53 @@ pub(crate) async fn connect_websocket(
 ///
 /// Returns the resolver error or the last connection error.
 #[cfg(sockets)]
-#[allow(unused_variables)]
 pub(crate) async fn connect(
     host: &str,
     port: u16,
     security: &Security,
 ) -> Result<stream::Stream, ConnectError> {
+    enum Handshake {
+        Plaintext,
+        #[cfg(tls)]
+        Tls(
+            tokio_rustls::TlsConnector,
+            rustls::pki_types::ServerName<'static>,
+        ),
+    }
+
     let addresses = resolve(host, port).await?;
-    #[cfg(tls)]
-    let tls = match security {
-        Security::Plaintext => None,
-        Security::Tls(config) => Some(tls_connector(host, config)?),
+    let handshake = match security {
+        Security::Plaintext => Handshake::Plaintext,
+        #[cfg(tls)]
+        Security::Tls(config) => {
+            let (connector, server_name) = tls_connector(host, config)?;
+            Handshake::Tls(connector, server_name)
+        }
     };
     let mut last_error = ConnectError::Tcp(io::Error::new(
         io::ErrorKind::NotFound,
         "hostname resolved no addresses",
     ));
     for address in addresses {
-        match connect_address(address).await {
-            Ok(stream) => {
-                #[cfg(tls)]
-                if let Some((connector, server_name)) = &tls {
-                    match connector.connect(server_name.clone(), stream).await {
-                        Ok(stream) => {
-                            return Ok(stream::Stream::from_tls(stream));
-                        }
-                        Err(error) => {
-                            last_error = rustls_error(&error)
-                                .map_or_else(|| ConnectError::Tcp(error), ConnectError::Tls);
-                            continue;
-                        }
+        let stream = match connect_address(address).await {
+            Ok(stream) => stream,
+            Err(error) => {
+                last_error = ConnectError::Tcp(error);
+                continue;
+            }
+        };
+        match &handshake {
+            Handshake::Plaintext => return Ok(stream::Stream::from_tcp(stream)),
+            #[cfg(tls)]
+            Handshake::Tls(connector, server_name) => {
+                match connector.connect(server_name.clone(), stream).await {
+                    Ok(stream) => return Ok(stream::Stream::from_tls(stream)),
+                    Err(error) => {
+                        last_error = rustls_error(&error)
+                            .map_or_else(|| ConnectError::Tcp(error), ConnectError::Tls);
                     }
                 }
-                return Ok(stream::Stream::from_tcp(stream));
             }
-            Err(error) => last_error = ConnectError::Tcp(error),
         }
     }
     Err(last_error)
@@ -349,6 +361,30 @@ mod tests {
         let key = PrivateKey::new(b"private key material".to_vec());
         let storage: &zeroize::Zeroizing<Vec<u8>> = &key.0.0;
         assert_eq!(storage.as_slice(), b"private key material");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn invalid_tls_settings_fail_before_any_tcp_connection() {
+        let closed_port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let config = TlsConfig {
+            server_name: Some("not a server name".to_owned()),
+            ..TlsConfig::default()
+        };
+        let error = crate::driver::test_support::within(super::connect(
+            "127.0.0.1",
+            closed_port,
+            &super::Security::Tls(config),
+        ))
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(&error, ConnectError::InvalidServerName(name) if name == "not a server name"),
+            "{error:?}"
+        );
     }
 
     #[test]
