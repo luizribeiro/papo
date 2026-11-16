@@ -24,7 +24,6 @@ use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 mod peer;
 mod runner;
 mod scenario;
-#[allow(dead_code)]
 mod wire_log;
 
 #[doc(hidden)]

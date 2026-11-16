@@ -4,7 +4,7 @@ use papo_core::cap::Request;
 
 use super::{
     FixtureResult, Scenario, ScenarioSpec, Welcome, catch_scenario_panic, json_string,
-    load_known_failures, probe, runtime, scenario,
+    load_known_failures, probe, runtime, scenario, wire_log::WireLog,
 };
 
 static CONTEXT: OnceLock<Result<Context, Failure>> = OnceLock::new();
@@ -17,8 +17,14 @@ struct Context {
 }
 
 #[doc(hidden)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Failure(pub String);
+
+impl std::fmt::Debug for Failure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
 
 impl Context {
     fn load() -> Result<Self, Failure> {
@@ -68,9 +74,11 @@ pub fn run_scenario(spec: &ScenarioSpec) -> Result<(), Failure> {
         emit_status(spec.name, "ignored", Some(&reason));
         return Ok(());
     }
+    let fixture = scenario::Scenario::new(context.server.clone());
+    let wire_log = fixture.wire_log().clone();
     let result = catch_scenario_panic(|| {
         runtime().block_on((spec.run)(Scenario {
-            fixture: Some(scenario::Scenario::new(context.server.clone())),
+            fixture: Some(fixture),
             server: context.server.clone(),
             name: spec.name,
             json: true,
@@ -81,6 +89,7 @@ pub fn run_scenario(spec: &ScenarioSpec) -> Result<(), Failure> {
         result,
         context.known_failures.get(spec.name),
         &context.profile,
+        &wire_log,
     )
 }
 
@@ -89,6 +98,7 @@ fn finish(
     result: FixtureResult,
     known_failure: Option<&String>,
     profile: &str,
+    wire_log: &WireLog,
 ) -> Result<(), Failure> {
     if let Err(error) = &result
         && let Some(reason) = papo_testing::skip_reason(error)
@@ -100,7 +110,7 @@ fn finish(
         (Ok(()), None) => emit_status(name, "passed", None),
         (Err(error), None) => {
             emit_status(name, "failed", None);
-            return Err(Failure(error.to_string()));
+            return Err(Failure(format!("{error}\n{}", wire_log.render())));
         }
         (Err(_), Some(reason)) => emit_status(name, "expected-failure", Some(reason)),
         (Ok(()), Some(reason)) => {
@@ -125,23 +135,53 @@ fn emit_status(name: &str, event: &str, reason: Option<&str>) {
 
 #[cfg(test)]
 mod tests {
-    use super::finish;
+    use super::{WireLog, finish};
 
     #[test]
     fn known_failures_invert_failures_and_passes() {
         let reason = "server returns 482 rather than 441".to_owned();
-        assert!(finish("kick", Ok(()), None, "ergo-default").is_ok());
+        let log = WireLog::new();
+        assert!(finish("kick", Ok(()), None, "ergo-default", &log).is_ok());
         assert!(
             finish(
                 "kick",
                 Err(std::io::Error::other("482").into()),
                 Some(&reason),
-                "ergo-default"
+                "ergo-default",
+                &log,
             )
             .is_ok()
         );
-        assert!(finish("kick", Ok(()), Some(&reason), "ergo-default").is_err());
+        assert!(finish("kick", Ok(()), Some(&reason), "ergo-default", &log).is_err());
         let skipped = Err(papo_testing::skipped("PAPO_TEST_WS is not set"));
-        assert!(finish("websocket", skipped, Some(&reason), "ergo-default").is_ok());
+        assert!(finish("websocket", skipped, Some(&reason), "ergo-default", &log).is_ok());
+    }
+
+    #[test]
+    fn only_an_unexpected_failure_carries_the_wire_log() {
+        let log = WireLog::new();
+        let client = log.add_client();
+        log.rename(client, "alice-4821");
+        let unexpected_pass = finish(
+            "kick",
+            Ok(()),
+            Some(&"482".to_owned()),
+            "ergo-default",
+            &log,
+        );
+        let failure = finish(
+            "kick",
+            Err(std::io::Error::other("history contains the sent message").into()),
+            None,
+            "ergo-default",
+            &log,
+        );
+
+        assert!(!format!("{:?}", unexpected_pass.unwrap_err()).contains("wire log"));
+        assert_eq!(
+            format!("{:?}", failure.unwrap_err()),
+            "history contains the sent message\n\
+             wire log, in seconds since the scenario started:\n== client 1 (alice-4821)\n"
+        );
     }
 }
