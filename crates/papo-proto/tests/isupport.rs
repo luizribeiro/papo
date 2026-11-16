@@ -207,6 +207,21 @@ fn a_withdrawn_casemapping_keeps_its_rules() {
 }
 
 #[test]
+fn utf8mapping_never_folds_brackets() {
+    for tokens in [
+        &["UTF8MAPPING=rfc8265"][..],
+        &["CASEMAPPING=rfc1459", "UTF8MAPPING=rfc8265"],
+        &["CASEMAPPING=ascii", "UTF8MAPPING=rfc8265"],
+    ] {
+        let mut support = Isupport::default();
+        support.apply_tokens(tokens);
+        let rules = support.casemapping();
+        assert_ne!(rules.fold("alice[m]"), rules.fold("alice{m}"), "{tokens:?}");
+        assert_eq!(rules.fold("ALICE[m]"), "alice[m]", "{tokens:?}");
+    }
+}
+
+#[test]
 fn unknown_casemapping_tokens_fold_only_ascii_letters() {
     for token in [
         "CASEMAPPING=rfc8265",
