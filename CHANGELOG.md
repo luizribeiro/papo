@@ -496,7 +496,7 @@ After:
 if let Event::Message(message) = event {
     println!("{}: {}", message.actor.nick(), message.text);
     let reply_to = message.in_reply_to.as_ref();
-    let own = message.authorship == Authorship::Own;
+    let own = message.actor_party == Party::Me;
 }
 if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 ```
@@ -505,7 +505,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 |---|---|
 | Boxed `Event::{Message, Notice, ServerNotice, History}` payloads | Unboxed payloads; the Box-specific `MessageRef` conversions were removed |
 | Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` and `as_auto_join_failed()` |
-| `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Authorship::Own` |
+| `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Party::Me` |
 | Own sends could also arrive as message events | A correlated send resolves to `SendOutcome`; applications that log chat insert their own sends from that value |
 | `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
 | `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
@@ -530,12 +530,12 @@ User lifecycle payloads were normalized as follows:
 | Earlier fields | 0.1.0 fields |
 |---|---|
 | `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
-| `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `new: Away`, `authorship`, and timestamps |
-| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `new: Account`, `authorship`, and timestamps |
-| `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `new_username`, `new_host`, `authorship`, and timestamps |
-| `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `authorship`, and timestamps |
+| `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `new: Away`, `actor_party`, and timestamps |
+| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `new: Account`, `actor_party`, and timestamps |
+| `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `new_username`, `new_host`, `actor_party`, and timestamps |
+| `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `actor_party`, and timestamps |
 | `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserHandle`; offline facts are retained when removed from state |
-| `ModeChanged::subject_authorship` | `ModeChanged::about(&change)` computes authorship for each member mode change |
+| A single subject flag on `ModeChanged` | `ModeChanged::subject_party(&change)` gives the `Party` of each member mode change |
 | String netsplit server names | `SplitServers` contains `ServerName` values |
 
 `Whois::account` is now `Account`; a reply without `330` remains `Unknown` because WHOIS does not
@@ -662,7 +662,7 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - Length-based splits in outgoing `draft/multiline` messages concatenate without introducing
   line breaks; confirmed text exactly preserves user-authored spaces and newlines.
 - Multiline messages replayed inside chat history, event playback, and labeled-response batches
-  retain their exact text (including blank lines), authorship, server time, message ID, account,
+  retain their exact text (including blank lines), actor party, server time, message ID, account,
   and other opening tags, including when the server rather than the sender opens the nested batch.
 - Requested history pages resolve only their request and are not also emitted as replay events.
   Server-initiated and uncorrelated history batches remain replay events.

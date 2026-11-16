@@ -78,9 +78,9 @@ finding = "A private CTCP query reaches all three attached sessions, and each se
 evidence = "C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
-[soju-ergo.multidevice-history-authorship]
-finding = "History contains messages sent by a sibling session exactly once, but without the account identity needed to classify their authorship as own; direct Ergo reports own authorship."
-evidence = "A C: PRIVMSG #review :offline update | reattached B history: Message with Other authorship; direct Ergo history: Message with Own authorship"
+[soju-ergo.multidevice-history-party]
+finding = "History contains messages sent by a sibling session exactly once, but without the account identity needed to prove they are `Party::Me`; direct Ergo reports them as `Party::Me`."
+evidence = "A C: PRIVMSG #review :offline update | reattached B history: Message with Party::Other; direct Ergo history: Message with Party::Me"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [inspircd.history-end]

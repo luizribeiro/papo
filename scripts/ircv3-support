@@ -16,7 +16,7 @@ COVERAGE = ROOT / "docs/conformance-coverage.md"
 OUTPUT = ROOT / "docs/ircv3-support.md"
 UNSUPPORTED_GROUP = "Deprecated or unsupported"
 SUPPORT = dict(Default="Yes", Automatic="Opt-in", Never="No", Superseded="Yes", OptIn="Unstable")
-ENUMS = {"Authorship", "ConnectErrorKind", "Event", "Extban", "Feature"}
+ENUMS = {"ConnectErrorKind", "Event", "Extban", "Feature", "Party"}
 UPSTREAM_PROPOSAL = re.compile(r"^https://github\.com/ircv3/ircv3-specifications/pull/(?P<number>\d+)$")
 REGISTRY_ENTRY = re.compile(
     r'^\s*(?:#\[cfg\(feature = "unstable"\)\]\s+)?(?:\[cap\]\s+)?'
