@@ -40,9 +40,14 @@ const QUIT: &str = ":alice!~alice@cloak.example QUIT :Quit: bye";
 const RENAME: &str = ":alice!~alice@cloak.example NICK alice_away";
 const TAKEOVER: &str = ":mallory!~mallory@users.example NICK alice";
 
-fn session() -> Session {
+fn session(labelled: bool) -> Session {
     let now = Instant::now();
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    if labelled {
+        session.handle_connected(now);
+        session.handle_line(now, b"CAP * LS :batch labeled-response");
+        session.handle_line(now, b"CAP * ACK :batch labeled-response");
+    }
     for line in [
         ":ergo.test 001 papo :Welcome to the Ergo test network",
         ":ergo.test 422 papo :MOTD File is missing",
@@ -57,7 +62,7 @@ fn session() -> Session {
     session
 }
 
-fn response(session: &mut Session, reply: &Reply, between: &[&str]) -> Response {
+fn response(session: &mut Session, reply: &Reply, labelled: bool, between: &[&str]) -> Response {
     let now = Instant::now();
     let matcher = if reply.command == "WHOIS" {
         ResponseMatcher::Whois("alice".into())
@@ -66,8 +71,27 @@ fn response(session: &mut Session, reply: &Reply, between: &[&str]) -> Response 
     };
     let line = Line::new(reply.command).with_params(reply.params.iter().copied());
     session.request_with_matcher(now, line, matcher).unwrap();
-    session.poll_transmit().unwrap();
+    let sent = session.poll_transmit().unwrap();
+    let sent = String::from_utf8_lossy(sent.as_ref()).into_owned();
     let lines = [&[reply.row][..], between, &[reply.end]].concat();
+    let lines = if labelled {
+        let label = sent
+            .strip_prefix("@label=")
+            .and_then(|rest| rest.split_once(' '))
+            .map(|(label, _)| label)
+            .unwrap();
+        std::iter::once(format!(
+            "@label={label} :ergo.test BATCH +r labeled-response"
+        ))
+        .chain(lines.iter().map(|line| format!("@batch=r {line}")))
+        .chain([":ergo.test BATCH -r".to_owned()])
+        .collect()
+    } else {
+        lines
+            .iter()
+            .map(|line| (*line).to_owned())
+            .collect::<Vec<_>>()
+    };
     for line in lines {
         session.handle_line(now, line.as_bytes());
     }
@@ -81,18 +105,20 @@ fn response(session: &mut Session, reply: &Reply, between: &[&str]) -> Response 
 
 #[test]
 fn a_reply_row_records_the_person_it_describes_when_it_arrives() {
-    for reply in &REPLIES {
-        for departure in [QUIT, RENAME] {
-            let case = format!("{} after {departure}", reply.row);
-            let mut session = session();
-            let alice = session.state().__reply_token_for("alice");
-            let response = response(&mut session, reply, &[departure, TAKEOVER]);
-            let newcomer = session.state().__reply_token_for("alice");
-            assert_ne!(alice, newcomer, "{case}: no handoff happened");
+    for labelled in [false, true] {
+        for reply in &REPLIES {
+            for departure in [QUIT, RENAME] {
+                let case = format!("{} labelled={labelled} after {departure}", reply.row);
+                let mut session = session(labelled);
+                let alice = session.state().__reply_token_for("alice");
+                let response = response(&mut session, reply, labelled, &[departure, TAKEOVER]);
+                let newcomer = session.state().__reply_token_for("alice");
+                assert_ne!(alice, newcomer, "{case}: no handoff happened");
 
-            assert_eq!(response.__subject_token(0), Some(alice), "{case}");
-            let end = response.lines.len() - 1;
-            assert_eq!(response.__subject_token(end), None, "{case}");
+                assert_eq!(response.__subject_token(0), Some(alice), "{case}");
+                let end = response.lines.len() - 1;
+                assert_eq!(response.__subject_token(end), None, "{case}");
+            }
         }
     }
 }

@@ -6565,10 +6565,15 @@ impl Session {
         messages: &[Line],
         context: &DispatchContext,
         request: Option<RequestId>,
-    ) {
-        for message in messages {
+    ) -> Vec<(usize, ReplyToken)> {
+        let mut subject_tokens = Vec::new();
+        for (index, message) in messages.iter().enumerate() {
             self.dispatch_message(now, &message.as_ref(), context, request.is_none(), request);
+            if let Some(token) = self.state.who_subject_token(&message.as_ref()) {
+                subject_tokens.push((index, token));
+            }
         }
+        subject_tokens
     }
 
     fn dispatch_response_batch(&mut self, now: Instant, response: BatchEvent) {
@@ -6600,14 +6605,16 @@ impl Session {
         let queued_events = self.outbox.events.len();
         let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
-        if history.is_none() && !bouncer_batch {
+        let subject_tokens = if history.is_none() && !bouncer_batch {
             self.dispatch_batch_messages(
                 now,
                 &messages,
                 &context,
                 request.as_ref().map(|request| request.id),
-            );
-        }
+            )
+        } else {
+            Vec::new()
+        };
         if !emit_events {
             self.outbox.events.truncate(queued_events);
         }
@@ -6663,7 +6670,7 @@ impl Session {
                 mode_list: None,
                 state_limit: None,
                 enabled_features,
-                subject_tokens: Vec::new(),
+                subject_tokens,
             }));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_line(message, None);
