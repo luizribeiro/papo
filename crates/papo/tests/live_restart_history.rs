@@ -35,14 +35,14 @@ async fn retains_message(persistent: bool) -> bool {
     let (client, _events) = connect(&server, &account, password).await;
     client.join(support::channel(&channel)).await.unwrap();
     client.privmsg(&channel, text).await.unwrap();
-    client.quit("restart fixture prepared").await.unwrap();
+    client.quit_step().await.unwrap();
 
     server.restart().unwrap();
     let (client, _events) = connect(&server, &account, password).await;
     client.join(support::channel(&channel)).await.unwrap();
     let page = client.history(&channel).latest().limit(10).await.unwrap();
     let retained = page.chat_messages().any(|message| message.text == text);
-    client.quit("restart history checked").await.unwrap();
+    client.quit_step().await.unwrap();
     retained
 }
 

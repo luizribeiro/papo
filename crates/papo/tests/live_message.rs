@@ -53,8 +53,8 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         .await;
         assert_eq!(response.in_reply_to.as_ref(), Some(&ping_msgid));
 
-        client_b.quit("live reply test complete").await.unwrap();
-        client_a.quit("live reply test complete").await.unwrap();
+        client_b.quit_step().await.unwrap();
+        client_a.quit_step().await.unwrap();
     })
     .await;
 }
@@ -84,8 +84,8 @@ async fn same_account_sessions_receive_own_live_messages() {
             wait_own_message(&mut events_b, |message| message.text == "from this device").await;
         assert_eq!(other.actor_party, papo::Party::Me);
 
-        client_b.quit("multiclient test complete").await.unwrap();
-        client_a.quit("multiclient test complete").await.unwrap();
+        client_b.quit_step().await.unwrap();
+        client_a.quit_step().await.unwrap();
     })
     .await;
 }
@@ -119,8 +119,8 @@ async fn reactions_reach_another_client_with_reply_context() {
         assert_eq!(reaction.return_address(), channel.as_str());
         assert_eq!(&reaction.reacts_to, id);
 
-        client_b.quit("reaction test complete").await.unwrap();
-        client_a.quit("reaction test complete").await.unwrap();
+        client_b.quit_step().await.unwrap();
+        client_a.quit_step().await.unwrap();
     })
     .await;
 }
@@ -154,8 +154,8 @@ async fn multiline_delivers_a_long_space_delimited_message_whole() {
         assert!(!incoming.text.contains('\n'));
         sent.await.unwrap().unwrap();
 
-        client_b.quit("multiline test complete").await.unwrap();
-        client_a.quit("multiline test complete").await.unwrap();
+        client_b.quit_step().await.unwrap();
+        client_a.quit_step().await.unwrap();
     })
     .await;
 }
@@ -248,8 +248,8 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
         .await;
         assert_eq!(reply.in_reply_to.as_ref(), Some(multiline_id));
 
-        client_b.quit("multiline id test complete").await.unwrap();
-        client_a.quit("multiline id test complete").await.unwrap();
+        client_b.quit_step().await.unwrap();
+        client_a.quit_step().await.unwrap();
     })
     .await;
 }

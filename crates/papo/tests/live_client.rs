@@ -60,7 +60,7 @@ async fn registers_messages_itself_and_quits() {
             }] if text == "hello from papo's live client"
         ));
 
-        client.quit("live client test complete").await.unwrap();
+        client.quit_step().await.unwrap();
         loop {
             match events.next().await.map(|(event, _)| event) {
                 Some(Event::Disconnected(_)) => break,

@@ -131,7 +131,9 @@ async fn quit_returns_within_its_bound_when_the_peer_stops_reading() {
         let started = Instant::now();
         let result = tokio::time::timeout(
             Duration::from_secs(11),
-            client.quit("bounded shutdown with a stalled peer"),
+            client
+                .quit_step()
+                .reason("bounded shutdown with a stalled peer"),
         )
         .await;
         assert!(result.is_ok(), "quit exceeded eleven seconds");

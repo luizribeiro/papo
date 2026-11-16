@@ -95,7 +95,7 @@ async fn ergo_handle_send_watch_and_open_round_trip() {
         assert_eq!(opened.nick(), alice_nick.as_str());
         assert_eq!(opened.key(), key);
 
-        alice.quit("handing the nickname over").await.unwrap();
+        alice.quit_step().await.unwrap();
         wait_for(&mut bob_events, |event| event.as_quit().map(drop)).await;
         let (_stranger, _stranger_events) = connect(&alice_nick, &review).await;
         wait_for(&mut bob_events, |event| {
@@ -113,7 +113,7 @@ async fn ergo_handle_send_watch_and_open_round_trip() {
             bob.privmsg(&peer, "classified").await,
             Err(Error::TargetGone)
         ));
-        bob.quit("handle round trip complete").await.unwrap();
+        bob.quit_step().await.unwrap();
     })
     .await;
 }

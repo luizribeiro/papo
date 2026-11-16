@@ -81,7 +81,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
             "papo sent a duplicate JOIN after the server restored the channel"
         );
         client
-            .quit("persistent reconnect verified")
+            .quit_step()
             .await
             .unwrap();
     })

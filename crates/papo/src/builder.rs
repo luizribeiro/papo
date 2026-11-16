@@ -2022,7 +2022,7 @@ mod tests {
         ));
         let quitting = tokio::spawn({
             let client = client.clone();
-            async move { client.quit("").await }
+            async move { client.quit_step().await }
         });
         let mut quit = [0; 6];
         within(server.read_exact(&mut quit)).await.unwrap();
