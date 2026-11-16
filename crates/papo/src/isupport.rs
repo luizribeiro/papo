@@ -34,7 +34,10 @@ impl Isupport {
         self.inner.tokens()
     }
 
-    /// Returns the server's name casemapping.
+    /// Returns the server's name casemapping, once a `005` has arrived.
+    ///
+    /// A `CASEMAPPING` token papo doesn't know yields [`Casemapping::Ascii`], the narrowest
+    /// folding, and [`State::name_rules`](crate::State::name_rules) stays `None`.
     #[must_use]
     pub fn casemapping(&self) -> Option<Casemapping> {
         self.inner.__received().then(|| self.inner.casemapping())

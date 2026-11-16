@@ -307,15 +307,22 @@ impl Isupport {
     }
 
     /// Returns the server's name casemapping.
+    ///
+    /// Without a `CASEMAPPING` token this is the protocol default, RFC 1459. A token whose rules
+    /// papo doesn't know yields [`Ascii`](Casemapping::Ascii): every known casemapping folds at
+    /// least ASCII letters, so the narrowest folding never treats two of the server's distinct
+    /// names as one.
     #[must_use]
     pub fn casemapping(&self) -> Casemapping {
         #[cfg(feature = "precis")]
         if self.value("UTF8MAPPING") == Some("rfc8265") {
             return Casemapping::Precis;
         }
-        self.value("CASEMAPPING")
-            .and_then(|value| value.parse().ok())
-            .unwrap_or_default()
+        match self.get("CASEMAPPING") {
+            Advertised::Absent => Casemapping::default(),
+            Advertised::Bare => Casemapping::Ascii,
+            Advertised::Value(value) => value.parse().unwrap_or(Casemapping::Ascii),
+        }
     }
 
     /// Returns the channel-type prefix characters.
