@@ -68,9 +68,6 @@ pub enum InvalidInput {
         #[source]
         reason: crate::InvalidIdentifier,
     },
-    /// A request contains input unsupported by its protocol command.
-    #[error("invalid request input: {0}")]
-    InvalidRequest(String),
     /// An IRC name is invalid in its protocol context.
     #[error("{argument} `{name}` is not a valid IRC name: {reason}")]
     #[non_exhaustive]

@@ -1838,7 +1838,6 @@ pub papo::InvalidInput::InvalidName::argument: &'static str
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidRelayNickname
-pub papo::InvalidInput::InvalidRequest(alloc::string::String)
 pub papo::InvalidInput::InvalidWebPushEndpoint
 pub papo::InvalidInput::InvalidWebPushKey
 #[non_exhaustive] pub papo::InvalidInput::KickReasonTooLong

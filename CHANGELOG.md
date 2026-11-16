@@ -41,6 +41,9 @@ channel has gone fails with `Error::TargetGone` instead of a foreign-reference e
 `InvalidInput::ForeignReference` is removed: every request given a value from another client fails
 with `Error::ForeignReference`.
 
+`InvalidInput::InvalidRequest(String)` is removed: every request error papo-core reports reaches
+you as its own typed `Error` or `InvalidInput` variant, never as text.
+
 `Client::channel` refuses a status-prefixed name such as `@#ops` with `InvalidInput::InvalidName`:
 a channel handle names the whole channel, never a line's ops-only audience.
 
@@ -461,6 +464,7 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 | Raw `Line` and `Mask` methods exposed unnameable protocol types | `LineRef`, `Param`, `LineSource`, `WireLine`, and `MaskSource` are available from `papo` |
 | Channel receipts were only text | Receipt-derived sends verify that a parted or recreated channel is still the same membership identity |
 | `HistoryReference: From<String/&str>` guessed that text was a message ID | Construct `HistoryReference` explicitly from a `MessageId` or time |
+| Matching the text of `InvalidInput::InvalidRequest(String)` | Match the typed variant the request fails with, such as `InvalidInput::EmptyText` or `Error::TooManyPendingRequests` |
 
 Methods that operate on a channel (`join`, `part`, topic, channel rename, list modes) now use
 `AsChannel`; nickname queries and changes use `AsNick`; `who` uses `AsMask`; metadata, history,

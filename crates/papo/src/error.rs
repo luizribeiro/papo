@@ -1321,10 +1321,6 @@ mod tests {
                 "metadata key \"Display-Name\" is invalid: identifier contains forbidden character 'D'",
             ),
             (
-                InvalidInput::InvalidRequest("unsupported history status".into()),
-                "invalid request input: unsupported history status",
-            ),
-            (
                 InvalidInput::InvalidName {
                     argument: "join: channel",
                     name: "#papo dev".into(),
