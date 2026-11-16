@@ -1711,15 +1711,23 @@ impl ResponseMatcher {
 #[derive(Debug)]
 enum ResponseBoundary {
     Matcher(ResponseMatcher),
-    Command(String),
-    WebPushRegister,
+    #[cfg(feature = "unstable")]
+    WebPush(webpush::Response),
 }
 
 impl ResponseBoundary {
+    #[cfg_attr(
+        not(feature = "unstable"),
+        expect(
+            clippy::unnecessary_wraps,
+            reason = "only web push responses, which are unstable, have no matcher"
+        )
+    )]
     fn matcher(&self) -> Option<&ResponseMatcher> {
         match self {
             Self::Matcher(matcher) => Some(matcher),
-            Self::Command(_) | Self::WebPushRegister => None,
+            #[cfg(feature = "unstable")]
+            Self::WebPush(_) => None,
         }
     }
 
@@ -1732,25 +1740,8 @@ impl ResponseBoundary {
     ) -> Option<bool> {
         match self {
             Self::Matcher(matcher) => matcher.matches(message, mapping, own_nick, state),
-            Self::Command(command) => {
-                if message.command_is(command) {
-                    return Some(true);
-                }
-                StandardReplyView::parse(message)
-                    .filter(|reply| reply.command.eq_ignore_ascii_case(command))
-                    .map(|reply| reply.kind == StandardReplyKind::Fail)
-            }
-            Self::WebPushRegister => {
-                if message.command_is("WEBPUSH") {
-                    return message
-                        .param(0)
-                        .is_some_and(|value| value.eq_ignore_ascii_case("REGISTER"))
-                        .then_some(false);
-                }
-                StandardReplyView::parse(message)
-                    .filter(|reply| reply.command.eq_ignore_ascii_case("WEBPUSH"))
-                    .map(|_| false)
-            }
+            #[cfg(feature = "unstable")]
+            Self::WebPush(response) => response.matches(message),
         }
     }
 
@@ -1767,8 +1758,9 @@ impl ResponseBoundary {
     fn fence(&self, request_id: u64) -> Option<String> {
         let prefix = match self {
             Self::Matcher(ResponseMatcher::Mode(_)) => "papo-mode",
-            Self::WebPushRegister => "papo-webpush",
-            Self::Matcher(_) | Self::Command(_) => return None,
+            Self::Matcher(_) => return None,
+            #[cfg(feature = "unstable")]
+            Self::WebPush(response) => response.fence_prefix()?,
         };
         Some(format!("{prefix}-{request_id}"))
     }
@@ -4937,23 +4929,6 @@ impl Session {
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
         self.request_with_boundary(now, message, ResponseBoundary::Matcher(matcher))
-    }
-
-    pub(crate) fn request_with_command_response(
-        &mut self,
-        now: Instant,
-        message: Line,
-        command: &str,
-    ) -> Result<RequestId, RequestError> {
-        self.request_with_boundary(now, message, ResponseBoundary::Command(command.to_owned()))
-    }
-
-    pub(crate) fn request_with_webpush_register_response(
-        &mut self,
-        now: Instant,
-        message: Line,
-    ) -> Result<RequestId, RequestError> {
-        self.request_with_boundary(now, message, ResponseBoundary::WebPushRegister)
     }
 
     fn request_with_boundary(
