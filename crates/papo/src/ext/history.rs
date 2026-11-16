@@ -1560,6 +1560,7 @@ mod tests {
         let between_others =
             "@time=2026-11-01T12:00:00.000Z;msgid=bob-1 :bob!~u@bob.irc PRIVMSG alice :hi";
         let folded = "@time=2026-11-01T09:00:00.000Z;msgid=own-2 :PAPO!~u@papo.irc PRIVMSG alice :and the key";
+        let shouted = "@time=2026-11-01T09:02:00.000Z;msgid=alice-2;account=alice :ALICE!~u@alice.irc PRIVMSG papo :SENT?";
         for (line, party, page, peer, sent_by_peer) in [
             (ours, Me, Some(&alice), Some("alice"), false),
             (ours, Unknown, Some(&alice), Some("alice"), false),
@@ -1577,6 +1578,8 @@ mod tests {
             (to_self, Unknown, None, None, false),
             (misfiled, Unknown, Some(&alice), None, false),
             (between_others, Unknown, None, None, false),
+            (between_others, Unknown, Some(&alice), Some("alice"), false),
+            (shouted, Unknown, Some(&alice), Some("alice"), true),
         ] {
             let mut item = core_item(line);
             item.actor_party = party;
@@ -1601,6 +1604,18 @@ mod tests {
             assert_eq!(*handle == message.actor, sent_by_peer, "{case}");
             assert_eq!(*handle == live, sent_by_peer, "{case}");
         }
+        let typing = core_item(
+            "@time=2026-11-01T10:00:01.000Z;msgid=note-2;+typing=active :papo!~u@papo.irc TAGMSG papo",
+        );
+        assert!(matches!(
+            history_item(
+                papo_core::HistoryItem::TagMsg(typing),
+                Some(&own),
+                &client,
+                UNIX_EPOCH
+            ),
+            PageEvent::Other(_)
+        ));
     }
 
     fn review_session(members: &[&str]) -> Session {
