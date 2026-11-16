@@ -1,7 +1,7 @@
 use super::{
-    Account, AccountNotify, Authorship, Away, AwayNotify, Chghost, Command, Event, Handled,
-    Isupport, LineRef, NameKey, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS,
-    WHOX_TOKEN, WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
+    Account, AccountNotify, Away, AwayNotify, Chghost, Command, Event, Handled, Isupport, LineRef,
+    NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN,
+    WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
@@ -248,7 +248,7 @@ impl State {
                     nick: self.nick.clone(),
                     away: Away::Present,
                     token: self.__reply_token_for(self.nick.as_str()),
-                    authorship: Authorship::Own,
+                    authorship: Party::Me,
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY)
@@ -267,7 +267,7 @@ impl State {
                     nick: self.nick.clone(),
                     away,
                     token: self.__reply_token_for(self.nick.as_str()),
-                    authorship: Authorship::Own,
+                    authorship: Party::Me,
                 });
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}
@@ -331,7 +331,7 @@ impl State {
             username: own.username.clone().unwrap_or(fallback_username),
             host: host.to_owned(),
             token,
-            authorship: Authorship::Own,
+            authorship: Party::Me,
         });
         Some(Handled::Yes)
     }

@@ -4,7 +4,7 @@ use papo_proto::{ChannelName, Command, LineRef, Nick, Prefix, Source, Typing};
 use web_time::Instant;
 
 use crate::{
-    Authorship, Conversation, Event, LineEnvelope, ReplyToken, Session,
+    Conversation, Event, LineEnvelope, Party, ReplyToken, Session,
     conversation::{LineTarget, classify_line_with_names},
 };
 
@@ -38,7 +38,7 @@ pub struct TypingChanged {
     actor_token: ReplyToken,
     peer_token: ReplyToken,
     /// Whether the user is this session's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// The IRC conversation where typing is occurring.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -482,7 +482,7 @@ impl Session {
         let actor_token = self.state.source_token(message);
         let peer_token = self.state.conversation_token(&conversation);
         let server_time = LineEnvelope::from_line(message).server_time();
-        if authorship == Authorship::Other {
+        if authorship == Party::Other {
             let nick = self.names().nick(nick);
             let evicted = TypingTable::notify(
                 &mut self.state.typing,
@@ -564,7 +564,7 @@ impl Session {
                 else {
                     return;
                 };
-                let own = self.authorship(message) == Authorship::Own;
+                let own = self.authorship(message) == Party::Me;
                 let nick = mapping.nick(nick);
                 let mut removed = Vec::new();
                 for channel in channels.split(',') {
@@ -602,7 +602,7 @@ impl Session {
                 let Some(Source::User { nick, .. }) = message.source() else {
                     return;
                 };
-                let own = self.authorship(message) == Authorship::Own;
+                let own = self.authorship(message) == Party::Me;
                 let nick = mapping.nick(nick);
                 (
                     TypingTable::stop_where(&mut self.state.typing, |_, typer| {
@@ -658,7 +658,7 @@ fn stopped(
         actor: deadline.actor,
         actor_token: deadline.actor_token,
         peer_token: deadline.peer_token,
-        authorship: Authorship::Other,
+        authorship: Party::Other,
         conversation: deadline.conversation,
         status: deadline.status,
         return_address: deadline.return_address,

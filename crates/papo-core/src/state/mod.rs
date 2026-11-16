@@ -22,18 +22,18 @@ use papo_proto::{
 
 #[cfg(test)]
 use crate::monitor::presence_nicks;
+#[cfg(feature = "unstable")]
+use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 use crate::{
-    Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
-    MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
-    ReadMarker, RecipientGuard, Secret, Source, StateLimit, Subject, WhoOnJoin,
+    Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode, MetadataValue, ModeArg,
+    ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox, Party, ReadMarker,
+    RecipientGuard, Secret, Source, StateLimit, Subject, WhoOnJoin,
     bounded::BoundedCollection,
     cap,
     conversation::{LineTarget, classify_target_with_names},
     monitor::Monitor,
     typing::{Typers, TypingTable},
 };
-#[cfg(feature = "unstable")]
-use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
@@ -415,11 +415,11 @@ impl State {
         self.users.get(nick).expect("own user is always present")
     }
 
-    pub(super) fn nick_authorship(&self, nick: &str) -> Authorship {
+    pub(super) fn nick_authorship(&self, nick: &str) -> Party {
         if crate::names_equal(self.casemapping.casemapping(), nick, self.nick.as_str()) {
-            Authorship::Own
+            Party::Me
         } else {
-            Authorship::Other
+            Party::Other
         }
     }
 
@@ -440,19 +440,19 @@ impl State {
         }
     }
 
-    pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Authorship {
+    pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Party {
         match message.source() {
             Some(ProtoSource::User { nick, .. })
-                if self.nick_authorship(nick) == Authorship::Own
+                if self.nick_authorship(nick) == Party::Me
                     || message.tag("account").is_some_and(|actor| {
                         self.account()
                             .name()
                             .is_some_and(|own| self.casemapping.account(actor.as_ref()) == *own)
                     }) =>
             {
-                Authorship::Own
+                Party::Me
             }
-            _ => Authorship::Other,
+            _ => Party::Other,
         }
     }
 
@@ -1222,7 +1222,7 @@ impl State {
             let collides_with_own =
                 !own_rename && crate::names_equal(mapping, new_nick, self.nick.as_str());
             let authorship = self.source_authorship(message);
-            let mut channels: Vec<_> = if authorship == Authorship::Own {
+            let mut channels: Vec<_> = if authorship == Party::Me {
                 self.channels
                     .values()
                     .map(|channel| channel.name.clone())
@@ -1416,7 +1416,7 @@ impl State {
             actor_token: self.source_token(message),
             authorship: self.source_authorship(message),
             subject_authorship: match message.source() {
-                _ if isupport.is_channel(target) => Authorship::Other,
+                _ if isupport.is_channel(target) => Party::Other,
                 _ => self.nick_authorship(target),
             },
             own_nick: Some(self.nick.clone()),
@@ -2396,7 +2396,7 @@ mod metadata_tests {
     use papo_proto::{Isupport, Line, LineRef};
 
     use super::{Arc, Channel, MetadataContext, NameKey, State};
-    use crate::{Authorship, Capabilities, Config, Event, ListMode, Outbox, StateLimit};
+    use crate::{Capabilities, Config, Event, ListMode, Outbox, Party, StateLimit};
 
     #[test]
     fn overflow_warning_fires_once_while_input_continues() {
@@ -2472,7 +2472,7 @@ mod metadata_tests {
             outbox.events.pop_front(),
             Some(Event::HostChanged {
                 username,
-                authorship: Authorship::Own,
+                authorship: Party::Me,
                 ..
             }) if username == "papo"
         ));

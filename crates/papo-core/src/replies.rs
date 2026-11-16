@@ -1,5 +1,5 @@
 use crate::{
-    Authorship, Event, LineEnvelope, LineRef, Redacted, Session, StandardReply, StandardReplyView,
+    Event, LineEnvelope, LineRef, Party, Redacted, Session, StandardReply, StandardReplyView,
     TagMessage,
     conversation::{LineTarget, classify_line_with_names},
 };
@@ -84,9 +84,9 @@ impl Session {
             actor_token: self.state.source_token(message),
             authorship: self.authorship(message),
             subject_authorship: if crate::names_equal(casemapping, nick, self.nick()) {
-                Authorship::Own
+                Party::Me
             } else {
-                Authorship::Other
+                Party::Other
             },
         });
         true
