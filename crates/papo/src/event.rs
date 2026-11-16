@@ -1947,13 +1947,24 @@ fn attach_user_message_handle(
 ) {
     *actor = event_handle(actor, tokens.actor, state, historical);
     if let Conversation::Private(peer) = conversation {
-        *peer = if actor_party == Party::Me {
-            event_handle(peer, tokens.peer, state, historical)
-        } else {
-            actor.clone()
-        };
+        *peer = private_peer_handle(actor, actor_party, peer, tokens, state, historical);
     }
     receipt.update_event_actor(Source::User(actor.clone()), conversation);
+}
+
+fn private_peer_handle(
+    actor: &crate::UserHandle,
+    actor_party: Party,
+    peer: &crate::UserHandle,
+    tokens: LineTokens,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    historical: bool,
+) -> crate::UserHandle {
+    if actor_party == Party::Me {
+        event_handle(peer, tokens.peer, state, historical)
+    } else {
+        actor.clone()
+    }
 }
 
 pub(crate) fn attach_message_handles(
@@ -1992,11 +2003,14 @@ pub(crate) fn attach_message_handles(
             if let Source::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
                 if let Conversation::Private(peer) = &mut event.conversation {
-                    *peer = if event.actor_party == Party::Me {
-                        event_handle(peer, tokens.peer, state, historical)
-                    } else {
-                        actor.clone()
-                    };
+                    *peer = private_peer_handle(
+                        actor,
+                        event.actor_party,
+                        peer,
+                        tokens,
+                        state,
+                        historical,
+                    );
                 }
                 event
                     .receipt
