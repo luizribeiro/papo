@@ -3,9 +3,9 @@ use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
 use super::support::{
-    any_message_text, assert_delivery_tags, confirmed_line, conversation_is_private,
-    conversation_name, message_text, notice_text, restricted_line, restricted_message,
-    restricted_text,
+    any_message_text, assert_delivery_tags, confirmed_line, confirmed_redaction,
+    conversation_is_private, conversation_name, message_text, notice_text, restricted_line,
+    restricted_message, restricted_text,
 };
 use crate::{Peer, Scenario};
 
@@ -1082,8 +1082,12 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     let id = received.msgid().expect("message has an identifier").clone();
     assert_eq!(&id, confirmed_line(&sent).0);
 
-    alice.redact(&sent, "superseded").await?;
+    let outcome = alice.redact(&sent, "superseded").await?;
     let redacted = bob.wait_for(Event::as_redacted).await?;
+    let (redacts, echo, echo_time) = confirmed_redaction(&outcome);
+    assert_eq!(redacts, &id);
+    assert_eq!(redacted.msgid(), Some(echo));
+    assert_eq!(redacted.server_time, echo_time);
     assert_eq!(
         conversation_name(redacted.conversation()),
         Some(channel.clone())

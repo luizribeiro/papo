@@ -2,8 +2,8 @@ use papo::{Away, Error, Event, Party, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::{
-    any_message_text, confirmed_line, conversation_name, join_seen_by, restricted_line,
-    restricted_message, restricted_text, wait_for_channel,
+    any_message_text, confirmed_line, confirmed_redaction, conversation_name, join_seen_by,
+    restricted_line, restricted_message, restricted_text, wait_for_channel,
 };
 use crate::Scenario;
 
@@ -271,8 +271,12 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
         .await?;
     let (id, sent_text, _) = confirmed_line(&sent);
     assert_eq!(sent_text, "deployment note to remove");
-    desktop.redact(&sent, "deployment superseded").await?;
+    let outcome = desktop.redact(&sent, "deployment superseded").await?;
     let removed = phone.wait_for(Event::as_redacted).await?;
+    let (redacts, echo, echo_time) = confirmed_redaction(&outcome);
+    assert_eq!(redacts, id);
+    assert_eq!(removed.msgid(), Some(echo));
+    assert_eq!(removed.server_time, echo_time);
     assert_eq!(&removed.redacts, id);
     assert_eq!(removed.reason.as_deref(), Some("deployment superseded"));
     assert_eq!(removed.return_address(), channel.as_str());
