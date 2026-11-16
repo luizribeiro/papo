@@ -10,15 +10,14 @@ const CHANNEL: &str = "#papo";
 async fn main() -> Result<(), Box<dyn Error>> {
     let url = env::args().nth(1).ok_or("usage: lurker URL")?;
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-lurker".into());
-    let (client, mut events) = Client::builder(url, nick)
+    let (_client, mut events) = Client::builder(url, nick)
         .autojoin([CHANNEL])
         .connect()
         .await?;
 
-    while let Some((event, _)) = events.next().await {
+    while let Some((event, state)) = events.next().await {
         match event {
             Event::ChannelSynced(synced) => {
-                let state = client.snapshot();
                 let Some(channel) = state.__channel_local(&synced.channel) else {
                     continue;
                 };
@@ -29,9 +28,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 members.sort();
                 println!("members {}: {}", synced.channel, members.join(" "));
             }
-            Event::Joined(joined) => println!("join {} {}", joined.channel, joined.actor.nick()),
-            Event::Parted(parted) => println!("part {} {}", parted.channel, parted.actor.nick()),
-            Event::Quit(quit) => println!("quit {}", quit.actor.nick()),
+            Event::Joined(joined) => {
+                let Some(user) = state.user(&joined.actor)? else {
+                    continue;
+                };
+                println!("join {} {}", joined.channel, user.nick());
+            }
+            Event::Parted(parted) => {
+                let Some(user) = parted.facts else { continue };
+                println!("part {} {}", parted.channel, user.nick());
+            }
+            Event::Quit(quit) => {
+                let Some(user) = quit.facts else { continue };
+                println!("quit {}", user.nick());
+            }
             Event::NickChanged(changed) => {
                 println!("nick {} -> {}", changed.old, changed.new);
             }
