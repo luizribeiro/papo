@@ -1428,7 +1428,10 @@ where
             Some(&events.state),
         );
         match core_event {
-            event::CoreEvent::RequestAborted { id, transmitted } => {
+            event::CoreEvent::RequestEnded {
+                id,
+                end: event::RequestEnd::Aborted { transmitted },
+            } => {
                 join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
                     let error = if transmitted {
@@ -1738,69 +1741,18 @@ where
                     }
                 }
             }
-            event::CoreEvent::RequestUntracked(id) => {
-                join_keys.remove(&id);
-                requests.remove(&id);
-            }
-            event::CoreEvent::RequestTimedOut(id) => {
-                end_request(
-                    session,
-                    requests,
-                    join_keys,
-                    catchups,
-                    id,
-                    event::RequestEnd::TimedOut,
-                );
-            }
-            event::CoreEvent::RequestFailed { id, error } => {
-                end_request(
-                    session,
-                    requests,
-                    join_keys,
-                    catchups,
-                    id,
-                    event::RequestEnd::Failed(error),
-                );
-            }
-            event::CoreEvent::RequestAborted { id, transmitted } => {
-                end_request(
-                    session,
-                    requests,
-                    join_keys,
-                    catchups,
-                    id,
-                    event::RequestEnd::Aborted { transmitted },
-                );
+            event::CoreEvent::RequestEnded { id, end } => {
+                end_request(session, requests, join_keys, catchups, id, end);
             }
             event::CoreEvent::TransmitAborted(token) => {
                 if let Some(result) = transmits.remove(&token) {
                     result.fail(Error::connection_lost());
                 }
             }
-            event::CoreEvent::RequestRecipientGone(id) => {
-                end_request(
-                    session,
-                    requests,
-                    join_keys,
-                    catchups,
-                    id,
-                    event::RequestEnd::RecipientGone,
-                );
-            }
             event::CoreEvent::TransmitRecipientGone(token) => {
                 if let Some(result) = transmits.remove(&token) {
                     result.fail(Error::TargetGone);
                 }
-            }
-            event::CoreEvent::RequestCredentialsRefused(id) => {
-                end_request(
-                    session,
-                    requests,
-                    join_keys,
-                    catchups,
-                    id,
-                    event::RequestEnd::CredentialsRefused,
-                );
             }
             event::CoreEvent::TransmitCredentialsRefused(token) => {
                 if let Some(result) = transmits.remove(&token) {
@@ -1816,16 +1768,6 @@ where
                 }
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
-            event::CoreEvent::RequestUnsupported { id, unsupported } => {
-                end_request(
-                    session,
-                    requests,
-                    join_keys,
-                    catchups,
-                    id,
-                    event::RequestEnd::Unsupported(unsupported),
-                );
-            }
             event::CoreEvent::Unknown => {}
         }
         reconcile_pending_events(events, pending_events, requests, resolved_sent);
@@ -1852,13 +1794,16 @@ fn end_request(
     ) {
         session.__cancel_request(id);
     }
-    if let Some(request) = requests.remove(&id) {
-        request.fail(request_end_error(end));
+    if let Some(request) = requests.remove(&id)
+        && let Some(error) = request_end_error(end)
+    {
+        request.fail(error);
     }
 }
 
-fn request_end_error(end: event::RequestEnd) -> Error {
-    match end {
+fn request_end_error(end: event::RequestEnd) -> Option<Error> {
+    Some(match end {
+        event::RequestEnd::Untracked => return None,
         event::RequestEnd::TimedOut => Error::Timeout,
         event::RequestEnd::Failed(error) => Error::request(error),
         event::RequestEnd::Aborted { transmitted } => {
@@ -1878,7 +1823,7 @@ fn request_end_error(end: event::RequestEnd) -> Error {
             Error::InvalidInput(InvalidInput::InsecureAuthentication)
         }
         event::RequestEnd::Unsupported(unsupported) => Error::Unsupported(unsupported),
-    }
+    })
 }
 
 const RESOLVED_SENT_CAPACITY: usize = 1_024;

@@ -2066,20 +2066,12 @@ pub(crate) enum CoreEvent {
     Connected(Welcome),
     Line(CoreLine),
     Response(Response),
-    RequestUntracked(RequestId),
-    RequestTimedOut(RequestId),
-    RequestFailed {
+    RequestEnded {
         id: RequestId,
-        error: papo_core::RequestError,
-    },
-    RequestAborted {
-        id: RequestId,
-        transmitted: bool,
+        end: RequestEnd,
     },
     TransmitAborted(papo_core::TransmitToken),
-    RequestRecipientGone(RequestId),
     TransmitRecipientGone(papo_core::TransmitToken),
-    RequestCredentialsRefused(RequestId),
     TransmitCredentialsRefused(papo_core::TransmitToken),
     StsUpgrade(u16),
     StsPolicy(StsAction),
@@ -2092,21 +2084,22 @@ pub(crate) enum CoreEvent {
         kind: papo_core::CloseKind,
         reason: String,
     },
-    RequestUnsupported {
-        id: RequestId,
-        unsupported: papo_core::Unsupported,
-    },
     Unknown,
 }
 
 /// Every way a request can finish without a response.
 pub(crate) enum RequestEnd {
+    Untracked,
     TimedOut,
     Failed(papo_core::RequestError),
     Aborted { transmitted: bool },
     RecipientGone,
     CredentialsRefused,
     Unsupported(papo_core::Unsupported),
+}
+
+const fn request_ended(id: RequestId, end: RequestEnd) -> CoreEvent {
+    CoreEvent::RequestEnded { id, end }
 }
 
 pub(crate) enum CoreLine {
@@ -2386,27 +2379,31 @@ pub(crate) fn from_core_with_receipt(
             })
         }
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
-        papo_core::Event::RequestUntracked { id, .. } => return CoreEvent::RequestUntracked(id),
-        papo_core::Event::RequestTimedOut { id, .. } => return CoreEvent::RequestTimedOut(id),
+        papo_core::Event::RequestUntracked { id, .. } => {
+            return request_ended(id, RequestEnd::Untracked);
+        }
+        papo_core::Event::RequestTimedOut { id, .. } => {
+            return request_ended(id, RequestEnd::TimedOut);
+        }
         papo_core::Event::RequestFailed(id, error) => {
-            return CoreEvent::RequestFailed { id, error };
+            return request_ended(id, RequestEnd::Failed(error));
         }
         papo_core::Event::RequestAborted {
             id, transmitted, ..
         } => {
-            return CoreEvent::RequestAborted { id, transmitted };
+            return request_ended(id, RequestEnd::Aborted { transmitted });
         }
         papo_core::Event::TransmitAborted { token, .. } => {
             return CoreEvent::TransmitAborted(token);
         }
         papo_core::Event::RequestRecipientGone { id, .. } => {
-            return CoreEvent::RequestRecipientGone(id);
+            return request_ended(id, RequestEnd::RecipientGone);
         }
         papo_core::Event::TransmitRecipientGone { token, .. } => {
             return CoreEvent::TransmitRecipientGone(token);
         }
         papo_core::Event::RequestCredentialsRefused { id, .. } => {
-            return CoreEvent::RequestCredentialsRefused(id);
+            return request_ended(id, RequestEnd::CredentialsRefused);
         }
         papo_core::Event::TransmitCredentialsRefused { token, .. } => {
             return CoreEvent::TransmitCredentialsRefused(token);
@@ -2414,7 +2411,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::RequestUnsupported {
             id, unsupported, ..
         } => {
-            return CoreEvent::RequestUnsupported { id, unsupported };
+            return request_ended(id, RequestEnd::Unsupported(unsupported));
         }
         papo_core::Event::StandardReply(reply) => Event::StandardReply(StandardReply {
             kind: match reply.kind {
@@ -2962,8 +2959,9 @@ mod tests {
     use super::{
         Audience, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent, Event,
         Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
-        ModeChange, Party, ServerNoticeKind, Source, StandardReplyKind, Tags, Warning, ctcp_parts,
-        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
+        ModeChange, Party, RequestEnd, ServerNoticeKind, Source, StandardReplyKind, Tags, Warning,
+        ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
+        message_event_from_line,
     };
     use crate::{ModeArg, Subject, Visibility};
     use papo_core::{
@@ -5110,7 +5108,7 @@ mod tests {
         _ = session.poll_transmit();
         session.handle_timeout(now);
         assert!(
-            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestTimedOut(mapped) if mapped == id)
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestEnded { id: mapped, end: RequestEnd::TimedOut } if mapped == id)
         );
     }
 
@@ -5123,7 +5121,7 @@ mod tests {
             .unwrap();
         session.handle_disconnected(now);
         assert!(
-            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestAborted { id: mapped, .. } if mapped == id)
+            matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestEnded { id: mapped, end: RequestEnd::Aborted { .. } } if mapped == id)
         );
     }
 
@@ -5202,8 +5200,13 @@ mod tests {
             assert!(
                 matches!(
                     (expected, mapped),
-                    ("RequestRecipientGone", CoreEvent::RequestRecipientGone(_))
-                        | ("TransmitRecipientGone", CoreEvent::TransmitRecipientGone(_))
+                    (
+                        "RequestRecipientGone",
+                        CoreEvent::RequestEnded {
+                            end: RequestEnd::RecipientGone,
+                            ..
+                        }
+                    ) | ("TransmitRecipientGone", CoreEvent::TransmitRecipientGone(_))
                 ),
                 "{expected}"
             );
@@ -6540,7 +6543,10 @@ mod tests {
             session.persistence_get(now).unwrap();
             assert!(matches!(
                 from_core(session.poll_event().unwrap()),
-                CoreEvent::RequestUntracked(_)
+                CoreEvent::RequestEnded {
+                    end: RequestEnd::Untracked,
+                    ..
+                }
             ));
         }
 
