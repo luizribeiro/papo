@@ -79,6 +79,9 @@
 "bot_replay::unbatched_playback_from_before_registration_runs_no_command" = [
   "security.history.unbatched-playback-command",
 ]
+"bot_replay::a_history_page_message_stamped_after_registration_runs_no_command" = [
+  "security.history.page-item-command",
+]
 "moderation_identity::person_method_identity_matrix" = [
   "security.send-path-23-26.guarded-moderation",
 ]

@@ -74,6 +74,7 @@ ids = [
   "security.history.untagged-actor-not-current-holder",
   "security.history.logged-out-own-dm-peer",
   "security.history.unbatched-playback-command",
+  "security.history.page-item-command",
   "security.bot.private-reply-after-nick-takeover", "security.reply.broadcast-private",
   "security.st-1.metadata-nick-handoff",
   "security.routing.status-prefix-channel", "security.routing.status-prefix-reaction",
