@@ -316,6 +316,7 @@ mod tests {
         assert!(failure.contains(" -> CAP LS 302\n"), "{failure}");
     }
 
+    #[cfg(panic = "unwind")]
     #[test]
     fn runner_fails_a_panicking_body() {
         fn panic_body(_: Scenario) -> ScenarioFuture {
