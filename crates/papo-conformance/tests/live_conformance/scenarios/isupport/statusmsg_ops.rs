@@ -1,4 +1,4 @@
-use papo::{ModeAction, ModeArg, Typing};
+use papo::{Event, ModeAction, ModeArg, Typing};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{
@@ -166,6 +166,48 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// Sends an operators-only question and asserts that only the operator `bob` receives it.
+async fn ops_question(peers: &mut StatusmsgPeers) -> papo_testing::Result<papo::Message> {
+    let channel = &peers.channel;
+    peers
+        .alice
+        .privmsg(format!("@{channel}"), "operators-only question")
+        .await?;
+    let (sign, question) = restricted_message(
+        peers
+            .bob
+            .wait_for(|event| restricted_text(event, "operators-only question"))
+            .await?,
+    );
+    assert_eq!(
+        crate::scenarios::support::conversation_name(question.conversation()),
+        Some(channel.clone())
+    );
+    assert_eq!(sign, '@');
+    for peer in [&mut peers.carol, &mut peers.dave] {
+        peer.expect_none(|event| any_message_text(event, "operators-only question"))
+            .await?;
+    }
+    Ok(question)
+}
+
+/// Asserts that neither non-operator receives the line, as an operators-only or a plain line.
+async fn unseen_by_non_operators<T>(
+    peers: &mut StatusmsgPeers,
+    restricted: fn(&papo::RestrictedLine) -> Option<&T>,
+    plain: fn(&Event) -> Option<&T>,
+) -> papo_testing::Result<()> {
+    for peer in [&mut peers.carol, &mut peers.dave] {
+        peer.expect_none(|event| {
+            restricted_line(event, restricted)
+                .map(|_| event)
+                .or_else(|| plain(event).map(|_| event))
+        })
+        .await?;
+    }
+    Ok(())
+}
+
 /// preserves an operators-only audience when replying to a status message
 #[scenario(
     requires(caps = ["echo-message", "labeled-response"], isupport = ["STATUSMSG"]),
@@ -175,43 +217,22 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     ]
 )]
 async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
-    let StatusmsgPeers {
-        mut alice,
-        mut bob,
-        mut carol,
-        mut dave,
-        channel,
-    } = statusmsg_peers(&s).await?;
+    let mut peers = statusmsg_peers(&s).await?;
+    let question = ops_question(&mut peers).await?;
 
-    alice
-        .privmsg(format!("@{channel}"), "operators-only question")
-        .await?;
-    let (sign, question) = restricted_message(
-        bob.wait_for(|event| restricted_text(event, "operators-only question"))
-            .await?,
-    );
-    assert_eq!(
-        crate::scenarios::support::conversation_name(question.conversation()),
-        Some(channel.clone())
-    );
-    assert_eq!(sign, '@');
-    for peer in [&mut carol, &mut dave] {
-        peer.expect_none(|event| any_message_text(event, "operators-only question"))
-            .await?;
-    }
-
-    bob.reply(&question, "operators-only answer").await?;
+    peers.bob.reply(&question, "operators-only answer").await?;
     let (sign, answer) = restricted_message(
-        alice
+        peers
+            .alice
             .wait_for(|event| restricted_text(event, "operators-only answer"))
             .await?,
     );
     assert_eq!(
         crate::scenarios::support::conversation_name(answer.conversation()),
-        Some(channel.clone())
+        Some(peers.channel.clone())
     );
     assert_eq!(sign, '@');
-    for peer in [&mut carol, &mut dave] {
+    for peer in [&mut peers.carol, &mut peers.dave] {
         peer.expect_none(|event| any_message_text(event, "operators-only answer"))
             .await?;
     }
@@ -225,8 +246,10 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .msgid()
         .expect("operators-only message has an identifier")
         .clone();
-    reaction_or_skip(bob.react(&question, "🛡️").await)?;
-    let reaction = alice
+
+    reaction_or_skip(peers.bob.react(&question, "🛡️").await)?;
+    let reaction = peers
+        .alice
         .wait_for(|event| {
             restricted_line(event, |line| {
                 line.as_reacted().filter(|reaction| {
@@ -236,18 +259,19 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(reaction.audience.symbol(), '@');
-    for peer in [&mut carol, &mut dave] {
-        peer.expect_none(|event| {
-            restricted_line(event, papo::RestrictedLine::as_reacted)
-                .map(|_| event)
-                .or_else(|| event.as_reacted().map(|_| event))
-        })
-        .await?;
-    }
+    unseen_by_non_operators(
+        &mut peers,
+        papo::RestrictedLine::as_reacted,
+        Event::as_reacted,
+    )
+    .await?;
 
-    bob.typing(question.return_address(), Typing::Active)
+    peers
+        .bob
+        .typing(question.return_address(), Typing::Active)
         .await?;
-    let typing = alice
+    let typing = peers
+        .alice
         .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
         .await?;
     assert_eq!(typing.audience.symbol(), '@');
@@ -255,16 +279,12 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         typing.line.as_typing_changed().map(|typing| typing.state),
         Some(Typing::Active)
     );
-    for peer in [&mut carol, &mut dave] {
-        peer.expect_none(|event| {
-            restricted_line(event, papo::RestrictedLine::as_typing_changed)
-                .map(|_| event)
-                .or_else(|| event.as_typing_changed().map(|_| event))
-        })
-        .await?;
-    }
-
-    Ok(())
+    unseen_by_non_operators(
+        &mut peers,
+        papo::RestrictedLine::as_typing_changed,
+        Event::as_typing_changed,
+    )
+    .await
 }
 
 /// posts to everyone from the window of an operators-only line and refuses stacked prefixes
