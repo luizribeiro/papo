@@ -1743,31 +1743,34 @@ where
                 requests.remove(&id);
             }
             event::CoreEvent::RequestTimedOut(id) => {
-                join_keys.remove(&id);
-                if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::Timeout);
-                }
+                end_request(
+                    session,
+                    requests,
+                    join_keys,
+                    catchups,
+                    id,
+                    event::RequestEnd::TimedOut,
+                );
             }
             event::CoreEvent::RequestFailed { id, error } => {
-                join_keys.remove(&id);
-                if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::request(error));
-                }
+                end_request(
+                    session,
+                    requests,
+                    join_keys,
+                    catchups,
+                    id,
+                    event::RequestEnd::Failed(error),
+                );
             }
             event::CoreEvent::RequestAborted { id, transmitted } => {
-                join_keys.remove(&id);
-                if let Some(result) = requests.remove(&id) {
-                    let disconnected = crate::Disconnected::new(
-                        crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
-                        1,
-                        None,
-                    );
-                    result.fail(if transmitted {
-                        Error::Interrupted(disconnected)
-                    } else {
-                        Error::disconnected(disconnected)
-                    });
-                }
+                end_request(
+                    session,
+                    requests,
+                    join_keys,
+                    catchups,
+                    id,
+                    event::RequestEnd::Aborted { transmitted },
+                );
             }
             event::CoreEvent::TransmitAborted(token) => {
                 if let Some(result) = transmits.remove(&token) {
@@ -1775,11 +1778,14 @@ where
                 }
             }
             event::CoreEvent::RequestRecipientGone(id) => {
-                join_keys.remove(&id);
-                session.__cancel_request(id);
-                if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::TargetGone);
-                }
+                end_request(
+                    session,
+                    requests,
+                    join_keys,
+                    catchups,
+                    id,
+                    event::RequestEnd::RecipientGone,
+                );
             }
             event::CoreEvent::TransmitRecipientGone(token) => {
                 if let Some(result) = transmits.remove(&token) {
@@ -1787,11 +1793,14 @@ where
                 }
             }
             event::CoreEvent::RequestCredentialsRefused(id) => {
-                join_keys.remove(&id);
-                session.__cancel_request(id);
-                if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::InvalidInput(InvalidInput::InsecureAuthentication));
-                }
+                end_request(
+                    session,
+                    requests,
+                    join_keys,
+                    catchups,
+                    id,
+                    event::RequestEnd::CredentialsRefused,
+                );
             }
             event::CoreEvent::TransmitCredentialsRefused(token) => {
                 if let Some(result) = transmits.remove(&token) {
@@ -1808,11 +1817,14 @@ where
             }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
             event::CoreEvent::RequestUnsupported { id, unsupported } => {
-                join_keys.remove(&id);
-                catchups.remove(&id);
-                if let Some(result) = requests.remove(&id) {
-                    result.fail(Error::Unsupported(unsupported));
-                }
+                end_request(
+                    session,
+                    requests,
+                    join_keys,
+                    catchups,
+                    id,
+                    event::RequestEnd::Unsupported(unsupported),
+                );
             }
             event::CoreEvent::Unknown => {}
         }
@@ -1820,6 +1832,53 @@ where
     }
     drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
+}
+
+fn end_request(
+    session: &mut Session,
+    requests: &mut BTreeMap<RequestId, PendingRequest>,
+    join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
+    catchups: &mut BTreeMap<RequestId, Catchup>,
+    id: RequestId,
+    end: event::RequestEnd,
+) {
+    join_keys.remove(&id);
+    if matches!(end, event::RequestEnd::Unsupported(_)) {
+        catchups.remove(&id);
+    }
+    if matches!(
+        end,
+        event::RequestEnd::RecipientGone | event::RequestEnd::CredentialsRefused
+    ) {
+        session.__cancel_request(id);
+    }
+    if let Some(request) = requests.remove(&id) {
+        request.fail(request_end_error(end));
+    }
+}
+
+fn request_end_error(end: event::RequestEnd) -> Error {
+    match end {
+        event::RequestEnd::TimedOut => Error::Timeout,
+        event::RequestEnd::Failed(error) => Error::request(error),
+        event::RequestEnd::Aborted { transmitted } => {
+            let disconnected = crate::Disconnected::new(
+                crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
+                1,
+                None,
+            );
+            if transmitted {
+                Error::Interrupted(disconnected)
+            } else {
+                Error::disconnected(disconnected)
+            }
+        }
+        event::RequestEnd::RecipientGone => Error::TargetGone,
+        event::RequestEnd::CredentialsRefused => {
+            Error::InvalidInput(InvalidInput::InsecureAuthentication)
+        }
+        event::RequestEnd::Unsupported(unsupported) => Error::Unsupported(unsupported),
+    }
 }
 
 const RESOLVED_SENT_CAPACITY: usize = 1_024;

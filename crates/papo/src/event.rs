@@ -2099,6 +2099,16 @@ pub(crate) enum CoreEvent {
     Unknown,
 }
 
+/// Every way a request can finish without a response.
+pub(crate) enum RequestEnd {
+    TimedOut,
+    Failed(papo_core::RequestError),
+    Aborted { transmitted: bool },
+    RecipientGone,
+    CredentialsRefused,
+    Unsupported(papo_core::Unsupported),
+}
+
 pub(crate) enum CoreLine {
     Complete(papo_core::ReceivedLine),
     Incomplete(papo_core::ReceivedLine),
