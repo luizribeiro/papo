@@ -14,6 +14,7 @@ const REDACTION_CAPS: &str =
 const REDACTED_MSGID: &str = "b56bhkz4gmj7ig2jeg9hs7d2cs";
 const OWN_ECHO: &str = "@msgid=qsgqkhqcmnxm6x2dcricaf69f6;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs superseded";
 const ACK: &str = "@time=2026-11-16T07:39:12.791Z;label=0 :ergo.test ACK";
+const FOREIGN_REDACT: &str = "@msgid=4f6fb68i4ak2gs3dzkqdf2rwa6;time=2026-11-16T07:39:16.699Z :bob!~u@fa4ww98eysn9a.irc REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs :mod action";
 
 fn ergo(now: Instant, caps: &str) -> Session {
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -120,4 +121,46 @@ fn an_ack_whose_echo_never_arrives_times_out() {
         Some(Event::RequestTimedOut { id: timed_out, .. }) if timed_out == id
     ));
     assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
+}
+
+#[test]
+fn another_users_redaction_of_the_same_message_does_not_confirm_ours() {
+    let now = Instant::now();
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+
+    let foreign = play(&mut session, now, FOREIGN_REDACT);
+    assert_eq!(foreign.len(), 1, "{foreign:?}");
+    assert_eq!(redaction_by(&foreign[0]), Some(Party::Other));
+    assert_eq!(play(&mut session, now, ACK), []);
+    let foreign = play(&mut session, now, FOREIGN_REDACT);
+    assert_eq!(foreign.len(), 1, "{foreign:?}");
+
+    let echoed = play(&mut session, now, OWN_ECHO);
+    assert_eq!(echoed.len(), 2, "{echoed:?}");
+    assert_eq!(response(&echoed[1]).id, id);
+    assert_eq!(response(&echoed[1]).sent(), Some(own_echo_identity()));
+}
+
+#[test]
+fn an_own_redaction_of_another_message_or_target_does_not_confirm_ours() {
+    let now = Instant::now();
+    for unrelated in [
+        "@msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #papo kcq8m7mfjjd2vde7gcqaxxe2se superseded",
+        "@msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #ergo b56bhkz4gmj7ig2jeg9hs7d2cs superseded",
+        "@msgid=7wq9b3c2z5kxm8a4r6d1e0fyhu;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc PRIVMSG #papo b56bhkz4gmj7ig2jeg9hs7d2cs",
+    ] {
+        let mut session = ergo(now, REDACTION_CAPS);
+        let id = redact(&mut session, now);
+        assert_eq!(play(&mut session, now, ACK), [], "{unrelated}");
+        let events = play(&mut session, now, unrelated);
+        assert!(
+            !events
+                .iter()
+                .any(|event| matches!(event, Event::Response(_))),
+            "{unrelated}: {events:?}"
+        );
+        let echoed = play(&mut session, now, OWN_ECHO);
+        assert_eq!(response(&echoed[1]).id, id, "{unrelated}");
+    }
 }
