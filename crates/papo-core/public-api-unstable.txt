@@ -484,7 +484,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Decoding
 #[non_exhaustive] pub papo_core::Event::AccountChanged
 pub papo_core::Event::AccountChanged::account: papo_core::Account
 pub papo_core::Event::AccountChanged::actor: alloc::string::String
-pub papo_core::Event::AccountChanged::authorship: Authorship
+pub papo_core::Event::AccountChanged::authorship: papo_core::Party
 pub papo_core::Event::AccountChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::AccountChanged::nick: papo::Nick
 pub papo_core::Event::AccountChanged::token: ReplyToken
@@ -495,7 +495,7 @@ pub papo_core::Event::AccountCreated::logged_in: bool
 pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::AwayChanged
 pub papo_core::Event::AwayChanged::actor: alloc::string::String
-pub papo_core::Event::AwayChanged::authorship: Authorship
+pub papo_core::Event::AwayChanged::authorship: papo_core::Party
 pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::AwayChanged::nick: papo::Nick
@@ -520,7 +520,7 @@ pub papo_core::Event::ChannelRecreated::previous_created_at: papo_proto::time::S
 #[non_exhaustive] pub papo_core::Event::ChannelRenamed
 pub papo_core::Event::ChannelRenamed::actor: alloc::string::String
 pub papo_core::Event::ChannelRenamed::actor_token: ReplyToken
-pub papo_core::Event::ChannelRenamed::authorship: Authorship
+pub papo_core::Event::ChannelRenamed::authorship: papo_core::Party
 pub papo_core::Event::ChannelRenamed::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ChannelRenamed::new: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
@@ -541,7 +541,7 @@ pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
 pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, papo_proto::time::ServerTime)>)
 #[non_exhaustive] pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::actor: alloc::string::String
-pub papo_core::Event::HostChanged::authorship: Authorship
+pub papo_core::Event::HostChanged::authorship: papo_core::Party
 pub papo_core::Event::HostChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
@@ -551,15 +551,15 @@ pub papo_core::Event::Incomplete(papo_core::IncompleteMultiline)
 #[non_exhaustive] pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
 pub papo_core::Event::Invited::actor_token: ReplyToken
-pub papo_core::Event::Invited::authorship: Authorship
+pub papo_core::Event::Invited::authorship: papo_core::Party
 pub papo_core::Event::Invited::channel: papo::ChannelName
 pub papo_core::Event::Invited::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Invited::subject: papo::Nick
-pub papo_core::Event::Invited::subject_authorship: Authorship
+pub papo_core::Event::Invited::subject_authorship: papo_core::Party
 pub papo_core::Event::Invited::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Joined
 pub papo_core::Event::Joined::actor: alloc::string::String
-pub papo_core::Event::Joined::authorship: Authorship
+pub papo_core::Event::Joined::authorship: papo_core::Party
 pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Joined::netjoin: core::option::Option<papo_core::SplitServers>
@@ -569,13 +569,13 @@ pub papo_core::Event::Joined::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Kicked
 pub papo_core::Event::Kicked::actor: papo_core::Source
 pub papo_core::Event::Kicked::actor_token: ReplyToken
-pub papo_core::Event::Kicked::authorship: Authorship
+pub papo_core::Event::Kicked::authorship: papo_core::Party
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Kicked::facts: core::option::Option<papo_core::User>
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::Kicked::subject: papo::Nick
-pub papo_core::Event::Kicked::subject_authorship: Authorship
+pub papo_core::Event::Kicked::subject_authorship: papo_core::Party
 pub papo_core::Event::Kicked::token: ReplyToken
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 #[non_exhaustive] pub papo_core::Event::Malformed
@@ -593,12 +593,12 @@ pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::ModeChanged
 pub papo_core::Event::ModeChanged::actor: papo_core::Source
 pub papo_core::Event::ModeChanged::actor_token: ReplyToken
-pub papo_core::Event::ModeChanged::authorship: Authorship
+pub papo_core::Event::ModeChanged::authorship: papo_core::Party
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::ModeChange>
 pub papo_core::Event::ModeChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ModeChanged::own_nick: core::option::Option<papo::Nick>
 pub papo_core::Event::ModeChanged::subject: papo_core::Subject
-pub papo_core::Event::ModeChanged::subject_authorship: Authorship
+pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Party
 pub papo_core::Event::ModeChanged::subject_token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::MonitorListFull
 pub papo_core::Event::MonitorListFull::limit: usize
@@ -617,7 +617,7 @@ pub papo_core::Event::Motd::lines: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
 #[non_exhaustive] pub papo_core::Event::NickChanged
 pub papo_core::Event::NickChanged::actor: alloc::string::String
-pub papo_core::Event::NickChanged::authorship: Authorship
+pub papo_core::Event::NickChanged::authorship: papo_core::Party
 pub papo_core::Event::NickChanged::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::NickChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::NickChanged::new: papo::Nick
@@ -625,7 +625,7 @@ pub papo_core::Event::NickChanged::old: papo::Nick
 pub papo_core::Event::NickChanged::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Parted
 pub papo_core::Event::Parted::actor: alloc::string::String
-pub papo_core::Event::Parted::authorship: Authorship
+pub papo_core::Event::Parted::authorship: papo_core::Party
 pub papo_core::Event::Parted::channel: papo::ChannelName
 pub papo_core::Event::Parted::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Parted::facts: core::option::Option<papo_core::User>
@@ -635,7 +635,7 @@ pub papo_core::Event::Parted::token: ReplyToken
 pub papo_core::Event::PersistenceStatus(papo_core::PersistenceStatus)
 #[non_exhaustive] pub papo_core::Event::Quit
 pub papo_core::Event::Quit::actor: alloc::string::String
-pub papo_core::Event::Quit::authorship: Authorship
+pub papo_core::Event::Quit::authorship: papo_core::Party
 pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::Quit::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Quit::facts: core::option::Option<papo_core::User>
@@ -646,7 +646,7 @@ pub papo_core::Event::Quit::token: ReplyToken
 pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
 #[non_exhaustive] pub papo_core::Event::RealnameChanged
 pub papo_core::Event::RealnameChanged::actor: alloc::string::String
-pub papo_core::Event::RealnameChanged::authorship: Authorship
+pub papo_core::Event::RealnameChanged::authorship: papo_core::Party
 pub papo_core::Event::RealnameChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
@@ -674,7 +674,7 @@ pub papo_core::Event::TagMessage(papo_core::TagMessage)
 #[non_exhaustive] pub papo_core::Event::TopicChanged
 pub papo_core::Event::TopicChanged::actor: papo_core::Source
 pub papo_core::Event::TopicChanged::actor_token: ReplyToken
-pub papo_core::Event::TopicChanged::authorship: Authorship
+pub papo_core::Event::TopicChanged::authorship: papo_core::Party
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
 pub papo_core::Event::TopicChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
@@ -1754,10 +1754,10 @@ impl core::marker::UnsafeUnpin for papo_core::CtcpReplies
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::CtcpReplies
 impl core::panic::unwind_safe::UnwindSafe for papo_core::CtcpReplies
 pub struct papo_core::HistoryLine
-pub papo_core::HistoryLine::authorship: Authorship
+pub papo_core::HistoryLine::authorship: papo_core::Party
 pub papo_core::HistoryLine::context: bool
 pub papo_core::HistoryLine::line: papo::Line
-pub papo_core::HistoryLine::subject_authorship: Authorship
+pub papo_core::HistoryLine::subject_authorship: papo_core::Party
 impl core::clone::Clone for papo_core::HistoryLine
 pub fn papo_core::HistoryLine::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::HistoryLine
@@ -2099,7 +2099,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::ReadMarker
 pub struct papo_core::ReceivedLine
 impl papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::as_ref(&self) -> papo::LineRef<'_>
-pub const fn papo_core::ReceivedLine::authorship(&self) -> Authorship
+pub const fn papo_core::ReceivedLine::authorship(&self) -> papo_core::Party
 pub fn papo_core::ReceivedLine::batch_type(&self) -> core::option::Option<&str>
 pub const fn papo_core::ReceivedLine::channel_context(&self) -> core::option::Option<&papo::ChannelName>
 pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo::Conversation>
@@ -2126,7 +2126,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ReceivedLine
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ReceivedLine
 pub struct papo_core::Redacted
 pub papo_core::Redacted::actor: alloc::string::String
-pub papo_core::Redacted::authorship: Authorship
+pub papo_core::Redacted::authorship: papo_core::Party
 pub papo_core::Redacted::conversation: papo::Conversation
 pub papo_core::Redacted::envelope: papo_core::LineEnvelope
 pub papo_core::Redacted::msgid: alloc::string::String
@@ -2398,7 +2398,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::State
 impl core::panic::unwind_safe::UnwindSafe for papo_core::State
 pub struct papo_core::TagMessage
 pub papo_core::TagMessage::actor: alloc::string::String
-pub papo_core::TagMessage::authorship: Authorship
+pub papo_core::TagMessage::authorship: papo_core::Party
 pub papo_core::TagMessage::conversation: papo::Conversation
 pub papo_core::TagMessage::envelope: papo_core::LineEnvelope
 pub papo_core::TagMessage::status: core::option::Option<papo::isupport::Prefix>

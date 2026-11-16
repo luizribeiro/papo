@@ -2000,9 +2000,9 @@ pub struct HistoryLine {
     /// Whether the server supplied it as context outside the requested limit.
     pub context: bool,
     /// Whether the line's actor is this session's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// Whether the line's distinct subject is this session's user.
-    pub subject_authorship: Authorship,
+    pub subject_authorship: Party,
 }
 
 /// Tags carried by a server line that identify and contextualize its event.
@@ -2288,7 +2288,7 @@ pub struct TagMessage {
     #[doc(hidden)]
     pub peer_token: ReplyToken,
     /// Whether the actor is this session's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -2323,7 +2323,7 @@ pub struct Redacted {
     #[doc(hidden)]
     pub peer_token: ReplyToken,
     /// Whether the actor is this session's user.
-    pub authorship: Authorship,
+    pub authorship: Party,
     /// IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -2882,7 +2882,7 @@ pub enum Event {
         /// Identity of the joining user once the join was applied.
         token: ReplyToken,
         /// Whether the joining user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
         /// The netjoin batch that carried this join, when applicable.
         netjoin: Option<SplitServers>,
     },
@@ -2916,7 +2916,7 @@ pub enum Event {
         /// The optional part reason.
         reason: Option<String>,
         /// Whether the departing user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
     /// A user was removed from a shared channel with `KICK`.
     #[non_exhaustive]
@@ -2936,9 +2936,9 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Authorship,
+        authorship: Party,
         /// Whether the removed user is this session's user.
-        subject_authorship: Authorship,
+        subject_authorship: Party,
         /// The optional kick reason.
         reason: Option<String>,
     },
@@ -2958,9 +2958,9 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Authorship,
+        authorship: Party,
         /// Whether the invited user is this session's user.
-        subject_authorship: Authorship,
+        subject_authorship: Party,
     },
     /// A user sharing channels with the session disconnected.
     #[non_exhaustive]
@@ -2980,7 +2980,7 @@ pub enum Event {
         /// Shared channels captured before the user was removed.
         channels: Vec<ChannelName>,
         /// Whether the disconnected user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
         /// The netsplit batch that carried this quit, when applicable.
         netsplit: Option<SplitServers>,
     },
@@ -3000,7 +3000,7 @@ pub enum Event {
         /// Shared channels where papo knows the user is a member.
         channels: Vec<ChannelName>,
         /// Whether the renamed user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
     /// A joined channel was renamed.
     #[non_exhaustive]
@@ -3016,7 +3016,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Authorship,
+        authorship: Party,
         /// The server-supplied reason, when present and non-empty.
         reason: Option<String>,
     },
@@ -3034,7 +3034,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
     /// A user's away state changed.
     #[non_exhaustive]
@@ -3050,7 +3050,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
     /// A user's username or hostname changed.
     #[non_exhaustive]
@@ -3068,7 +3068,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
     /// A user's real name changed.
     #[non_exhaustive]
@@ -3086,7 +3086,7 @@ pub enum Event {
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Whether the affected user is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
     /// A user or channel mode changed.
     #[non_exhaustive]
@@ -3102,9 +3102,9 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Authorship,
+        authorship: Party,
         /// Whether the distinct subject is this session's user.
-        subject_authorship: Authorship,
+        subject_authorship: Party,
         /// This session's nickname when the event was built.
         own_nick: Option<Nick>,
         /// Parsed mode operations in wire order.
@@ -3124,7 +3124,7 @@ pub enum Event {
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Whether the actor is this session's user.
-        authorship: Authorship,
+        authorship: Party,
     },
 }
 
@@ -3148,22 +3148,22 @@ hidden_event_constructors! {
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
     __channel_recreated(channel: ChannelName, previous_created_at: papo_proto::ServerTime, created_at: papo_proto::ServerTime) => ChannelRecreated;
-    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
+    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, authorship: Party, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
-    __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Authorship) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
-    __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
-    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
-    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Authorship) => AccountChanged;
-    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Authorship) => AwayChanged;
-    __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Authorship) => HostChanged;
-    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Authorship) => RealnameChanged;
-    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
-    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, authorship: Authorship) => TopicChanged;
+    __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Party) => Parted;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, authorship: Party, subject_authorship: Party, reason: Option<String>) => Kicked;
+    __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Party, netsplit: Option<SplitServers>) => Quit;
+    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, authorship: Party) => NickChanged;
+    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, authorship: Party) => AccountChanged;
+    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, authorship: Party) => AwayChanged;
+    __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, authorship: Party) => HostChanged;
+    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, authorship: Party) => RealnameChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, authorship: Party, subject_authorship: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
+    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, authorship: Party) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
     __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;
@@ -3198,8 +3198,8 @@ impl Event {
         channel: ChannelName,
         subject: Nick,
         actor: String,
-        authorship: Authorship,
-        subject_authorship: Authorship,
+        authorship: Party,
+        subject_authorship: Party,
     ) -> Self {
         let unknown = ReplyToken::__unknown(subject.origin());
         Self::Invited {
@@ -3220,7 +3220,7 @@ impl Event {
         old: ChannelName,
         new: ChannelName,
         actor: String,
-        authorship: Authorship,
+        authorship: Party,
         reason: Option<String>,
     ) -> Self {
         let actor_token = ReplyToken::__unknown(new.origin());
@@ -3264,7 +3264,7 @@ pub enum BatchAbandonReason {
 pub struct ReceivedLine {
     line: Line,
     batch_type: Option<String>,
-    authorship: Authorship,
+    authorship: Party,
     conversation: Option<Conversation>,
     status: Option<Prefix>,
     channel_context: Option<ChannelName>,
@@ -3461,7 +3461,7 @@ impl ReceivedLine {
 
     /// Returns whether the line's actor is this session's user.
     #[must_use]
-    pub const fn authorship(&self) -> Authorship {
+    pub const fn authorship(&self) -> Party {
         self.authorship
     }
 
@@ -3960,7 +3960,7 @@ impl Session {
         Names::new(self.isupport.value().casemapping(), self.config.origin)
     }
 
-    fn authorship(&self, message: &LineRef<'_>) -> Authorship {
+    fn authorship(&self, message: &LineRef<'_>) -> Party {
         let same_account = message.tag("account").is_some_and(|actor| {
             self.account().is_some_and(|own| {
                 let mapping = self.isupport.value().casemapping();
@@ -3968,9 +3968,9 @@ impl Session {
             })
         });
         if self.is_own_source(message) || same_account {
-            Authorship::Own
+            Party::Me
         } else {
-            Authorship::Other
+            Party::Other
         }
     }
 
@@ -6470,9 +6470,9 @@ impl Session {
                         .param(0)
                         .is_some_and(|target| self.isupport.value().is_channel(target)) =>
                 {
-                    Authorship::Other
+                    Party::Other
                 }
-                _ => Authorship::Unknown,
+                _ => Party::Unknown,
             };
             let line = item.line_mut();
             line.authorship = self.history_authorship(&line.line.as_ref());
@@ -6480,18 +6480,18 @@ impl Session {
         }
     }
 
-    fn history_authorship(&self, message: &LineRef<'_>) -> Authorship {
+    fn history_authorship(&self, message: &LineRef<'_>) -> Party {
         let Some(papo_proto::Source::User { .. }) = message.source() else {
-            return Authorship::Unknown;
+            return Party::Unknown;
         };
         let (Some(actor), Some(own)) = (message.tag("account"), self.account()) else {
-            return Authorship::Unknown;
+            return Party::Unknown;
         };
         let mapping = self.names();
         if mapping.account(actor.as_ref()) == mapping.account(own) {
-            Authorship::Own
+            Party::Me
         } else {
-            Authorship::Other
+            Party::Other
         }
     }
 
@@ -6935,9 +6935,9 @@ mod tests {
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
-        Authorship, CloseKind, Config, Connection, Event, ListMode, MultilineMessage, NameKey,
-        Outbox, ReceivedLine, ReplyToken, RequestId, ResponseBoundary, ResponseMatcher, SentEcho,
-        Session, State, UnlabelledRequest,
+        CloseKind, Config, Connection, Event, ListMode, MultilineMessage, NameKey, Outbox, Party,
+        ReceivedLine, ReplyToken, RequestId, ResponseBoundary, ResponseMatcher, SentEcho, Session,
+        State, UnlabelledRequest,
     };
 
     fn unmarked_received_mode() -> ReceivedLine {
@@ -6946,7 +6946,7 @@ mod tests {
                 .with_params(["#staff", "+k", "staff-key-8732"])
                 .with_source("operator!~o@services.example"),
             batch_type: None,
-            authorship: Authorship::Other,
+            authorship: Party::Other,
             conversation: None,
             status: None,
             channel_context: None,
