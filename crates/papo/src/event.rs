@@ -1486,7 +1486,7 @@ pub(crate) fn joined_from_line(
             None,
         ),
         actor,
-        authorship,
+        actor_party: authorship,
         netjoin: None,
     })
 }
@@ -2541,7 +2541,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 channel: channel_handle(channel),
                 actor,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
                 netjoin: netjoin.map(SplitServers::from_core),
             })
         }
@@ -2576,7 +2576,7 @@ pub(crate) fn from_core_with_receipt(
                 facts,
                 channel: channel_handle(channel),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::Kicked {
@@ -2617,7 +2617,7 @@ pub(crate) fn from_core_with_receipt(
                 ),
                 facts,
                 actor,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
                 subject_party: Party::from_core(subject_authorship),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
@@ -4887,7 +4887,7 @@ mod tests {
         ) else {
             panic!("expected queued nick change");
         };
-        assert_eq!(joined.authorship, Party::Me);
+        assert_eq!(joined.actor_party, Party::Me);
         assert_eq!(changed.actor_party, Party::Me);
     }
 
@@ -6700,7 +6700,7 @@ mod tests {
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
                 actor: own_handle.clone(),
-                authorship: Party::Me,
+                actor_party: Party::Me,
                 netjoin: None,
             }),
             Event::Parted(super::Parted {
@@ -6711,7 +6711,7 @@ mod tests {
                 facts: None,
                 channel: channel_handle(mapping.channel("#papo")),
                 reason: None,
-                authorship: Party::Me,
+                actor_party: Party::Me,
             }),
             Event::Kicked(super::Kicked {
                 msgid: None,
@@ -6721,7 +6721,7 @@ mod tests {
                 subject: own_handle.clone(),
                 facts: None,
                 actor: actor.clone(),
-                authorship: Party::Other,
+                actor_party: Party::Other,
                 subject_party: Party::Me,
                 reason: None,
             }),
@@ -6757,7 +6757,7 @@ mod tests {
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
                 actor: own_handle,
-                authorship: Party::Me,
+                actor_party: Party::Me,
                 netjoin: Some(super::SplitServers {
                     batch: crate::BatchId::from("join"),
                     first: "irc.example".into(),
@@ -6766,12 +6766,12 @@ mod tests {
             }),
         ];
 
-        assert_eq!(events[0].as_joined().unwrap().authorship, Party::Me);
-        assert_eq!(events[1].as_parted().unwrap().authorship, Party::Me);
+        assert_eq!(events[0].as_joined().unwrap().actor_party, Party::Me);
+        assert_eq!(events[1].as_parted().unwrap().actor_party, Party::Me);
         assert_eq!(events[2].as_kicked().unwrap().subject_party, Party::Me);
         assert_eq!(events[3].as_invited().unwrap().subject_party, Party::Me);
         assert_eq!(events[4].as_nick_changed().unwrap().actor_party, Party::Me);
-        assert_eq!(events[5].as_joined().unwrap().authorship, Party::Me);
+        assert_eq!(events[5].as_joined().unwrap().actor_party, Party::Me);
         assert_eq!(
             events[5]
                 .as_joined()

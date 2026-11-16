@@ -56,7 +56,7 @@ impl JoinedBuilder {
     /// Marks whether the joining user is this client.
     #[must_use]
     pub fn own(mut self, own: bool) -> Self {
-        self.0.authorship = if own {
+        self.0.actor_party = if own {
             papo::Party::Me
         } else {
             papo::Party::Other
@@ -114,7 +114,7 @@ mod tests {
             .own(true)
             .build();
         assert_eq!(joined.channel.name().as_str(), "#papo");
-        assert_eq!(joined.authorship, papo::Party::Me);
+        assert_eq!(joined.actor_party, papo::Party::Me);
 
         let away = AwayChangedBuilder::new(mapping.nick("alice"))
             .away(papo::Away::__away_value(Some("reviewing IRCv3".into())))

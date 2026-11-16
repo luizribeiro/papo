@@ -2024,7 +2024,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             received_at: SystemTime::UNIX_EPOCH,
             channel: test_channel_handle("#papo"),
             actor: crate::__testing::user_handle(test_nick("papo-driver")),
-            authorship: crate::Party::Me,
+            actor_party: crate::Party::Me,
             netjoin: None,
         }),
     );
@@ -2037,7 +2037,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             received_at: SystemTime::UNIX_EPOCH,
             channel: test_channel_handle("#visitors"),
             actor: crate::__testing::user_handle(test_nick("alice")),
-            authorship: crate::Party::Other,
+            actor_party: crate::Party::Other,
             netjoin: None,
         }),
     );
@@ -2054,7 +2054,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             facts: None,
             channel: test_channel_handle("#staff"),
             reason: Some("lunch".into()),
-            authorship: crate::Party::Other,
+            actor_party: crate::Party::Other,
         }),
     );
     super::update_rejoin_channels(
@@ -2071,7 +2071,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
                 papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
             ),
-            authorship: crate::Party::Other,
+            actor_party: crate::Party::Other,
             subject_party: crate::Party::Other,
             reason: Some("idle".into()),
         }),
@@ -2089,7 +2089,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             facts: None,
             channel: test_channel_handle("#Papo"),
             reason: None,
-            authorship: crate::Party::Me,
+            actor_party: crate::Party::Me,
         }),
     );
     assert_eq!(defaults.parted_while_disconnected, ["#systems"]);
@@ -2107,7 +2107,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
                 papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
             ),
-            authorship: crate::Party::Other,
+            actor_party: crate::Party::Other,
             subject_party: crate::Party::Me,
             reason: Some("access removed".into()),
         }),
@@ -2176,7 +2176,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         received_at: SystemTime::UNIX_EPOCH,
         channel: test_channel_handle("#overflow"),
         actor: crate::__testing::user_handle(test_nick("papo-driver")),
-        authorship: crate::Party::Me,
+        actor_party: crate::Party::Me,
         netjoin: None,
     });
 
@@ -6111,7 +6111,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         .clone();
     assert_eq!(joined.actor.nick(), "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
-    assert_eq!(joined.authorship, crate::Party::Me);
+    assert_eq!(joined.actor_party, crate::Party::Me);
     server_line(
         &mut server,
         b":ergo.test 353 papo-renamed = #papo-self :@papo-renamed\r\n:ergo.test 366 papo-renamed #papo-self :End of /NAMES list\r\n",

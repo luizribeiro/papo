@@ -21,7 +21,7 @@ pub struct Joined {
     /// The joining user.
     pub actor: crate::UserHandle,
     /// Whether the joining user is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The netjoin batch that carried this join, when applicable.
     pub netjoin: Option<super::SplitServers>,
 }
@@ -61,7 +61,7 @@ pub struct Parted {
     /// The optional part reason.
     pub reason: Option<String>,
     /// Whether the departing user is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
 }
 
 /// A user was removed from a shared channel with `KICK`.
@@ -83,7 +83,7 @@ pub struct Kicked {
     /// The user or server that issued the kick.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// Whether the removed user is this client's user.
     pub subject_party: Party,
     /// The optional kick reason.

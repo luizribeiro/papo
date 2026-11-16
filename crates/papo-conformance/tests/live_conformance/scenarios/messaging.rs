@@ -36,7 +36,7 @@ async fn fixture_pair_with(
         .await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), bob_nick.as_str());
-    assert_eq!(joined.authorship, papo::Party::Other);
+    assert_eq!(joined.actor_party, papo::Party::Other);
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
         let members = state

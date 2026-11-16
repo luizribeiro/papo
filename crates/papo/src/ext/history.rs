@@ -630,7 +630,7 @@ fn parted(
         actor,
         facts: None,
         channel: client.channel(message.param(0)?).ok()?,
-        authorship,
+        actor_party: authorship,
         reason: message
             .param(1)
             .filter(|reason| !reason.is_empty())
@@ -726,7 +726,7 @@ fn kicked(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         channel: client.channel(message.param(0)?).ok()?,
-        authorship,
+        actor_party: authorship,
         subject_party: subject_authorship,
         subject: crate::UserHandle::from_event(
             state.known_name_rules()?.nick(nick),
@@ -2197,7 +2197,7 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
-                    && event.authorship == crate::Party::Unknown
+                    && event.actor_party == crate::Party::Unknown
         ));
 
         let joined = history_item(
@@ -2234,7 +2234,7 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && event.reason.as_deref() == Some("Leaving for lunch")
-                    && event.authorship == crate::Party::Unknown
+                    && event.actor_party == crate::Party::Unknown
         ));
 
         let quit = map(papo_core::HistoryItem::Quit(core_item(

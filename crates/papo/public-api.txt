@@ -619,7 +619,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Invited
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
 pub papo::event::Joined::actor: papo::UserHandle
-pub papo::event::Joined::authorship: papo::Party
+pub papo::event::Joined::actor_party: papo::Party
 pub papo::event::Joined::channel: papo::ChannelHandle
 pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Joined::netjoin: core::option::Option<papo::event::SplitServers>
@@ -642,7 +642,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Joined
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Joined
 #[non_exhaustive] pub struct papo::event::Kicked
 pub papo::event::Kicked::actor: papo::Source
-pub papo::event::Kicked::authorship: papo::Party
+pub papo::event::Kicked::actor_party: papo::Party
 pub papo::event::Kicked::channel: papo::ChannelHandle
 pub papo::event::Kicked::facts: core::option::Option<papo::User>
 pub papo::event::Kicked::msgid: core::option::Option<papo::MessageId>
@@ -877,7 +877,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Notice
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Notice
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::actor: papo::UserHandle
-pub papo::event::Parted::authorship: papo::Party
+pub papo::event::Parted::actor_party: papo::Party
 pub papo::event::Parted::channel: papo::ChannelHandle
 pub papo::event::Parted::facts: core::option::Option<papo::User>
 pub papo::event::Parted::msgid: core::option::Option<papo::MessageId>

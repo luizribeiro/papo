@@ -22,7 +22,7 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     alice
         .wait_for(|event| {
             event.as_joined().filter(|joined| {
-                joined.channel.name().as_str() == old && joined.authorship == papo::Party::Me
+                joined.channel.name().as_str() == old && joined.actor_party == papo::Party::Me
             })
         })
         .await?;
@@ -39,7 +39,7 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     let joined = alice
         .wait_for(|event| {
             event.as_joined().filter(|joined| {
-                joined.authorship == papo::Party::Me && joined.channel.name().as_str() == renamed
+                joined.actor_party == papo::Party::Me && joined.channel.name().as_str() == renamed
             })
         })
         .await?;
@@ -81,7 +81,7 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     alice
         .wait_for(|event| {
             event.as_parted().filter(|parted| {
-                parted.authorship == papo::Party::Me && parted.channel.name().as_str() == channel
+                parted.actor_party == papo::Party::Me && parted.channel.name().as_str() == channel
             })
         })
         .await?;
@@ -95,7 +95,7 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     alice
         .expect_none(|event| {
             event.as_joined().filter(|joined| {
-                joined.authorship == papo::Party::Me && joined.channel.name().as_str() == channel
+                joined.actor_party == papo::Party::Me && joined.channel.name().as_str() == channel
             })
         })
         .await?;

@@ -278,7 +278,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         received_at: SystemTime::UNIX_EPOCH,
         channel: crate::ChannelHandle::from_parts(channel.into(), None, None),
         actor: user_handle(nick),
-        authorship: if own { Party::Me } else { Party::Other },
+        actor_party: if own { Party::Me } else { Party::Other },
         netjoin: None,
     }
 }
@@ -444,7 +444,7 @@ mod tests {
             true,
         );
         assert_eq!(joined.channel.name().as_str(), "#papo");
-        assert_eq!(joined.authorship, crate::Party::Me);
+        assert_eq!(joined.actor_party, crate::Party::Me);
 
         let connected = connected(crate::Casemapping::default().nick("bob"));
         assert_eq!(connected.nick, "bob");

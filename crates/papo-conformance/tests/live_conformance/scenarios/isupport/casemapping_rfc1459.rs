@@ -99,7 +99,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&folded).await?;
     let bob_join = bob.wait_for(Event::as_joined).await?;
     assert_eq!(bob_join.channel.name().as_str(), chan);
-    assert_eq!(bob_join.authorship, papo::Party::Me);
+    assert_eq!(bob_join.actor_party, papo::Party::Me);
     let observed_join = alice
         .wait_for(|event| {
             event
@@ -108,7 +108,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(observed_join.channel.name().as_str(), chan);
-    assert_eq!(observed_join.authorship, papo::Party::Other);
+    assert_eq!(observed_join.actor_party, papo::Party::Other);
 
     assert_eq!(
         bob.snapshot()

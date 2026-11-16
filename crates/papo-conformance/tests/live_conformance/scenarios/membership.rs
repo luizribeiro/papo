@@ -101,18 +101,18 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), bob_nick);
-    assert_eq!(joined.authorship, papo::Party::Me);
+    assert_eq!(joined.actor_party, papo::Party::Me);
 
     alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick);
-    assert_eq!(joined.authorship, papo::Party::Me);
+    assert_eq!(joined.actor_party, papo::Party::Me);
     let joined = bob.wait_for(Event::as_joined).await?;
 
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick.as_str());
-    assert_eq!(joined.authorship, papo::Party::Other);
+    assert_eq!(joined.actor_party, papo::Party::Other);
     let bob_state = bob.snapshot();
     let observed = super::user(&bob_state, alice_nick.as_str()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
@@ -295,7 +295,7 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let synced = alice.wait_for(Event::as_channel_synced).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick);
-    assert_eq!(joined.authorship, papo::Party::Me);
+    assert_eq!(joined.actor_party, papo::Party::Me);
     assert_eq!(synced.channel.name().as_str(), channel);
     let state = alice.snapshot();
     let joined_channel = state.__channel_local(&channel).unwrap();
@@ -341,7 +341,7 @@ async fn server_forced_join(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(joined.authorship, papo::Party::Me);
+    assert_eq!(joined.actor_party, papo::Party::Me);
     let synced = alice
         .wait_for(|event| {
             event
@@ -407,7 +407,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 })
             })
             .await?;
-        assert_eq!(joined.authorship, papo::Party::Other);
+        assert_eq!(joined.actor_party, papo::Party::Other);
         assert!(bob.snapshot().__channel_local(channel).is_some());
         assert!(
             alice
@@ -456,8 +456,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(observed.channel.name().as_str(), channel);
         assert_eq!(own.actor.nick(), bob_nick);
         assert_eq!(observed.actor.nick(), bob_nick.as_str());
-        assert_eq!(own.authorship, papo::Party::Me);
-        assert_eq!(observed.authorship, papo::Party::Other);
+        assert_eq!(own.actor_party, papo::Party::Me);
+        assert_eq!(observed.actor_party, papo::Party::Other);
         assert!(bob.snapshot().__channel_local(channel).is_none());
         assert!(
             alice
@@ -794,7 +794,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                 })
                 .await?;
             assert_eq!(joined.channel.name().as_str(), channel);
-            assert_eq!(joined.authorship, papo::Party::Other);
+            assert_eq!(joined.actor_party, papo::Party::Other);
             assert!(
                 alice
                     .snapshot()
@@ -851,8 +851,8 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(departed.actor.nick(), alice_nick.as_str());
         assert_eq!(departed.reason.as_deref(), Some(reason));
     }
-    assert_eq!(own.authorship, papo::Party::Me);
-    assert_eq!(observed.authorship, papo::Party::Other);
+    assert_eq!(own.actor_party, papo::Party::Me);
+    assert_eq!(observed.actor_party, papo::Party::Other);
     assert!(own_state.__channel_local(&channel).is_none());
     assert!(
         observed_state
@@ -907,8 +907,8 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(observed.actor.nick(), alice_nick.as_str());
         assert_eq!(own.reason.as_deref(), Some(reason));
         assert_eq!(observed.reason.as_deref(), Some(reason));
-        assert_eq!(own.authorship, papo::Party::Me);
-        assert_eq!(observed.authorship, papo::Party::Other);
+        assert_eq!(own.actor_party, papo::Party::Me);
+        assert_eq!(observed.actor_party, papo::Party::Other);
         assert!(alice.snapshot().__channel_local(channel).is_none());
         assert!(
             bob.snapshot()

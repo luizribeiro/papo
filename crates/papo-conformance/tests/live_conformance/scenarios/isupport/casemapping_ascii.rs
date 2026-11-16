@@ -111,12 +111,12 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     let alice_joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(alice_joined.channel.name().as_str(), chan);
     assert_eq!(alice_joined.actor.nick().as_str(), alice_square_nick);
-    assert_eq!(alice_joined.authorship, papo::Party::Me);
+    assert_eq!(alice_joined.actor_party, papo::Party::Me);
 
     let bob_joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(bob_joined.channel.name().as_str(), folded);
     assert_eq!(bob_joined.actor.nick().as_str(), bob_curly_nick);
-    assert_eq!(bob_joined.authorship, papo::Party::Me);
+    assert_eq!(bob_joined.actor_party, papo::Party::Me);
 
     alice.expect_none(Event::as_joined).await?;
 

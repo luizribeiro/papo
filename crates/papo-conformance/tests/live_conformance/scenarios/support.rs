@@ -206,7 +206,7 @@ pub(super) async fn join_seen_by(
         .await?;
     assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), member_nick.as_str());
-    assert_eq!(joined.authorship, papo::Party::Other);
+    assert_eq!(joined.actor_party, papo::Party::Other);
     Ok(())
 }
 
