@@ -10,9 +10,8 @@
 //! Pass the receiving [`Client`], event state, and each [`papo::Message`] event payload to
 //! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
 //! ignores known bots by default. Unlike raw `papo` event handling, it ignores a line papo cannot
-//! show is live, such as a bouncer's unbatched playback (see [`BotConfig::command`]). Pass only
-//! [`papo::Event::Message`] payloads: a [`papo::HistoryPage`] item is not live even when it is
-//! stamped after the connection's welcome. Authorize privileged commands with
+//! show is live, such as a bouncer's unbatched playback or an item of a [`papo::HistoryPage`]
+//! (see [`BotConfig::command`]). Authorize privileged commands with
 //! [`Command::account_in`], which checks the message's account tag; a nickname alone is not an
 //! identity. [`Command::reply`] applies the configuration's shared reply limit. Its default is two
 //! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
@@ -182,7 +181,8 @@ impl BotConfig {
 
     /// Parses `message` as a live command using its event's `state`.
     ///
-    /// A message must show it arrived live. When the welcome is stamped, the message needs a stamp
+    /// A message must show it arrived live. An item of a [`papo::HistoryPage`] never does, whether
+    /// a requested page, a server's replay or a reconnect catch-up. When the welcome is stamped, the message needs a stamp
     /// no earlier than [`State::welcome_time`], so a bouncer whose clock runs ahead of its network
     /// loses commands until the network catches up. When the welcome is not stamped, a stamped
     /// message needs `batch`, which carries the server's playback. An unstamped line on a server
@@ -235,8 +235,12 @@ fn reaches_a_status_audience(state: &State, message: &ChatMessage) -> bool {
 }
 
 // A server that stamps lines but cannot batch its playback replays them as plain lines, so a
-// stamp no earlier than our own 001 is the only proof such a line is live.
+// stamp no earlier than our own 001 is the only proof such a line is live. Every history page
+// builds its actors from past lines, whatever their stamps.
 fn arrived_live(state: &State, message: &ChatMessage) -> bool {
+    if message.actor.__names_a_past_line() {
+        return false;
+    }
     match state.welcome_time() {
         Some(welcome) => message.server_time.is_some_and(|sent| sent >= welcome),
         None => {
@@ -684,6 +688,11 @@ mod tests {
                 papo::Event::Message(message) => {
                     return Incoming { message, state };
                 }
+                papo::Event::History(page) => {
+                    if let Some(papo::Event::Message(message)) = page.items.into_iter().next() {
+                        return Incoming { message, state };
+                    }
+                }
                 papo::Event::Disconnected(disconnected) => {
                     panic!("disconnected while waiting for a message: {disconnected}")
                 }
@@ -772,17 +781,15 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn accepts_only_lines_shown_to_arrive_after_registration() {
         let welcome = "@time=2026-11-01T03:35:55.224Z ";
-        for (caps, welcome_stamp, line_stamp, live) in [
-            (
-                "server-time",
-                welcome,
-                "@time=2026-11-01T03:36:02.731Z ",
-                true,
-            ),
+        let after = "@time=2026-11-01T03:36:02.731Z ";
+        let before = "@time=2026-11-01T03:31:52.503Z ";
+        for (caps, welcome_stamp, line_stamp, replayed, live) in [
+            ("server-time", welcome, after, false, true),
             (
                 "server-time",
                 welcome,
                 "@time=2026-11-01T03:35:55.224Z ",
+                false,
                 true,
             ),
             (
@@ -790,30 +797,42 @@ mod tests {
                 welcome,
                 "@time=2026-11-01T03:35:55.223Z ",
                 false,
+                false,
             ),
-            ("server-time", welcome, "", false),
+            ("server-time", welcome, "", false, false),
             (
                 "batch server-time",
-                "",
-                "@time=2026-11-01T03:31:52.503Z ",
+                welcome,
+                "@batch=r1;time=2026-11-01T03:36:02.731Z ",
                 true,
+                false,
             ),
-            ("server-time", "", "@time=2026-11-01T03:31:52.503Z ", false),
-            ("batch", "", "", true),
+            ("batch server-time", "", before, false, true),
+            ("server-time", "", before, false, false),
+            ("batch", "", "", false, true),
             (
                 "",
                 "",
                 "@znc.in/server-time-iso=2026-11-01T03:31:52.503Z ",
                 false,
+                false,
             ),
-            ("", "", "", true),
+            ("", "", "", false, true),
         ] {
+            let (open, close) = if replayed {
+                (
+                    ":irc.papo.test BATCH +r1 chathistory emily\r\n",
+                    ":irc.papo.test BATCH -r1\r\n",
+                )
+            } else {
+                ("", "")
+            };
             let transcript = format!(
                 ":irc.papo.test CAP * LS :{caps}\r\n\
                  :irc.papo.test CAP papo{{bot}} ACK :{caps}\r\n\
                  {welcome_stamp}:irc.papo.test 001 papo{{bot}} :Welcome to the papo IRC Network\r\n\
                  :irc.papo.test 422 papo{{bot}} :MOTD File is missing\r\n\
-                 {line_stamp}:emily!~emily@localhost PRIVMSG papo{{bot}} :!deploy staging\r\n",
+                 {open}{line_stamp}:emily!~emily@localhost PRIVMSG papo{{bot}} :!deploy staging\r\n{close}",
             );
             let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
                 .stream(TranscriptStream::new(&transcript))
@@ -824,7 +843,7 @@ mod tests {
             assert_eq!(
                 command.is_some(),
                 live,
-                "{caps:?} {welcome_stamp:?} {line_stamp:?}"
+                "{caps:?} {welcome_stamp:?} {line_stamp:?} replayed={replayed}"
             );
             driver.abort();
         }

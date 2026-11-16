@@ -79,6 +79,7 @@ live line can carry.
 
 `papo_bot` ignores a command stamped before the connection's 001, and one from a server that stamps
 lines but neither stamps 001 nor offers `batch`, so a bouncer's unbatched playback never runs again.
+It also ignores every message from a history page, whatever its stamp.
 
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
