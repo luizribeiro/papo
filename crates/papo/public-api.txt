@@ -264,7 +264,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Warning
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 #[non_exhaustive] pub struct papo::event::AccountChanged
 pub papo::event::AccountChanged::actor: papo::UserHandle
-pub papo::event::AccountChanged::authorship: papo::Party
+pub papo::event::AccountChanged::actor_party: papo::Party
 pub papo::event::AccountChanged::new: papo::Account
 pub papo::event::AccountChanged::received_at: std::time::SystemTime
 pub papo::event::AccountChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -303,7 +303,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AutoJoinFailed
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AutoJoinFailed
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::actor: papo::UserHandle
-pub papo::event::AwayChanged::authorship: papo::Party
+pub papo::event::AwayChanged::actor_party: papo::Party
 pub papo::event::AwayChanged::new: papo::Away
 pub papo::event::AwayChanged::received_at: std::time::SystemTime
 pub papo::event::AwayChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -324,7 +324,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AwayChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AwayChanged
 #[non_exhaustive] pub struct papo::event::BroadcastCtcp
 pub papo::event::BroadcastCtcp::actor: papo::UserHandle
-pub papo::event::BroadcastCtcp::authorship: papo::Party
+pub papo::event::BroadcastCtcp::actor_party: papo::Party
 pub papo::event::BroadcastCtcp::command: papo::Command
 pub papo::event::BroadcastCtcp::msgid: core::option::Option<papo::MessageId>
 pub papo::event::BroadcastCtcp::params: core::option::Option<alloc::string::String>
@@ -351,7 +351,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BroadcastCtcp
 impl core::panic::unwind_safe::UnwindSafe for papo::event::BroadcastCtcp
 #[non_exhaustive] pub struct papo::event::BroadcastTagMsg
 pub papo::event::BroadcastTagMsg::actor: papo::UserHandle
-pub papo::event::BroadcastTagMsg::authorship: papo::Party
+pub papo::event::BroadcastTagMsg::actor_party: papo::Party
 pub papo::event::BroadcastTagMsg::received_at: std::time::SystemTime
 pub papo::event::BroadcastTagMsg::tags: papo::Tags
 pub papo::event::BroadcastTagMsg::to: papo::event::Broadcast
@@ -573,7 +573,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::actor: papo::UserHandle
-pub papo::event::HostChanged::authorship: papo::Party
+pub papo::event::HostChanged::actor_party: papo::Party
 pub papo::event::HostChanged::new_host: alloc::string::String
 pub papo::event::HostChanged::new_username: alloc::string::String
 pub papo::event::HostChanged::received_at: std::time::SystemTime
@@ -821,7 +821,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Motd
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Motd
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::actor: papo::UserHandle
-pub papo::event::NickChanged::authorship: papo::Party
+pub papo::event::NickChanged::actor_party: papo::Party
 pub papo::event::NickChanged::channels: alloc::vec::Vec<papo::ChannelHandle>
 pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
@@ -901,7 +901,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::actor: papo::UserHandle
-pub papo::event::Quit::authorship: papo::Party
+pub papo::event::Quit::actor_party: papo::Party
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelHandle>
 pub papo::event::Quit::facts: core::option::Option<papo::User>
 pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>
@@ -976,7 +976,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReadMarkerChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarkerChanged
 #[non_exhaustive] pub struct papo::event::RealnameChanged
 pub papo::event::RealnameChanged::actor: papo::UserHandle
-pub papo::event::RealnameChanged::authorship: papo::Party
+pub papo::event::RealnameChanged::actor_party: papo::Party
 pub papo::event::RealnameChanged::new: alloc::string::String
 pub papo::event::RealnameChanged::received_at: std::time::SystemTime
 pub papo::event::RealnameChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -997,7 +997,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::RealnameChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 #[non_exhaustive] pub struct papo::event::Redacted
 pub papo::event::Redacted::actor: papo::Source
-pub papo::event::Redacted::authorship: papo::Party
+pub papo::event::Redacted::actor_party: papo::Party
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::redacts: papo::MessageId

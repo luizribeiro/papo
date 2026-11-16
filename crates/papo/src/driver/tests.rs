@@ -6096,7 +6096,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         .unwrap()
         .clone();
     assert_eq!(changed.new, "papo-renamed");
-    assert_eq!(changed.authorship, crate::Party::Me);
+    assert_eq!(changed.actor_party, crate::Party::Me);
 
     server_line(
         &mut server,

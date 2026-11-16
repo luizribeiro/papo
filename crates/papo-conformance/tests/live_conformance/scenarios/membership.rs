@@ -1224,8 +1224,8 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.old.as_str(), old_nick.as_str());
         assert_eq!(changed.new.as_str(), new_nick);
     }
-    assert_eq!(own.authorship, papo::Party::Me);
-    assert_eq!(observed.authorship, papo::Party::Other);
+    assert_eq!(own.actor_party, papo::Party::Me);
+    assert_eq!(observed.actor_party, papo::Party::Other);
     assert_eq!(alice.snapshot().nick(), new_nick.as_str());
     assert!(
         alice

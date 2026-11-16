@@ -34,8 +34,8 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.old.as_str(), original.as_str());
         assert_eq!(changed.new.as_str(), at_limit);
     }
-    assert_eq!(own.authorship, papo::Party::Me);
-    assert_eq!(observed.authorship, papo::Party::Other);
+    assert_eq!(own.actor_party, papo::Party::Me);
+    assert_eq!(observed.actor_party, papo::Party::Other);
     assert_eq!(bob.snapshot().nick(), at_limit.as_str());
     assert!(
         alice

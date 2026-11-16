@@ -556,7 +556,7 @@ fn redaction(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        authorship,
+        actor_party: authorship,
         conversation,
         status,
         receipt,
@@ -679,7 +679,7 @@ fn quit(
             Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
             _ => Vec::new(),
         },
-        authorship,
+        actor_party: authorship,
         netsplit: None,
     }))
 }
@@ -784,7 +784,7 @@ fn nick_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        authorship,
+        actor_party: authorship,
         old,
         new,
         channels: match history_conversation {
@@ -1976,10 +1976,10 @@ mod tests {
             if changed.actor.nick() == "papo" && changed.old == "papo-old"
                 && changed.new == "papo"
                 && changed.channels == ["#papo"]
-                && changed.authorship == crate::Party::Me));
+                && changed.actor_party == crate::Party::Me));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"]
-                && quit.authorship == crate::Party::Other
+                && quit.actor_party == crate::Party::Other
                 && matches!(quit.actor.account(), crate::Account::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::Message(message)
@@ -2274,7 +2274,7 @@ mod tests {
                     && event.actor.nick().origin() == client.origin()
                     && event.old.origin() == client.origin()
                     && event.new.origin() == client.origin()
-                    && event.authorship == crate::Party::Unknown
+                    && event.actor_party == crate::Party::Unknown
         ));
     }
 

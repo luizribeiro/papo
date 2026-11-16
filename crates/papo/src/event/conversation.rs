@@ -23,7 +23,7 @@ pub struct BroadcastCtcp {
     /// The user or server that sent the CTCP message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// The command with its original spelling.
@@ -47,7 +47,7 @@ pub struct BroadcastTagMsg {
     /// The user or server that sent the message.
     pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// Tags in wire order with last-wins lookup.
@@ -143,7 +143,7 @@ pub struct Redacted {
     /// The user or server that removed the message.
     pub actor: Source,
     /// Whether the actor is this client's user.
-    pub authorship: Party,
+    pub actor_party: Party,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

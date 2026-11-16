@@ -630,7 +630,7 @@ fn broadcast_from_line(
     if message.command_is("TAGMSG") {
         return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
             actor,
-            authorship,
+            actor_party: authorship,
             to,
             msgid: tag_owned(&message, &["msgid"]).map(MessageId::from),
             tags,
@@ -642,7 +642,7 @@ fn broadcast_from_line(
     };
     Ok(Event::BroadcastCtcp(BroadcastCtcp {
         actor,
-        authorship,
+        actor_party: authorship,
         to,
         command,
         params,
@@ -2003,7 +2003,7 @@ pub(crate) fn attach_message_handles(
             if let Source::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
                 if let Conversation::Private(peer) = &mut event.conversation {
-                    *peer = if event.authorship == Party::Me {
+                    *peer = if event.actor_party == Party::Me {
                         event_handle(peer, tokens.peer, state, historical)
                     } else {
                         actor.clone()
@@ -2376,7 +2376,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                authorship,
+                actor_party: authorship,
                 conversation,
                 status: redacted.status,
                 receipt,
@@ -2682,7 +2682,7 @@ pub(crate) fn from_core_with_receipt(
                 facts,
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 channels: channels.into_iter().map(&channel_handle).collect(),
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
                 netsplit: netsplit.map(SplitServers::from_core),
             })
         }
@@ -2706,7 +2706,7 @@ pub(crate) fn from_core_with_receipt(
                 old,
                 new,
                 channels: channels.into_iter().map(&channel_handle).collect(),
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::ChannelRenamed {
@@ -2751,7 +2751,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 new: account,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::AwayChanged {
@@ -2769,7 +2769,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 new: away,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::HostChanged {
@@ -2789,7 +2789,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 new_username: username,
                 new_host: host,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::RealnameChanged {
@@ -2807,7 +2807,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 new: realname,
-                authorship: Party::from_core(authorship),
+                actor_party: Party::from_core(authorship),
             })
         }
         papo_core::Event::ModeChanged {
@@ -3081,7 +3081,7 @@ mod tests {
         ] {
             let event = BroadcastTagMsg {
                 actor: actor.clone(),
-                authorship: Party::Other,
+                actor_party: Party::Other,
                 to,
                 tags: Tags::default(),
                 msgid: None,
@@ -3091,7 +3091,7 @@ mod tests {
         }
         let ctcp = BroadcastCtcp {
             actor,
-            authorship: Party::Other,
+            actor_party: Party::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
             command: "VERSION".into(),
             params: None,
@@ -4888,7 +4888,7 @@ mod tests {
             panic!("expected queued nick change");
         };
         assert_eq!(joined.authorship, Party::Me);
-        assert_eq!(changed.authorship, Party::Me);
+        assert_eq!(changed.actor_party, Party::Me);
     }
 
     fn mapped_message_event(event: papo_core::Event) -> Event {
@@ -5960,7 +5960,7 @@ mod tests {
         let away = forwarded(session.poll_event().expect("away event"));
         let away = away.as_away_changed().expect("typed away event");
         assert_eq!(away.actor.nick(), "dan");
-        assert_eq!(away.authorship, Party::Other);
+        assert_eq!(away.actor_party, Party::Other);
     }
 
     #[test]
@@ -6749,7 +6749,7 @@ mod tests {
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
                 channels: vec![channel_handle(mapping.channel("#papo"))],
-                authorship: Party::Me,
+                actor_party: Party::Me,
             }),
             Event::Joined(super::Joined {
                 msgid: None,
@@ -6770,7 +6770,7 @@ mod tests {
         assert_eq!(events[1].as_parted().unwrap().authorship, Party::Me);
         assert_eq!(events[2].as_kicked().unwrap().subject_party, Party::Me);
         assert_eq!(events[3].as_invited().unwrap().subject_party, Party::Me);
-        assert_eq!(events[4].as_nick_changed().unwrap().authorship, Party::Me);
+        assert_eq!(events[4].as_nick_changed().unwrap().actor_party, Party::Me);
         assert_eq!(events[5].as_joined().unwrap().authorship, Party::Me);
         assert_eq!(
             events[5]
