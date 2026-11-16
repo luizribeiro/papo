@@ -20,7 +20,7 @@ use tokio_tungstenite::{
 #[cfg(test)]
 mod live;
 
-use super::{ConnectError, Security, TlsConfig, stream::Stream};
+use super::{ConnectError, Security, stream::Stream};
 
 const BINARY: &str = "binary.ircv3.net";
 const TEXT: &str = "text.ircv3.net";
@@ -60,10 +60,10 @@ impl fmt::Debug for WebSocket {
     }
 }
 
-pub(super) async fn connect(url: &str, tls: Option<&TlsConfig>) -> Result<WebSocket, ConnectError> {
-    match connect_once(url, tls, true).await {
+pub(super) async fn connect(url: &str, security: &Security) -> Result<WebSocket, ConnectError> {
+    match connect_once(url, security, true).await {
         Err(ConnectError::WebSocket(error)) if rejects_subprotocols(&error) => {
-            connect_once(url, tls, false).await
+            connect_once(url, security, false).await
         }
         result => result,
     }
@@ -81,34 +81,24 @@ fn rejects_subprotocols(error: &Error) -> bool {
 
 async fn connect_once(
     url: &str,
-    tls: Option<&TlsConfig>,
+    security: &Security,
     offer_subprotocols: bool,
 ) -> Result<WebSocket, ConnectError> {
     let mut request = url.into_client_request().map_err(ConnectError::WebSocket)?;
     let uri = request.uri();
-    let secure = match uri.scheme_str() {
-        Some("ws") => false,
-        Some("wss") => true,
-        _ => {
-            return Err(ConnectError::WebSocket(Error::Url(
-                tokio_tungstenite::tungstenite::error::UrlError::UnsupportedUrlScheme,
-            )));
-        }
-    };
+    let secure = !matches!(security, Security::Plaintext);
+    if uri.scheme_str() != Some(if secure { "wss" } else { "ws" }) {
+        return Err(ConnectError::WebSocket(Error::Url(
+            tokio_tungstenite::tungstenite::error::UrlError::UnsupportedUrlScheme,
+        )));
+    }
     let host = uri.host().ok_or_else(|| {
         ConnectError::WebSocket(Error::Url(
             tokio_tungstenite::tungstenite::error::UrlError::NoHostName,
         ))
     })?;
     let port = uri.port_u16().unwrap_or(if secure { 443 } else { 80 });
-    let security = match secure {
-        false => Security::Plaintext,
-        #[cfg(tls)]
-        true => Security::Tls(tls.cloned().unwrap_or_default()),
-        #[cfg(not(tls))]
-        true => unreachable!("connection plans reject secure WebSockets without a TLS provider"),
-    };
-    let transport = super::connect(host, port, &security).await?;
+    let transport = super::connect(host, port, security).await?;
     if offer_subprotocols {
         request.headers_mut().insert(
             SEC_WEBSOCKET_PROTOCOL,
@@ -302,8 +292,38 @@ mod tests {
     use tokio::io::AsyncWriteExt;
     use tokio_tungstenite::tungstenite::protocol::Role;
 
-    use super::WebSocket;
+    use super::{ConnectError, Error, Security, WebSocket, connect};
     use crate::{driver::test_support::within, transport::stream::Stream};
+
+    async fn assert_scheme_rejected(url: &str, security: Security) {
+        let error = within(connect(url, &security)).await.unwrap_err();
+        assert!(
+            matches!(
+                error,
+                ConnectError::WebSocket(Error::Url(
+                    tokio_tungstenite::tungstenite::error::UrlError::UnsupportedUrlScheme
+                ))
+            ),
+            "{url} with {security:?}: {error:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn plaintext_rejects_a_url_that_is_not_ws() {
+        for url in [
+            "wss://irc.example.net/webirc",
+            "ircs://irc.example.net:6697",
+        ] {
+            assert_scheme_rejected(url, Security::Plaintext).await;
+        }
+    }
+
+    #[cfg(tls)]
+    #[tokio::test(flavor = "current_thread")]
+    async fn tls_rejects_a_ws_url() {
+        let tls = Security::Tls(crate::transport::TlsConfig::default());
+        assert_scheme_rejected("ws://irc.example.net/webirc", tls).await;
+    }
 
     #[tokio::test(flavor = "current_thread")]
     async fn flush_propagates_a_broken_peer_error() {

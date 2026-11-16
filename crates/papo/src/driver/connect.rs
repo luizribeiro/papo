@@ -31,38 +31,29 @@ pub(crate) async fn open_connection(
 
     #[cfg(sockets)]
     {
+        let security = match plan.address.protocol {
+            Protocol::Irc | Protocol::Ws => transport::Security::Plaintext,
+            #[cfg(tls)]
+            Protocol::Ircs | Protocol::Wss => {
+                _ = progress.send(papo_core::ConnectPhase::Tls);
+                transport::Security::Tls(plan.tls)
+            }
+            #[cfg(not(tls))]
+            Protocol::Ircs | Protocol::Wss => {
+                unreachable!("connection plans reject TLS without a provider")
+            }
+        };
         if let Some(url) = plan.address.websocket_url() {
             #[cfg(feature = "websocket")]
-            {
-                if plan.address.is_secure() {
-                    _ = progress.send(papo_core::ConnectPhase::Tls);
-                }
-                return transport::connect_websocket(
-                    &url,
-                    plan.address.is_secure().then_some(&plan.tls),
-                )
+            return transport::connect_websocket(&url, &security)
                 .await
                 .map_err(Error::transport);
-            }
             #[cfg(not(feature = "websocket"))]
             {
                 _ = url;
                 unreachable!("connection plans reject WebSocket endpoints without support");
             }
         }
-        let security = match plan.address.protocol {
-            Protocol::Irc => transport::Security::Plaintext,
-            #[cfg(tls)]
-            Protocol::Ircs => {
-                _ = progress.send(papo_core::ConnectPhase::Tls);
-                transport::Security::Tls(plan.tls)
-            }
-            #[cfg(not(tls))]
-            Protocol::Ircs => unreachable!("connection plans reject TLS without a provider"),
-            Protocol::Ws | Protocol::Wss => {
-                unreachable!("WebSocket endpoints return before TCP transport selection")
-            }
-        };
         transport::connect(&plan.address.host, plan.address.port, &security)
             .await
             .map_err(Error::transport)

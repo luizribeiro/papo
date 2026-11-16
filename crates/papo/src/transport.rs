@@ -109,8 +109,9 @@ pub(crate) enum ConnectError {
 
 /// Opens a WebSocket connection over the existing TCP and TLS transports.
 ///
-/// Binary `IRCv3` messages are preferred over text messages. TLS settings are
-/// used for `wss` URLs; when omitted, the platform trust configuration applies.
+/// Binary `IRCv3` messages are preferred over text messages. `security` must
+/// match the URL: TLS for `wss`, plaintext for `ws`.
+/// Any other pairing fails with an unsupported URL scheme error.
 ///
 /// # Errors
 ///
@@ -118,9 +119,9 @@ pub(crate) enum ConnectError {
 #[cfg(all(feature = "websocket", sockets))]
 pub(crate) async fn connect_websocket(
     url: &str,
-    tls: Option<&TlsConfig>,
+    security: &Security,
 ) -> Result<stream::Stream, ConnectError> {
-    websocket::connect(url, tls)
+    websocket::connect(url, security)
         .await
         .map(stream::Stream::from_websocket)
 }

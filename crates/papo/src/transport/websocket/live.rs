@@ -23,7 +23,7 @@ use tokio_tungstenite::{
 use crate::transport::{TlsConfig, TlsRoots};
 use crate::{
     driver::test_support::within,
-    transport::{ConnectError, connect_websocket, stream::Stream},
+    transport::{ConnectError, Security, connect_websocket, stream::Stream},
 };
 
 #[tokio::test(flavor = "current_thread")]
@@ -33,7 +33,7 @@ async fn plaintext_cap_exchange_prefers_binary_messages() {
 
 async fn plaintext_cap_exchange_prefers_binary_messages_body() {
     let server = from_env();
-    let mut stream = connect_websocket(server.websocket_url(), None)
+    let mut stream = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     assert!(!stream.is_secure());
@@ -56,7 +56,7 @@ async fn secure_websocket_trusts_the_test_ca_body() {
         roots: TlsRoots::Ca(fs::read(server.ca_pem_path()).unwrap()),
         ..TlsConfig::default()
     };
-    let stream = connect_websocket(server.secure_websocket_url(), Some(&config))
+    let stream = connect_websocket(server.secure_websocket_url(), &Security::Tls(config))
         .await
         .unwrap();
     assert!(stream.is_secure());
@@ -70,7 +70,7 @@ async fn writes_each_complete_line_as_one_message() {
 
 async fn writes_each_complete_line_as_one_message_body() {
     let server = from_env();
-    let mut stream = connect_websocket(server.websocket_url(), None)
+    let mut stream = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     stream
@@ -140,7 +140,7 @@ async fn retries_without_subprotocols_when_a_legacy_server_rejects_them_body() {
             .unwrap();
     });
 
-    let mut stream = connect_websocket(&format!("ws://{address}/webirc"), None)
+    let mut stream = connect_websocket(&format!("ws://{address}/webirc"), &Security::Plaintext)
         .await
         .unwrap();
     assert_eq!(stream.websocket_subprotocol(), None);
@@ -188,7 +188,7 @@ async fn does_not_retry_an_unrelated_handshake_failure_body() {
         );
     });
 
-    let error = connect_websocket(&format!("ws://{address}/maintenance"), None)
+    let error = connect_websocket(&format!("ws://{address}/maintenance"), &Security::Plaintext)
         .await
         .unwrap_err();
     assert!(matches!(
@@ -241,7 +241,7 @@ async fn retries_when_a_successful_handshake_omits_the_subprotocol_body() {
         );
     });
 
-    let mut stream = connect_websocket(&format!("ws://{address}/legacy"), None)
+    let mut stream = connect_websocket(&format!("ws://{address}/legacy"), &Security::Plaintext)
         .await
         .unwrap();
     assert_eq!(stream.websocket_subprotocol(), None);
@@ -287,7 +287,7 @@ async fn bounds_incoming_messages_at_the_extended_line_limit_body() {
             .unwrap();
     });
 
-    let mut stream = connect_websocket(&format!("ws://{address}/limits"), None)
+    let mut stream = connect_websocket(&format!("ws://{address}/limits"), &Security::Plaintext)
         .await
         .unwrap();
     let mut accepted = vec![0; 8191 + 510 + 2];
@@ -339,7 +339,7 @@ async fn answers_ping_frames_with_pong_body() {
             .unwrap();
     });
 
-    let mut stream = connect_websocket(&format!("ws://{address}/ping"), None)
+    let mut stream = connect_websocket(&format!("ws://{address}/ping"), &Security::Plaintext)
         .await
         .unwrap();
     assert_eq!(
@@ -356,7 +356,7 @@ async fn rejects_a_partial_line_at_shutdown() {
 
 async fn rejects_a_partial_line_at_shutdown_body() {
     let server = from_env();
-    let mut stream = connect_websocket(server.websocket_url(), None)
+    let mut stream = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     stream.write_all(b"PING :unfinished").await.unwrap();
@@ -371,7 +371,7 @@ async fn debug_redacts_buffered_wire_bytes() {
 
 async fn debug_redacts_buffered_wire_bytes_body() {
     let server = from_env();
-    let mut stream = connect_websocket(server.websocket_url(), None)
+    let mut stream = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     stream.write_all(b"AUTHENTICATE c2VjcmV0").await.unwrap();
@@ -388,14 +388,14 @@ async fn bounds_outgoing_complete_and_partial_lines() {
 
 async fn bounds_outgoing_complete_and_partial_lines_body() {
     let server = from_env();
-    let mut complete = connect_websocket(server.websocket_url(), None)
+    let mut complete = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     let mut accepted = vec![b'x'; 8191 + 510];
     accepted.extend_from_slice(b"\r\n");
     complete.write_all(&accepted).await.unwrap();
 
-    let mut split_terminator = connect_websocket(server.websocket_url(), None)
+    let mut split_terminator = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     let mut accepted = vec![b'x'; 8191 + 510];
@@ -403,7 +403,7 @@ async fn bounds_outgoing_complete_and_partial_lines_body() {
     split_terminator.write_all(&accepted).await.unwrap();
     split_terminator.write_all(b"\n").await.unwrap();
 
-    let mut complete = connect_websocket(server.websocket_url(), None)
+    let mut complete = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     let mut rejected = vec![b'x'; 8191 + 510 + 1];
@@ -413,7 +413,7 @@ async fn bounds_outgoing_complete_and_partial_lines_body() {
         io::ErrorKind::InvalidData
     );
 
-    let mut partial = connect_websocket(server.websocket_url(), None)
+    let mut partial = connect_websocket(server.websocket_url(), &Security::Plaintext)
         .await
         .unwrap();
     partial
@@ -472,7 +472,7 @@ async fn text_subprotocol_preserves_close_code_and_reason_body() {
         tokio::time::sleep(Duration::from_millis(250)).await;
     });
 
-    let mut stream = connect_websocket(&format!("ws://{address}/text"), None)
+    let mut stream = connect_websocket(&format!("ws://{address}/text"), &Security::Plaintext)
         .await
         .unwrap();
     assert_eq!(stream.websocket_subprotocol(), Some("text.ircv3.net"));
