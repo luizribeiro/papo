@@ -3364,6 +3364,22 @@ impl core::marker::Unpin for papo::PushKeys
 impl core::marker::UnsafeUnpin for papo::PushKeys
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PushKeys
 impl core::panic::unwind_safe::UnwindSafe for papo::PushKeys
+pub struct papo::QuitRequest
+impl papo::QuitRequest
+pub fn papo::QuitRequest::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::QuitRequest
+pub fn papo::QuitRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::QuitRequest
+pub type papo::QuitRequest::IntoFuture = papo::RequestFuture<()>
+pub type papo::QuitRequest::Output = core::result::Result<(), papo::Error>
+pub fn papo::QuitRequest::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::QuitRequest
+impl core::marker::Send for papo::QuitRequest
+impl core::marker::Sync for papo::QuitRequest
+impl core::marker::Unpin for papo::QuitRequest
+impl core::marker::UnsafeUnpin for papo::QuitRequest
+impl core::panic::unwind_safe::RefUnwindSafe for papo::QuitRequest
+impl core::panic::unwind_safe::UnwindSafe for papo::QuitRequest
 #[non_exhaustive] pub struct papo::ReactOutcome
 pub papo::ReactOutcome::confirmation: papo::Confirmation
 pub papo::ReactOutcome::conversation: papo::Conversation

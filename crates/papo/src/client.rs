@@ -321,6 +321,36 @@ impl IntoFuture for KickRequest {
     }
 }
 
+/// A clean disconnect request; add an optional reason with [`QuitRequest::reason`].
+#[must_use = "requests do nothing unless awaited"]
+pub struct QuitRequest {
+    client: Client,
+    reason: String,
+}
+
+impl std::fmt::Debug for QuitRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("QuitRequest", formatter)
+    }
+}
+
+impl QuitRequest {
+    /// Sets the human-readable quit reason; an empty reason sends none.
+    pub fn reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = reason.into();
+        self
+    }
+}
+
+impl IntoFuture for QuitRequest {
+    type Output = Result<(), Error>;
+    type IntoFuture = crate::RequestFuture<()>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        self.client.quit_request(self.reason)
+    }
+}
+
 impl std::fmt::Debug for JoinChannel {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         crate::opaque_debug("JoinChannel", formatter)
@@ -2115,8 +2145,19 @@ impl Client {
     ///
     /// Returns an error only if the QUIT message is invalid.
     pub fn quit(&self, reason: impl Into<String>) -> crate::RequestFuture<()> {
+        self.quit_request(reason.into())
+    }
+
+    #[doc(hidden)]
+    pub fn quit_step(&self) -> QuitRequest {
+        QuitRequest {
+            client: self.clone(),
+            reason: String::new(),
+        }
+    }
+
+    fn quit_request(&self, reason: String) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let message = if reason.is_empty() {
                 Line::new("QUIT")

@@ -47,6 +47,7 @@ const UNIT_REQUESTS: &[(&str, Reason)] = &[
     ("papo::Metadata::remove", Reason::EchoesInputOnly),
     ("papo::Metadata::remove_on", Reason::EchoesInputOnly),
     ("papo::Metadata::unsubscribe", Reason::EchoesInputOnly),
+    ("papo::QuitRequest", Reason::CloseIsConfirmation),
     ("papo::WebPush::unregister", Reason::EchoesInputOnly),
     (
         "papo_core::Session::create_account",

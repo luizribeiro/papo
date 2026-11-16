@@ -58,7 +58,7 @@ fn runtime_handles_have_opaque_debug_output() {
     assert_eq!(format!("{events:?}"), "Events { .. }");
     assert_eq!(format!("{driver:?}"), "Driver { .. }");
     assert_eq!(
-        format!("{:?}", client.quit("Leaving")),
+        format!("{:?}", client.quit_step().reason("Leaving").into_future()),
         "RequestFuture { .. }"
     );
 }
@@ -98,6 +98,18 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
         "KickbanNick { .. }"
     );
     assert_eq!(format!("{:?}", client.list()), "ListRequest { .. }");
+    assert_eq!(
+        format!("{:?}", client.part("#papo").reason("Back tomorrow")),
+        "PartRequest { .. }"
+    );
+    assert_eq!(
+        format!("{:?}", client.kick("#papo", "mallory").reason("Flooding")),
+        "KickRequest { .. }"
+    );
+    assert_eq!(
+        format!("{:?}", client.quit_step().reason("Leaving")),
+        "QuitRequest { .. }"
+    );
     assert_eq!(format!("{:?}", client.mode("#papo")), "SetModes { .. }");
     assert_eq!(
         format!(
