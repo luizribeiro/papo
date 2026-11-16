@@ -351,7 +351,7 @@ pub use builder::Builder;
 pub use builder::StreamSecurity;
 pub use client::{
     Client, Fallback, JoinChannel, KickRequest, Kickban, KickbanNick, KickbanRequest, PartRequest,
-    QuitRequest, ReactOutcome, SendMessage, SendOutcome, SentLine,
+    QuitRequest, ReactOutcome, RedactOutcome, RedactedLine, SendMessage, SendOutcome, SentLine,
 };
 pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;

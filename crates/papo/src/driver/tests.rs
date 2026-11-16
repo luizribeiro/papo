@@ -945,7 +945,7 @@ async fn chat_person_method_identity_matrix() {
                     Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await.map(drop),
                     Method::React => client.react(&message, "✅").await.map(drop),
                     Method::Unreact => client.unreact(&message, "✅").await.map(drop),
-                    Method::Redact => client.redact(&message, "superseded").await,
+                    Method::Redact => client.redact(&message, "superseded").await.map(drop),
                 }
             });
             let line = String::from_utf8(next_client_line(&mut server).await).unwrap();
@@ -994,7 +994,7 @@ async fn chat_person_method_identity_matrix() {
             Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await.map(drop),
             Method::React => client.react(&message, "✅").await.map(drop),
             Method::Unreact => client.unreact(&message, "✅").await.map(drop),
-            Method::Redact => client.redact(&message, "superseded").await,
+            Method::Redact => client.redact(&message, "superseded").await.map(drop),
         };
         assert!(
             matches!(result, Err(Error::TargetGone)),
@@ -5720,11 +5720,10 @@ async fn every_name_taking_method_returns_invalid_name() {
                 .react(line_reference(bad, "RfcBTzyxY120004"), "eyes")
                 .await
                 .map(drop),
-            Method::Redact => {
-                client
-                    .redact(line_reference(bad, "RfcBTzyxY120004"), "spam")
-                    .await
-            }
+            Method::Redact => client
+                .redact(line_reference(bad, "RfcBTzyxY120004"), "spam")
+                .await
+                .map(drop),
             Method::Whois => client.whois(bad).await.map(drop),
             Method::Who => client.who(bad).await.map(drop),
             Method::Part => client.part(bad).reason("leaving").await.map(drop),
@@ -8259,7 +8258,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     .await;
     server_line(
         &mut server,
-        b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120005 superseded\r\n",
+        b"@msgid=RfcBTzyxY120007;time=2026-02-03T04:05:07.789Z :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120005 superseded\r\n",
     )
     .await;
     server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
@@ -8274,7 +8273,16 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;
-    within(redacted).await.unwrap().unwrap();
+    assert_eq!(
+        within(redacted).await.unwrap().unwrap().lines,
+        [
+            redacted_line(
+                "RfcBTzyxY120005",
+                confirmed("RfcBTzyxY120007", Some("2026-02-03T04:05:07.789Z"))
+            ),
+            redacted_line("RfcBTzyxY120006", confirmed("RfcBTzyxY120008", None)),
+        ]
+    );
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -8969,10 +8977,21 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     .await;
     server_line(
         &mut server,
-        b"@label=0 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120004 :duplicate message\r\n",
+        b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost REDACT #papo RfcBTzyxY120004 :duplicate message\r\n",
     )
     .await;
-    assert!(within(redacted).await.unwrap().is_ok());
+    server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
+    let outcome = within(redacted).await.unwrap().unwrap();
+    assert!(
+        matches!(outcome.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
+    );
+    assert_eq!(
+        outcome.lines,
+        [redacted_line(
+            "RfcBTzyxY120004",
+            crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoEchoMessage)
+        )]
+    );
 
     let sender = client.clone();
     let rejected = tokio::spawn(async move {

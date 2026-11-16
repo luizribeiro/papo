@@ -176,7 +176,7 @@ fn answer(path: Path, ops: &OpsChannel, line: &ChatMessage) -> Answer {
             Path::Reply => client.reply(&line, "key rotated").await.map(drop),
             Path::React => client.react(&line, "👀").await.map(drop),
             Path::Unreact => client.unreact(&line, "👀").await.map(drop),
-            Path::Redact => client.redact(&line, "key rotated").await,
+            Path::Redact => client.redact(&line, "key rotated").await.map(drop),
             Path::ReturnAddress => client
                 .privmsg(line.return_address(), "key rotated")
                 .await
