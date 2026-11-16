@@ -12,14 +12,18 @@ const SASL_STEPS: &[&str] = &[
     "SCRAM-SHA-512",
 ];
 
-/// Formats one wire line with every credential-bearing parameter replaced.
+/// Returns one wire line as sent, or re-encoded with every credential-bearing parameter replaced.
 pub(super) fn redact(raw: &[u8]) -> String {
     let Ok(message) = LineRef::parse_bytes(raw) else {
         return format!("<unparsed line, {} bytes>", raw.len());
     };
     let params: Vec<&str> = message.params().collect();
+    let secrets = secret_params(message.raw_command(), &params);
+    if secrets.is_empty() {
+        return String::from_utf8_lossy(raw).into_owned();
+    }
     let mut line = message.to_owned();
-    for index in secret_params(message.raw_command(), &params) {
+    for index in secrets {
         line.__mark_secret(index);
     }
     line.to_string()

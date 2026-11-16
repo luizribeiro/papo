@@ -1,4 +1,80 @@
-#[allow(dead_code)]
+//! A bounded, redacted record of every scenario client's wire lines.
+
+use std::{
+    fmt::Write as _,
+    sync::{Arc, Mutex, PoisonError},
+    time::Instant,
+};
+
 mod redact;
 #[cfg(test)]
 mod tests;
+
+#[derive(Clone)]
+pub(crate) struct WireLog {
+    started: Instant,
+    clients: Arc<Mutex<Vec<ClientLog>>>,
+}
+
+struct ClientLog {
+    name: String,
+    lines: Vec<String>,
+}
+
+#[derive(Clone, Copy)]
+enum Direction {
+    Sent,
+    Received,
+}
+
+impl WireLog {
+    pub(crate) fn new() -> Self {
+        Self {
+            started: Instant::now(),
+            clients: Arc::default(),
+        }
+    }
+
+    /// Adds a client and returns the index its connections record under.
+    pub(crate) fn add_client(&self) -> usize {
+        let mut clients = self.clients();
+        let name = format!("client {}", clients.len() + 1);
+        clients.push(ClientLog {
+            name,
+            lines: Vec::new(),
+        });
+        clients.len() - 1
+    }
+
+    pub(crate) fn rename(&self, client: usize, name: &str) {
+        self.clients()[client].name = format!("client {} ({name})", client + 1);
+    }
+
+    pub(crate) fn render(&self) -> String {
+        let mut output = String::from("wire log, in seconds since the scenario started:\n");
+        for client in self.clients().iter() {
+            _ = writeln!(output, "== {}", client.name);
+            for line in &client.lines {
+                _ = writeln!(output, "  {line}");
+            }
+        }
+        output
+    }
+
+    fn record(&self, client: usize, direction: Direction, line: &[u8]) {
+        let arrow = match direction {
+            Direction::Sent => "->",
+            Direction::Received => "<-",
+        };
+        let line = format!(
+            "{:.3} {arrow} {}",
+            self.started.elapsed().as_secs_f64(),
+            redact::redact(line)
+        );
+        self.clients()[client].lines.push(line);
+    }
+
+    fn clients(&self) -> std::sync::MutexGuard<'_, Vec<ClientLog>> {
+        self.clients.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
