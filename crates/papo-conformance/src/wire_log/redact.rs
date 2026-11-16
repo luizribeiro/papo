@@ -50,8 +50,7 @@ fn secret_params(command: &str, params: &[&str]) -> Vec<usize> {
         {
             from(1)
         }
-        "REGISTER" => from(2),
-        "WEBPUSH" if first_is("REGISTER") => from(2),
+        "REGISTER" | "WEBPUSH" => from(2),
         "MODE" | "SAMODE" if params.get(1).is_some_and(|modes| modes.contains('k')) => from(2),
         "324" if params.get(2).is_some_and(|modes| modes.contains('k')) => from(3),
         "BOUNCER" => (0..params.len())
