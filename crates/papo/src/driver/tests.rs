@@ -8,6 +8,8 @@ mod ops_only;
 mod reactions;
 mod reasons;
 mod sends;
+#[cfg(tls)]
+mod tls;
 
 macro_rules! disconnected {
     () => {
@@ -4487,35 +4489,6 @@ async fn required_sasl_failure_does_not_reconnect() {
     ));
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 1);
-}
-
-#[cfg(tls)]
-#[test]
-fn certificate_verification_failure_is_fatal() {
-    let error = Error::Connect(
-        crate::transport::ConnectError::Tls(rustls::Error::InvalidCertificate(
-            rustls::CertificateError::UnknownIssuer,
-        ))
-        .into(),
-    );
-    assert!(super::connect::is_fatal_failure(&error, None));
-    let Event::Disconnected(disconnected) =
-        Event::Disconnected(super::disconnected_event(&error, 1, None))
-    else {
-        unreachable!()
-    };
-    let crate::DisconnectCause::Connect(connect) = &disconnected.cause else {
-        panic!("expected the certificate connection error")
-    };
-    assert_eq!(connect.kind(), crate::ConnectErrorKind::CertificateRejected);
-    let source = std::error::Error::source(&disconnected).unwrap();
-    assert!(
-        source
-            .source()
-            .unwrap()
-            .to_string()
-            .contains("UnknownIssuer")
-    );
 }
 
 #[tokio::test(flavor = "current_thread")]
