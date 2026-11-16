@@ -2996,7 +2996,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::KickbanRequest
 #[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo::ChannelName
-pub papo::ListEntry::topic: alloc::string::String
+pub papo::ListEntry::topic: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::ListEntry
 pub fn papo::ListEntry::clone(&self) -> Self
 impl core::cmp::Eq for papo::ListEntry

@@ -66,7 +66,8 @@ async fn typed_requests_round_trip_against_ergo() {
             Some("Typed requests on Ergo")
         );
         assert!(client.list().await.unwrap().iter().any(|entry| {
-            entry.name == channel.as_str() && entry.topic == "Typed requests on Ergo"
+            entry.name == channel.as_str()
+                && entry.topic.as_deref() == Some("Typed requests on Ergo")
         }));
 
         let missing = unique("papo-missing");

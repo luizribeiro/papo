@@ -214,8 +214,12 @@ pub struct ListEntry {
     pub name: ChannelName,
     /// Number of visible members reported by the server.
     pub members_count: usize,
-    /// Channel topic.
-    pub topic: String,
+    /// Channel topic as the server sent it, formatting codes included, or `None` when the
+    /// channel has no topic.
+    ///
+    /// Some servers put the channel modes in front of the topic (`[+nt] topic`), so `Some` can
+    /// hold only the modes.
+    pub topic: Option<String>,
 }
 
 pub(crate) fn whois(
@@ -499,7 +503,10 @@ fn list_entries(
             Some(ListEntry {
                 name: origin.__channel(isupport.casemapping(), message.param(1)?),
                 members_count: message.param(2)?.parse().ok()?,
-                topic: message.param(3)?.to_owned(),
+                topic: message
+                    .param(3)
+                    .filter(|topic| !topic.is_empty())
+                    .map(str::to_owned),
             })
         })
         .collect()
@@ -945,6 +952,33 @@ mod tests {
         let entries = list_entries(lines, &Isupport::default(), crate::Origin::NONE);
         assert_eq!(entries.len(), 10_000);
         assert_eq!(entries.last().unwrap().name, "#papo-9999");
+    }
+
+    #[test]
+    fn list_topic_is_none_only_without_topic_text() {
+        let cases = [
+            (
+                ":ergo.test 322 papo #papo 42 :Ergonomic IRC",
+                Some("Ergonomic IRC"),
+            ),
+            (":ergo.test 322 papo #empty 1 :", None),
+            (":ergo.test 322 papo #blank 1 : ", Some(" ")),
+            (":solanum.test 322 papo #empty 1", None),
+            (
+                ":ergo.test 322 papo #rust 17 :\x02Rust\x02 \x0304news\x03",
+                Some("\x02Rust\x02 \x0304news\x03"),
+            ),
+            (":inspircd.test 322 papo #modes 3 :[+nt] ", Some("[+nt] ")),
+        ];
+        for (raw, topic) in cases {
+            let lines = [
+                raw.parse::<Line>().unwrap(),
+                ":ergo.test 323 papo :End of /LIST".parse().unwrap(),
+            ];
+            let entries = list_entries(lines, &Isupport::default(), crate::Origin::NONE);
+            assert_eq!(entries.len(), 1, "{raw}");
+            assert_eq!(entries[0].topic.as_deref(), topic, "{raw}");
+        }
     }
 
     #[test]

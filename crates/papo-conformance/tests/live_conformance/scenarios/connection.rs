@@ -374,7 +374,12 @@ async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
         .find(|entry| entry.name.as_str() == channel)
         .expect("LIST includes the visible channel");
     assert_eq!(entry.members_count, 1);
-    assert!(entry.topic.ends_with("release coordination"));
+    assert!(
+        entry
+            .topic
+            .as_deref()
+            .is_some_and(|topic| topic.ends_with("release coordination"))
+    );
     Ok(())
 }
 
@@ -415,7 +420,12 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
         .find(|entry| entry.name.as_str() == channel)
         .expect("ELIST includes the matching channel");
     assert_eq!(entry.members_count, 2);
-    assert!(entry.topic.ends_with("fresh two-person channel"));
+    assert!(
+        entry
+            .topic
+            .as_deref()
+            .is_some_and(|topic| topic.ends_with("fresh two-person channel"))
+    );
     Ok(())
 }
 

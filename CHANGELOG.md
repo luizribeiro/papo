@@ -119,6 +119,9 @@ may differ from the one sent.
 `Client::set_topic` and `Client::clear_topic` resolve to a `TopicOutcome` with the topic the server
 kept, which may be cut to `TOPICLEN`, and the echo's `Confirmation`.
 
+`ListEntry::topic` is `Option<String>`: `None` when the server lists the channel with an empty or
+missing topic. A `322` reply without a topic parameter is now listed instead of dropped.
+
 `Client::part` resolves to a `PartOutcome` with the `Confirmation` of its `PART` echo.
 
 `Client::kick` resolves to a `KickOutcome` with the `Confirmation` of its `KICK` echo, and
@@ -373,6 +376,7 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | `Duration::MAX` and oversized queue settings could panic | Maximum durations disable the corresponding deadline; event capacity above the runtime bound is clamped, while zero is `InvalidInput::ZeroEventCapacity` |
 | `ConnectError` hid a login refusal reason and repeated it in `source()` | Sanitized server reasons are part of `Display` and are not duplicated in the source chain |
 | `ServerError::command() -> &str` used `""` for absence | `ServerError::command() -> Option<&Command>` |
+| `ListEntry::topic: String` used `""` for no topic | `ListEntry::topic: Option<String>` |
 | Protocol commands and standard-reply codes used interchangeable strings | `Command` and `ReplyCode` type event and error tokens; `papo::fail` exports typed code values |
 
 Actor-bearing live events now preserve account, bot, and operator facts from their IRC line,

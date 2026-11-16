@@ -575,8 +575,8 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     let list = within(list).await.unwrap().unwrap();
     assert_eq!((list.len(), list[0].name.as_str()), (2, "#papo"));
     assert_eq!(
-        (list[1].members_count, list[1].topic.as_str()),
-        (17, "The Rust Programming Language")
+        (list[1].members_count, list[1].topic.as_deref()),
+        (17, Some("The Rust Programming Language"))
     );
 }
 
