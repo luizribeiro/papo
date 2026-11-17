@@ -12,9 +12,19 @@ const MAX_SECRET_ECHOES: usize = 32;
 /// A line from the server with a parameter equal to one is marked secret as it is read, before
 /// any other part of the session copies it. Matching is by whole parameter, so a server that
 /// rewrites the echoed text defeats it.
+///
+/// A secret stays tracked after it comes back, because a labelled echo, a response batch and
+/// history may each repeat it. Only a secret that has come back may make room for a newer one; a
+/// repeat after that is not marked.
 #[derive(Debug, Default)]
 pub(crate) struct SecretEchoes {
-    entries: VecDeque<Param>,
+    entries: VecDeque<SecretEcho>,
+}
+
+#[derive(Debug)]
+struct SecretEcho {
+    secret: Param,
+    echoed: bool,
 }
 
 impl SecretEchoes {
@@ -31,10 +41,21 @@ impl SecretEchoes {
         if secrets.is_empty() {
             return Ok(());
         }
-        if self.entries.len() + secrets.len() > MAX_SECRET_ECHOES {
+        let pending = self.entries.iter().filter(|entry| !entry.echoed).count();
+        if pending + secrets.len() > MAX_SECRET_ECHOES {
             return Err(RequestError::PendingLimit);
         }
-        self.entries.extend(secrets.into_iter().cloned());
+        let mut excess = (self.entries.len() + secrets.len()).saturating_sub(MAX_SECRET_ECHOES);
+        self.entries.retain(|entry| {
+            let evicted = excess > 0 && entry.echoed;
+            excess -= usize::from(evicted);
+            !evicted
+        });
+        self.entries
+            .extend(secrets.into_iter().map(|secret| SecretEcho {
+                secret: secret.clone(),
+                echoed: false,
+            }));
         Ok(())
     }
 
@@ -57,6 +78,15 @@ impl SecretEchoes {
     }
 
     fn observe(&mut self, text: &str) -> bool {
-        self.entries.iter().any(|secret| **secret == *text)
+        let mut repeated = false;
+        for entry in self
+            .entries
+            .iter_mut()
+            .filter(|entry| *entry.secret == *text)
+        {
+            entry.echoed = true;
+            repeated = true;
+        }
+        repeated
     }
 }

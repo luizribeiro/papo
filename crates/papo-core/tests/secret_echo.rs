@@ -140,6 +140,20 @@ fn identify_as(account: usize) -> Line {
         .param(Secret::new(format!("IDENTIFY alice{account} {PASSWORD}")))
 }
 
+fn echo_of(session: &mut Session, now: Instant, account: usize) -> String {
+    session.handle_line(
+        now,
+        format!(
+            "@msgid=RfcBTzyxY12{account:04};time=2026-11-17T10:02:11.482Z :papo!~papo@client.example PRIVMSG NickServ :IDENTIFY alice{account} {PASSWORD}"
+        )
+        .as_bytes(),
+    );
+    format!(
+        "{:?}",
+        std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>()
+    )
+}
+
 #[test]
 fn secret_sends_awaiting_their_echo_are_bounded_and_fail_closed() {
     let now = Instant::now();
@@ -161,6 +175,41 @@ fn secret_sends_awaiting_their_echo_are_bounded_and_fail_closed() {
     session
         .send(now, Line::privmsg("NickServ", "INFO alice"))
         .unwrap();
+
+    assert!(echo_of(&mut session, now, 1).contains(":<redacted>"));
+    session.send(now, identify_as(32)).unwrap();
+    assert_eq!(
+        session.send(now, identify_as(33)),
+        Err(RequestError::PendingLimit)
+    );
+    assert!(echo_of(&mut session, now, 0).contains(":<redacted>"));
+    assert!(echo_of(&mut session, now, 1).contains(PASSWORD));
+}
+
+#[test]
+fn a_line_counts_each_of_its_secrets() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    for account in 0..30 {
+        session.send(now, identify_as(account)).unwrap();
+    }
+    let two_secrets = |account: usize| {
+        Line::new("NOTICE")
+            .param("NickServ")
+            .param(Secret::new(format!("{PASSWORD}-{account}")))
+            .param(Secret::new(format!("staff key {account}")))
+    };
+    session.send(now, two_secrets(30)).unwrap();
+    assert_eq!(
+        session.send(now, identify_as(32)),
+        Err(RequestError::PendingLimit)
+    );
+    assert!(echo_of(&mut session, now, 0).contains(":<redacted>"));
+    assert_eq!(
+        session.send(now, two_secrets(33)),
+        Err(RequestError::PendingLimit)
+    );
+    session.send(now, identify_as(33)).unwrap();
 }
 
 #[test]
