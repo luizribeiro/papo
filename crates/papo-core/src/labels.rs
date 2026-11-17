@@ -165,6 +165,15 @@ impl Session {
         true
     }
 
+    /// Whether `message`, inside the labelled batch answering `request`, is part of that answer.
+    ///
+    /// A send is answered by its own echo and its failure. Anything else in its batch, such as
+    /// a service's reply or a mode change the send caused, is traffic the server would have sent
+    /// unbatched. Every line answers any other request.
+    pub(super) fn answers_request(&self, request: &PendingRequest, message: &LineRef<'_>) -> bool {
+        !request.sent || self.is_own_echo(message) || crate::is_failure(message)
+    }
+
     pub(super) fn response_emits_events(&self, message: &LineRef<'_>) -> bool {
         let label = message
             .tag("label")

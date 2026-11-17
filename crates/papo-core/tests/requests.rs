@@ -2745,6 +2745,11 @@ fn unrelated_response_batch_leaves_a_deferred_join_for_its_own_batch() {
             if message.as_ref().command() == Command::Privmsg
                 && message.as_ref().param(0) == Some("NickServ")
     ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Line(message))
+            if message.as_ref().param(1) == Some("Information on alice")
+    ));
     assert_eq!(session.poll_event(), None);
 
     session.handle_line(now, b"@label=0 :ergo.test BATCH +join-44 labeled-response");

@@ -356,7 +356,7 @@ fn labelled_echo_batch_does_not_turn_our_tagmsg_into_a_message() {
 }
 
 #[test]
-fn labelled_echo_batch_does_not_dispatch_another_users_message() {
+fn labelled_echo_batch_reports_another_users_message_once() {
     let now = Instant::now();
     let mut session = pending_labelled_echo(now);
     session.handle_line(now, b"@label=0 BATCH +response labeled-response");
@@ -366,9 +366,13 @@ fn labelled_echo_batch_does_not_dispatch_another_users_message() {
     );
     session.handle_line(now, b"BATCH -response");
 
-    assert!(
-        std::iter::from_fn(|| session.poll_event()).all(|event| !matches!(event, Event::Line(_)))
-    );
+    let lines = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Line(received) => Some(received.as_ref().param(1).map(str::to_owned)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(lines, [Some("hello from Alice".to_owned())]);
 }
 
 #[test]

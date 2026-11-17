@@ -6609,16 +6609,31 @@ impl Session {
         now: Instant,
         messages: &[Line],
         context: &DispatchContext,
-        request: Option<RequestId>,
-    ) -> Vec<(usize, ReplyToken)> {
+        request: Option<&PendingRequest>,
+    ) -> (Vec<(usize, ReplyToken)>, Vec<Event>) {
         let mut subject_tokens = Vec::new();
+        let mut unanswering_events = Vec::new();
         for (index, message) in messages.iter().enumerate() {
-            self.dispatch_message(now, &message.as_ref(), context, request.is_none(), request);
+            let answers =
+                request.is_none_or(|request| self.answers_request(request, &message.as_ref()));
+            let queued_events = self.outbox.events.len();
+            self.dispatch_message(
+                now,
+                &message.as_ref(),
+                context,
+                request.is_none() || !answers,
+                request.map(|request| request.id),
+            );
+            if !answers {
+                unanswering_events.extend(self.outbox.events.drain(queued_events..));
+            } else if request.is_some_and(|request| !request.emit_events) {
+                self.outbox.events.truncate(queued_events);
+            }
             if let Some(token) = self.state.who_subject_token(&message.as_ref()) {
                 subject_tokens.push((index, token));
             }
         }
-        subject_tokens
+        (subject_tokens, unanswering_events)
     }
 
     fn dispatch_response_batch(&mut self, now: Instant, response: BatchEvent) {
@@ -6643,22 +6658,13 @@ impl Session {
                 .any(|pending| pending.id == request.id)
         });
         let emit_events = request.as_ref().is_none_or(|request| request.emit_events);
-        let queued_events = self.outbox.events.len();
         let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
-        let subject_tokens = if history.is_none() && !bouncer_batch {
-            self.dispatch_batch_messages(
-                now,
-                &messages,
-                &context,
-                request.as_ref().map(|request| request.id),
-            )
+        let (subject_tokens, unanswering_events) = if history.is_none() && !bouncer_batch {
+            self.dispatch_batch_messages(now, &messages, &context, request.as_ref())
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
-        if !emit_events {
-            self.outbox.events.truncate(queued_events);
-        }
         if let Some((target, items, _)) = &history {
             self.remember_history_server_time(target, items);
         }
@@ -6712,6 +6718,7 @@ impl Session {
                 self.outbox.event(Event::Line(received));
             }
         }
+        self.outbox.events.extend(unanswering_events);
     }
 
     fn apply_aggregate_state(&mut self, message: &Line) -> VecDeque<Event> {
@@ -6959,6 +6966,11 @@ fn server_error(
         numeric,
         params: message.params().map(str::to_owned).collect(),
     })
+}
+
+/// Whether `message` is a failure that [`Response::error`] reports.
+fn is_failure(message: &LineRef<'_>) -> bool {
+    server_error(message, &BTreeSet::new()).is_some()
 }
 
 fn sent_info(message: &LineRef<'_>) -> Option<SentInfo> {
