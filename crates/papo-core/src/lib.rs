@@ -4217,19 +4217,25 @@ impl Session {
     fn handle_welcome_read(&mut self) {
         self.sasl.handle_welcome();
         self.welcome_state.handle_welcome_read();
-        if let Some(pending) = self.account_registration.cancel_pending() {
-            self.refuse_registration_after_welcome(pending.request);
-        }
-    }
-
-    fn refuse_registration_after_welcome(&mut self, request: Option<RequestId>) {
-        if self.config.creates_account_on_connect() {
+        if self.cancel_pending_registration() {
             caps::close_required(
                 &cap::ACCOUNT_REGISTRATION,
                 "was not acknowledged before the welcome",
                 &mut self.outbox,
             );
-        } else if let Some(id) = request {
+        }
+    }
+
+    /// Returns whether the cancelled registration was the configured on-connect one, which the
+    /// caller fails as a connection error instead of a request outcome.
+    fn cancel_pending_registration(&mut self) -> bool {
+        let Some(pending) = self.account_registration.cancel_pending() else {
+            return false;
+        };
+        if self.config.creates_account_on_connect() {
+            return true;
+        }
+        if let Some(id) = pending.request {
             self.outbox.event(Event::RequestUnsupported {
                 id,
                 unsupported: Unsupported::new(
@@ -4238,6 +4244,7 @@ impl Session {
                 ),
             });
         }
+        false
     }
 
     /// Notifies the session that its current deadline was reached.
@@ -5649,7 +5656,8 @@ impl Session {
     /// An omitted account or email address is encoded as `*`.
     ///
     /// A call made before the welcome (numeric 001) waits for the capability. If the welcome is
-    /// read first, the call ends with [`Event::RequestUnsupported`] and sends no password.
+    /// read first or the capability is rejected, the call ends with [`Event::RequestUnsupported`]
+    /// and sends no password.
     ///
     /// # Errors
     ///
@@ -6234,7 +6242,8 @@ impl Session {
         } else if self.caps.is_negotiating()
             && !self.caps.is_pending(cap::ACCOUNT_REGISTRATION.as_str())
         {
-            self.account_registration.cancel_pending();
+            // Capability negotiation already fails a required on-connect registration.
+            _ = self.cancel_pending_registration();
         }
     }
 

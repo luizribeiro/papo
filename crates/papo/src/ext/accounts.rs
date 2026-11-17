@@ -76,7 +76,7 @@ impl Client {
     /// Creates an account through `draft/account-registration`.
     ///
     /// A call made before the server's welcome (numeric 001) waits for the capability to be
-    /// acknowledged. If the welcome is read first, the call fails with
+    /// acknowledged. If the welcome is read first or the capability is rejected, the call fails with
     /// [`crate::UnsupportedReason::NotOffered`] and the password is never sent; a call made after
     /// the welcome sends it at once.
     ///

@@ -644,12 +644,14 @@ fn early_registration_reserves_its_id_before_a_later_whois() {
 }
 
 #[test]
-fn rejected_cap_request_discards_queued_registration() {
+fn rejected_cap_request_refuses_queued_registration() {
+    let mut registration = None;
     Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
         .connect_default()
         .server("CAP * LS :draft/account-registration=before-connect")
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
+            registration = Some(session.next_request_id());
             session
                 .create_account(
                     std::time::Instant::now(),
@@ -660,6 +662,10 @@ fn rejected_cap_request_discards_queued_registration() {
                 .unwrap();
         })
         .server("CAP * NAK :draft/account-registration")
+        .event(|event| {
+            matches!(event, Event::RequestUnsupported { id, unsupported, .. }
+                if Some(*id) == registration && unsupported.feature == Feature::AccountCreation)
+        })
         .client("CAP END")
         .server("CAP * NEW :draft/account-registration=before-connect")
         .client("CAP REQ :draft/account-registration")
