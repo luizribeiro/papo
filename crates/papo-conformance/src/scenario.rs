@@ -119,8 +119,8 @@ impl Scenario {
     /// Registers an account and returns a connected peer plus its fixture session key.
     ///
     /// The key can be passed to [`Self::configure_account_session`] to attach more clients,
-    /// including when the selected profile uses a bouncer network. Bouncer profiles wait until
-    /// the upstream network is attached before returning.
+    /// including when the selected profile uses a bouncer network. On every profile the returned
+    /// peer's own account is already `LoggedIn`.
     ///
     /// # Errors
     ///
@@ -144,19 +144,41 @@ impl Scenario {
                 papo::Secret::new(ACCOUNT_PASSWORD),
             ))
         };
-        let mut peer = self.connect_with(builder).await?;
-        if self.server.bouncer().is_some()
-            && !matches!(
-                peer.snapshot().account(),
-                Account::LoggedIn(current) if current.as_str() == account
-            )
-        {
-            // soju can remove downstream SASL while the upstream connects, suppressing its
-            // mirrored 900; this service notice is soju's explicit attachment signal.
-            peer.wait_for(|event| soju_connected_network(event, &account))
-                .await?;
+        let peer = self.connect_with(builder).await?;
+        if logged_in_as(&peer, &account) {
+            return Ok((peer, account));
         }
+        let peer = self
+            .reconnect_after_upstream_attaches(peer, &account)
+            .await?;
         Ok((peer, account))
+    }
+
+    /// Replaces a bouncer client that registered before its upstream network attached.
+    ///
+    /// soju removes downstream SASL until the upstream attaches and then never sends that
+    /// client the upstream account's 900. A client welcomed after the attachment notice
+    /// receives it during registration.
+    async fn reconnect_after_upstream_attaches(
+        &self,
+        mut early: Peer,
+        account: &str,
+    ) -> Result<Peer> {
+        early
+            .wait_for(|event| soju_connected_network(event, account))
+            .await?;
+        early.quit().await?;
+        let builder = self.account_session_named(account.to_owned(), account.to_owned())?;
+        let peer = self.connect_with(builder).await?;
+        if logged_in_as(&peer, account) {
+            Ok(peer)
+        } else {
+            Err(format!(
+                "soju welcomed a client after attaching {account} without its account: {:?}",
+                peer.snapshot().account()
+            )
+            .into())
+        }
     }
 
     /// Connects another client authenticated to an account created by this fixture.
@@ -183,10 +205,13 @@ impl Scenario {
         label: &str,
         account: impl Into<String>,
     ) -> Result<Builder> {
-        let account = account.into();
+        self.account_session_named(unique_name(label), account.into())
+    }
+
+    fn account_session_named(&self, name: String, account: String) -> Result<Builder> {
         let address = self.server.plaintext_addr();
         let builder = Self::builder_named_at(
-            unique_name(label),
+            name,
             Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
         );
         let builder = if let Some(bouncer) = self.server.bouncer() {
@@ -312,6 +337,13 @@ impl Scenario {
     }
 }
 
+fn logged_in_as(peer: &Peer, account: &str) -> bool {
+    matches!(
+        peer.snapshot().account(),
+        Account::LoggedIn(current) if current.as_str() == account
+    )
+}
+
 fn soju_connected_network<'event>(
     event: &'event papo::Event,
     network: &str,
@@ -334,7 +366,7 @@ fn unique_name(label: &str) -> String {
 mod tests {
     use papo::Event;
 
-    use super::{Peer, soju_connected_network, unique_name};
+    use super::{Peer, logged_in_as, soju_connected_network, unique_name};
 
     #[test]
     fn names_are_readable_unique_and_bounded() {
@@ -386,5 +418,28 @@ mod tests {
                 "{case}: {line}",
             );
         }
+    }
+
+    #[tokio::test]
+    async fn requires_the_own_account_to_be_the_fixture_account() {
+        let (client, events, mut wire) =
+            papo_testing::wire(papo::Client::builder("irc://offline.test", "papo-fixture"));
+        wire.register(&["account-notify"]).await;
+        let mut peer = Peer::new(client, events);
+        peer.wait_for(Event::as_connected).await.unwrap();
+        assert!(!logged_in_as(&peer, "alice-1469-266"), "before any 900");
+
+        wire.server(
+            ":bouncer.papo.test 900 papo-fixture papo-fixture!papo-bouncer-alice@127.0.0.1 \
+             alice-1469-266 :You are logged in as alice-1469-266",
+        )
+        .await;
+        wire.server(
+            ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
+        )
+        .await;
+        peer.wait_for(Event::as_notice).await.unwrap();
+        assert!(logged_in_as(&peer, "alice-1469-266"), "the fixture account");
+        assert!(!logged_in_as(&peer, "bob-1469-267"), "another account");
     }
 }
