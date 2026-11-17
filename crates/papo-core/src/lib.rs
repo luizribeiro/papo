@@ -5758,7 +5758,8 @@ impl Session {
     /// to log in, whether the earlier exchange succeeded, failed or never ran: a server that
     /// offers `sasl` later, through `CAP NEW`, gets no credentials unless the app calls this.
     /// Behind a bouncer, a login after registration may reach the upstream network rather than
-    /// the bouncer.
+    /// the bouncer. A failure, including a server that does not offer `sasl`, is reported as
+    /// [`Event::AuthenticationFailed`] and never closes the connection, even for required SASL.
     pub fn reauthenticate(&mut self, now: Instant) {
         let available = self.caps.enabled().contains_key(&cap::SASL);
         self.sasl.reauthenticate(

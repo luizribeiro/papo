@@ -177,6 +177,7 @@ pub(super) struct SaslSession {
     awaiting_challenge: bool,
     completion: Completion,
     registration: Registration,
+    origin: Origin,
     account: Option<String>,
     pending_account: Option<String>,
     account_update: AccountUpdate,
@@ -201,6 +202,12 @@ enum Completion {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Origin {
+    Registration,
+    Reauthentication,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -273,6 +280,7 @@ impl std::fmt::Debug for SaslSession {
             .field("awaiting_challenge", &self.awaiting_challenge)
             .field("completion", &self.completion)
             .field("registration", &self.registration)
+            .field("origin", &self.origin)
             .field("account", &self.account)
             .field("pending_account", &self.pending_account)
             .field("account_update", &self.account_update)
@@ -312,6 +320,7 @@ impl SaslSession {
             },
             configured,
             registration: Registration::Registering,
+            origin: Origin::Registration,
             account: None,
             pending_account: None,
             account_update: AccountUpdate::Unchanged,
@@ -342,6 +351,7 @@ impl SaslSession {
             Completion::Pending
         };
         self.registration = Registration::Registering;
+        self.origin = Origin::Registration;
         self.account = None;
         self.pending_account = None;
         self.account_update = AccountUpdate::Unchanged;
@@ -404,6 +414,7 @@ impl SaslSession {
             return;
         }
         self.reset_exchange();
+        self.origin = Origin::Reauthentication;
         self.plain_fallback = Self::plain_fallback(&self.configured, security);
         if !available {
             self.failure_kind = FailureKind::Unavailable;
@@ -831,7 +842,7 @@ impl SaslSession {
         self.abort_outcome = AbortOutcome::Retry;
         self.failures.push(reason.to_owned());
         let reason = self.failures.join("; ");
-        if self.require {
+        if self.require && self.origin == Origin::Registration {
             outbox.close(
                 if self.failure_kind == FailureKind::Unavailable {
                     crate::CloseKind::SaslUnavailable

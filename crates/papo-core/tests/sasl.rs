@@ -850,6 +850,63 @@ fn late_sasl_statuses_do_not_change_the_managed_exchange() {
 }
 
 #[test]
+fn a_failed_reauthentication_fails_only_that_call() {
+    for (failure, reason) in [
+        (
+            ":soju.test 904 papo :SASL authentication failed: Account does not exist",
+            "SASL authentication failed: Account does not exist",
+        ),
+        (
+            ":soju.test 902 papo :You must use a nick assigned to you",
+            "You must use a nick assigned to you",
+        ),
+    ] {
+        registered_with_required_sasl()
+            .reauthenticate()
+            .client("AUTHENTICATE PLAIN")
+            .server(failure)
+            .event(|event| {
+                matches!(event, Event::AuthenticationFailed { reason: actual, .. }
+                    if actual.contains(reason))
+            })
+            .inspect(|session| assert_eq!(session.account(), Some("alice")))
+            .no_client()
+            .no_event();
+    }
+}
+
+#[test]
+fn reauthentication_without_sasl_fails_only_that_call() {
+    registered_with_required_sasl()
+        .server(":soju.test CAP papo DEL sasl")
+        .event(|event| matches!(event, Event::CapsChanged { .. }))
+        .event(|event| matches!(event, Event::FeaturesChanged { .. }))
+        .reauthenticate()
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("does not currently advertise sasl"))
+        })
+        .no_client()
+        .no_event()
+        .disconnect()
+        .connect_default()
+        .server(":soju.test CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server(":soju.test CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(":soju.test 904 papo :SASL authentication failed")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Close {
+                    kind: CloseKind::SaslFailed,
+                    ..
+                }
+            )
+        });
+}
+
+#[test]
 fn in_exchange_sasl_failure_still_closes_required_authentication() {
     Transcript::new(
         Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
