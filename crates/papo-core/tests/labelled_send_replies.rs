@@ -6,6 +6,7 @@
 use std::time::Instant;
 
 use papo_core::{Config, Event, RateLimit, Response, Session, TextKind};
+use papo_proto::{Command, Line};
 
 const CAPS: &str = "batch echo-message labeled-response message-tags server-time";
 
@@ -170,4 +171,81 @@ fn a_notice_or_action_to_a_service_is_confirmed_by_its_lone_echo() {
         assert_eq!(reported_lines(&events), Vec::<String>::new(), "{echo}");
         assert!(response(&events).sent().is_some(), "{echo}");
     }
+}
+
+#[test]
+fn a_notice_or_action_echo_in_a_batch_is_ours_and_the_service_reply_is_not() {
+    let now = Instant::now();
+    for (action, echo) in [
+        (
+            false,
+            "@msgid=hvtikm5shh7amyg4pzfgwbg8qs;time=2026-11-17T18:45:03.498Z;batch=3 :papo!~u@npm4sa48pgvdy.irc NOTICE NickServ :INFO",
+        ),
+        (
+            true,
+            "@msgid=svk9smy7773jsffyzyhqymd54s;time=2026-11-17T18:45:04.999Z;batch=3 :papo!~u@npm4sa48pgvdy.irc PRIVMSG NickServ :\u{1}ACTION waves\u{1}",
+        ),
+    ] {
+        let mut session = ergo(now);
+        if action {
+            session.send_action_detailed(now, "NickServ", "waves", &[])
+        } else {
+            session.send_text_detailed(now, TextKind::Notice, "NickServ", "INFO", &[])
+        }
+        .unwrap();
+        let events = play(
+            &mut session,
+            now,
+            &[NICKSERV_INFO[0], echo, NICKSERV_INFO[2], NICKSERV_INFO[3]],
+        );
+
+        assert_eq!(
+            reported_lines(&events),
+            [":NickServ!NickServ@localhost NOTICE papo :You're not logged into an account"],
+            "{echo}"
+        );
+        assert!(response(&events).sent().is_some(), "{echo}");
+    }
+}
+
+#[test]
+fn an_ack_only_reply_confirms_without_reporting_anything() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    let id = session
+        .request_silent(
+            now,
+            Line::new("TAGMSG")
+                .with_tag("+typing", "active")
+                .param("NickServ"),
+        )
+        .unwrap();
+    let events = play(
+        &mut session,
+        now,
+        &["@label=0;time=2026-11-17T18:45:11.005Z :ergo.test ACK"],
+    );
+
+    assert_eq!(events.len(), 1, "{events:?}");
+    let response = response(&events);
+    assert_eq!(response.id, id);
+    assert!(response.lines.is_empty());
+    assert!(response.error().is_none());
+}
+
+#[test]
+fn the_response_still_carries_every_line_of_the_batch() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session
+        .send_text(now, TextKind::Privmsg, "NickServ", "INFO", &[])
+        .unwrap();
+    let events = play(&mut session, now, &NICKSERV_INFO);
+
+    let commands = response(&events)
+        .lines
+        .iter()
+        .map(|line| line.as_ref().command())
+        .collect::<Vec<_>>();
+    assert_eq!(commands, [Command::Privmsg, Command::Notice]);
 }
