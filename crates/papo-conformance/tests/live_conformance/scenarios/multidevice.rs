@@ -73,6 +73,16 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     let mut observer = s.connect("bob").await?;
     observer.join(&channel).await?;
     wait_for_channel(&mut observer, &channel).await?;
+    // The member's presence comes from the join-time WHO. A bouncer forwards that WHO
+    // upstream but answers the later AWAY and PING fences itself, so only this event
+    // orders the reply before the snapshot below.
+    observer
+        .wait_for(|event| {
+            event
+                .as_members_refreshed()
+                .filter(|refreshed| refreshed.channel.name().as_str() == channel)
+        })
+        .await?;
     let nick = desktop.snapshot().nick().clone();
     phone
         .wait_for(|event| {
