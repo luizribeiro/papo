@@ -47,7 +47,7 @@ impl Session {
         if let Some(request) = self.requests.get_mut(&label)
             && request.sent
             && let Some(echo) = &mut request.echo
-            && echo.holds(message)
+            && message.command() == Command::Numeric(Numeric::RPL_AWAY)
         {
             echo.reply = Some(message.to_owned());
             return Some(false);
@@ -107,6 +107,8 @@ impl Session {
             .iter()
             .filter_map(|(label, request)| {
                 let echo = request.echo.as_ref()?;
+                // A pending REDACT ends only at its labelled reply, so a repeated echo of it
+                // cannot answer it.
                 (echo.command != Command::Redact
                     && echo.reply.is_some()
                     && echo.matches(message, mapping))

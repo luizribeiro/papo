@@ -22,22 +22,12 @@ impl Session {
     }
 }
 
-impl crate::SentEcho {
-    /// Whether `message` is held until the line that completes its response arrives.
-    pub(super) fn holds(&self, message: &LineRef<'_>) -> bool {
-        match self.command {
-            // Ergo sends a REDACT echo outside the labelled response, so its ACK may come first.
-            Command::Redact => message.command_is("ACK") && self.reply.is_none(),
-            _ => message.command() == Command::Numeric(Numeric::RPL_AWAY),
-        }
-    }
-}
-
 impl Session {
     /// Ties an unlabelled echo of our `REDACT` to the pending request that sent it.
     ///
     /// A message is redacted only once, so the echo from our nick naming its target and msgid is
-    /// the one our request caused, unless our request then fails.
+    /// the one our request caused, unless our request then fails. Ergo sends this echo just
+    /// before the request's `ACK`, and the `ACK` ends the request whether or not it came.
     pub(super) fn observe_redaction_echo(&mut self, message: &LineRef<'_>) {
         if message.command() != Command::Redact
             || message.tag("label").is_some()
@@ -46,50 +36,20 @@ impl Session {
             return;
         }
         let mapping = self.isupport.value().casemapping();
-        let Some(label) = self
+        if let Some(echo) = self
             .requests
-            .iter()
-            .filter(|(_, request)| {
-                request.echo.as_ref().is_some_and(|echo| {
-                    echo.matches(message, mapping)
-                        && echo
-                            .reply
-                            .as_ref()
-                            .is_none_or(|reply| reply.as_ref().command_is("ACK"))
-                })
+            .values_mut()
+            .filter(|request| {
+                request
+                    .echo
+                    .as_ref()
+                    .is_some_and(|echo| echo.reply.is_none() && echo.matches(message, mapping))
             })
-            .min_by_key(|(_, request)| request.id)
-            .map(|(label, _)| label.clone())
-        else {
-            return;
-        };
-        let Some(echo) = self
-            .requests
-            .get_mut(&label)
+            .min_by_key(|request| request.id)
             .and_then(|request| request.echo.as_mut())
-        else {
-            return;
-        };
-        if echo.reply.is_none() {
+        {
             echo.reply = Some(message.to_owned());
-            return;
         }
-        let Some(request) = self.requests.remove(&label) else {
-            return;
-        };
-        let enabled_features = self.supported_features();
-        self.outbox.event(Event::Response(crate::Response {
-            id: request.id,
-            sent: crate::sent_info(message),
-            lines: vec![message.to_owned()],
-            history: None,
-            history_targets: None,
-            whois_channels: Vec::new(),
-            mode_list: None,
-            state_limit: None,
-            enabled_features,
-            subject_tokens: Vec::new(),
-        }));
     }
 
     pub(super) fn is_own_source(&self, message: &LineRef<'_>) -> bool {

@@ -1,7 +1,8 @@
 //! Transcript coverage for the confirmation of our own redactions.
 //!
 //! Ergo 2.19 answers a labelled `REDACT` with an `ACK` and sends the redaction's echo, which
-//! carries its msgid, without the label and just before that `ACK`.
+//! carries its msgid, without the label and just before that `ACK`. The `ACK` ends the request,
+//! with that echo when it came first and without one otherwise.
 
 use std::time::Instant;
 
@@ -94,37 +95,22 @@ fn ergos_echo_before_the_ack_confirms_the_redaction() {
 }
 
 #[test]
-fn an_echo_after_the_ack_confirms_the_redaction_after_its_event() {
+fn an_ack_without_its_echo_ends_the_redaction_without_an_identity() {
     let now = Instant::now();
     let mut session = ergo(now, REDACTION_CAPS);
     let id = redact(&mut session, now);
 
-    assert_eq!(play(&mut session, now, ACK), []);
-    let echoed = play(&mut session, now, OWN_ECHO);
-    assert_eq!(echoed.len(), 2, "{echoed:?}");
-    assert_eq!(redaction_by(&echoed[0]), Some(Party::Me));
-    let response = response(&echoed[1]);
+    let acked = play(&mut session, now, ACK);
+    assert_eq!(acked.len(), 1, "{acked:?}");
+    let response = response(&acked[0]);
     assert_eq!(response.id, id);
-    assert_eq!(response.sent(), Some(own_echo_identity()));
-    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
-}
+    assert_eq!(response.lines, []);
+    assert_eq!(response.sent(), None);
+    assert_eq!(response.error(), None);
 
-#[test]
-fn an_ack_whose_echo_never_arrives_times_out() {
-    let now = Instant::now();
-    let mut session = ergo(now, REDACTION_CAPS);
-    let id = redact(&mut session, now);
-    assert_eq!(play(&mut session, now, ACK), []);
-
-    let deadline = session
-        .poll_timeout()
-        .expect("the redaction has a deadline");
-    session.handle_timeout(deadline);
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::RequestTimedOut { id: timed_out, .. }) if timed_out == id
-    ));
-    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
+    let late = play(&mut session, now, OWN_ECHO);
+    assert_eq!(late.len(), 1, "{late:?}");
+    assert_eq!(redaction_by(&late[0]), Some(Party::Me));
 }
 
 #[test]
@@ -136,14 +122,14 @@ fn another_users_redaction_of_the_same_message_does_not_confirm_ours() {
     let foreign = play(&mut session, now, FOREIGN_REDACT);
     assert_eq!(foreign.len(), 1, "{foreign:?}");
     assert_eq!(redaction_by(&foreign[0]), Some(Party::Other));
-    assert_eq!(play(&mut session, now, ACK), []);
+    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
     let foreign = play(&mut session, now, FOREIGN_REDACT);
     assert_eq!(foreign.len(), 1, "{foreign:?}");
 
-    let echoed = play(&mut session, now, OWN_ECHO);
-    assert_eq!(echoed.len(), 2, "{echoed:?}");
-    assert_eq!(response(&echoed[1]).id, id);
-    assert_eq!(response(&echoed[1]).sent(), Some(own_echo_identity()));
+    let acked = play(&mut session, now, ACK);
+    assert_eq!(acked.len(), 1, "{acked:?}");
+    assert_eq!(response(&acked[0]).id, id);
+    assert_eq!(response(&acked[0]).sent(), Some(own_echo_identity()));
 }
 
 #[test]
@@ -157,7 +143,6 @@ fn an_own_redaction_of_another_message_or_target_does_not_confirm_ours() {
     ] {
         let mut session = ergo(now, REDACTION_CAPS);
         let id = redact(&mut session, now);
-        assert_eq!(play(&mut session, now, ACK), [], "{unrelated}");
         let events = play(&mut session, now, unrelated);
         assert!(
             !events
@@ -165,8 +150,14 @@ fn an_own_redaction_of_another_message_or_target_does_not_confirm_ours() {
                 .any(|event| matches!(event, Event::Response(_))),
             "{unrelated}: {events:?}"
         );
-        let echoed = play(&mut session, now, OWN_ECHO);
-        assert_eq!(response(&echoed[1]).id, id, "{unrelated}");
+        assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1, "{unrelated}");
+        let acked = play(&mut session, now, ACK);
+        assert_eq!(response(&acked[0]).id, id, "{unrelated}");
+        assert_eq!(
+            response(&acked[0]).sent(),
+            Some(own_echo_identity()),
+            "{unrelated}"
+        );
     }
 }
 
@@ -212,17 +203,17 @@ fn without_echo_message_the_ack_completes_and_ergos_echo_stays_an_event() {
 #[test]
 fn an_echo_without_a_msgid_confirms_without_an_identity() {
     let now = Instant::now();
-    for order in [[OWN_ECHO, ACK], [ACK, OWN_ECHO]] {
-        let mut session = ergo(now, REDACTION_CAPS);
-        let id = redact(&mut session, now);
-        let events = order
-            .into_iter()
-            .map(|line| line.replace("msgid=qsgqkhqcmnxm6x2dcricaf69f6;", ""))
-            .flat_map(|line| play(&mut session, now, &line))
-            .collect::<Vec<_>>();
-        let response = response(events.last().expect("a response"));
-        assert_eq!(response.id, id);
-        assert_eq!(response.sent(), None);
-        assert_eq!(response.error(), None);
-    }
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+    let echo = OWN_ECHO.replace("msgid=qsgqkhqcmnxm6x2dcricaf69f6;", "");
+    assert_eq!(play(&mut session, now, &echo).len(), 1);
+    let acked = play(&mut session, now, ACK);
+    let response = response(&acked[0]);
+    assert_eq!(response.id, id);
+    assert_eq!(
+        response.lines,
+        [papo_proto::LineRef::parse(&echo).unwrap().to_owned()]
+    );
+    assert_eq!(response.sent(), None);
+    assert_eq!(response.error(), None);
 }
