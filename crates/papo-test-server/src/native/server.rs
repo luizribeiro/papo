@@ -308,14 +308,14 @@ mod tests {
         path::Path,
         sync::mpsc,
         thread,
-        time::{Duration, Instant},
+        time::Duration,
     };
 
     use super::{
         Configuration, TestServer, answers_irc, classify_bind_collision, wait_for_child_with,
         wait_until_ready_with,
     };
-    use crate::native::{activity, process::ServerChild, startup::StartupBudget};
+    use crate::native::{process::ServerChild, startup::tests::settled_budget};
 
     #[test]
     fn only_an_occupied_listener_reclassifies_a_child_exit() {
@@ -413,12 +413,7 @@ mod tests {
         let address = listener.local_addr().unwrap();
         drop(listener);
         let mut child = ServerChild::spawn(std::process::Command::new("sleep").arg("60")).unwrap();
-        while activity::of(child.id()).busy {
-            thread::yield_now();
-        }
-        let launch = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
-        let mut budget = StartupBudget::new(launch);
-        budget.observe(launch, activity::of(child.id())).unwrap();
+        let budget = settled_budget(child.id(), false);
 
         let error = wait_for_child_with("InspIRCd", [address], budget, &mut child).unwrap_err();
 

@@ -183,32 +183,24 @@ impl Tail {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        io,
-        process::Command,
-        time::{Duration, Instant},
-    };
+    use std::{io, process::Command};
 
     use super::{Failure, STDERR_LIMIT, ServerChild, Tail, retry_start};
-    use crate::native::{activity, startup::StartupBudget};
+    use crate::native::startup::tests::settled_budget;
 
     #[test]
     fn only_an_idle_child_spends_its_startup_budget() {
-        let launch = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
-        let budget_for = |child: &ServerChild| {
-            let mut budget = StartupBudget::new(launch);
-            assert!(budget.observe(launch, activity::of(child.id())).is_ok());
-            budget
-        };
         let busy =
             ServerChild::spawn(Command::new("sh").args(["-c", "while :; do :; done"])).unwrap();
-        assert!(busy.charge("Ergo", &mut budget_for(&busy)).is_ok());
+        assert!(
+            busy.charge("Ergo", &mut settled_budget(busy.id(), true))
+                .is_ok()
+        );
 
         let idle = ServerChild::spawn(Command::new("sleep").arg("60")).unwrap();
-        while activity::of(idle.id()).busy {
-            std::thread::yield_now();
-        }
-        let error = idle.charge("Ergo", &mut budget_for(&idle)).unwrap_err();
+        let error = idle
+            .charge("Ergo", &mut settled_budget(idle.id(), false))
+            .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert!(
             error

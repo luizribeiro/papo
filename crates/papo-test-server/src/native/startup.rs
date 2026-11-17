@@ -52,11 +52,22 @@ impl StartupBudget {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::time::{Duration, Instant};
 
     use super::StartupBudget;
-    use crate::native::activity::Activity;
+    use crate::native::activity::{self, Activity};
+
+    /// Waits until the child samples as `busy`, then ages a budget eleven seconds from that sample.
+    pub(crate) fn settled_budget(pid: u32, busy: bool) -> StartupBudget {
+        while activity::of(pid).busy != busy {
+            std::thread::yield_now();
+        }
+        let launch = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
+        let mut budget = StartupBudget::new(launch);
+        budget.observe(launch, activity::of(pid)).unwrap();
+        budget
+    }
 
     const IDLE: Activity = Activity {
         busy: false,
