@@ -513,7 +513,7 @@ pub(super) fn encode_label(mut value: u64) -> String {
     }
 }
 
-fn is_echoed(command: Command) -> bool {
+pub(super) fn is_echoed(command: Command) -> bool {
     matches!(
         command,
         Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact

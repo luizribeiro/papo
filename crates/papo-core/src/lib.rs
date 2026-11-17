@@ -6678,7 +6678,7 @@ impl Session {
                         matches!(
                             message.as_ref().command(),
                             Command::Privmsg | Command::Notice
-                        ) && self.is_own_source(&message.as_ref())
+                        ) && self.is_own_echo(&message.as_ref())
                     })
                     .cloned()
                     .collect::<Vec<_>>()

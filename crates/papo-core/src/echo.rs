@@ -52,6 +52,11 @@ impl Session {
         }
     }
 
+    /// Whether `message` is the server's echo of something we sent.
+    pub(super) fn is_own_echo(&self, message: &LineRef<'_>) -> bool {
+        crate::labels::is_echoed(message.command()) && self.is_own_source(message)
+    }
+
     pub(super) fn is_own_source(&self, message: &LineRef<'_>) -> bool {
         message.source().is_some_and(|source| {
             let papo_proto::Source::User { nick, .. } = source else {
