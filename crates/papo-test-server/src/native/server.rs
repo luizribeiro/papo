@@ -415,7 +415,7 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
-        assert_eq!(error.to_string(), "InspIRCd did not start");
+        assert!(error.to_string().starts_with("InspIRCd did not start ("));
     }
 
     #[test]

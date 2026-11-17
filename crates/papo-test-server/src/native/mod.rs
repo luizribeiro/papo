@@ -1,3 +1,4 @@
+mod activity;
 mod atheme;
 mod certificate;
 mod directory;

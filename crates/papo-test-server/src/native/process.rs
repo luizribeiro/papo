@@ -6,6 +6,8 @@ use std::{
     thread,
 };
 
+use super::activity;
+
 const STDERR_LIMIT: usize = 4096;
 const START_ATTEMPTS: usize = 3;
 pub(crate) struct ServerChild {
@@ -61,7 +63,8 @@ impl ServerChild {
     }
 
     pub(crate) fn timeout(&self, name: &str) -> io::Error {
-        self.failure(io::ErrorKind::TimedOut, format!("{name} did not start"))
+        let summary = format!("{name} did not start ({})", activity::of(self.id()));
+        self.failure(io::ErrorKind::TimedOut, summary)
     }
 
     pub(crate) fn stop(&mut self) -> io::Result<()> {
