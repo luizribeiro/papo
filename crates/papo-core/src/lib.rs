@@ -146,7 +146,6 @@ mod replies;
     reason = "SASL indexes fixed-size cryptographic outputs and infallible ASCII encodings"
 )]
 mod sasl;
-#[allow(dead_code, reason = "unused until the session tracks its sends")]
 mod secret_echo;
 mod server_clock;
 #[doc(hidden)]
@@ -3682,6 +3681,7 @@ pub struct Session {
     next_transmit_token: u64,
     welcome_state: WelcomeState,
     sasl: SaslSession,
+    secret_echoes: secret_echo::SecretEchoes,
     state: State,
     state_generation: u64,
     typing_generation: u64,
@@ -3724,6 +3724,7 @@ impl std::fmt::Debug for Session {
             .field("next_transmit_token", &self.next_transmit_token)
             .field("welcome_state", &self.welcome_state)
             .field(cap::SASL.as_str(), &self.sasl)
+            .field("secret_echoes", &self.secret_echoes)
             .field("state", &self.state)
             .field("state_generation", &self.state_generation)
             .field("typing_generation", &self.typing_generation)
@@ -4056,6 +4057,7 @@ impl Session {
             next_transmit_token: 0,
             welcome_state,
             sasl,
+            secret_echoes: secret_echo::SecretEchoes::default(),
             state,
             state_generation: 0,
             typing_generation: 0,
@@ -4175,7 +4177,9 @@ impl Session {
         }
         match LineRef::parse(&decoded) {
             Ok(message) => {
-                let redacted = redact_sensitive_server_line(&message);
+                let redacted = self
+                    .secret_echoes
+                    .mark_echo(redact_sensitive_server_line(&message), &message);
                 let message = redacted
                     .as_ref()
                     .map_or(message, |redacted| redacted.as_ref());
@@ -4465,7 +4469,7 @@ impl Session {
     ) -> Result<TransmitToken, RequestError> {
         self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
-        let line = message.encode()?;
+        let line = self.encode_user_line(&message)?;
         drop(message);
         let token = TransmitToken(self.next_transmit_token);
         self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
@@ -5050,7 +5054,7 @@ impl Session {
         if self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }
-        let line = message.encode()?;
+        let line = self.encode_user_line(&message)?;
         let id = RequestId(self.next_request_id);
         let who_fence = matches!(matcher, Some(ResponseMatcher::Who(_)))
             .then(|| {
