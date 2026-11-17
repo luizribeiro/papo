@@ -11,7 +11,11 @@ use std::{
 
 use papo::{Client, Event, Events, Watch};
 use papo_test_server::{ServerInfo, from_env, unique};
-use tokio::time::{sleep, timeout};
+use tokio::{
+    io::{AsyncReadExt as _, AsyncWriteExt as _},
+    net::{TcpListener, TcpStream},
+    time::{sleep, timeout},
+};
 
 #[tokio::test(flavor = "current_thread")]
 async fn sigterm_sends_quit_and_exits_successfully() {
@@ -19,9 +23,28 @@ async fn sigterm_sends_quit_and_exits_successfully() {
         let mut watched = Watched::start().await;
         let child = watched.spawn_example(&watched.server_url());
         watched.wait_for_online().await;
-        sleep(Duration::from_millis(100)).await;
         terminate(&child);
         watched.expect_graceful_exit(child).await;
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn sigterm_while_connecting_still_sends_quit() {
+    within_deadline(async {
+        let mut watched = Watched::start().await;
+        let relay = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let child = watched.spawn_example(&plaintext_url(relay.local_addr().unwrap()));
+        let (example_side, _) = relay.accept().await.unwrap();
+        terminate(&child);
+        let server_side = TcpStream::connect(watched.server.plaintext_addr())
+            .await
+            .unwrap();
+        let (sent, ()) = tokio::join!(relay_recording_sent(example_side, server_side), async {
+            watched.wait_for_online().await;
+            watched.expect_graceful_exit(child).await;
+        });
+        assert!(sent.contains("\r\nQUIT :shutting down\r\n"), "{sent}");
     })
     .await;
 }
@@ -117,6 +140,27 @@ fn terminate(child: &Child) {
         .status()
         .unwrap();
     assert!(signal.success());
+}
+
+async fn relay_recording_sent(example: TcpStream, server: TcpStream) -> String {
+    let (mut from_example, mut to_example) = example.into_split();
+    let (mut from_server, mut to_server) = server.into_split();
+    let upstream = async {
+        let mut sent = Vec::new();
+        let mut chunk = [0; 4096];
+        while let Ok(read @ 1..) = from_example.read(&mut chunk).await {
+            sent.extend_from_slice(&chunk[..read]);
+            if to_server.write_all(&chunk[..read]).await.is_err() {
+                break;
+            }
+        }
+        let _ = to_server.shutdown().await;
+        String::from_utf8(sent).unwrap()
+    };
+    let downstream = async move {
+        let _ = tokio::io::copy(&mut from_server, &mut to_example).await;
+    };
+    tokio::join!(upstream, downstream).0
 }
 
 async fn wait_for(events: &mut Events, mut wanted: impl FnMut(&Event) -> bool) {
