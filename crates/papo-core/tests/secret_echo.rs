@@ -111,6 +111,33 @@ fn a_late_echo_of_a_timed_out_secret_request_is_redacted() {
 }
 
 #[test]
+fn another_source_repeating_a_secret_in_our_labelled_batch_stays_redacted() {
+    let now = Instant::now();
+    let mut session = session(now, "ergo.test", &format!("batch {ERGO_CAPS}"));
+    session.request_silent(now, identify()).unwrap();
+    while session.poll_transmit().is_some() {}
+    for line in [
+        "@label=0 :ergo.test BATCH +4 labeled-response".to_owned(),
+        format!("@batch=4;{}", &ergo_echo()[1..]),
+        format!(
+            "@time=2026-11-17T10:02:11.483Z;batch=4 :NickServ!NickServ@localhost NOTICE papo :IDENTIFY alice {PASSWORD}"
+        ),
+        ":ergo.test BATCH -4".to_owned(),
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    support::queue_debug_marker(&mut session);
+    support::assert_session_debug_redacts(&session, PASSWORD);
+
+    let repeat = echo_line(&mut session);
+    assert_eq!(repeat.as_ref().command(), papo_proto::Command::Notice);
+    assert!(
+        format!("{repeat:?}").ends_with("NOTICE papo :<redacted>"),
+        "{repeat:?}"
+    );
+}
+
+#[test]
 fn an_ordinary_echo_and_other_text_stay_visible() {
     let now = Instant::now();
     let mut session = ergo(now);
