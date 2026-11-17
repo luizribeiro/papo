@@ -1,54 +1,94 @@
 //! Graceful process shutdown against the runner-managed Ergo server.
 #![cfg(not(target_family = "wasm"))]
 
-use std::{io::Read as _, process::Stdio, time::Duration};
+use std::{
+    future::Future,
+    io::Read as _,
+    net::SocketAddr,
+    process::{Child, Stdio},
+    time::Duration,
+};
 
-use papo::{Client, Event};
-use papo_test_server::{from_env, unique};
+use papo::{Client, Event, Events, Watch};
+use papo_test_server::{ServerInfo, from_env, unique};
 use tokio::time::{sleep, timeout};
 
 #[tokio::test(flavor = "current_thread")]
 async fn sigterm_sends_quit_and_exits_successfully() {
-    timeout(Duration::from_secs(20), async {
+    within_deadline(async {
+        let mut watched = Watched::start().await;
+        let child = watched.spawn_example(&watched.server_url());
+        watched.wait_for_online().await;
+        sleep(Duration::from_millis(100)).await;
+        terminate(&child);
+        watched.expect_graceful_exit(child).await;
+    })
+    .await;
+}
+
+struct Watched {
+    server: ServerInfo,
+    nick: String,
+    observer: Client,
+    events: Events,
+    _watch: Watch,
+}
+
+impl Watched {
+    async fn start() -> Self {
         let server = from_env();
         let nick = unique("papo-shutdown");
-        let server_url = format!("irc://{}", server.plaintext_addr());
-        let (observer, mut events) = Client::builder(server_url.clone(), unique("papo-observer"))
-            .connect()
-            .await
-            .unwrap();
-        let _watch = observer.query(&nick).unwrap().watch();
+        let (observer, events) = Client::builder(
+            plaintext_url(server.plaintext_addr()),
+            unique("papo-observer"),
+        )
+        .connect()
+        .await
+        .unwrap();
+        let watch = observer.query(&nick).unwrap().watch();
+        Self {
+            server,
+            nick,
+            observer,
+            events,
+            _watch: watch,
+        }
+    }
 
-        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_graceful-shutdown"))
-            .arg(server_url)
-            .env("IRC_NICK", &nick)
+    fn server_url(&self) -> String {
+        plaintext_url(self.server.plaintext_addr())
+    }
+
+    fn spawn_example(&self, url: &str) -> Child {
+        std::process::Command::new(env!("CARGO_BIN_EXE_graceful-shutdown"))
+            .arg(url)
+            .env("IRC_NICK", &self.nick)
             .stderr(Stdio::piped())
             .spawn()
-            .unwrap();
-        wait_for(
-            &mut events,
-            |event| matches!(event, Event::MonitorOnline(online) if online.subject.nick() == nick.as_str()),
-        )
-        .await;
-        sleep(Duration::from_millis(100)).await;
+            .unwrap()
+    }
 
-        let signal = std::process::Command::new("kill")
-            .args(["-TERM", &child.id().to_string()])
-            .status()
-            .unwrap();
-        assert!(signal.success());
+    async fn wait_for_online(&mut self) {
+        let nick = self.nick.clone();
+        wait_for(&mut self.events, |event| {
+            matches!(event, Event::MonitorOnline(online) if online.subject.nick() == nick.as_str())
+        })
+        .await;
+    }
+
+    async fn expect_graceful_exit(&mut self, mut child: Child) {
         let status = loop {
             if let Some(status) = child.try_wait().unwrap() {
                 break status;
             }
             sleep(Duration::from_millis(10)).await;
         };
-        assert!(status.success());
-        wait_for(&mut events, |event| {
+        assert!(status.success(), "{status}");
+        let nick = self.nick.clone();
+        wait_for(&mut self.events, |event| {
             matches!(event, Event::MonitorOffline(offline) if offline.subject == nick.as_str())
         })
         .await;
-
         let mut stderr = String::new();
         child
             .stderr
@@ -57,13 +97,29 @@ async fn sigterm_sends_quit_and_exits_successfully() {
             .read_to_string(&mut stderr)
             .unwrap();
         assert_eq!(stderr, "shutting down\n");
-        observer.quit().await.unwrap();
-    })
-    .await
-    .expect("graceful shutdown test did not finish within 20 seconds");
+        self.observer.quit().await.unwrap();
+    }
 }
 
-async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
+fn plaintext_url(address: SocketAddr) -> String {
+    format!("irc://{address}")
+}
+
+async fn within_deadline(test: impl Future<Output = ()>) {
+    timeout(Duration::from_secs(20), test)
+        .await
+        .expect("graceful shutdown test did not finish within 20 seconds");
+}
+
+fn terminate(child: &Child) {
+    let signal = std::process::Command::new("kill")
+        .args(["-TERM", &child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(signal.success());
+}
+
+async fn wait_for(events: &mut Events, mut wanted: impl FnMut(&Event) -> bool) {
     while let Some((event, _)) = events.next().await {
         if wanted(&event) {
             return;
