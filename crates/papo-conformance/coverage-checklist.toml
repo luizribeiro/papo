@@ -70,6 +70,7 @@ ids = [
   # Security regressions against a scripted hostile server.
   "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
   "security.sasl.own-account-after-verified-proof", "security.sasl.oauthbearer-error-challenge",
+  "security.sasl.no-replay-after-success",
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",
   "security.history.untagged-actor-not-current-holder",
   "security.history.logged-out-own-dm-peer",
