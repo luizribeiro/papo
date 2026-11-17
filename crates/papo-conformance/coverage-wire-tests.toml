@@ -220,6 +220,9 @@
 "secrets::the_unlabelled_echo_of_a_secret_send_stays_redacted" = [
   "security.secrets.unlabelled-echo",
 ]
+"secrets::the_echo_of_a_secret_redaction_reason_stays_redacted" = [
+  "security.secrets.redaction-reason-echo",
+]
 "security::stored_sts_matches_a_normalized_hostname" = [
   "security.t4.sts-normalized-host",
 ]

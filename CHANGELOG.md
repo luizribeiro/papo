@@ -367,6 +367,8 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
   arriving after its request timed out) is redacted too, and arrives as `Event::Other` instead of a
   `Message` or `Notice`. At most 32 secret texts may await their echo; a further one fails with
   `Error::TooManyPendingRequests` until an echo returns or the request timeout passes.
+- A `REDACT` reason sent as a `Secret` (with `Client::request_raw`) stays redacted in its echo and
+  response lines, and `Event::Redacted::reason` reads `<redacted>` for it.
 - The setter from `Channel::topic_set_by` and `ModeListEntry::actor`, and the actor of an
   archived JOIN, QUIT or TOPIC, is a past name: sends through it fail with `Error::TargetGone`,
   as for an archived message's actor. They used to reach the nickname's current holder.

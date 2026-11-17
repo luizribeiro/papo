@@ -190,3 +190,43 @@ async fn the_unlabelled_echo_of_a_secret_send_stays_redacted() {
     let seen = events_until(&mut events, "now logged in").await;
     assert!(!seen.contains(PASSWORD), "{seen}");
 }
+
+#[tokio::test]
+async fn the_echo_of_a_secret_redaction_reason_stays_redacted() {
+    const REASON: &str = "pasted the staff key services-password-5129";
+    let (client, mut events, mut wire) = echo_wire(&[
+        "draft/message-redaction",
+        "echo-message",
+        "labeled-response",
+        "message-tags",
+    ])
+    .await;
+    let request = tokio::spawn(async move {
+        client
+            .request_raw(
+                Line::new("REDACT")
+                    .param("#papo")
+                    .param("b56bhkz4gmj7ig2jeg9hs7d2cs")
+                    .param(Secret::new(REASON)),
+            )
+            .await
+    });
+    assert_eq!(
+        wire.next_sent().await,
+        format!("@label=0 REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs :{REASON}")
+    );
+    wire.server(format!(
+        "@msgid=qsgqkhqcmnxm6x2dcricaf69f6;time=2026-11-16T07:39:12.791Z :papo-wire!~papo@client.example REDACT #papo b56bhkz4gmj7ig2jeg9hs7d2cs :{REASON}"
+    ))
+    .await;
+    wire.server("@time=2026-11-16T07:39:12.791Z;label=0 :ergo.test ACK")
+        .await;
+    wire.server(":ergo.test NOTICE papo-wire :redaction marker")
+        .await;
+
+    let lines = request.await.unwrap().unwrap();
+    assert!(!format!("{lines:?}").contains(REASON), "{lines:?}");
+    let seen = events_until(&mut events, "redaction marker").await;
+    assert!(seen.contains("b56bhkz4gmj7ig2jeg9hs7d2cs"), "{seen}");
+    assert!(!seen.contains("services-password-5129"), "{seen}");
+}
