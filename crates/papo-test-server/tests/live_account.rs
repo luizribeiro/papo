@@ -28,4 +28,10 @@ fn changes_an_account_password_mid_session() {
     );
     change_account_password_at(address, &account, first, second).unwrap();
     change_account_password_at(address, &account, second, third).unwrap();
+    let stale = change_account_password_at(address, &account, second, first).unwrap_err();
+    assert_eq!(stale.kind(), std::io::ErrorKind::UnexpectedEof, "{stale}");
+    assert_eq!(
+        stale.to_string(),
+        "server closed the connection while waiting for the welcome after PASS"
+    );
 }
