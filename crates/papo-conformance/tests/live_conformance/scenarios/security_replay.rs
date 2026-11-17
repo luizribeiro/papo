@@ -355,3 +355,56 @@ async fn raw_secret_echo_stays_redacted(s: Scenario) -> papo_testing::Result<()>
     assert!(redacted_echo, "the echo arrived as a redacted line");
     Ok(())
 }
+
+/// keeps a secret `REDACT` reason out of the events of a session without echo-message, which
+/// Ergo still sends our redaction
+#[scenario(
+    requires(caps = ["draft/message-redaction", "labeled-response"]),
+    covers = ["security.secrets.redaction-reason-without-echo-message"]
+)]
+async fn secret_redaction_reason_without_echo_message(s: Scenario) -> papo_testing::Result<()> {
+    let channel = s.channel_name();
+    let mut alice = s
+        .connect_with(s.configure("alice")?.disable(papo::Feature::EchoMessages))
+        .await?;
+    alice.join(&channel).await?;
+    let bob = s.connect("bob").await?;
+    bob.join(&channel).await?;
+    bob.privmsg(&channel, "the staff key is services-password-5129")
+        .await?;
+    let received = alice
+        .wait_for(|event| message_text(event, "the staff key is services-password-5129"))
+        .await?;
+    let msgid = received
+        .msgid()
+        .expect("message has an identifier")
+        .to_string();
+
+    alice
+        .request_raw(
+            papo::Line::new("REDACT")
+                .param(channel.as_str())
+                .param(msgid.as_str())
+                .param(papo::Secret::new("pasted services-password-5129")),
+        )
+        .await?;
+    let marker = "the staff key was rotated";
+    bob.privmsg(&channel, marker).await?;
+    let mut leaked = Vec::new();
+    let mut reason = None;
+    alice
+        .wait_for(|event| {
+            let debug = format!("{event:?}");
+            if debug.contains("pasted services-password-5129") {
+                leaked.push(debug);
+            }
+            if let Some(redacted) = event.as_redacted() {
+                reason = Some(redacted.reason.clone());
+            }
+            message_text(event, marker)
+        })
+        .await?;
+    assert!(leaked.is_empty(), "the secret reached an event: {leaked:?}");
+    assert_eq!(reason, Some(Some("<redacted>".to_owned())));
+    Ok(())
+}

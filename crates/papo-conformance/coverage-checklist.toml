@@ -104,6 +104,7 @@ ids = [
   "security.secrets.echo-awaiting-request",
   "security.secrets.unlabelled-echo",
   "security.secrets.redaction-reason-echo",
+  "security.secrets.redaction-reason-without-echo-message",
   "security.wire-log.sasl-redacted",
   "security.api.explicit-secrets",
   "security.api.typed-tls-identity",
