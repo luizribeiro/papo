@@ -120,6 +120,11 @@ pub struct WhoEntry {
     /// It stands for the person the row described when it arrived, as does [`Whois::user`]. It
     /// follows that person's later nickname changes; once papo sees them leave, a send through
     /// it fails with [`Error::TargetGone`], even after someone else takes the nickname.
+    ///
+    /// When papo cannot see them leave, as without a shared channel, a send first asks the
+    /// server with `WHO` and fails with [`Error::TargetGone`] unless the nickname's holder is
+    /// logged in to the account the reply showed. A reply that shows no account, such as a plain
+    /// `WHO` row or a logged-out user, leaves only the nickname to check.
     pub user: crate::UserHandle,
     /// Username from `nick!user@host`; it may start with `~`.
     pub username: String,
@@ -241,12 +246,13 @@ pub(crate) fn whois(
         || (requested_nick.to_owned(), None),
         |(index, nick)| (nick, response.__subject_token(index)),
     );
+    let account = whois_account(&response, origin, mapping);
     let mut result = Whois {
-        user: reply_user(client, mapping, &nick, token),
+        user: reply_user(client, mapping, &nick, token, account.clone()),
         username: None,
         host: None,
         realname: None,
-        account: Account::Unknown,
+        account,
         server: None,
         channels: Vec::new(),
         away: Away::Present,
@@ -279,11 +285,6 @@ pub(crate) fn whois(
                     .flat_map(str::split_ascii_whitespace)
                     .map(|value| whois_channel(value, isupport, origin)),
             ),
-            Numeric::RPL_WHOISACCOUNT => {
-                if let Some(account) = message.param(2) {
-                    result.account = Account::LoggedIn(origin.__account(mapping, account));
-                }
-            }
             Numeric::RPL_AWAY => {
                 result.away = Away::__away_value(message.param(2).map(str::to_owned));
             }
@@ -298,18 +299,43 @@ pub(crate) fn whois(
 /// Builds the handle for the person a WHO or WHOIS row described, from the identity papo-core
 /// recorded when the row arrived, so a later holder of the nickname is never adopted. A WHOIS
 /// reply without `RPL_WHOISUSER` has no such row and names the requested user's current holder.
+///
+/// A person papo tracks is followed by that identity alone: the state often knows no account
+/// for them, and a guard naming one would refuse them. For anyone else the handle keeps the
+/// account the reply showed, which the `WHO` check before a send then requires of the holder.
 fn reply_user(
     client: &crate::Client,
     mapping: papo_proto::Casemapping,
     nick: &str,
     token: Option<papo_core::ReplyToken>,
+    account: Account,
 ) -> crate::UserHandle {
+    let tracked = token.is_some_and(papo_core::ReplyToken::__is_known);
+    let account = if tracked { Account::Unknown } else { account };
     crate::UserHandle::from_event(
         client.origin().__nick(mapping, nick),
-        crate::Account::Unknown,
+        account,
         token,
         Some(&client.state),
     )
+}
+
+fn whois_account(
+    response: &Response,
+    origin: crate::Origin,
+    mapping: papo_proto::Casemapping,
+) -> Account {
+    response
+        .lines
+        .iter()
+        .find_map(|line| {
+            let message = line.as_ref();
+            (message.command() == Command::Numeric(Numeric::RPL_WHOISACCOUNT))
+                .then(|| message.param(2))
+                .flatten()
+                .map(|account| Account::LoggedIn(origin.__account(mapping, account)))
+        })
+        .unwrap_or(Account::Unknown)
 }
 
 fn whois_user_nick(response: &Response) -> Option<(usize, String)> {
@@ -357,16 +383,17 @@ pub(crate) fn who(
             if extended {
                 let reply = WhoxReply::parse(&message, WHOX_FIELDS)?;
                 let flags = reply.flags(isupport)?;
+                let account = reply.account.map_or(Account::LoggedOut, |account| {
+                    Account::LoggedIn(origin.__account(mapping, account))
+                });
                 Some(WhoEntry {
                     channel: reply.channel.map(|channel| {
                         crate::ChannelHandle::new(client, origin.__channel(mapping, channel), false)
                     }),
-                    user: reply_user(client, mapping, reply.nick?, token),
+                    user: reply_user(client, mapping, reply.nick?, token, account.clone()),
                     username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
-                    account: reply.account.map_or(Account::LoggedOut, |account| {
-                        Account::LoggedIn(origin.__account(mapping, account))
-                    }),
+                    account,
                     realname: reply.realname?.to_owned(),
                     away: match flags.presence {
                         Some(WhoxPresence::Here) => Away::Present,
@@ -414,7 +441,13 @@ fn plain_who(
             }),
         username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
-        user: reply_user(client, isupport.casemapping(), message.param(5)?, token),
+        user: reply_user(
+            client,
+            isupport.casemapping(),
+            message.param(5)?,
+            token,
+            Account::Unknown,
+        ),
         account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {

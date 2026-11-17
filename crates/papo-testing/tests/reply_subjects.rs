@@ -46,7 +46,7 @@ const REPLIES: [Reply; 3] = [
     },
 ];
 
-async fn connect(reply: &Reply) -> (papo::Client, papo::Events, Wire) {
+async fn connect(reply: &Reply, shared_channel: bool) -> (papo::Client, papo::Events, Wire) {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -62,12 +62,14 @@ async fn connect(reply: &Reply) -> (papo::Client, papo::Events, Wire) {
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
     }
-    for line in [
-        ":papo!~papo@localhost JOIN #review",
-        "@account=alice-account :alice!~alice@cloak.example JOIN #review",
-    ] {
-        wire.server(line).await;
-        while !matches!(next_active_event(&mut events).await, Event::Joined(_)) {}
+    if shared_channel {
+        for line in [
+            ":papo!~papo@localhost JOIN #review",
+            "@account=alice-account :alice!~alice@cloak.example JOIN #review",
+        ] {
+            wire.server(line).await;
+            while !matches!(next_active_event(&mut events).await, Event::Joined(_)) {}
+        }
     }
     (client, events, wire)
 }
@@ -86,12 +88,14 @@ async fn label_of(wire: &mut Wire, expected: &str) -> String {
     }
 }
 
-/// Answers `reply` in one labeled batch with `between` before its end, then sends through it.
+/// Answers `reply` in one labeled batch with `between` before its end, then sends through it,
+/// answering papo's WHO check with `holder`'s account when given.
 async fn send_after(
     reply: &Reply,
     client: &papo::Client,
     wire: &mut Wire,
     between: &[&str],
+    holder: Option<&str>,
 ) -> (Option<String>, Result<(), Error>) {
     let whois = reply.request.starts_with("WHOIS");
     let sending = tokio::spawn({
@@ -115,6 +119,15 @@ async fn send_after(
         wire.server(format!("@batch=reply {line}")).await;
     }
     wire.server(":offline.test BATCH -reply").await;
+    if let Some(account) = holder {
+        let label = label_of(wire, "WHO alice %na").await;
+        for line in [
+            format!("@label={label} :offline.test 354 papo alice {account}"),
+            format!("@label={label} :offline.test 315 papo alice :End of WHO list"),
+        ] {
+            wire.server(line).await;
+        }
+    }
     let sent = tokio::time::timeout(Duration::from_millis(50), wire.next_sent())
         .await
         .ok();
@@ -141,13 +154,28 @@ async fn a_reply_subject_seen_leaving_or_renaming_is_never_the_next_holder() {
     ];
     for reply in &REPLIES {
         for (between, to) in [(&quit[..], None), (&rename[..], Some("alice_away"))] {
-            let (client, _events, mut wire) = connect(reply).await;
-            let outcome = send_after(reply, &client, &mut wire, between).await;
+            let (client, _events, mut wire) = connect(reply, true).await;
+            let outcome = send_after(reply, &client, &mut wire, between, None).await;
             check(
                 &format!("{} then {}", reply.request, between[0]),
                 outcome,
                 to,
             );
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_unseen_handoff_reaches_only_a_holder_of_the_replys_account() {
+    for reply in [&REPLIES[0], &REPLIES[2]] {
+        for (holder, to) in [
+            ("0", None),
+            ("mallory-account", None),
+            ("alice-account", Some("alice")),
+        ] {
+            let (client, _events, mut wire) = connect(reply, false).await;
+            let outcome = send_after(reply, &client, &mut wire, &[], Some(holder)).await;
+            check(&format!("{} then {holder}", reply.request), outcome, to);
         }
     }
 }

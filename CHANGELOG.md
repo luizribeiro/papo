@@ -210,6 +210,8 @@ User state lookups now return a typed `ForeignReference` error and preserve hand
 
 Every `UserHandle` a live event carries, including the peer of a private conversation, names the person the line was about, even when the event is mapped after later lines moved that nickname to someone else.
 
+`WhoEntry::user` and `Whois::user` name the person the reply's row described when it arrived; without a shared channel, a send through them requires the account the reply showed.
+
 `State::presence` reports online, offline, or unknown evidence for a `UserHandle` without allocating a monitor slot.
 
 `UserHandle::watch` is now the sole public owner of server-side `MONITOR` entries; its synchronous `Watch` lease reports whether the server accepted the entry.

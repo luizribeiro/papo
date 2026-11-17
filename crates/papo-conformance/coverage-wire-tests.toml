@@ -106,6 +106,9 @@
 "reply_subjects::a_reply_subject_seen_leaving_or_renaming_is_never_the_next_holder" = [
   "security.guard-proof.reply-subject-at-arrival",
 ]
+"reply_subjects::an_unseen_handoff_reaches_only_a_holder_of_the_replys_account" = [
+  "security.guard-proof.reply-subject-account",
+]
 "unknown_casemapping::an_unknown_casemapping_never_merges_bracket_nicks" = [
   "security.casemapping.unknown-token",
 ]
