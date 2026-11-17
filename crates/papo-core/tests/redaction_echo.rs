@@ -114,6 +114,73 @@ fn an_ack_without_its_echo_ends_the_redaction_without_an_identity() {
 }
 
 #[test]
+fn an_own_echo_naming_no_message_is_not_tied() {
+    let now = Instant::now();
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+
+    let unmatched = play(
+        &mut session,
+        now,
+        "@msgid=qsgqkhqcmnxm6x2dcricaf69f6;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #papo",
+    );
+    assert!(
+        !unmatched
+            .iter()
+            .any(|event| matches!(event, Event::Response(_))),
+        "{unmatched:?}"
+    );
+    let acked = play(&mut session, now, ACK);
+    assert_eq!(acked.len(), 1, "{acked:?}");
+    let response = response(&acked[0]);
+    assert_eq!(response.id, id);
+    assert_eq!(response.lines, []);
+    assert_eq!(response.sent(), None);
+}
+
+#[test]
+fn a_redaction_the_server_never_answers_times_out() {
+    let now = Instant::now();
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+
+    let deadline = session
+        .poll_timeout()
+        .expect("the redaction has a deadline");
+    session.handle_timeout(deadline);
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::RequestTimedOut { id: timed_out, .. }) if timed_out == id
+    ));
+    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
+    let late = play(&mut session, now, ACK);
+    assert!(
+        !late.iter().any(|event| matches!(event, Event::Response(_))),
+        "{late:?}"
+    );
+}
+
+#[test]
+fn only_the_first_own_echo_is_tied_and_a_repeat_does_not_end_the_request() {
+    let now = Instant::now();
+    let mut session = ergo(now, REDACTION_CAPS);
+    let id = redact(&mut session, now);
+
+    assert_eq!(play(&mut session, now, OWN_ECHO).len(), 1);
+    let repeat = play(
+        &mut session,
+        now,
+        &OWN_ECHO.replace("qsgqkhqcmnxm6x2dcricaf69f6", "8d3kz2mfqw7xbn5hyt4ce6rsja"),
+    );
+    assert_eq!(repeat.len(), 1, "{repeat:?}");
+    assert_eq!(redaction_by(&repeat[0]), Some(Party::Me));
+    let acked = play(&mut session, now, ACK);
+    assert_eq!(acked.len(), 1, "{acked:?}");
+    assert_eq!(response(&acked[0]).id, id);
+    assert_eq!(response(&acked[0]).sent(), Some(own_echo_identity()));
+}
+
+#[test]
 fn another_users_redaction_of_the_same_message_does_not_confirm_ours() {
     let now = Instant::now();
     let mut session = ergo(now, REDACTION_CAPS);
