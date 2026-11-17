@@ -154,12 +154,7 @@ impl TestServer {
                 self.config.websocket,
                 self.config.secure_websocket,
             ];
-            return super::server::wait_for_child_until(
-                "UnrealIRCd",
-                endpoints,
-                deadline,
-                &mut self.children[0],
-            );
+            return super::server::wait_for_child("UnrealIRCd", endpoints, &mut self.children[0]);
         }
         while Instant::now() < deadline {
             self.children[0].check("UnrealIRCd")?;

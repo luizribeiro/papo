@@ -9,7 +9,7 @@ use std::{
 
 use super::{
     certificate, directory::TemporaryDirectory, ergo::Configuration, ergo_ready::ReadySignal,
-    process, process::ServerChild,
+    process, process::ServerChild, startup::StartupBudget,
 };
 
 /// A child Ergo process with isolated storage and loopback listeners.
@@ -228,25 +228,31 @@ fn spawn_ergo(
     Ok(child)
 }
 
-pub(crate) fn wait_for_child_until<const N: usize>(
+pub(crate) fn wait_for_child<const N: usize>(
     server_name: &str,
     addresses: [SocketAddr; N],
-    deadline: Instant,
     child: &mut ServerChild,
 ) -> io::Result<()> {
-    let result = wait_until_ready_with(addresses, deadline, || {
+    wait_for_child_with(
+        server_name,
+        addresses,
+        StartupBudget::new(Instant::now()),
+        child,
+    )
+}
+
+fn wait_for_child_with<const N: usize>(
+    server_name: &str,
+    addresses: [SocketAddr; N],
+    mut budget: StartupBudget,
+    child: &mut ServerChild,
+) -> io::Result<()> {
+    wait_until_ready_with(addresses, || {
         child
             .check(server_name)
-            .map_err(|error| classify_bind_collision(error, &addresses))
-    });
-    if result
-        .as_ref()
-        .is_err_and(|error| error.kind() == io::ErrorKind::TimedOut)
-    {
-        Err(child.timeout(server_name))
-    } else {
-        result
-    }
+            .map_err(|error| classify_bind_collision(error, &addresses))?;
+        child.charge(server_name, &mut budget)
+    })
 }
 
 fn classify_bind_collision(error: io::Error, addresses: &[SocketAddr]) -> io::Error {
@@ -260,12 +266,12 @@ fn classify_bind_collision(error: io::Error, addresses: &[SocketAddr]) -> io::Er
     }
 }
 
+/// Probes until the listeners answer; only `child_check` ends a start that never does.
 fn wait_until_ready_with<const N: usize>(
     addresses: [SocketAddr; N],
-    deadline: Instant,
     mut child_check: impl FnMut() -> io::Result<()>,
 ) -> io::Result<()> {
-    while Instant::now() < deadline {
+    loop {
         child_check()?;
         if addresses
             .iter()
@@ -276,10 +282,6 @@ fn wait_until_ready_with<const N: usize>(
         }
         thread::sleep(Duration::from_millis(20));
     }
-    Err(io::Error::new(
-        io::ErrorKind::TimedOut,
-        "server did not start",
-    ))
 }
 
 /// A listening port alone can belong to another process, so readiness also requires an IRC reply.
@@ -310,10 +312,10 @@ mod tests {
     };
 
     use super::{
-        Configuration, TestServer, answers_irc, classify_bind_collision, wait_for_child_until,
+        Configuration, TestServer, answers_irc, classify_bind_collision, wait_for_child_with,
         wait_until_ready_with,
     };
-    use crate::native::process::ServerChild;
+    use crate::native::{activity, process::ServerChild, startup::StartupBudget};
 
     #[test]
     fn only_an_occupied_listener_reclassifies_a_child_exit() {
@@ -379,41 +381,53 @@ mod tests {
     }
 
     #[test]
-    fn readiness_times_out_when_every_port_accepts_but_irc_is_silent() {
+    fn readiness_keeps_probing_silent_ports_until_the_child_check_fails() {
         let listeners =
             std::array::from_fn::<_, 4, _>(|_| TcpListener::bind(("127.0.0.1", 0)).unwrap());
         let addresses = listeners
             .each_ref()
             .map(|listener| listener.local_addr().unwrap());
-        let error = wait_until_ready_with(
-            addresses,
-            Instant::now() + Duration::from_millis(20),
-            || Ok::<_, io::Error>(()),
-        )
+        let mut checks = 0;
+        let error = wait_until_ready_with(addresses, || {
+            checks += 1;
+            if checks < 3 {
+                Ok(())
+            } else {
+                Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "Ergo did not start",
+                ))
+            }
+        })
         .unwrap_err();
 
-        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
-        assert_eq!(error.to_string(), "server did not start");
+        assert_eq!(
+            (checks, error.to_string()),
+            (3, "Ergo did not start".into())
+        );
     }
 
     #[test]
-    fn readiness_timeout_uses_the_child_diagnostic() {
+    fn an_idle_child_spends_the_readiness_budget() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let address = listener.local_addr().unwrap();
         drop(listener);
-        let mut child =
-            ServerChild::spawn(std::process::Command::new("sh").args(["-c", "sleep 60"])).unwrap();
+        let mut child = ServerChild::spawn(std::process::Command::new("sleep").arg("60")).unwrap();
+        while activity::of(child.id()).busy {
+            thread::yield_now();
+        }
+        let launch = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
+        let mut budget = StartupBudget::new(launch);
+        budget.observe(launch, activity::of(child.id())).unwrap();
 
-        let error = wait_for_child_until(
-            "InspIRCd",
-            [address],
-            Instant::now().checked_sub(Duration::from_secs(1)).unwrap(),
-            &mut child,
-        )
-        .unwrap_err();
+        let error = wait_for_child_with("InspIRCd", [address], budget, &mut child).unwrap_err();
 
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
-        assert!(error.to_string().starts_with("InspIRCd did not start ("));
+        assert!(
+            error.to_string().starts_with(
+                "InspIRCd did not start: stayed idle before becoming ready (11.0 s idle"
+            )
+        );
     }
 
     #[test]

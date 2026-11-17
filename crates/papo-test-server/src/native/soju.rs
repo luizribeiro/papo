@@ -3,12 +3,11 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    time::{Duration, Instant},
 };
 
 use super::{
     certificate, directory::TemporaryDirectory, process, process::ServerChild,
-    server::TestServer as ErgoServer, server::wait_for_child_until, soju_config::Configuration,
+    server::TestServer as ErgoServer, server::wait_for_child, soju_config::Configuration,
 };
 
 pub(crate) const ACCOUNT: &str = "papo-bouncer";
@@ -41,12 +40,7 @@ impl TestServer {
         let mut child = ServerChild::spawn(
             Command::new(required_env("SOJU_BIN")?).args(["-config", path_text(&config.path)?]),
         )?;
-        wait_for_child_until(
-            "soju",
-            config.endpoints,
-            Instant::now() + Duration::from_secs(10),
-            &mut child,
-        )?;
+        wait_for_child("soju", config.endpoints, &mut child)?;
         let upstream = format!("irc+insecure://{}", ergo.plaintext_addr());
         run_control(
             &config.path,

@@ -1,7 +1,6 @@
-use std::time::Duration;
-use std::{io, net::SocketAddr, path::Path, process::Command, time::Instant};
+use std::{io, net::SocketAddr, path::Path, process::Command};
 
-use super::{process::ServerChild, server::wait_for_child_until};
+use super::{process::ServerChild, server::wait_for_child};
 
 pub(crate) struct ReadySignal;
 
@@ -15,11 +14,6 @@ impl ReadySignal {
         addresses: [SocketAddr; 4],
         child: &mut ServerChild,
     ) -> io::Result<()> {
-        wait_for_child_until(
-            "Ergo",
-            addresses,
-            Instant::now() + Duration::from_secs(10),
-            child,
-        )
+        wait_for_child("Ergo", addresses, child)
     }
 }

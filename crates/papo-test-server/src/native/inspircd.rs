@@ -58,12 +58,7 @@ impl TestServer {
         let deadline = Instant::now() + Duration::from_secs(10);
         if !services {
             let endpoints = self.endpoints;
-            return super::server::wait_for_child_until(
-                "InspIRCd",
-                endpoints,
-                deadline,
-                &mut self.children[0],
-            );
+            return super::server::wait_for_child("InspIRCd", endpoints, &mut self.children[0]);
         }
         while Instant::now() < deadline {
             self.children[0].check("InspIRCd")?;

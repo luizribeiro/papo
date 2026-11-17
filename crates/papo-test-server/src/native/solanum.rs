@@ -65,12 +65,7 @@ impl TestServer {
         let deadline = Instant::now() + Duration::from_secs(10);
         if !services {
             let endpoints = [self.plaintext, self.tls];
-            return super::server::wait_for_child_until(
-                "Solanum",
-                endpoints,
-                deadline,
-                &mut self.children[0],
-            );
+            return super::server::wait_for_child("Solanum", endpoints, &mut self.children[0]);
         }
         while Instant::now() < deadline {
             self.children[0].check("Solanum")?;
