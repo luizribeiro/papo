@@ -22,21 +22,6 @@ impl Session {
     }
 }
 
-impl Session {
-    /// Marks the server's echo of a secret we sent secret too, wherever its response lands.
-    pub(super) fn mark_secret_echo(&self, echo: Option<&crate::SentEcho>, lines: &mut [Line]) {
-        let Some(echo) = echo.filter(|echo| echo.subject.__is_secret()) else {
-            return;
-        };
-        let mapping = self.isupport.value().casemapping();
-        for line in lines {
-            if echo.matches(&line.as_ref(), mapping) {
-                line.__mark_secret(1);
-            }
-        }
-    }
-}
-
 impl crate::SentEcho {
     /// Whether `message` is held until the line that completes its response arrives.
     pub(super) fn holds(&self, message: &LineRef<'_>) -> bool {

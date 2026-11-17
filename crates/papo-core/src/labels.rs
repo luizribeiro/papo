@@ -67,7 +67,6 @@ impl Session {
         if !message.command_is("ACK") {
             lines.push(message.to_owned());
         }
-        self.mark_secret_echo(request.echo.as_ref(), &mut lines);
         let whois_channels = parse_whois_channels(&lines, self.isupport.value());
         if !self
             .unlabelled_requests
