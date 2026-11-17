@@ -277,3 +277,108 @@ fn secret_sends_the_server_never_echoes_are_not_tracked() {
         session.send(now, identify_as(account)).unwrap();
     }
 }
+
+const REASON: &str = "pasted the staff key services-password-5129";
+const REDACTED_MSGID: &str = "b56bhkz4gmj7ig2jeg9hs7d2cs";
+
+fn ergo_redaction(now: Instant) -> Session {
+    session(
+        now,
+        "ergo.test",
+        "draft/message-redaction echo-message labeled-response message-tags server-time",
+    )
+}
+
+fn secret_redaction() -> Line {
+    Line::new("REDACT")
+        .param("#papo")
+        .param(REDACTED_MSGID)
+        .param(Secret::new(REASON))
+}
+
+fn ergo_redaction_echo() -> String {
+    format!(
+        "@msgid=qsgqkhqcmnxm6x2dcricaf69f6;time=2026-11-16T07:39:12.791Z :papo!~u@fa4ww98eysn9a.irc REDACT #papo {REDACTED_MSGID} :{REASON}"
+    )
+}
+
+#[test]
+fn the_echo_of_a_secret_redaction_reason_is_redacted() {
+    let now = Instant::now();
+    let mut session = ergo_redaction(now);
+    let id = session.request(now, secret_redaction()).unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, ergo_redaction_echo().as_bytes());
+    support::queue_debug_marker(&mut session);
+    support::assert_session_debug_redacts(&session, PASSWORD);
+
+    session.handle_line(
+        now,
+        b"@time=2026-11-16T07:39:12.791Z;label=0 :ergo.test ACK",
+    );
+    let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+    let redacted = events
+        .iter()
+        .find_map(|event| match event {
+            Event::Redacted(redacted) => Some(redacted),
+            _ => None,
+        })
+        .expect("the echo reports the redaction");
+    assert_eq!(redacted.msgid, REDACTED_MSGID);
+    assert_eq!(redacted.reason.as_deref(), Some("<redacted>"));
+    let response = events
+        .iter()
+        .find_map(|event| match event {
+            Event::Response(response) if response.id == id => Some(response),
+            _ => None,
+        })
+        .expect("the ACK completes the request");
+    assert!(
+        format!("{:?}", response.lines)
+            .contains(&format!("REDACT #papo {REDACTED_MSGID} :<redacted>")),
+        "{response:?}"
+    );
+    let debug = format!("{events:?}");
+    assert!(!debug.contains(PASSWORD), "{debug}");
+}
+
+#[test]
+fn a_refusal_repeating_a_secret_redaction_reason_is_redacted() {
+    let now = Instant::now();
+    let mut session = ergo_redaction(now);
+    session.send(now, secret_redaction()).unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(
+        now,
+        format!("@time=2026-11-16T07:39:19.107Z :ergo.test FAIL REDACT UNKNOWN_MSGID #papo {REDACTED_MSGID} :{REASON}")
+            .as_bytes(),
+    );
+    support::queue_debug_marker(&mut session);
+    support::assert_session_debug_redacts(&session, PASSWORD);
+    let Some(Event::StandardReply(reply)) = session.poll_event() else {
+        panic!("the refusal is reported");
+    };
+    assert_eq!(reply.code, "UNKNOWN_MSGID");
+    assert_eq!(reply.context, ["#papo", REDACTED_MSGID]);
+    assert_eq!(reply.description, "<redacted>");
+}
+
+#[test]
+fn an_ordinary_redaction_reason_stays_visible() {
+    let now = Instant::now();
+    let mut session = ergo_redaction(now);
+    session.send(now, secret_redaction()).unwrap();
+    session.handle_line(
+        now,
+        format!("@msgid=4f6fb68i4ak2gs3dzkqdf2rwa6;time=2026-11-16T07:39:16.699Z :bob!~u@fa4ww98eysn9a.irc REDACT #papo {REDACTED_MSGID} :mod action")
+            .as_bytes(),
+    );
+    session.handle_line(
+        now,
+        format!("@time=2026-11-16T07:39:19.107Z :ergo.test FAIL REDACT UNKNOWN_MSGID #papo {REDACTED_MSGID} :This message does not exist or is too old")
+            .as_bytes(),
+    );
+    let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+    assert!(events.iter().any(|event| matches!(event, Event::Redacted(redacted) if redacted.reason.as_deref() == Some("mod action"))), "{events:?}");
+    assert!(events.iter().any(|event| matches!(event, Event::StandardReply(reply) if reply.description == "This message does not exist or is too old")), "{events:?}");
+}

@@ -8,6 +8,9 @@ use crate::RequestError;
 /// The most secrets a session tracks for the lines the server echoes.
 const MAX_SECRET_ECHOES: usize = 32;
 
+/// What is shown in place of server text that repeats a secret we sent.
+const REDACTED: &str = "<redacted>";
+
 /// Secret parameters of sent lines the server repeats back, labelled or not.
 ///
 /// A line from the server with a parameter equal to one is marked secret as it is read, before
@@ -103,6 +106,15 @@ impl SecretEchoes {
             line.__mark_secret(index);
         }
         Some(line)
+    }
+
+    /// Returns server text for an event field, hiding it when it repeats a secret we sent.
+    pub(crate) fn shown(&self, text: &str) -> String {
+        if self.entries.iter().any(|entry| *entry.secret == *text) {
+            REDACTED.to_owned()
+        } else {
+            text.to_owned()
+        }
     }
 
     fn observe(&mut self, text: &str) -> bool {

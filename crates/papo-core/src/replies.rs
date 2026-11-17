@@ -61,7 +61,9 @@ impl Session {
             status,
             return_address,
             msgid: msgid.to_owned(),
-            reason: message.param(2).map(str::to_owned),
+            reason: message
+                .param(2)
+                .map(|reason| self.secret_echoes.shown(reason)),
         }));
         true
     }
@@ -111,8 +113,12 @@ impl Session {
             kind: reply.kind,
             command: reply.command.to_ascii_uppercase(),
             code: reply.code.to_ascii_uppercase(),
-            context: reply.context.into_iter().map(str::to_owned).collect(),
-            description: reply.description.to_owned(),
+            context: reply
+                .context
+                .into_iter()
+                .map(|context| self.secret_echoes.shown(context))
+                .collect(),
+            description: self.secret_echoes.shown(reply.description),
             #[cfg(feature = "unstable")]
             refusal: crate::Refusal::from_standard_enabled(
                 reply.command,

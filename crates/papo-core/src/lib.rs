@@ -1987,8 +1987,11 @@ pub struct StandardReply {
     /// Case-normalized reply code.
     pub code: String,
     /// Additional diagnostic parameters.
+    ///
+    /// A parameter repeating a secret this session sent reads `<redacted>`.
     pub context: Vec<String>,
-    /// Human-readable reply description.
+    /// Human-readable reply description, or `<redacted>` when it repeats a secret this session
+    /// sent.
     pub description: String,
     /// Classification recorded using the negotiated unstable features.
     #[cfg(feature = "unstable")]
@@ -2353,7 +2356,8 @@ pub struct Redacted {
     pub return_address: String,
     /// Identifier of the redacted message.
     pub msgid: String,
-    /// Optional human-readable reason.
+    /// Optional human-readable reason, or `<redacted>` when it repeats a secret this session
+    /// sent.
     pub reason: Option<String>,
 }
 
