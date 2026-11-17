@@ -195,6 +195,7 @@ behind a bouncer such a later offer can come from the upstream network. An app t
 login calls `Session::reauthenticate`.
 After a SASL success that names no account (903 without 900, or 907), `State::account` is
 `Account::Unknown` rather than `Account::LoggedOut`.
+A `REGISTER VERIFICATION_REQUIRED` reply leaves `State::account` as it was.
 
 `History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
 and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.

@@ -34,7 +34,7 @@ impl RegistrationPolicy {
 
 #[derive(Debug, Default)]
 pub(super) struct AccountRegistration {
-    account: Option<String>,
+    login: Option<String>,
     pending: Option<PendingRegistration>,
     waiting: bool,
 }
@@ -53,7 +53,7 @@ impl AccountRegistration {
             let Some(account) = message.param(1) else {
                 return Handled::No;
             };
-            self.account = Some(account.to_owned());
+            self.login = Some(account.to_owned());
             self.waiting = false;
             outbox.event(Event::AccountCreated {
                 account: casemapping.account(account),
@@ -83,13 +83,13 @@ impl AccountRegistration {
     }
 
     pub(super) fn handle_disconnected(&mut self) {
-        self.account = None;
+        self.login = None;
         self.pending = None;
         self.waiting = false;
     }
 
-    pub(super) fn account(&self) -> Option<&str> {
-        self.account.as_deref()
+    pub(super) fn take_login(&mut self) -> Option<String> {
+        self.login.take()
     }
 
     pub(super) fn begin(&mut self, pending: PendingRegistration) {

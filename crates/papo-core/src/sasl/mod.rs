@@ -670,10 +670,6 @@ impl SaslSession {
             || (!self.require && matches!(self.completion, Completion::Failed))
     }
 
-    pub(super) fn account(&self) -> Option<&str> {
-        self.account.as_deref()
-    }
-
     pub(super) fn take_account_update(&mut self) -> AccountUpdate {
         std::mem::take(&mut self.account_update)
     }

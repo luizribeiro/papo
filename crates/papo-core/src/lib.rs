@@ -5847,13 +5847,8 @@ impl Session {
             &mut self.outbox,
         ) == Handled::Yes;
         let sasl_account_update = self.sasl.take_account_update();
-        if account_registration_handled {
-            let account = self
-                .account_registration
-                .account()
-                .or_else(|| self.sasl.account())
-                .map(str::to_owned);
-            self.state.sync_own_account(account.as_deref());
+        if let Some(account) = self.account_registration.take_login() {
+            self.state.sync_own_account(Some(&account));
         } else {
             match sasl_account_update {
                 AccountUpdate::Unchanged => {}

@@ -160,7 +160,12 @@ fn registers_an_account_with_a_labelled_response() {
             matches!(event, Event::AccountCreated { account, logged_in: true, .. } if account == "alice" && account.casemapping() == papo_proto::Casemapping::Ascii)
         })
         .event(|event| matches!(event, Event::Response(_)))
-        .inspect(|session| assert_eq!(session.account(), Some("alice")));
+        .inspect(|session| assert_eq!(session.account(), Some("alice")))
+        .server(":tester!~u@ergo.test ACCOUNT *")
+        .event(|event| matches!(event, Event::AccountChanged { .. }))
+        .server("PING :ergo.test")
+        .client("PONG ergo.test")
+        .inspect(|session| assert_eq!(session.account(), None));
 }
 
 #[test]
@@ -632,4 +637,28 @@ fn rejected_cap_request_discards_queued_registration() {
         .server("CAP * ACK :draft/account-registration")
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .no_client();
+}
+
+#[test]
+fn a_verification_challenge_keeps_the_current_login() {
+    registered()
+        .server(":tester!~u@ergo.test ACCOUNT tester")
+        .event(|event| matches!(event, Event::AccountChanged { .. }))
+        .inspect(|session| assert_eq!(session.account(), Some("tester")))
+        .update(|session| {
+            session
+                .create_account(
+                    std::time::Instant::now(),
+                    Some("alice"),
+                    Some("alice@example.org"),
+                    papo_core::Secret::new("correct horse battery staple"),
+                )
+                .unwrap();
+        })
+        .client("@label=0 REGISTER alice alice@example.org :correct horse battery staple")
+        .server("@label=0 :ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent")
+        .event(|event| matches!(event, Event::VerificationRequired { account, .. } if account == "alice"))
+        .event(|event| matches!(event, Event::Response(_)))
+        .inspect(|session| assert_eq!(session.account(), Some("tester")))
+        .no_event();
 }
