@@ -62,9 +62,8 @@ pub struct KickOutcome {
 pub struct Whois {
     /// User named by `RPL_WHOISUSER` (`311`), or the requested user when the server omits it.
     ///
-    /// Like [`WhoEntry::user`], it is resolved from the nickname when the reply is read, then
-    /// follows that person's later nickname changes; read facts the reply does not carry from
-    /// [`crate::State::user`].
+    /// Like [`WhoEntry::user`], it stands for the person the reply described; read facts the
+    /// reply does not carry from [`crate::State::user`].
     pub user: crate::UserHandle,
     /// Username reported by `RPL_WHOISUSER`; it may start with `~`.
     pub username: Option<String>,
@@ -118,8 +117,9 @@ pub struct WhoEntry {
     pub channel: Option<crate::ChannelHandle>,
     /// User reported by the reply.
     ///
-    /// Like [`Whois::user`], it is resolved from the nickname when the reply is read, then
-    /// follows that person's later nickname changes.
+    /// It stands for the person the row described when it arrived, as does [`Whois::user`]. It
+    /// follows that person's later nickname changes; once papo sees them leave, a send through
+    /// it fails with [`Error::TargetGone`], even after someone else takes the nickname.
     pub user: crate::UserHandle,
     /// Username from `nick!user@host`; it may start with `~`.
     pub username: String,
@@ -237,9 +237,12 @@ pub(crate) fn whois(
     }
     let origin = client.origin();
     let mapping = isupport.casemapping();
-    let nick = whois_user_nick(&response).unwrap_or_else(|| requested_nick.to_owned());
+    let (nick, token) = whois_user_nick(&response).map_or_else(
+        || (requested_nick.to_owned(), None),
+        |(index, nick)| (nick, response.__subject_token(index)),
+    );
     let mut result = Whois {
-        user: reply_user(client, mapping, &nick),
+        user: reply_user(client, mapping, &nick, token),
         username: None,
         host: None,
         realname: None,
@@ -292,26 +295,30 @@ pub(crate) fn whois(
     Ok(Some(result))
 }
 
-// WHO and WHOIS answers are server numerics, not lines a person sent, so papo-core records no
-// arrival identity for their subjects; both resolve the nickname against the current state.
+/// Builds the handle for the person a WHO or WHOIS row described, from the identity papo-core
+/// recorded when the row arrived, so a later holder of the nickname is never adopted. A WHOIS
+/// reply without `RPL_WHOISUSER` has no such row and names the requested user's current holder.
 fn reply_user(
     client: &crate::Client,
     mapping: papo_proto::Casemapping,
     nick: &str,
+    token: Option<papo_core::ReplyToken>,
 ) -> crate::UserHandle {
-    crate::UserHandle::from_current_state(
+    crate::UserHandle::from_event(
         client.origin().__nick(mapping, nick),
+        crate::Account::Unknown,
+        token,
         Some(&client.state),
     )
 }
 
-fn whois_user_nick(response: &Response) -> Option<String> {
-    response.lines.iter().find_map(|line| {
+fn whois_user_nick(response: &Response) -> Option<(usize, String)> {
+    response.lines.iter().enumerate().find_map(|(index, line)| {
         let message = line.as_ref();
         (message.command() == Command::Numeric(Numeric::RPL_WHOISUSER))
             .then(|| message.param(1))
             .flatten()
-            .map(str::to_owned)
+            .map(|nick| (index, nick.to_owned()))
     })
 }
 
@@ -333,7 +340,7 @@ fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> Who
 }
 
 pub(crate) fn who(
-    response: Response,
+    mut response: Response,
     isupport: &Isupport,
     client: &crate::Client,
     extended: bool,
@@ -341,11 +348,12 @@ pub(crate) fn who(
     empty(&response)?;
     let origin = client.origin();
     let mapping = isupport.casemapping();
-    Ok(response
-        .lines
+    Ok(std::mem::take(&mut response.lines)
         .into_iter()
-        .filter_map(|line| {
+        .enumerate()
+        .filter_map(|(index, line)| {
             let message = line.as_ref();
+            let token = response.__subject_token(index);
             if extended {
                 let reply = WhoxReply::parse(&message, WHOX_FIELDS)?;
                 let flags = reply.flags(isupport)?;
@@ -353,7 +361,7 @@ pub(crate) fn who(
                     channel: reply.channel.map(|channel| {
                         crate::ChannelHandle::new(client, origin.__channel(mapping, channel), false)
                     }),
-                    user: reply_user(client, mapping, reply.nick?),
+                    user: reply_user(client, mapping, reply.nick?, token),
                     username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
                     account: reply.account.map_or(Account::LoggedOut, |account| {
@@ -377,7 +385,7 @@ pub(crate) fn who(
                     ),
                 })
             } else {
-                plain_who(&message, isupport, client)
+                plain_who(&message, isupport, client, token)
             }
         })
         .collect())
@@ -387,6 +395,7 @@ fn plain_who(
     message: &papo_proto::LineRef<'_>,
     isupport: &Isupport,
     client: &crate::Client,
+    token: Option<papo_core::ReplyToken>,
 ) -> Option<WhoEntry> {
     (message.command() == Command::Numeric(Numeric::RPL_WHOREPLY)).then_some(())?;
     let flags = message.param(6)?;
@@ -405,7 +414,7 @@ fn plain_who(
             }),
         username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
-        user: reply_user(client, isupport.casemapping(), message.param(5)?),
+        user: reply_user(client, isupport.casemapping(), message.param(5)?, token),
         account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {
@@ -690,8 +699,8 @@ mod tests {
             "0 Bob Example",
         ]);
 
-        let hidden = plain_who(&hidden.as_ref(), &isupport, &client).unwrap();
-        let visible = plain_who(&visible.as_ref(), &isupport, &client).unwrap();
+        let hidden = plain_who(&hidden.as_ref(), &isupport, &client, None).unwrap();
+        let visible = plain_who(&visible.as_ref(), &isupport, &client, None).unwrap();
         assert_eq!(
             (&hidden.account, &hidden.away),
             (&Account::Unknown, &Away::Present)
@@ -738,6 +747,96 @@ mod tests {
         assert_eq!(extended.len(), 1);
         assert!(extended[0].is_oper);
         assert_eq!(extended[0].user.nick(), "alice");
+    }
+
+    struct SubjectCase {
+        request: &'static [&'static str],
+        row: &'static str,
+        end: &'static str,
+        user: fn(Response, &crate::Client) -> crate::UserHandle,
+    }
+
+    #[test]
+    fn a_reply_handle_names_the_person_the_row_described() {
+        let cases = [
+            SubjectCase {
+                request: &["WHO", "alice", WHOX_FIELDS],
+                row: ":ergo.test 354 papo 152 #review ~alice cloak.example alice H 0 :Alice Liddell",
+                end: ":ergo.test 315 papo alice :End of WHO list",
+                user: |response, client| {
+                    who(response, &Isupport::default(), client, true).unwrap()[0]
+                        .user
+                        .clone()
+                },
+            },
+            SubjectCase {
+                request: &["WHO", "alice"],
+                row: ":ergo.test 352 papo #review ~alice cloak.example ergo.test alice H :0 Alice Liddell",
+                end: ":ergo.test 315 papo alice :End of WHO list",
+                user: |response, client| {
+                    who(response, &Isupport::default(), client, false).unwrap()[0]
+                        .user
+                        .clone()
+                },
+            },
+            SubjectCase {
+                request: &["WHOIS", "alice"],
+                row: ":ergo.test 311 papo alice ~alice cloak.example * :Alice Liddell",
+                end: ":ergo.test 318 papo alice :End of /WHOIS list",
+                user: |response, client| {
+                    let whois = whois(response, "alice", &Isupport::default(), client);
+                    whois.unwrap().unwrap().user
+                },
+            },
+        ];
+        for case in &cases {
+            for (departure, expected) in [
+                (":alice!~alice@cloak.example QUIT :Quit: bye", None),
+                (
+                    ":alice!~alice@cloak.example NICK alice_away",
+                    Some("alice_away"),
+                ),
+            ] {
+                let now = Instant::now();
+                let mut session = Session::new(Config::default().nick("papo"));
+                for line in [
+                    ":papo!~papo@localhost JOIN #review",
+                    ":alice!~alice@cloak.example JOIN #review",
+                    ":mallory!~mallory@users.example JOIN #review",
+                ] {
+                    session.handle_line(now, line.as_bytes());
+                }
+                let matcher = if case.request[0] == "WHOIS" {
+                    ResponseMatcher::Whois("alice".into())
+                } else {
+                    ResponseMatcher::Who("alice".into())
+                };
+                let request =
+                    Line::new(case.request[0]).with_params(case.request[1..].iter().copied());
+                session.request_with_matcher(now, request, matcher).unwrap();
+                let takeover = ":mallory!~mallory@users.example NICK alice";
+                for line in [case.row, departure, takeover, case.end] {
+                    session.handle_line(now, line.as_bytes());
+                }
+                let response = std::iter::from_fn(|| session.poll_event())
+                    .find_map(|event| match event {
+                        Event::Response(response) => Some(response),
+                        _ => None,
+                    })
+                    .unwrap();
+                let client = crate::driver::test_support::client_with_commands(&session).0;
+
+                let user = (case.user)(response, &client);
+                let proof = user.proof().expect("a tracked subject is proven");
+                let resolved = client.state().core.__resolve_proven(proof).ok();
+                let case = format!("{} then {departure}", case.row);
+                assert_eq!(
+                    resolved.as_ref().map(crate::Nick::as_str),
+                    expected,
+                    "{case}"
+                );
+            }
+        }
     }
 
     struct BoundedCase {
@@ -999,7 +1098,7 @@ mod tests {
             "H@",
             "0 Alice Example",
         ]);
-        let who = plain_who(&who.as_ref(), &isupport, &client).unwrap();
+        let who = plain_who(&who.as_ref(), &isupport, &client, None).unwrap();
 
         assert_eq!(channel.name.casemapping(), Casemapping::Ascii);
         assert_eq!(
