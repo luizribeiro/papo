@@ -235,6 +235,7 @@ impl Builder {
     ///
     /// On a plaintext endpoint, the server must offer a valid `sts` upgrade before the password
     /// is sent. [`Self::allow_insecure_auth`] explicitly permits sending it without that upgrade.
+    /// The password is never sent once the server's welcome (numeric 001) has been read.
     pub fn password(mut self, password: crate::Secret) -> Self {
         self.config.password = Some(password);
         self

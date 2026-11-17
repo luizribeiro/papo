@@ -26,7 +26,7 @@ pub(super) struct WelcomeState {
     next_alt_nick: usize,
     registration: Registration,
     webirc_pending: bool,
-    password_sent: bool,
+    password_settled: bool,
     registration_error: Option<BuildError>,
 }
 
@@ -50,7 +50,7 @@ impl WelcomeState {
             next_alt_nick: 0,
             registration: Registration::Disconnected,
             webirc_pending: false,
-            password_sent: false,
+            password_settled: false,
             registration_error: registration_error(config),
         }
     }
@@ -71,7 +71,7 @@ impl WelcomeState {
         self.motd_lines = None;
         self.next_alt_nick = 0;
         self.webirc_pending = config.webirc.is_some();
-        self.password_sent = false;
+        self.password_settled = false;
         if let Some(webirc) = &config.webirc {
             let Ok(line) = webirc_line(webirc) else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
@@ -231,10 +231,10 @@ impl WelcomeState {
     }
 
     fn send_password(&mut self, config: &Config, outbox: &mut Outbox) {
-        if self.password_sent {
+        if self.password_settled {
             return;
         }
-        self.password_sent = true;
+        self.password_settled = true;
         let Some(password) = &config.password else {
             return;
         };
@@ -273,6 +273,10 @@ impl WelcomeState {
             .min()
     }
 
+    pub(super) const fn handle_welcome_read(&mut self) {
+        self.password_settled = true;
+    }
+
     pub(super) fn handle_disconnected(&mut self) {
         self.deadline = None;
         self.welcome_deadline = None;
@@ -280,7 +284,7 @@ impl WelcomeState {
         self.motd_lines = None;
         self.registration = Registration::Disconnected;
         self.webirc_pending = false;
-        self.password_sent = false;
+        self.password_settled = false;
     }
 
     pub(super) fn nick(&self) -> &str {

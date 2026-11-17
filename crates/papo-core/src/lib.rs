@@ -936,6 +936,8 @@ impl Config {
     }
 
     /// Sets the optional server password sent while connecting.
+    ///
+    /// The password is never sent once the server's welcome (numeric 001) has been read.
     #[must_use]
     pub fn password(mut self, password: Secret) -> Self {
         self.password = Some(password);
@@ -4174,9 +4176,9 @@ impl Session {
                 self.observe_server_time(now, &message);
                 self.remember_ops_only(&message);
                 // A batch may hold the 001 back or never release it, while the CAP lines that
-                // could start a login arrive untagged.
+                // could send credentials arrive untagged.
                 if message.command_is("001") {
-                    self.sasl.handle_welcome();
+                    self.handle_welcome_read();
                 }
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
@@ -4205,6 +4207,12 @@ impl Session {
             }
             Err(_) => self.malformed(line),
         }
+    }
+
+    /// Behind a bouncer, credentials sent after registration can reach the upstream network.
+    fn handle_welcome_read(&mut self) {
+        self.sasl.handle_welcome();
+        self.welcome_state.handle_welcome_read();
     }
 
     /// Notifies the session that its current deadline was reached.

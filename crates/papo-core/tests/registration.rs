@@ -49,6 +49,19 @@ fn sends_password_after_capability_discovery() {
 }
 
 #[test]
+fn sends_no_password_on_a_capability_listing_after_the_welcome() {
+    let config = Config::default()
+        .connection_security(papo_core::sts::ConnectionSecurity::Secure)
+        .password(papo_core::Secret::new("correct horse battery staple"));
+    Transcript::new(config)
+        .connect_default()
+        .welcome(":bouncer.papo.test 001 papo :Welcome to soju, papo")
+        .server(":bouncer.papo.test CAP * LS :sasl=PLAIN")
+        .client("CAP END")
+        .no_client();
+}
+
+#[test]
 fn waits_for_the_final_capability_listing_before_sending_password() {
     let config = Config::default()
         .wanted_caps([] as [&str; 0])
