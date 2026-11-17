@@ -146,6 +146,8 @@ mod replies;
     reason = "SASL indexes fixed-size cryptographic outputs and infallible ASCII encodings"
 )]
 mod sasl;
+#[allow(dead_code, reason = "unused until the session tracks its sends")]
+mod secret_echo;
 mod server_clock;
 #[doc(hidden)]
 pub mod server_url;
@@ -7487,5 +7489,84 @@ mod tests {
             "the referenced message reached only @ members; this send reaches others"
         );
         assert!(std::error::Error::source(&error).is_none());
+    }
+
+    mod secret_echoes {
+        use papo_proto::{Line, LineRef, Secret};
+
+        use crate::secret_echo::SecretEchoes;
+
+        const ECHO: &str = "@msgid=RfcBTzyxY120006;time=2026-11-17T10:02:11.482Z :papo!~papo@client.example PRIVMSG NickServ :IDENTIFY alice services-password-5129";
+
+        fn tracking_identify() -> SecretEchoes {
+            let mut echoes = SecretEchoes::default();
+            echoes.track(
+                &Line::new("PRIVMSG")
+                    .param("NickServ")
+                    .param(Secret::new("IDENTIFY alice services-password-5129")),
+            );
+            echoes
+        }
+
+        fn secret_params(line: &Line) -> Vec<bool> {
+            line.params()
+                .iter()
+                .map(papo_proto::Param::__is_secret)
+                .collect()
+        }
+
+        #[test]
+        fn marks_only_the_parameter_repeating_a_tracked_secret() {
+            let mut echoes = tracking_identify();
+            let marked = echoes
+                .mark_echo(None, &LineRef::parse(ECHO).unwrap())
+                .expect("the echo repeats the secret");
+            assert_eq!(secret_params(&marked), [false, true]);
+            assert_eq!(marked.get(1), Some("IDENTIFY alice services-password-5129"));
+            assert!(format!("{marked:?}").ends_with("PRIVMSG NickServ :<redacted>"));
+        }
+
+        #[test]
+        fn leaves_a_line_without_a_repeated_secret_alone() {
+            let mut echoes = tracking_identify();
+            for wire in [
+                ":papo!~papo@client.example PRIVMSG NickServ :INFO alice",
+                ":NickServ!NickServ@services.test NOTICE papo :You're now logged in as alice",
+            ] {
+                assert_eq!(echoes.mark_echo(None, &LineRef::parse(wire).unwrap()), None);
+            }
+            let rewritten = Line::new("WEBPUSH").with_params([
+                "REGISTER",
+                "https://push.example",
+                "<redacted>",
+            ]);
+            let message =
+                LineRef::parse(":ergo.test WEBPUSH REGISTER https://push.example :p256dh-key")
+                    .unwrap();
+            assert_eq!(
+                echoes.mark_echo(Some(rewritten.clone()), &message),
+                Some(rewritten)
+            );
+        }
+
+        #[test]
+        fn marks_a_repeat_in_a_line_already_rewritten() {
+            let mut echoes = tracking_identify();
+            let message = LineRef::parse(ECHO).unwrap();
+            let rewritten = message.to_owned().with_tag("label", "0");
+            let marked = echoes.mark_echo(Some(rewritten), &message).unwrap();
+            assert_eq!(marked.tag("label"), Some("0"));
+            assert_eq!(secret_params(&marked), [false, true]);
+        }
+
+        #[test]
+        fn an_untracked_session_marks_nothing() {
+            let mut echoes = SecretEchoes::default();
+            echoes.track(&Line::privmsg(
+                "NickServ",
+                "IDENTIFY alice services-password-5129",
+            ));
+            assert_eq!(echoes.mark_echo(None, &LineRef::parse(ECHO).unwrap()), None);
+        }
     }
 }
