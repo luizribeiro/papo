@@ -55,6 +55,21 @@ impl Confirmation {
         }
     }
 
+    /// Decides one `REDACT`'s confirmation from the echo core tied to its response.
+    ///
+    /// With `echo-message` the server owes us that echo, so an answer without it has not proven
+    /// the redaction.
+    pub(crate) fn from_redaction(
+        echo_message: bool,
+        echo: Option<&papo_proto::LineRef<'_>>,
+    ) -> Result<Self, crate::Error> {
+        match echo {
+            Some(echo) => Ok(Self::from_echo(echo)),
+            None if echo_message => Err(crate::Error::NotVerified),
+            None => Ok(Self::unconfirmed(UnconfirmedReason::NoEchoMessage)),
+        }
+    }
+
     pub(crate) fn from_echo(echo: &papo_proto::LineRef<'_>) -> Self {
         match echo.tag("msgid") {
             Some(msgid) => Self::Confirmed {

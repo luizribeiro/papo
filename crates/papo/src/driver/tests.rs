@@ -7,6 +7,7 @@ mod history_message;
 mod ops_only;
 mod reactions;
 mod reasons;
+mod redactions;
 mod sends;
 #[cfg_attr(not(tls), path = "tests/no_tls.rs")]
 mod tls;

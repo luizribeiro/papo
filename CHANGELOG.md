@@ -352,6 +352,9 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 - A reconnect history catchup whose `CHATHISTORY` request times out, fails or is aborted is
   dropped with its request. It used to stay for the rest of the connection and record the msgid
   of every later live message in that channel, growing without bound.
+- `Client::redact` ends at the server's `ACK` instead of timing out when no echo of our `REDACT`
+  arrived before it. With echo-message such an answer returns `Error::NotVerified`, because the
+  echo the server owes us never proved the redaction; a later echo is only `Event::Redacted`.
 - `Client::kick` succeeds only on the echo of our own `KICK`, matched by our nick under the server
   casemapping or by its label. Another operator's `KICK` of the same nick still arrives as
   `Event::Kicked`, but it no longer completes our pending kick or masks our `482` refusal.

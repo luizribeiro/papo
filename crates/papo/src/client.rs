@@ -1025,6 +1025,17 @@ impl Client {
         ))
     }
 
+    fn redaction_confirmation(&self, response: &Response) -> Result<crate::Confirmation, Error> {
+        crate::requests::empty(response)?;
+        let echo = response
+            .lines
+            .iter()
+            .map(Line::as_ref)
+            .find(|line| line.command_is("REDACT"));
+        let echo_message = self.state().caps().contains_key(&crate::cap::ECHO_MESSAGE);
+        crate::Confirmation::from_redaction(echo_message, echo.as_ref())
+    }
+
     async fn send_chat_message(&self, target: ResolvedSend, message: Line) -> Result<(), Error> {
         let Some(proof) = target.person else {
             return self.send_message_guarded(message, target.guard).await;
@@ -1396,18 +1407,19 @@ impl Client {
     /// the first error, and any earlier lines remain redacted.
     /// An empty `reason` means no reason.
     ///
-    /// Resolves to a [`RedactOutcome`]. With `echo-message`, each line's confirmation comes from
-    /// our `REDACT` echo, which Ergo sends outside the labelled response; without it, the
-    /// confirmation is [`crate::Confirmation::Unconfirmed`] with
-    /// [`crate::UnconfirmedReason::NoEchoMessage`].
+    /// Resolves to a [`RedactOutcome`]. Each line's confirmation comes from our `REDACT` echo,
+    /// which Ergo sends outside the labelled response, just before its `ACK`. With
+    /// `echo-message`, an `ACK` without that echo returns [`Error::NotVerified`]: the server
+    /// accepted the request but did not prove the redaction. Without `echo-message`, it is
+    /// [`crate::Confirmation::Unconfirmed`] with [`crate::UnconfirmedReason::NoEchoMessage`].
     ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`Feature::Redaction`] with reason
     /// [`UnsupportedReason::NotOffered`] or [`UnsupportedReason::DisabledByClient`]. A refusal
     /// returns [`Error::Server`], currently classified as [`crate::Refusal::Other`]. It can also
-    /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`]. A reference without a server message identifier returns
+    /// return [`Error::NotVerified`], [`Error::InvalidInput`], [`Error::TooManyPendingRequests`],
+    /// [`Error::Timeout`], or [`Error::Disconnected`]. A reference without a server message identifier returns
     /// [`InvalidInput::UnusableMessageReference`].
     /// A private reference whose nickname is proven to belong to another user returns
     /// [`Error::TargetGone`].
@@ -1453,7 +1465,7 @@ impl Client {
                             .await?;
                         lines.push(RedactedLine {
                             redacts: message_id.clone(),
-                            confirmation: client.labelled_confirmation(&response)?,
+                            confirmation: client.redaction_confirmation(&response)?,
                         });
                     }
                     Ok(RedactOutcome {
