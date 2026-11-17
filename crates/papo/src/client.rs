@@ -954,7 +954,9 @@ impl Client {
     ///
     /// Response lines are returned here rather than emitted by the event
     /// stream. Their state changes are still applied before this future
-    /// completes.
+    /// completes. A message the server echoes (`PRIVMSG`, `NOTICE`, `TAGMSG`
+    /// or `REDACT`) is answered only by its echo and its failure, so any other
+    /// line in its reply, such as a service's answer, is also emitted as an event.
     ///
     /// Construct the [`Line`] with [`Line::new`] and [`Line::param`], or explicitly parse text for
     /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a

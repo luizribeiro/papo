@@ -4857,6 +4857,11 @@ impl Session {
     /// Parameters appended from [`Secret`] are redacted and wiped; parsed raw-line parameters are
     /// ordinary text and should not contain credentials.
     ///
+    /// The response holds every line of its labelled reply. When the message is one the server
+    /// echoes (`PRIVMSG`, `NOTICE`, `TAGMSG` or `REDACT`), only its echo and its failure answer
+    /// it; any other line in the reply, such as a service's answer, is also reported after the
+    /// response as the event it would be unbatched.
+    ///
     /// # Errors
     ///
     /// Returns [`RequestError::Unsupported`] when `labeled-response` or a feature explicitly
@@ -4868,6 +4873,9 @@ impl Session {
     }
 
     /// Queues a request whose response updates state without emitting its lines as events.
+    ///
+    /// Lines that do not answer the request still become events, as described on
+    /// [`Session::request`].
     ///
     /// # Errors
     ///
