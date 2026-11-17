@@ -5,8 +5,8 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Event, RateLimit, Response, Session, TextKind};
-use papo_proto::{Command, Line};
+use papo_core::{Config, Event, RateLimit, Response, ServerError, Session, TextKind};
+use papo_proto::{Command, Line, Numeric};
 
 const CAPS: &str = "batch echo-message labeled-response message-tags server-time";
 
@@ -322,4 +322,83 @@ fn what_a_service_command_changes_is_reported() {
         "{channel:?}"
     );
     assert!(response(&account).sent().is_some() && response(&channel).sent().is_some());
+}
+
+#[test]
+fn a_failure_answers_the_send_and_an_away_reply_is_reported() {
+    let now = Instant::now();
+    for silent in [true, false] {
+        a_failure_answers_the_send(now, silent);
+    }
+}
+
+fn a_failure_answers_the_send(now: Instant, silent: bool) {
+    let mut session = joined(now);
+    let message = Line::privmsg("bob,nosuch", "hi");
+    if silent {
+        session.request_silent(now, message)
+    } else {
+        session.request(now, message)
+    }
+    .unwrap();
+    let events = play(
+        &mut session,
+        now,
+        &[
+            "@label=0 :ergo.test BATCH +1 labeled-response",
+            "@msgid=vmdz4gnx7pbzuis58tywem55xw;time=2026-11-17T18:52:52.187Z;batch=1 :papo!~u@npm4sa48pgvdy.irc PRIVMSG bob :hi",
+            "@time=2026-11-17T18:52:52.187Z;batch=1 :ergo.test 301 papo bob :at lunch",
+            "@time=2026-11-17T18:52:52.187Z;batch=1 :ergo.test 401 papo nosuch :No such nick",
+            ":ergo.test BATCH -1",
+        ],
+    );
+
+    let echo = (!silent).then_some(":papo!~u@npm4sa48pgvdy.irc PRIVMSG bob hi");
+    assert_eq!(reported_lines(&events), Vec::from_iter(echo), "{events:?}");
+    let response = response(&events);
+    assert_eq!(response.sent().unwrap().msgid, "vmdz4gnx7pbzuis58tywem55xw");
+    assert!(matches!(
+        response.error(),
+        Some(ServerError::Numeric {
+            numeric: Numeric::ERR_NOSUCHNICK,
+            ..
+        })
+    ));
+    let away = events
+        .iter()
+        .position(|event| matches!(event, Event::AwayChanged { .. }))
+        .expect("the away reply is reported");
+    assert!(
+        matches!(events.first(), Some(Event::Response(_))),
+        "{events:?}"
+    );
+    assert_eq!(away, events.len() - 1, "{events:?}");
+}
+
+#[test]
+fn every_line_of_a_silent_whois_answers_it() {
+    let now = Instant::now();
+    let mut session = joined(now);
+    session
+        .request_silent(now, Line::new("WHOIS").param("bob"))
+        .unwrap();
+    let events = play(
+        &mut session,
+        now,
+        &[
+            "@label=0 :ergo.test BATCH +2 labeled-response",
+            "@time=2026-11-17T18:52:53.689Z;batch=2 :ergo.test 311 papo bob ~u npm4sa48pgvdy.irc * u",
+            "@time=2026-11-17T18:52:53.689Z;batch=2 :ergo.test 671 papo bob :is using a secure connection",
+            "@time=2026-11-17T18:52:53.689Z;batch=2 :ergo.test 317 papo bob 6 1794941567 :seconds idle, signon time",
+            "@time=2026-11-17T18:52:53.689Z;batch=2 :ergo.test 301 papo bob :at lunch",
+            "@time=2026-11-17T18:52:53.689Z;batch=2 :ergo.test 318 papo bob :End of /WHOIS list",
+            ":ergo.test BATCH -2",
+        ],
+    );
+
+    assert!(
+        matches!(events.as_slice(), [Event::Response(_)]),
+        "{events:?}"
+    );
+    assert_eq!(response(&events).lines.len(), 5);
 }
