@@ -795,6 +795,36 @@ fn unlabelled_list_overflow_finishes_with_the_literal_entry_limit() {
     assert_eq!(response.lines.len(), 10_000);
 }
 
+#[test]
+fn unlabelled_whois_overflow_reports_no_partial_channel_list() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let id = unlabelled_whois(&mut session, now, "alice");
+    session.handle_line(
+        now,
+        b":ergo.test 311 papo alice ~alice localhost * :Alice Example",
+    );
+    for index in 0..10_000 {
+        session.handle_line(
+            now,
+            format!(":ergo.test 319 papo alice :@#papo-{index} +#rust-{index}").as_bytes(),
+        );
+    }
+
+    let response = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
+        Event::Response(response) if response.id == id => Some(response),
+        _ => None,
+    });
+    let response = response.expect("overflow must finish the request");
+    assert_eq!(
+        response.state_limit,
+        Some(papo_core::StateLimit::ListEntries)
+    );
+    assert_eq!(response.lines.len(), 10_000);
+    assert!(response.lines[1].as_ref().command_is("319"));
+    assert_eq!(response.whois_channels, []);
+}
+
 fn unlabelled_who_response(rows: usize) -> papo_core::Response {
     let now = Instant::now();
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
