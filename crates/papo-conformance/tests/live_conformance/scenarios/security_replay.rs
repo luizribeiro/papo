@@ -1,7 +1,7 @@
 use papo::{CtcpReplies, Event};
 use papo_conformance_macros::scenario;
 
-use super::support::wait_channel_mode;
+use super::support::{message_text, wait_channel_mode};
 use crate::Scenario;
 
 fn profile() -> String {
@@ -312,5 +312,46 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
                 .filter(|ctcp| ctcp.command == "VERSION" && ctcp.actor.nick() == bob_nick.as_str())
         })
         .await?;
+    Ok(())
+}
+
+/// keeps a secret sent with `send_raw` out of every event its unlabelled echo produces
+#[scenario(
+    requires(caps = ["echo-message"]),
+    covers = ["security.secrets.unlabelled-echo"]
+)]
+async fn raw_secret_echo_stays_redacted(s: Scenario) -> papo_testing::Result<()> {
+    let channel = s.channel_name();
+    let secret = format!("the staff key for {channel} is services-password-5129");
+    let marker = "the staff key was rotated";
+    let mut alice = s.connect("alice").await?;
+    alice.join(&channel).await?;
+    alice
+        .send_raw(
+            papo::Line::new("PRIVMSG")
+                .param(channel.as_str())
+                .param(papo::Secret::new(secret.clone())),
+        )
+        .await?;
+    alice
+        .send_raw(papo::Line::privmsg(&channel, marker))
+        .await?;
+
+    let mut leaked = Vec::new();
+    let mut redacted_echo = false;
+    alice
+        .wait_for(|event| {
+            let debug = format!("{event:?}");
+            if debug.contains("services-password-5129") {
+                leaked.push(debug);
+            }
+            if let Event::Other(other) = event {
+                redacted_echo |= other.line.get(1) == Some(secret.as_str());
+            }
+            message_text(event, marker)
+        })
+        .await?;
+    assert!(leaked.is_empty(), "the secret reached an event: {leaked:?}");
+    assert!(redacted_echo, "the echo arrived as a redacted line");
     Ok(())
 }
