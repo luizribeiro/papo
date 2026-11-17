@@ -1205,6 +1205,31 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// a redaction from a session without echo-message is confirmed by the echo Ergo still sends it
+#[scenario(
+    requires(caps = ["draft/message-redaction", "labeled-response"]),
+    covers = ["draft.message-redaction.confirm-without-echo-message"]
+)]
+async fn redaction_without_echo_message(s: Scenario) -> papo_testing::Result<()> {
+    let (mut alice, mut bob, channel) = fixture_pair_with(
+        &s,
+        s.configure("alice")?.disable(papo::Feature::EchoMessages),
+    )
+    .await?;
+    bob.privmsg(&channel, "deploy finished at 14:05").await?;
+    let received = alice
+        .wait_for(|event| message_text(event, "deploy finished at 14:05"))
+        .await?;
+
+    let outcome = alice.redact(&received, "wrong time").await?;
+    let redacted = bob.wait_for(Event::as_redacted).await?;
+    let (redacts, echo, echo_time) = confirmed_redaction(&outcome);
+    assert_eq!(Some(redacts), received.msgid());
+    assert_eq!(redacted.msgid(), Some(echo));
+    assert_eq!(redacted.server_time, echo_time);
+    Ok(())
+}
+
 /// a private history message keeps the channel context its line names, and replies keep it; the
 /// sender is logged in because only a history line's account tag identifies who to reply to
 #[scenario(

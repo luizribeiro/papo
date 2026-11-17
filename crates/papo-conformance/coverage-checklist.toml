@@ -45,7 +45,7 @@ ids = [
   "draft.account-registration.register", "draft.account-registration.verify", "draft.account-registration.errors", "draft.channel-rename.rename",
   "draft.channel-rename.errors", "draft.chathistory.latest", "draft.chathistory.multiline", "draft.chathistory.before-after-around", "draft.chathistory.message-by-id", "draft.chathistory.between",
   "draft.chathistory.targets", "draft.chathistory.errors", "draft.chathistory.end-tag", "draft.chathistory.end-pagination", "draft.event-playback",
-  "draft.client-batch.errors", "draft.extended-isupport", "draft.message-redaction.redact", "draft.message-redaction.errors",
+  "draft.client-batch.errors", "draft.extended-isupport", "draft.message-redaction.redact", "draft.message-redaction.errors", "draft.message-redaction.confirm-without-echo-message",
   "draft.metadata.set-get-self", "draft.metadata.sub-notifications", "draft.metadata.channel-metadata", "draft.metadata.errors",
   "draft.multiline.concat", "draft.multiline.errors-limits", "draft.network-icon", "draft.oper-tag",
   "draft.pre-away", "draft.read-marker.set-get", "draft.read-marker.monotonic", "draft.read-marker.on-join",
