@@ -363,6 +363,10 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 - With echo-message and labeled-response, a `PRIVMSG` or `NOTICE` whose text is a `Secret` (such as
   `PRIVMSG NickServ :IDENTIFY ..`) stays redacted while papo awaits its echo, and the echo's lines
   and events are redacted in `{:?}` too.
+- The echo of a `Secret` text that matches no pending request (sent with `Client::send_raw`, or
+  arriving after its request timed out) is redacted too, and arrives as `Event::Other` instead of a
+  `Message` or `Notice`. At most 32 secret texts may await their echo; a further one fails with
+  `Error::TooManyPendingRequests` until an echo returns or the request timeout passes.
 - The setter from `Channel::topic_set_by` and `ModeListEntry::actor`, and the actor of an
   archived JOIN, QUIT or TOPIC, is a past name: sends through it fail with `Error::TargetGone`,
   as for an archived message's actor. They used to reach the nickname's current holder.

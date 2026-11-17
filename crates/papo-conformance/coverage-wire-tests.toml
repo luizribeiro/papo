@@ -217,6 +217,9 @@
 "secrets::the_echo_of_a_secret_request_stays_redacted" = [
   "security.secrets.echo-awaiting-request",
 ]
+"secrets::the_unlabelled_echo_of_a_secret_send_stays_redacted" = [
+  "security.secrets.unlabelled-echo",
+]
 "security::stored_sts_matches_a_normalized_hostname" = [
   "security.t4.sts-normalized-host",
 ]

@@ -102,6 +102,7 @@ ids = [
   "security.secrets.no-wire-line-in-debug",
   "security.secrets.wiped-on-drop",
   "security.secrets.echo-awaiting-request",
+  "security.secrets.unlabelled-echo",
   "security.wire-log.sasl-redacted",
   "security.api.explicit-secrets",
   "security.api.typed-tls-identity",

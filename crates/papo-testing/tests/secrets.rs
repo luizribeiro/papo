@@ -110,14 +110,8 @@ fn secret_and_wire_buffers_are_wiped_on_drop() {
 #[tokio::test]
 async fn the_echo_of_a_secret_request_stays_redacted() {
     const PASSWORD: &str = "services-password-5129";
-    let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test", "papo-wire")
-            .allow_insecure_auth(true)
-            .rate_limit(papo::RateLimit::unlimited())
-            .reconnect(papo::Reconnect::never()),
-    );
-    wire.register(&["echo-message", "labeled-response", "message-tags"])
-        .await;
+    let (client, mut events, mut wire) =
+        echo_wire(&["echo-message", "labeled-response", "message-tags"]).await;
     let request = tokio::spawn(async move {
         client
             .request_raw(
@@ -148,4 +142,51 @@ async fn the_echo_of_a_secret_request_stays_redacted() {
         seen.push(events.next().await.expect("driver stopped").0);
     }
     assert!(!format!("{seen:?}").contains(PASSWORD), "{seen:?}");
+}
+
+async fn echo_wire(caps: &[&str]) -> (papo::Client, papo::Events, papo_testing::Wire) {
+    let (client, events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .allow_insecure_auth(true)
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never()),
+    );
+    wire.register(caps).await;
+    (client, events, wire)
+}
+
+async fn events_until(events: &mut papo::Events, marker: &str) -> String {
+    let mut seen = Vec::new();
+    while !format!("{seen:?}").contains(marker) {
+        seen.push(events.next().await.expect("driver stopped").0);
+    }
+    format!("{seen:?}")
+}
+
+#[tokio::test]
+async fn the_unlabelled_echo_of_a_secret_send_stays_redacted() {
+    const PASSWORD: &str = "services-password-5129";
+    let (client, mut events, mut wire) =
+        echo_wire(&["echo-message", "labeled-response", "message-tags"]).await;
+    client
+        .send_raw(
+            Line::new("PRIVMSG")
+                .param("NickServ")
+                .param(Secret::new(format!("IDENTIFY alice {PASSWORD}"))),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        wire.next_sent().await,
+        format!("PRIVMSG NickServ :IDENTIFY alice {PASSWORD}")
+    );
+    wire.server(format!(
+        "@msgid=RfcBTzyxY120006;time=2026-11-16T09:12:01.123Z :papo-wire!~papo@client.example PRIVMSG NickServ :IDENTIFY alice {PASSWORD}"
+    ))
+    .await;
+    wire.server(":NickServ!NickServ@localhost NOTICE papo-wire :You're now logged in as alice")
+        .await;
+
+    let seen = events_until(&mut events, "now logged in").await;
+    assert!(!seen.contains(PASSWORD), "{seen}");
 }

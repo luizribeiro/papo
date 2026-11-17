@@ -653,6 +653,12 @@ fn is_server_notice_line(message: &LineRef<'_>) -> bool {
         || matches!(message.source(), Some(papo_proto::Source::Server(_)))
 }
 
+/// Whether a line carries a secret, such as our echoed text, which only a redacting [`Other`]
+/// may hold.
+fn carries_a_secret(line: &ProtoLine) -> bool {
+    line.params().iter().any(papo_proto::Param::__is_secret)
+}
+
 pub(crate) fn incoming_from_core(
     received: papo_core::ReceivedLine,
     origin: crate::Origin,
@@ -680,6 +686,9 @@ pub(crate) fn incoming_from_core(
             && kind != crate::cap::MULTILINE.as_str()
             && !matches!(kind, "netsplit" | "netjoin")
     }) {
+        return other_from_line(received.into_line(), received_at);
+    }
+    if carries_a_secret(&received) {
         return other_from_line(received.into_line(), received_at);
     }
     let conversation = received.conversation().cloned();
@@ -1254,6 +1263,9 @@ pub(crate) fn historical_message_event(
     client: &Client,
     received_at: SystemTime,
 ) -> Event {
+    if carries_a_secret(&raw) {
+        return other_from_line(raw, received_at);
+    }
     let snapshot = client.state();
     let Ok((status, conversation)) = papo_core::classify_conversation(
         &raw.as_ref(),
@@ -1612,7 +1624,8 @@ pub enum Event {
     /// A line papo did not turn into a typed event.
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
-    /// and logging; a future version may type it.
+    /// and logging; a future version may type it. The server's echo of a message whose text was a
+    /// [`crate::Secret`] also arrives here, so its text stays redacted when formatted.
     Other(Other),
     /// A tag-only message with no more specific typed event.
     TagMsg(TagMsg),
@@ -5383,6 +5396,67 @@ mod tests {
             };
             assert_eq!(live.text, "live batch");
         }
+    }
+
+    #[test]
+    fn a_message_repeating_a_secret_we_sent_is_only_a_redacted_line() {
+        const PASSWORD: &str = "services-password-5129";
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo").allow_insecure_auth(true));
+        session.handle_connected(now);
+        for line in [
+            ":ergo.test CAP * LS :echo-message labeled-response",
+            ":ergo.test CAP * ACK :echo-message labeled-response",
+            ":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        while session.poll_event().is_some() {}
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        for command in ["PRIVMSG", "NOTICE"] {
+            let text = format!("IDENTIFY alice {PASSWORD}");
+            session
+                .send(
+                    now,
+                    Line::new(command)
+                        .param("NickServ")
+                        .param(papo_core::Secret::new(text.clone())),
+                )
+                .unwrap();
+            session.handle_line(
+                now,
+                format!(":papo!~papo@client.example {command} NickServ :{text}").as_bytes(),
+            );
+            let live = mapped_message_event(session.poll_event().unwrap());
+            let archived = historical_message_event(
+                Line::new(command)
+                    .param("NickServ")
+                    .param(papo_core::Secret::new(text))
+                    .with_source("papo!~papo@client.example"),
+                Party::Me,
+                None,
+                &client,
+                UNIX_EPOCH,
+            );
+            for event in [live, archived] {
+                let Event::Other(other) = &event else {
+                    panic!("{command}: expected a redacted line, got {event:?}")
+                };
+                assert!(other.line.get(1).unwrap().ends_with(PASSWORD));
+                assert!(!format!("{event:?}").contains(PASSWORD), "{event:?}");
+            }
+        }
+        session
+            .send(now, Line::privmsg("NickServ", "INFO alice"))
+            .unwrap();
+        session.handle_line(
+            now,
+            b":papo!~papo@client.example PRIVMSG NickServ :INFO alice",
+        );
+        assert!(matches!(
+            mapped_message_event(session.poll_event().unwrap()),
+            Event::Message(message) if message.text == "INFO alice"
+        ));
     }
 
     #[test]
