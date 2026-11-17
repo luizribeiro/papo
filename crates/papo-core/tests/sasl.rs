@@ -479,6 +479,18 @@ fn ack_sasl_again(transcript: Transcript) -> Transcript {
 }
 
 #[test]
+fn a_welcome_during_the_exchange_ends_mechanism_fallback() {
+    scram_then_plain_started()
+        .welcome(":ergo.test 001 alice :Welcome to the ErgoTest IRC Network alice")
+        .server(":ergo.test 904 alice :SASL authentication failed")
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+                if reason.contains("every configured SASL mechanism failed"))
+        })
+        .no_client();
+}
+
+#[test]
 fn a_repeated_sasl_ack_does_not_start_the_next_mechanism_early() {
     ack_sasl_again(scram_then_plain_started())
         .server(":ergo.test 904 alice :SASL authentication failed")

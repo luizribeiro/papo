@@ -442,6 +442,7 @@ impl SaslSession {
     ) -> Handled {
         if message.command_is("001") {
             self.registration = Registration::Welcomed;
+            self.remaining.clear();
         }
         if self.handle_status(now, message, outbox) {
             return Handled::Yes;
