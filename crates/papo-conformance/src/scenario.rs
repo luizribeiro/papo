@@ -228,9 +228,13 @@ impl Scenario {
 
     /// Connects and retains a client configured by the caller, recording its wire lines.
     ///
+    /// Returns once the server has advertised its name rules, so the peer's name builders
+    /// are ready even when a bouncer welcomed it before its upstream network attached.
+    ///
     /// # Errors
     ///
-    /// Returns the client's connection failure.
+    /// Returns the client's connection failure, or a fixture error when `CASEMAPPING`
+    /// does not arrive within ten seconds.
     pub async fn connect_with(&self, builder: Builder) -> Result<Peer> {
         let index = self.wire_log.add_client();
         let log = self.wire_log.clone();
@@ -244,7 +248,9 @@ impl Scenario {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(client.clone());
-        Ok(Peer::new(client, events))
+        let mut peer = Peer::new(client, events);
+        peer.wait_for_name_rules().await?;
+        Ok(peer)
     }
 
     /// Returns a unique, readable channel name.

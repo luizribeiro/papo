@@ -7,12 +7,14 @@ use papo_testing::{Error, FixtureError, Result};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const EVENT_HISTORY: usize = 20;
+const HELD_EVENTS: usize = 256;
 
 /// A connected client together with its event stream and diagnostic history.
 pub struct Peer {
     client: Client,
     events: Events,
     recent: VecDeque<Event>,
+    held: VecDeque<(Event, Arc<State>)>,
 }
 
 impl Peer {
@@ -29,6 +31,32 @@ impl Peer {
             client,
             events,
             recent: VecDeque::with_capacity(EVENT_HISTORY),
+            held: VecDeque::new(),
+        }
+    }
+
+    /// Waits until the server has advertised its name rules.
+    ///
+    /// soju welcomes a client before its upstream network registers and sends the
+    /// upstream's `CASEMAPPING` only once that network attaches. Every event that arrives
+    /// meanwhile is delivered again to later waits.
+    pub(crate) async fn wait_for_name_rules(&mut self) -> Result<()> {
+        if self.client.snapshot().name_rules().is_some() {
+            return Ok(());
+        }
+        let mut held = VecDeque::new();
+        let (known, _) = self
+            .wait_until(|event, state| {
+                held.push_back((event.clone(), Arc::clone(state)));
+                let known = state.name_rules().is_some();
+                (known || held.len() == HELD_EVENTS).then_some(known)
+            })
+            .await?;
+        self.held.extend(held);
+        if known {
+            Ok(())
+        } else {
+            Err(self.failure(format!("{HELD_EVENTS} events arrived without CASEMAPPING")))
         }
     }
 
@@ -82,6 +110,9 @@ impl Peer {
     }
 
     async fn next_event(&mut self) -> Option<(Event, Arc<State>)> {
+        if let Some(held) = self.held.pop_front() {
+            return Some(held);
+        }
         let (event, state) = self.events.next().await?;
         self.remember(event.clone());
         Some((event, state))
@@ -286,6 +317,101 @@ mod tests {
                 .to_string()
                 .contains("Server maintenance begins in 5 minutes")
         );
+    }
+
+    async fn welcome_before_upstream_attaches() -> (Peer, papo_testing::Wire) {
+        let (client, events, mut wire) =
+            papo_testing::wire(Client::builder("irc://offline.test", "alice-1469-3"));
+        for _ in 0..3 {
+            wire.next_sent().await;
+        }
+        wire.server(":bouncer.papo.test CAP * LS :").await;
+        assert_eq!(wire.next_sent().await, "CAP END");
+        for line in [
+            ":bouncer.papo.test 001 alice-1469-3 :Welcome to soju, alice-1469-3",
+            ":bouncer.papo.test 002 alice-1469-3 :Your host is bouncer.papo.test",
+            ":bouncer.papo.test 004 alice-1469-3 bouncer.papo.test soju aiwroO OovaimnqpsrtklbeI",
+            ":bouncer.papo.test 005 alice-1469-3 BOUNCER_NETID=3 CHATHISTORY=1000 :are supported",
+            ":bouncer.papo.test 422 alice-1469-3 :Use /motd to read the message of the day",
+        ] {
+            wire.server(line).await;
+        }
+        let mut peer = Peer::new(client, events);
+        peer.wait_for(Event::as_connected).await.unwrap();
+        assert!(peer.snapshot().name_rules().is_none());
+        (peer, wire)
+    }
+
+    #[tokio::test]
+    async fn waits_for_a_late_casemapping_and_replays_the_events_before_it() {
+        let (mut peer, mut wire) = welcome_before_upstream_attaches().await;
+        let attach = async {
+            wire.server(
+                ":BouncerServ!BouncerServ@BouncerServ NOTICE alice-1469-3 :connected to alice-1469-3",
+            )
+            .await;
+            wire.server(
+                ":bouncer.papo.test 005 alice-1469-3 CASEMAPPING=ascii CHANTYPES=# :are supported",
+            )
+            .await;
+        };
+        let (waited, ()) = tokio::join!(peer.wait_for_name_rules(), attach);
+        waited.unwrap();
+        assert!(peer.snapshot().name_rules().is_some());
+
+        let notice = peer.wait_for(Event::as_notice).await.unwrap();
+        assert_eq!(notice.raw_text, "connected to alice-1469-3");
+        let changed = peer.wait_for(Event::as_casemapping_changed).await.unwrap();
+        assert_eq!(changed.new, papo::Casemapping::Ascii);
+        let remembered = peer
+            .recent
+            .iter()
+            .filter(|event| event.as_notice().is_some());
+        assert_eq!(remembered.count(), 1, "a replayed event is remembered once");
+    }
+
+    #[tokio::test]
+    async fn known_name_rules_need_no_further_event() {
+        let (client, events, mut wire) =
+            papo_testing::wire(Client::builder("irc://offline.test", "alice-1469-4"));
+        wire.register(&[]).await;
+        let mut peer = Peer::new(client, events);
+        peer.wait_for(Event::as_connected).await.unwrap();
+        peer.wait_for_name_rules().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn disconnect_before_casemapping_is_an_error() {
+        let (mut peer, mut wire) = welcome_before_upstream_attaches().await;
+        wire.server("ERROR :Closing Link: 127.0.0.1 (Connection timeout)")
+            .await;
+        wire.close().await;
+        let error = peer.wait_for_name_rules().await.unwrap_err();
+        assert!(error.to_string().contains("Connection timeout"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn endless_events_without_casemapping_are_bounded() {
+        let (mut peer, mut wire) = welcome_before_upstream_attaches().await;
+        let flood = async {
+            loop {
+                wire.server(
+                    ":BouncerServ!BouncerServ@BouncerServ NOTICE alice-1469-3 :disconnected from alice-1469-3: \
+                     failed to connect: dial tcp 127.0.0.1:6667: connect: connection refused",
+                )
+                .await;
+            }
+        };
+        let error = tokio::select! {
+            waited = peer.wait_for_name_rules() => waited.unwrap_err(),
+            () = flood => unreachable!(),
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("256 events arrived without CASEMAPPING")
+        );
+        assert_eq!(peer.held.len(), 256);
     }
 
     #[tokio::test]
