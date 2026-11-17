@@ -89,3 +89,27 @@ fn the_unlabelled_echo_of_a_secret_send_is_redacted() {
     );
     assert!(!rest.contains(PASSWORD), "{rest}");
 }
+
+#[test]
+fn an_ordinary_echo_and_other_text_stay_visible() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session.send(now, identify()).unwrap();
+    session
+        .send(now, Line::privmsg("NickServ", "INFO alice"))
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    for line in [
+        "@msgid=RfcBTzyxY120007;time=2026-11-17T10:02:12.482Z :papo!~papo@client.example PRIVMSG NickServ :INFO alice",
+        ":NickServ!NickServ@services.test NOTICE papo :Information on alice (account alice):",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let debug = format!(
+        "{:?}",
+        std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>()
+    );
+    assert!(debug.contains("PRIVMSG NickServ :INFO alice"), "{debug}");
+    assert!(debug.contains("Information on alice"), "{debug}");
+    assert!(!debug.contains("<redacted>"), "{debug}");
+}
