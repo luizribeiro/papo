@@ -3,8 +3,9 @@ use std::time::{Duration, Instant};
 use super::activity::Activity;
 
 const IDLE_LIMIT: Duration = Duration::from_secs(10);
+const CPU_LIMIT: Duration = Duration::from_secs(30);
 
-/// Bounds a server's start by the time it spends idle, so a loaded machine only slows it down.
+/// Bounds a server's start by its idle time and CPU use, so a loaded machine only slows it down.
 pub(crate) struct StartupBudget {
     launched: Instant,
     sampled: Instant,
@@ -29,11 +30,15 @@ impl StartupBudget {
         }
         self.sampled = now;
         self.cpu = self.cpu.max(activity.cpu);
-        if self.idle < IDLE_LIMIT {
+        let reason = if self.cpu >= CPU_LIMIT {
+            "used too much CPU"
+        } else if self.idle >= IDLE_LIMIT {
+            "stayed idle"
+        } else {
             return Ok(());
-        }
+        };
         Err(format!(
-            "stayed idle before becoming ready ({:.1} s idle, {:.1} s CPU, {:.1} s since launch)",
+            "{reason} before becoming ready ({:.1} s idle, {:.1} s CPU, {:.1} s since launch)",
             self.idle.as_secs_f64(),
             self.cpu.as_secs_f64(),
             now.saturating_duration_since(self.launched).as_secs_f64(),
@@ -113,6 +118,26 @@ mod tests {
             budget
                 .observe(launch + Duration::from_secs(70), ran(1_250))
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn gives_up_after_thirty_cpu_seconds() {
+        let launch = Instant::now();
+        let mut budget = StartupBudget::new(launch);
+        let spinning = |millis| Activity {
+            busy: true,
+            cpu: Duration::from_millis(millis),
+        };
+
+        assert!(
+            budget
+                .observe(launch + Duration::from_secs(1), spinning(29_990))
+                .is_ok()
+        );
+        assert_eq!(
+            budget.observe(launch + Duration::from_secs(2), spinning(30_000)),
+            Err("used too much CPU before becoming ready (0.0 s idle, 30.0 s CPU, 2.0 s since launch)".into())
         );
     }
 }
