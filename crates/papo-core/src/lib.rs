@@ -2371,7 +2371,8 @@ impl Redacted {
 pub enum RequestError {
     /// The IRC message could not be represented on the wire.
     Build(BuildError),
-    /// The session already has 256 labelled requests awaiting replies.
+    /// The session already has 256 labelled requests awaiting replies, or 32 secret texts
+    /// awaiting their echo.
     PendingLimit,
     /// The text contains no nonempty lines to send.
     EmptyText,
@@ -7504,11 +7505,13 @@ mod tests {
 
         fn tracking_identify() -> SecretEchoes {
             let mut echoes = SecretEchoes::default();
-            echoes.track(
-                &Line::new("PRIVMSG")
-                    .param("NickServ")
-                    .param(Secret::new("IDENTIFY alice services-password-5129")),
-            );
+            echoes
+                .track(
+                    &Line::new("PRIVMSG")
+                        .param("NickServ")
+                        .param(Secret::new("IDENTIFY alice services-password-5129")),
+                )
+                .unwrap();
             echoes
         }
 
@@ -7566,11 +7569,36 @@ mod tests {
         #[test]
         fn an_untracked_session_marks_nothing() {
             let mut echoes = SecretEchoes::default();
-            echoes.track(&Line::privmsg(
-                "NickServ",
-                "IDENTIFY alice services-password-5129",
-            ));
+            echoes
+                .track(&Line::privmsg(
+                    "NickServ",
+                    "IDENTIFY alice services-password-5129",
+                ))
+                .unwrap();
             assert_eq!(echoes.mark_echo(None, &LineRef::parse(ECHO).unwrap()), None);
+        }
+
+        #[test]
+        fn refuses_a_secret_beyond_the_thirty_second_awaiting_its_echo() {
+            let mut echoes = SecretEchoes::default();
+            let identify = |account: usize| {
+                Line::new("PRIVMSG")
+                    .param("NickServ")
+                    .param(Secret::new(format!(
+                        "IDENTIFY alice{account} services-password-5129"
+                    )))
+            };
+            for account in 0..32 {
+                echoes.track(&identify(account)).unwrap();
+            }
+            assert_eq!(
+                echoes.track(&identify(32)),
+                Err(crate::RequestError::PendingLimit)
+            );
+            assert_eq!(
+                echoes.track(&Line::privmsg("NickServ", "INFO alice")),
+                Ok(())
+            );
         }
     }
 }

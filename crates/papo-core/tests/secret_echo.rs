@@ -4,7 +4,7 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Config, Event, RateLimit, Secret, Session};
+use papo_core::{Config, Event, RateLimit, RequestError, Secret, Session};
 use papo_proto::Line;
 
 const PASSWORD: &str = "services-password-5129";
@@ -132,4 +132,42 @@ fn an_ordinary_echo_and_other_text_stay_visible() {
     assert!(debug.contains("PRIVMSG NickServ :INFO alice"), "{debug}");
     assert!(debug.contains("Information on alice"), "{debug}");
     assert!(!debug.contains("<redacted>"), "{debug}");
+}
+
+fn identify_as(account: usize) -> Line {
+    Line::new("PRIVMSG")
+        .param("NickServ")
+        .param(Secret::new(format!("IDENTIFY alice{account} {PASSWORD}")))
+}
+
+#[test]
+fn secret_sends_awaiting_their_echo_are_bounded_and_fail_closed() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    let accepted = (0..10_000)
+        .take_while(|&account| session.send(now, identify_as(account)).is_ok())
+        .count();
+    assert_eq!(accepted, 32);
+    while session.poll_transmit().is_some() {}
+    let tracked = format!("{session:?}").len();
+    for account in 32..10_032 {
+        assert_eq!(
+            session.send(now, identify_as(account)),
+            Err(RequestError::PendingLimit)
+        );
+    }
+    assert!(session.poll_transmit().is_none());
+    assert_eq!(format!("{session:?}").len(), tracked);
+    session
+        .send(now, Line::privmsg("NickServ", "INFO alice"))
+        .unwrap();
+}
+
+#[test]
+fn secret_sends_the_server_never_echoes_are_not_tracked() {
+    let now = Instant::now();
+    let mut session = session(now, "solanum.test", "server-time");
+    for account in 0..10_000 {
+        session.send(now, identify_as(account)).unwrap();
+    }
 }

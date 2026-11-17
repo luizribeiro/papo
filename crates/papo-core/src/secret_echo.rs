@@ -2,6 +2,11 @@ use std::collections::VecDeque;
 
 use papo_proto::{Line, LineRef, Param};
 
+use crate::RequestError;
+
+/// The most secrets a session tracks for the lines the server echoes.
+const MAX_SECRET_ECHOES: usize = 32;
+
 /// Secret parameters of sent lines the server repeats back, labelled or not.
 ///
 /// A line from the server with a parameter equal to one is marked secret as it is read, before
@@ -14,14 +19,23 @@ pub(crate) struct SecretEchoes {
 
 impl SecretEchoes {
     /// Remembers the secrets of a line the server will echo.
-    pub(crate) fn track(&mut self, message: &Line) {
-        self.entries.extend(
-            message
-                .params()
-                .iter()
-                .filter(|param| param.__is_secret())
-                .cloned(),
-        );
+    ///
+    /// Fails closed: when every tracked secret may still be echoed, the line is refused so that
+    /// no echo can arrive untracked.
+    pub(crate) fn track(&mut self, message: &Line) -> Result<(), RequestError> {
+        let secrets = message
+            .params()
+            .iter()
+            .filter(|param| param.__is_secret())
+            .collect::<Vec<_>>();
+        if secrets.is_empty() {
+            return Ok(());
+        }
+        if self.entries.len() + secrets.len() > MAX_SECRET_ECHOES {
+            return Err(RequestError::PendingLimit);
+        }
+        self.entries.extend(secrets.into_iter().cloned());
+        Ok(())
     }
 
     /// Returns `line`, or a copy of `message`, with every repeated secret marked secret.

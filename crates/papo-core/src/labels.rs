@@ -510,7 +510,7 @@ impl Session {
     ) -> Result<crate::WireLine, RequestError> {
         let line = message.encode()?;
         if self.echoes(&message.as_ref()) {
-            self.secret_echoes.track(message);
+            self.secret_echoes.track(message)?;
         }
         Ok(line)
     }

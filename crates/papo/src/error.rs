@@ -477,7 +477,8 @@ pub enum Error {
     /// The requested optional IRC behavior is unavailable.
     #[error(transparent)]
     Unsupported(Unsupported),
-    /// The connection already has 256 requests awaiting replies.
+    /// The connection already has 256 requests awaiting replies, or 32 [`crate::Secret`] texts
+    /// awaiting their echo.
     #[error("too many IRC requests are awaiting replies")]
     TooManyPendingRequests,
     /// The requested reconnect was refused because the client is already connected.
