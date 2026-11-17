@@ -52,6 +52,16 @@ async fn a_redaction_is_confirmed_only_by_its_own_echo() {
         ),
         (
             NO_ECHO_CAPS,
+            [OWN_ECHO, ACK].as_slice(),
+            Confirmation::Confirmed {
+                msgid: "iig2yutustdze2rgdzcpe2k3rs".into(),
+                server_time: Some(
+                    crate::ServerTime::from_stored("2026-11-17T12:28:35.330Z").unwrap(),
+                ),
+            },
+        ),
+        (
+            NO_ECHO_CAPS,
             [ACK].as_slice(),
             Confirmation::unconfirmed(UnconfirmedReason::NoEchoMessage),
         ),

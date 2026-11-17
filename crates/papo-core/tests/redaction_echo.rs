@@ -250,12 +250,10 @@ fn a_refused_redaction_reports_its_failure_without_an_identity() {
 }
 
 #[test]
-fn without_echo_message_the_ack_completes_and_ergos_echo_stays_an_event() {
+fn without_echo_message_ergos_echo_still_confirms_the_redaction() {
     let now = Instant::now();
-    let mut session = ergo(
-        now,
-        "draft/message-redaction labeled-response message-tags server-time",
-    );
+    let caps = "draft/message-redaction labeled-response message-tags server-time";
+    let mut session = ergo(now, caps);
     let id = redact(&mut session, now);
 
     let echoed = play(&mut session, now, OWN_ECHO);
@@ -264,7 +262,13 @@ fn without_echo_message_the_ack_completes_and_ergos_echo_stays_an_event() {
     let acked = play(&mut session, now, ACK);
     assert_eq!(acked.len(), 1, "{acked:?}");
     assert_eq!(response(&acked[0]).id, id);
-    assert_eq!(response(&acked[0]).sent(), None);
+    assert_eq!(response(&acked[0]).sent(), Some(own_echo_identity()));
+
+    let mut session = ergo(now, caps);
+    let id = redact(&mut session, now);
+    let acked = play(&mut session, now, ACK);
+    assert_eq!(response(&acked[0]).id, id);
+    assert_eq!(response(&acked[0]).lines, []);
 }
 
 #[test]

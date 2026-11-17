@@ -8845,7 +8845,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         outcome.lines,
         [redacted_line(
             "RfcBTzyxY120004",
-            crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoEchoMessage)
+            confirmed("RfcBTzyxY120007", None)
         )]
     );
 

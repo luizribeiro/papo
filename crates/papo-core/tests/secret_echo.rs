@@ -289,6 +289,14 @@ fn ergo_redaction(now: Instant) -> Session {
     )
 }
 
+fn ergo_redaction_without_echo_message(now: Instant) -> Session {
+    session(
+        now,
+        "ergo.test",
+        "draft/message-redaction labeled-response message-tags server-time",
+    )
+}
+
 fn secret_redaction() -> Line {
     Line::new("REDACT")
         .param("#papo")
@@ -305,7 +313,12 @@ fn ergo_redaction_echo() -> String {
 #[test]
 fn the_echo_of_a_secret_redaction_reason_is_redacted() {
     let now = Instant::now();
-    let mut session = ergo_redaction(now);
+    for connect in [ergo_redaction, ergo_redaction_without_echo_message] {
+        assert_secret_redaction_echo_is_redacted(now, connect(now));
+    }
+}
+
+fn assert_secret_redaction_echo_is_redacted(now: Instant, mut session: Session) {
     let id = session.request(now, secret_redaction()).unwrap();
     while session.poll_transmit().is_some() {}
     session.handle_line(now, ergo_redaction_echo().as_bytes());

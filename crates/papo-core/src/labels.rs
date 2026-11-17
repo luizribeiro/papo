@@ -499,9 +499,12 @@ impl Session {
     }
 
     /// Whether the server will echo `message` back to us.
+    ///
+    /// Ergo relays our `REDACT` to us as to every other member, with or without `echo-message`.
     fn echoes(&self, message: &LineRef<'_>) -> bool {
-        self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
-            && (is_echoed(message.command()) || message.command_is("RELAYMSG"))
+        message.command() == Command::Redact
+            || self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
+                && (is_echoed(message.command()) || message.command_is("RELAYMSG"))
     }
 
     /// Encodes a line we send, tracking the secrets its echo will repeat.
