@@ -101,22 +101,15 @@ pub fn change_account_password_at(
         &mut connection,
         &format!("PRIVMSG NickServ :PASSWD {current} {replacement} {replacement}\r\n"),
     )?;
-    for _ in 0..128 {
-        let mut line = String::new();
-        if connection.read_line(&mut line)? == 0 {
-            break;
-        }
-        if line.contains("NickServ") && line.contains(" NOTICE ") {
-            return if line.contains("Password changed") {
+    read_reply(&mut connection, |line| {
+        (line.contains("NickServ") && line.contains(" NOTICE ")).then(|| {
+            if line.contains("Password changed") {
                 Ok(())
             } else {
                 Err(io::Error::other("NickServ rejected the password change"))
-            };
-        }
-    }
-    Err(io::Error::other(
-        "NickServ did not confirm the password change",
-    ))
+            }
+        })
+    })
 }
 
 pub(crate) fn register_atheme(address: SocketAddr, name: &str, password: &str) -> io::Result<()> {
@@ -138,21 +131,17 @@ pub(crate) fn register_atheme(address: SocketAddr, name: &str, password: &str) -
         &mut connection,
         &format!("PRIVMSG NickServ :REGISTER {password} papo@example.invalid\r\n"),
     )?;
-    for _ in 0..128 {
-        let mut line = String::new();
-        if connection.read_line(&mut line)? == 0 {
-            break;
-        }
+    read_reply(&mut connection, |line| {
         if line.contains(" is now registered to ") {
-            return Ok(());
+            Some(Ok(()))
+        } else if line.contains(" is already registered.") {
+            Some(Err(io::Error::other(
+                "Atheme rejected account registration",
+            )))
+        } else {
+            None
         }
-        if line.contains(" is already registered.") {
-            return Err(io::Error::other("Atheme rejected account registration"));
-        }
-    }
-    Err(io::Error::other(
-        "Atheme did not complete account registration",
-    ))
+    })
 }
 
 fn credentials_valid(name: &str, password: &str) -> bool {
@@ -167,35 +156,79 @@ fn read_until(
     connection: &mut BufReader<TcpStream>,
     accepted: impl Fn(&str) -> bool,
 ) -> io::Result<()> {
+    read_reply(connection, |line| {
+        if line.contains(" FAIL REGISTER ") {
+            Some(Err(io::Error::other(line.trim().to_owned())))
+        } else {
+            accepted(line).then_some(Ok(()))
+        }
+    })
+}
+
+fn read_reply(
+    connection: &mut BufReader<TcpStream>,
+    decide: impl Fn(&str) -> Option<io::Result<()>>,
+) -> io::Result<()> {
     for _ in 0..128 {
         let mut line = String::new();
         if connection.read_line(&mut line)? == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
-                "server closed during account registration",
+                "server closed the connection",
             ));
         }
         if let Some(token) = line.strip_prefix("PING ") {
             send(connection, &format!("PONG {token}"))?;
-            continue;
-        }
-        if line.contains(" FAIL REGISTER ") {
-            return Err(io::Error::other(line.trim().to_owned()));
-        }
-        if accepted(&line) {
-            return Ok(());
+        } else if let Some(verdict) = decide(&line) {
+            return verdict;
         }
     }
-    Err(io::Error::other(
-        "server did not complete account registration",
-    ))
+    Err(io::Error::other("server sent 128 lines without an answer"))
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{io, net::SocketAddr};
+    use std::{
+        io::{self, BufReader, Write},
+        net::{Shutdown, SocketAddr, TcpListener, TcpStream},
+    };
 
-    use super::{credentials_valid, register_atheme};
+    use super::{credentials_valid, read_until, register_atheme};
+
+    fn scripted_server(lines: &str) -> (BufReader<TcpStream>, TcpStream) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (mut server, _) = listener.accept().unwrap();
+        server.write_all(lines.as_bytes()).unwrap();
+        (BufReader::new(client), server)
+    }
+
+    fn wait_for_welcome(connection: &mut BufReader<TcpStream>) -> io::Error {
+        read_until(connection, |line| line.contains(" 001 ")).unwrap_err()
+    }
+
+    #[test]
+    fn endless_unrelated_lines_end_the_wait() {
+        let (mut connection, _server) = scripted_server(
+            &":ergo.test NOTICE * :*** Looking up your hostname...\r\n".repeat(128),
+        );
+        let error = wait_for_welcome(&mut connection);
+        assert_eq!(error.to_string(), "server sent 128 lines without an answer");
+    }
+
+    #[test]
+    fn answers_ping_while_waiting() {
+        let (mut connection, mut server) = scripted_server(
+            "PING papo-password\r\n\
+             :ergo.test 001 papo-password :Welcome to the ErgoTest IRC Network papo-password\r\n",
+        );
+        read_until(&mut connection, |line| line.contains(" 001 ")).unwrap();
+        server.shutdown(Shutdown::Write).unwrap();
+        drop(connection);
+        let mut answered = String::new();
+        io::Read::read_to_string(&mut server, &mut answered).unwrap();
+        assert_eq!(answered, "PONG papo-password\r\n");
+    }
 
     #[test]
     fn rejects_every_irc_line_delimiter() {
