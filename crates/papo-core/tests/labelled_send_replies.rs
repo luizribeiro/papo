@@ -249,3 +249,77 @@ fn the_response_still_carries_every_line_of_the_batch() {
         .collect::<Vec<_>>();
     assert_eq!(commands, [Command::Privmsg, Command::Notice]);
 }
+
+fn joined(now: Instant) -> Session {
+    let mut session = ergo(now);
+    play(
+        &mut session,
+        now,
+        &[
+            "@msgid=nvdu3cib6mfsqazvdvv8u976ma;time=2026-11-17T18:52:56.692Z :papo!~u@npm4sa48pgvdy.irc JOIN #papo",
+            ":ergo.test 353 papo = #papo :@papo bob",
+            ":ergo.test 366 papo #papo :End of NAMES list",
+        ],
+    );
+    session
+}
+
+#[test]
+fn what_a_service_command_changes_is_reported() {
+    let now = Instant::now();
+    let mut session = joined(now);
+    session
+        .send_text(now, TextKind::Privmsg, "NickServ", "REGISTER hunter2", &[])
+        .unwrap();
+    let account = play(
+        &mut session,
+        now,
+        &[
+            "@label=0 :ergo.test BATCH +1 labeled-response",
+            "@msgid=65ybgj23gmak7trgzvkbti4f5i;time=2026-11-17T18:46:56.875Z;batch=1 :papo!~u@npm4sa48pgvdy.irc PRIVMSG NickServ :REGISTER hunter2",
+            "@time=2026-11-17T18:46:56.877Z;batch=1 :NickServ!NickServ@localhost NOTICE papo :Account created",
+            "@time=2026-11-17T18:46:56.877Z;batch=1 :NickServ!NickServ@localhost NOTICE papo :You're now logged in as papo",
+            "@time=2026-11-17T18:46:56.877Z;batch=1 :papo!~u@npm4sa48pgvdy.irc ACCOUNT papo",
+            ":ergo.test BATCH -1",
+        ],
+    );
+    session
+        .send_text(now, TextKind::Privmsg, "ChanServ", "REGISTER #papo", &[])
+        .unwrap();
+    let channel = play(
+        &mut session,
+        now,
+        &[
+            "@label=1 :ergo.test BATCH +6 labeled-response",
+            "@msgid=fkjf3bbnmbmpmtdjzih2i3akt2;time=2026-11-17T18:47:07.388Z;batch=6 :papo!~u@npm4sa48pgvdy.irc PRIVMSG ChanServ :REGISTER #papo",
+            "@time=2026-11-17T18:47:07.388Z;batch=6 :ChanServ!ChanServ@localhost NOTICE papo :Channel #papo successfully registered",
+            "@msgid=fk3vmm6fj8ek69ryjcu7694yz2;time=2026-11-17T18:47:07.388Z;batch=6 :ChanServ!ChanServ@localhost MODE #papo +q papo",
+            ":ergo.test BATCH -6",
+        ],
+    );
+
+    assert_eq!(
+        reported_lines(&account),
+        [
+            ":NickServ!NickServ@localhost NOTICE papo :Account created",
+            ":NickServ!NickServ@localhost NOTICE papo :You're now logged in as papo",
+        ]
+    );
+    assert!(
+        account
+            .iter()
+            .any(|event| matches!(event, Event::AccountChanged { .. })),
+        "{account:?}"
+    );
+    assert_eq!(
+        reported_lines(&channel),
+        [":ChanServ!ChanServ@localhost NOTICE papo :Channel #papo successfully registered"]
+    );
+    assert!(
+        channel
+            .iter()
+            .any(|event| matches!(event, Event::ModeChanged { .. })),
+        "{channel:?}"
+    );
+    assert!(response(&account).sent().is_some() && response(&channel).sent().is_some());
+}
