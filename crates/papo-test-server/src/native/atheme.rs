@@ -78,7 +78,7 @@ fn wait_for_link(
         if linked(directory) {
             return Ok(());
         }
-        atheme.charge("Atheme", &mut budget)?;
+        atheme.charge_alongside(ircd, "Atheme", &mut budget)?;
         thread::sleep(Duration::from_millis(20));
     }
 }
@@ -116,6 +116,8 @@ mod tests {
 [2026-11-17 04:40:38] irc_handle_connect(): connection to uplink established
 ";
 
+    const SYNCED: &str = "[2026-11-17 04:40:38] m_pong(): finished synching with uplink (0 ms)\n";
+
     fn sleeping() -> ServerChild {
         ServerChild::spawn(Command::new("sleep").arg("60")).unwrap()
     }
@@ -149,9 +151,33 @@ mod tests {
 
     #[test]
     fn a_synced_link_is_ready_whatever_the_budget_says() {
-        let synced = "[2026-11-17 04:40:38] m_pong(): finished synching with uplink (0 ms)\n";
+        wait_with(&format!("{CONNECTED}{SYNCED}"), sleeping()).unwrap();
+    }
 
-        wait_with(&format!("{CONNECTED}{synced}"), sleeping()).unwrap();
+    #[test]
+    fn a_busy_ircd_keeps_an_idle_atheme_waiting_for_the_sync() {
+        let directory = TemporaryDirectory::create().unwrap();
+        let log = directory.path().join("atheme.log");
+        fs::write(&log, CONNECTED).unwrap();
+        let mut ircd =
+            ServerChild::spawn(Command::new("sh").args(["-c", "while :; do :; done"])).unwrap();
+        let mut atheme = sleeping();
+        settled_budget(&[atheme.id()], false);
+        let budget = settled_budget(&[atheme.id(), ircd.id()], true);
+        let synced = format!("{CONNECTED}{SYNCED}");
+        let sync = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            fs::write(log, synced).unwrap();
+        });
+
+        super::wait_for_link(
+            directory.path(),
+            ("Solanum", &mut ircd),
+            &mut atheme,
+            budget,
+        )
+        .unwrap();
+        sync.join().unwrap();
     }
 
     #[test]

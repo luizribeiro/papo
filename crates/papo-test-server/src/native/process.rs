@@ -75,14 +75,33 @@ impl ServerChild {
 
     /// Fails once the child has spent its startup budget without becoming ready.
     pub(crate) fn charge(&self, name: &str, budget: &mut StartupBudget) -> io::Result<()> {
-        budget
-            .observe(Instant::now(), activity::of(self.id()))
-            .map_err(|reason| {
-                self.failure(
-                    io::ErrorKind::TimedOut,
-                    format!("{name} did not start: {reason}"),
-                )
-            })
+        self.charge_activity(name, budget, activity::of(self.id()))
+    }
+
+    /// Like [`Self::charge`] for a child whose readiness also waits on `peer`, so progress by
+    /// either one keeps the start alive.
+    pub(crate) fn charge_alongside(
+        &self,
+        peer: &Self,
+        name: &str,
+        budget: &mut StartupBudget,
+    ) -> io::Result<()> {
+        let activity = [self.id(), peer.id()].into_iter().map(activity::of).sum();
+        self.charge_activity(name, budget, activity)
+    }
+
+    fn charge_activity(
+        &self,
+        name: &str,
+        budget: &mut StartupBudget,
+        activity: activity::Activity,
+    ) -> io::Result<()> {
+        budget.observe(Instant::now(), activity).map_err(|reason| {
+            self.failure(
+                io::ErrorKind::TimedOut,
+                format!("{name} did not start: {reason}"),
+            )
+        })
     }
 
     pub(crate) fn stop(&mut self) -> io::Result<()> {
@@ -211,6 +230,30 @@ mod tests {
             error
                 .to_string()
                 .starts_with("Ergo did not start: stayed idle before becoming ready (11.0 s idle")
+        );
+    }
+
+    #[test]
+    fn an_idle_child_waiting_on_a_busy_peer_keeps_its_startup_budget() {
+        let idle = ServerChild::spawn(Command::new("sleep").arg("60")).unwrap();
+        settled_budget(&[idle.id()], false);
+        let busy =
+            ServerChild::spawn(Command::new("sh").args(["-c", "while :; do :; done"])).unwrap();
+        let mut budget = settled_budget(&[idle.id(), busy.id()], true);
+        assert!(idle.charge_alongside(&busy, "Atheme", &mut budget).is_ok());
+        let mut budget = settled_budget(&[busy.id(), idle.id()], true);
+        assert!(busy.charge_alongside(&idle, "Atheme", &mut budget).is_ok());
+
+        let peer = ServerChild::spawn(Command::new("sleep").arg("60")).unwrap();
+        let mut budget = settled_budget(&[idle.id(), peer.id()], false);
+        let error = idle
+            .charge_alongside(&peer, "Atheme", &mut budget)
+            .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert!(
+            error.to_string().starts_with(
+                "Atheme did not start: stayed idle before becoming ready (11.0 s idle"
+            )
         );
     }
 
