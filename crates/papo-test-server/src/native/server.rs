@@ -2,7 +2,6 @@ use std::{
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::PathBuf,
-    process::Stdio,
     thread,
     time::{Duration, Instant},
 };
@@ -186,16 +185,8 @@ impl TestServer {
             let directory = TemporaryDirectory::create()?;
             certificate::generate(directory.path())?;
             let config = configuration(&directory)?;
-            let status = config
-                .command("initdb", &directory)?
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()?;
-            if !status.success() {
-                return Err(io::Error::other(format!(
-                    "ergo initdb failed with {status}"
-                )));
-            }
+            ServerChild::spawn(&mut config.command("initdb", &directory)?)?
+                .finish("ergo initdb")?;
             Ok(Self {
                 child: spawn_ergo(&config, &directory)?,
                 directory,

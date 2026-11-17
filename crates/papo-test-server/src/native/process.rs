@@ -59,6 +59,16 @@ impl ServerChild {
         Ok(None)
     }
 
+    /// Waits for a one-shot child, failing with its stderr tail unless it succeeds.
+    pub(crate) fn finish(mut self, name: &str) -> io::Result<()> {
+        let status = self.child.wait()?;
+        self.finish_reader();
+        if status.success() {
+            return Ok(());
+        }
+        Err(self.failure(io::ErrorKind::Other, format!("{name} exited with {status}")))
+    }
+
     pub(crate) fn check(&mut self, name: &str) -> io::Result<()> {
         self.try_wait(name).map(|_| ())
     }
@@ -234,6 +244,21 @@ mod tests {
                 .to_string()
                 .ends_with("listen: address already in use")
         );
+    }
+
+    #[test]
+    fn a_finished_child_reports_failure_with_its_stderr() {
+        let failed = ServerChild::spawn(
+            Command::new("sh").args(["-c", "echo 'open ircd.db: permission denied' >&2; exit 1"]),
+        )
+        .unwrap();
+        let succeeded = ServerChild::spawn(Command::new("sh").args(["-c", "exit 0"])).unwrap();
+
+        assert_eq!(
+            failed.finish("ergo initdb").unwrap_err().to_string(),
+            "ergo initdb exited with exit status: 1: open ircd.db: permission denied"
+        );
+        succeeded.finish("ergo initdb").unwrap();
     }
 
     #[test]
