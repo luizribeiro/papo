@@ -238,6 +238,27 @@ fn refused_secret_sends_make_room_once_their_echo_is_overdue() {
 }
 
 #[test]
+fn an_empty_secret_is_not_tracked() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    for _ in 0..10_000 {
+        session
+            .send(
+                now,
+                Line::new("PRIVMSG")
+                    .param("NickServ")
+                    .param(Secret::new("")),
+            )
+            .unwrap();
+    }
+    session.handle_line(now, b":ergo.test 461 papo PRIVMSG :Not enough parameters");
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !format!("{event:?}").contains("<redacted>"))
+    );
+}
+
+#[test]
 fn a_new_connection_lets_unanswered_secrets_make_room() {
     let now = Instant::now();
     let mut session = ergo(now);

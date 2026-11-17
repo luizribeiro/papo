@@ -46,7 +46,7 @@ impl SecretEchoes {
         let secrets = message
             .params()
             .iter()
-            .filter(|param| param.__is_secret())
+            .filter(|param| param.__is_secret() && !param.is_empty())
             .collect::<Vec<_>>();
         if secrets.is_empty() {
             return Ok(());
