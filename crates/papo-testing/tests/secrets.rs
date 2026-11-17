@@ -193,14 +193,28 @@ async fn the_unlabelled_echo_of_a_secret_send_stays_redacted() {
 
 #[tokio::test]
 async fn the_echo_of_a_secret_redaction_reason_stays_redacted() {
+    for caps in [
+        [
+            "draft/message-redaction",
+            "echo-message",
+            "labeled-response",
+            "message-tags",
+        ]
+        .as_slice(),
+        [
+            "draft/message-redaction",
+            "labeled-response",
+            "message-tags",
+        ]
+        .as_slice(),
+    ] {
+        assert_secret_redaction_echo_stays_redacted(caps).await;
+    }
+}
+
+async fn assert_secret_redaction_echo_stays_redacted(caps: &[&str]) {
     const REASON: &str = "pasted the staff key services-password-5129";
-    let (client, mut events, mut wire) = echo_wire(&[
-        "draft/message-redaction",
-        "echo-message",
-        "labeled-response",
-        "message-tags",
-    ])
-    .await;
+    let (client, mut events, mut wire) = echo_wire(caps).await;
     let request = tokio::spawn(async move {
         client
             .request_raw(
