@@ -191,7 +191,8 @@ An account reported during SASL is published only after the exchange succeeds, i
 server-proof verification; failed or aborted exchanges discard the pending account.
 papo starts SASL on its own only during registration. A `sasl` capability offered after numeric
 001 gets no credentials, whether the earlier exchange succeeded, failed or never ran, because
-behind a bouncer such a later offer can come from the upstream network. An app that wants a late
+behind a bouncer such a later offer can come from the upstream network. A 001 counts from the
+moment it is read, even when it arrives inside a batch that holds it back. An app that wants a late
 login calls `Session::reauthenticate`, whose failure is reported as `AuthenticationFailed` and
 never closes the connection.
 After a SASL success that names no account (903 without 900, or 907), `State::account` is

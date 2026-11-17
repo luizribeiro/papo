@@ -4173,6 +4173,11 @@ impl Session {
                     .map_or(message, |redacted| redacted.as_ref());
                 self.observe_server_time(now, &message);
                 self.remember_ops_only(&message);
+                // A batch may hold the 001 back or never release it, while the CAP lines that
+                // could start a login arrive untagged.
+                if message.command_is("001") {
+                    self.sasl.handle_welcome();
+                }
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
                 }

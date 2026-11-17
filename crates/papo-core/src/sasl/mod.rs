@@ -445,16 +445,17 @@ impl SaslSession {
         self.proof = Proof::Unverified;
     }
 
+    pub(super) fn handle_welcome(&mut self) {
+        self.registration = Registration::Welcomed;
+        self.remaining.clear();
+    }
+
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
         message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        if message.command_is("001") {
-            self.registration = Registration::Welcomed;
-            self.remaining.clear();
-        }
         if self.handle_status(now, message, outbox) {
             return Handled::Yes;
         }

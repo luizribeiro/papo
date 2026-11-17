@@ -505,6 +505,31 @@ fn a_repeated_sasl_ack_does_not_start_the_next_mechanism_early() {
     .client("AUTHENTICATE PLAIN");
 }
 
+fn sasl_ack_beside_a_batched_welcome(batch_type: &str) -> Transcript {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))))
+        .connect_default()
+        .server(":bouncer.papo.test CAP * LS :batch sasl=PLAIN")
+        .client("CAP REQ :batch sasl")
+        .server(&format!(":bouncer.papo.test BATCH +welcome {batch_type}"))
+        .server("@batch=welcome :bouncer.papo.test 001 papo :Welcome to soju, papo")
+        .server(":bouncer.papo.test CAP * ACK :batch sasl")
+        .no_client()
+        .server(":bouncer.papo.test BATCH -welcome")
+        .no_client()
+}
+
+#[test]
+fn sasl_ack_while_a_batch_holds_the_welcome_sends_no_credentials() {
+    sasl_ack_beside_a_batched_welcome("metadata")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("001")))
+        .no_event();
+}
+
+#[test]
+fn sasl_ack_beside_a_welcome_a_batch_drops_sends_no_credentials() {
+    sasl_ack_beside_a_batched_welcome("draft/isupport").no_event();
+}
+
 #[test]
 fn starts_sasl_after_ack_and_holds_cap_end() {
     Transcript::new(
