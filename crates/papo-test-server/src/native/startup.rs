@@ -8,6 +8,7 @@ const IDLE_LIMIT: Duration = Duration::from_secs(10);
 pub(crate) struct StartupBudget {
     launched: Instant,
     sampled: Instant,
+    cpu: Duration,
     idle: Duration,
 }
 
@@ -16,21 +17,25 @@ impl StartupBudget {
         Self {
             launched: now,
             sampled: now,
+            cpu: Duration::ZERO,
             idle: Duration::ZERO,
         }
     }
 
+    /// Charges the time since the last sample as idle unless the child was busy or used CPU.
     pub(crate) fn observe(&mut self, now: Instant, activity: Activity) -> Result<(), String> {
-        if !activity.busy {
+        if !activity.busy && activity.cpu <= self.cpu {
             self.idle += now.saturating_duration_since(self.sampled);
         }
         self.sampled = now;
+        self.cpu = self.cpu.max(activity.cpu);
         if self.idle < IDLE_LIMIT {
             return Ok(());
         }
         Err(format!(
-            "stayed idle before becoming ready ({:.1} s idle, {:.1} s since launch)",
+            "stayed idle before becoming ready ({:.1} s idle, {:.1} s CPU, {:.1} s since launch)",
             self.idle.as_secs_f64(),
+            self.cpu.as_secs_f64(),
             now.saturating_duration_since(self.launched).as_secs_f64(),
         ))
     }
@@ -61,7 +66,10 @@ mod tests {
         assert!(budget.observe(at(9_999), IDLE).is_ok());
         assert_eq!(
             budget.observe(at(10_000), IDLE),
-            Err("stayed idle before becoming ready (10.0 s idle, 10.0 s since launch)".into())
+            Err(
+                "stayed idle before becoming ready (10.0 s idle, 0.0 s CPU, 10.0 s since launch)"
+                    .into()
+            )
         );
     }
 
@@ -75,7 +83,36 @@ mod tests {
         assert!(budget.observe(at(69_999), IDLE).is_ok());
         assert_eq!(
             budget.observe(at(70_000), IDLE),
-            Err("stayed idle before becoming ready (10.0 s idle, 70.0 s since launch)".into())
+            Err(
+                "stayed idle before becoming ready (10.0 s idle, 0.0 s CPU, 70.0 s since launch)"
+                    .into()
+            )
+        );
+    }
+
+    #[test]
+    fn cpu_used_between_samples_is_not_idle() {
+        let launch = Instant::now();
+        let mut budget = StartupBudget::new(launch);
+        let ran = |millis| Activity {
+            busy: false,
+            cpu: Duration::from_millis(millis),
+        };
+
+        assert!(
+            budget
+                .observe(launch + Duration::from_secs(60), ran(1_250))
+                .is_ok()
+        );
+        assert!(
+            budget
+                .observe(launch + Duration::from_secs(69), ran(1_250))
+                .is_ok()
+        );
+        assert!(
+            budget
+                .observe(launch + Duration::from_secs(70), ran(1_250))
+                .is_err()
         );
     }
 }
