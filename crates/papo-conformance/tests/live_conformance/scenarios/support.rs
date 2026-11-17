@@ -52,6 +52,7 @@ pub(super) fn confirmed_redaction(
     (redacts, msgid, *server_time)
 }
 
+#[track_caller]
 pub(super) fn assert_delivery_tags(
     received_id: Option<&papo::MessageId>,
     received_time: Option<papo::ServerTime>,
@@ -59,15 +60,42 @@ pub(super) fn assert_delivery_tags(
     sent_time: Option<papo::ServerTime>,
     profile: DeploymentProfile,
 ) {
-    assert_eq!(received_id, Some(sent_id));
-    assert!(received_time.is_some());
-    assert!(sent_time.is_some());
+    if let Err(mismatch) =
+        check_delivery_tags(received_id, received_time, sent_id, sent_time, profile)
+    {
+        panic!(
+            "{mismatch:?} on {profile:?}: delivered {received_id:?} at {received_time:?}, sent \
+             {sent_id:?} at {sent_time:?}"
+        );
+    }
+}
 
+#[derive(Debug, PartialEq)]
+enum DeliveryMismatch {
+    Msgid,
+    MissingServerTime,
+    Timestamps,
+}
+
+fn check_delivery_tags(
+    received_id: Option<&papo::MessageId>,
+    received_time: Option<papo::ServerTime>,
+    sent_id: &papo::MessageId,
+    sent_time: Option<papo::ServerTime>,
+    profile: DeploymentProfile,
+) -> Result<(), DeliveryMismatch> {
+    if received_id != Some(sent_id) {
+        return Err(DeliveryMismatch::Msgid);
+    }
+    if received_time.is_none() || sent_time.is_none() {
+        return Err(DeliveryMismatch::MissingServerTime);
+    }
     // Server-time requires a timestamp on each delivered copy, not a shared timestamp. Solanum
     // stamps copies during outbound delivery; the other fixture servers stamp once before fanout.
-    if profile != DeploymentProfile::Solanum {
-        assert_eq!(received_time, sent_time);
+    if profile != DeploymentProfile::Solanum && received_time != sent_time {
+        return Err(DeliveryMismatch::Timestamps);
     }
+    Ok(())
 }
 
 pub(super) fn logged_in_account(state: &State) -> &AccountName {
@@ -382,30 +410,86 @@ mod tests {
         assert_eq!(reaction_or_skip(Ok::<_, Error>("👍")).unwrap(), "👍");
     }
 
-    use super::assert_delivery_tags;
+    use super::{DeliveryMismatch, check_delivery_tags};
 
     #[test]
     fn solanum_delivery_copies_may_have_distinct_timestamps() {
         let id = MessageId::from("RfcBTzyxY120004");
-        assert_delivery_tags(
-            Some(&id),
-            Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap()),
-            &id,
-            Some(papo::ServerTime::from_stored_millis(1_793_591_285_985).unwrap()),
-            DeploymentProfile::Solanum,
+        assert_eq!(
+            check_delivery_tags(
+                Some(&id),
+                Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap()),
+                &id,
+                Some(papo::ServerTime::from_stored_millis(1_793_591_285_985).unwrap()),
+                DeploymentProfile::Solanum,
+            ),
+            Ok(())
         );
     }
 
     #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
+    fn shared_stamp_profiles_accept_equal_delivery_timestamps() {
+        let id = MessageId::from("RfcBTzyxY120006");
+        let stamp = papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap();
+        assert_eq!(
+            check_delivery_tags(
+                Some(&id),
+                Some(stamp),
+                &id,
+                Some(stamp),
+                DeploymentProfile::ErgoDefault
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
     fn shared_stamp_profiles_require_equal_delivery_timestamps() {
         let id = MessageId::from("RfcBTzyxY120005");
-        assert_delivery_tags(
-            Some(&id),
-            Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap()),
-            &id,
-            Some(papo::ServerTime::from_stored_millis(1_793_591_285_985).unwrap()),
-            DeploymentProfile::ErgoDefault,
+        assert_eq!(
+            check_delivery_tags(
+                Some(&id),
+                Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap()),
+                &id,
+                Some(papo::ServerTime::from_stored_millis(1_793_591_285_985).unwrap()),
+                DeploymentProfile::ErgoDefault,
+            ),
+            Err(DeliveryMismatch::Timestamps)
         );
+    }
+
+    #[test]
+    fn deliveries_need_the_sent_msgid_and_both_timestamps() {
+        let sent = MessageId::from("RfcBTzyxY120007");
+        let other = MessageId::from("RfcBTzyxY120008");
+        let stamp = Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap());
+        let cases = [
+            (Some(&other), stamp, stamp, DeliveryMismatch::Msgid),
+            (None, stamp, stamp, DeliveryMismatch::Msgid),
+            (
+                Some(&sent),
+                None,
+                stamp,
+                DeliveryMismatch::MissingServerTime,
+            ),
+            (
+                Some(&sent),
+                stamp,
+                None,
+                DeliveryMismatch::MissingServerTime,
+            ),
+        ];
+        for (received_id, received_time, sent_time, expected) in cases {
+            assert_eq!(
+                check_delivery_tags(
+                    received_id,
+                    received_time,
+                    &sent,
+                    sent_time,
+                    DeploymentProfile::Solanum
+                ),
+                Err(expected)
+            );
+        }
     }
 }
