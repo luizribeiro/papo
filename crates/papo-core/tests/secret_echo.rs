@@ -2,7 +2,7 @@
 
 mod support;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use papo_core::{Config, Event, RateLimit, Secret, Session};
 use papo_proto::Line;
@@ -14,6 +14,7 @@ fn session(now: Instant, server: &str, caps: &str) -> Session {
         Config::default()
             .nick("papo")
             .allow_insecure_auth(true)
+            .request_timeout(Duration::from_secs(30))
             .rate_limit(RateLimit::unlimited()),
     );
     register(&mut session, now, server, caps);
@@ -88,6 +89,25 @@ fn the_unlabelled_echo_of_a_secret_send_is_redacted() {
         std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>()
     );
     assert!(!rest.contains(PASSWORD), "{rest}");
+}
+
+#[test]
+fn a_late_echo_of_a_timed_out_secret_request_is_redacted() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session.request(now, identify()).unwrap();
+    while session.poll_transmit().is_some() {}
+    let late = now + Duration::from_secs(31);
+    session.handle_timeout(late);
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::RequestTimedOut { .. }))
+    );
+
+    session.handle_line(late, format!("@label=0;{}", &ergo_echo()[1..]).as_bytes());
+    support::queue_debug_marker(&mut session);
+    support::assert_session_debug_redacts(&session, PASSWORD);
+    assert_redacted_echo(&echo_line(&mut session));
 }
 
 #[test]
