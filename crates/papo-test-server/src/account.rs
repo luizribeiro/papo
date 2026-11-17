@@ -137,17 +137,19 @@ fn await_account_welcome(
     loop {
         match read_reply(connection, step, registration_verdict)? {
             Registration::Welcomed => return Ok(()),
-            Registration::NickInUse if Instant::now() < deadline => {
-                send(connection, &format!("NICK {name}\r\n"))?;
-            }
-            Registration::NickInUse => {
+            Registration::NickInUse if deadline_passed(deadline) => {
                 return Err(io::Error::new(
                     io::ErrorKind::TimedOut,
                     format!("nick {name} stayed in use while {step}"),
                 ));
             }
+            Registration::NickInUse => send(connection, &format!("NICK {name}\r\n"))?,
         }
     }
+}
+
+fn deadline_passed(deadline: Instant) -> bool {
+    deadline.saturating_duration_since(Instant::now()).is_zero()
 }
 
 fn registration_verdict(line: &str) -> Option<io::Result<Registration>> {
@@ -290,6 +292,12 @@ mod tests {
     }
 
     fn scripted_server(lines: &str) -> (BufReader<TcpStream>, TcpStream) {
+        let (connection, server) = stalled_server(lines);
+        server.shutdown(Shutdown::Write).unwrap();
+        (connection, server)
+    }
+
+    fn stalled_server(lines: &str) -> (BufReader<TcpStream>, TcpStream) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
         let (mut server, _) = listener.accept().unwrap();
@@ -306,7 +314,7 @@ mod tests {
 
     #[test]
     fn a_read_timeout_names_the_stalled_step() {
-        let (mut connection, _server) = scripted_server(ERGO_LOGIN);
+        let (mut connection, _server) = stalled_server(ERGO_LOGIN);
         connection
             .get_ref()
             .set_read_timeout(Some(Duration::from_millis(50)))
@@ -329,8 +337,7 @@ mod tests {
 
     #[test]
     fn a_closed_connection_names_the_stalled_step() {
-        let (mut connection, server) = scripted_server(ERGO_LOGIN);
-        server.shutdown(Shutdown::Write).unwrap();
+        let (mut connection, _server) = scripted_server(ERGO_LOGIN);
         let error = wait_for_welcome(&mut connection);
         assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
         assert_eq!(
