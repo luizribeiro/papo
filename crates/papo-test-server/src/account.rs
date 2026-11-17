@@ -101,14 +101,16 @@ pub fn change_account_password_at(
         &mut connection,
         &format!("PRIVMSG NickServ :PASSWD {current} {replacement} {replacement}\r\n"),
     )?;
-    read_reply(&mut connection, |line| {
-        (line.contains("NickServ") && line.contains(" NOTICE ")).then(|| {
-            if line.contains("Password changed") {
-                Ok(())
-            } else {
-                Err(io::Error::other("NickServ rejected the password change"))
-            }
-        })
+    read_reply(&mut connection, passwd_verdict)
+}
+
+fn passwd_verdict(line: &str) -> Option<io::Result<()>> {
+    (line.contains("NickServ") && line.contains(" NOTICE ")).then(|| {
+        if line.contains("Password changed") {
+            Ok(())
+        } else {
+            Err(io::Error::other("NickServ rejected the password change"))
+        }
     })
 }
 
@@ -131,17 +133,19 @@ pub(crate) fn register_atheme(address: SocketAddr, name: &str, password: &str) -
         &mut connection,
         &format!("PRIVMSG NickServ :REGISTER {password} papo@example.invalid\r\n"),
     )?;
-    read_reply(&mut connection, |line| {
-        if line.contains(" is now registered to ") {
-            Some(Ok(()))
-        } else if line.contains(" is already registered.") {
-            Some(Err(io::Error::other(
-                "Atheme rejected account registration",
-            )))
-        } else {
-            None
-        }
-    })
+    read_reply(&mut connection, atheme_verdict)
+}
+
+fn atheme_verdict(line: &str) -> Option<io::Result<()>> {
+    if line.contains(" is now registered to ") {
+        Some(Ok(()))
+    } else if line.contains(" is already registered.") {
+        Some(Err(io::Error::other(
+            "Atheme rejected account registration",
+        )))
+    } else {
+        None
+    }
 }
 
 fn credentials_valid(name: &str, password: &str) -> bool {
@@ -193,7 +197,7 @@ mod tests {
         net::{Shutdown, SocketAddr, TcpListener, TcpStream},
     };
 
-    use super::{credentials_valid, read_until, register_atheme};
+    use super::{atheme_verdict, credentials_valid, passwd_verdict, read_until, register_atheme};
 
     fn scripted_server(lines: &str) -> (BufReader<TcpStream>, TcpStream) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -228,6 +232,30 @@ mod tests {
         let mut answered = String::new();
         io::Read::read_to_string(&mut server, &mut answered).unwrap();
         assert_eq!(answered, "PONG papo-password\r\n");
+    }
+
+    #[test]
+    fn reads_nickserv_passwd_answers_from_ergo() {
+        let changed = ":NickServ!NickServ@localhost NOTICE papo-password :Password changed";
+        let refused = ":NickServ!NickServ@localhost NOTICE papo-password :Password incorrect";
+        let mode = ":ergo.test 221 papo-password +Zi";
+        assert!(passwd_verdict(changed).unwrap().is_ok());
+        assert!(passwd_verdict(refused).unwrap().is_err());
+        assert!(passwd_verdict(mode).is_none());
+    }
+
+    #[test]
+    fn reads_nickserv_register_answers_from_atheme() {
+        let registered = ":nickserv!nickserv@services.int NOTICE papo-account \
+                          :papo-account is now registered to papo@example.invalid.";
+        let taken = ":nickserv!nickserv@services.int NOTICE papo-account \
+                     :papo-account is already registered.";
+        let reminder = ":nickserv!nickserv@services.int NOTICE papo-account \
+                        :This nickname is registered. Please choose a different nickname, \
+                        or identify via /msg nickserv IDENTIFY papo-account <password>";
+        assert!(atheme_verdict(registered).unwrap().is_ok());
+        assert!(atheme_verdict(taken).unwrap().is_err());
+        assert!(atheme_verdict(reminder).is_none());
     }
 
     #[test]
