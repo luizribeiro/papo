@@ -189,6 +189,9 @@ SASL failure numerics for raw, post-registration authentication attempts are now
 warnings without closing the connection or changing papo's completed SASL exchange.
 An account reported during SASL is published only after the exchange succeeds, including SCRAM
 server-proof verification; failed or aborted exchanges discard the pending account.
+A successful SASL login is never repeated on its own when the server advertises `sasl` again;
+behind a bouncer such a later offer can come from the upstream network. `Session::reauthenticate`
+is the only way to log in again on the same connection.
 
 `History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
 and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.

@@ -353,11 +353,11 @@ impl SaslSession {
         advertised: Option<&str>,
         outbox: &mut Outbox,
     ) {
-        if self.completion != Completion::Pending && self.account.is_some() {
-            return;
-        }
-        if self.completion != Completion::Pending {
-            self.reset_exchange();
+        match self.completion {
+            // Behind a bouncer, a later `CAP NEW sasl` can come from the upstream network.
+            Completion::Success => return,
+            Completion::Failed => self.reset_exchange(),
+            Completion::Pending => {}
         }
         self.plain_fallback = Self::plain_fallback(&self.configured, security);
         if let Some(advertised) = advertised {
