@@ -103,6 +103,9 @@
 "who_expected_account::an_account_carrying_handle_reaches_only_a_holder_logged_in_to_that_account" = [
   "security.guard-proof.who-expected-account",
 ]
+"reply_subjects::a_reply_subject_seen_leaving_or_renaming_is_never_the_next_holder" = [
+  "security.guard-proof.reply-subject-at-arrival",
+]
 "unknown_casemapping::an_unknown_casemapping_never_merges_bracket_nicks" = [
   "security.casemapping.unknown-token",
 ]

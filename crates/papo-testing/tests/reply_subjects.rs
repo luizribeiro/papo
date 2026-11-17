@@ -1,4 +1,4 @@
-//! A person a WHO reply describes is the one the server described: a send through the
+//! A person a WHO or WHOIS reply describes is the one the server described: a send through the
 //! reply's handle never reaches a later holder of the nickname.
 //!
 //! A labeled-response batch is dispatched when it closes, so a departure inside it has been
@@ -21,7 +21,7 @@ struct Reply {
     rows: &'static [&'static str],
 }
 
-const REPLIES: [Reply; 2] = [
+const REPLIES: [Reply; 3] = [
     Reply {
         request: "WHO alice %tcuhnfar,152",
         rows: &[
@@ -34,6 +34,14 @@ const REPLIES: [Reply; 2] = [
         rows: &[
             ":offline.test 352 papo #review ~alice cloak.example offline.test alice H :0 Alice Liddell",
             ":offline.test 315 papo alice :End of WHO list",
+        ],
+    },
+    Reply {
+        request: "WHOIS alice",
+        rows: &[
+            ":offline.test 311 papo alice ~alice cloak.example * :Alice Liddell",
+            ":offline.test 330 papo alice alice-account :is logged in as",
+            ":offline.test 318 papo alice :End of /WHOIS list",
         ],
     },
 ];
@@ -85,10 +93,15 @@ async fn send_after(
     wire: &mut Wire,
     between: &[&str],
 ) -> (Option<String>, Result<(), Error>) {
+    let whois = reply.request.starts_with("WHOIS");
     let sending = tokio::spawn({
         let client = client.clone();
         async move {
-            let alice = client.who("alice").await?.remove(0).user;
+            let alice = if whois {
+                client.whois("alice").await?.unwrap().user
+            } else {
+                client.who("alice").await?.remove(0).user
+            };
             client.privmsg(alice, SECRET).await.map(drop)
         }
     });
