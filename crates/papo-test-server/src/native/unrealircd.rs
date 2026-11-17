@@ -64,7 +64,7 @@ set {{
  modes-on-join "+ntH 100:1d";
  kline-address "papo@example.invalid"; network-name "papo"; default-server "irc.papo.test"; help-channel "#help";
  network-icon 'https://icon.papo.test/papo.png';
- options {{ identd-check; }}
+ options {{ dont-resolve; }}
  plaintext-policy {{ user allow; oper warn; server warn; }}
  anti-flood {{ everyone {{ connect-flood 255:10; }} unknown-users {{ nick-flood 255:10; lag-penalty 1; lag-penalty-bytes 10000; }} }}
 }}
@@ -209,7 +209,13 @@ fn required_env(name: &str) -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, fs};
+    use std::{
+        collections::HashSet,
+        fs,
+        io::{BufRead, BufReader, Write},
+        net::TcpStream,
+        time::Duration,
+    };
 
     use super::super::directory::TemporaryDirectory;
 
@@ -236,6 +242,54 @@ mod tests {
         assert!(unreal.contains("oper papo"));
         assert!(unreal.contains("password \"papo-oper-password\""));
         assert!(!unreal.contains("sts-policy"));
+        assert!(unreal.contains("options { dont-resolve; }"));
+        assert!(!unreal.contains("identd-check"));
+    }
+
+    #[test]
+    fn runs_without_hostname_or_ident_lookups() {
+        let server = super::TestServer::start().unwrap();
+        let stream = TcpStream::connect(server.config.plaintext).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .unwrap();
+        let mut connection = BufReader::new(stream);
+        let mut lines = Vec::new();
+        connection
+            .get_mut()
+            .write_all(b"NICK papo-oper\r\nUSER papo 0 * :papo\r\n")
+            .unwrap();
+        while !lines
+            .last()
+            .is_some_and(|line: &String| line.contains("options::dont-resolve:"))
+        {
+            let mut line = String::new();
+            assert_ne!(connection.read_line(&mut line).unwrap(), 0, "{lines:?}");
+            if let Some(token) = line.strip_prefix("PING ") {
+                let pong = format!("PONG {token}");
+                connection.get_mut().write_all(pong.as_bytes()).unwrap();
+            } else if line.contains(" 001 ") {
+                let stats = b"OPER papo papo-oper-password\r\nSTATS S\r\n";
+                connection.get_mut().write_all(stats).unwrap();
+            }
+            lines.push(line.trim_end().to_owned());
+        }
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.ends_with(" papo-oper!papo@localhost")),
+            "{lines:?}"
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.ends_with(":options::identd-check: 0")),
+            "{lines:?}"
+        );
+        assert!(
+            lines.last().unwrap().ends_with(":options::dont-resolve: 1"),
+            "{lines:?}"
+        );
     }
 
     #[test]
