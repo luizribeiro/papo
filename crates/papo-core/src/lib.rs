@@ -1861,32 +1861,9 @@ impl Response {
     /// Returns the first standard failure or error numeric in this response.
     #[must_use]
     pub fn error(&self) -> Option<ServerError> {
-        self.lines.iter().find_map(|message| {
-            let message = message.as_ref();
-            if let Some(reply) = StandardReplyView::parse(&message)
-                && reply.kind == StandardReplyKind::Fail
-            {
-                return Some(ServerError::Standard {
-                    command: reply.command.to_ascii_uppercase(),
-                    code: reply.code.to_ascii_uppercase(),
-                    context: reply.context.into_iter().map(str::to_owned).collect(),
-                    description: reply.description.to_owned(),
-                    #[cfg(feature = "unstable")]
-                    refusal: Refusal::from_standard_enabled(
-                        reply.command,
-                        reply.code,
-                        &self.enabled_features,
-                    ),
-                });
-            }
-            let Command::Numeric(numeric) = message.command() else {
-                return None;
-            };
-            (numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN).then(|| ServerError::Numeric {
-                numeric,
-                params: message.params().map(str::to_owned).collect(),
-            })
-        })
+        self.lines
+            .iter()
+            .find_map(|message| server_error(&message.as_ref(), &self.enabled_features))
     }
 
     /// Returns the first refusal category in this response.
@@ -6952,6 +6929,36 @@ fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<
             })
         })
         .collect()
+}
+
+/// The failure `message` reports, when it is a standard `FAIL` or an error numeric.
+#[allow(
+    unused_variables,
+    reason = "only the unstable refusal classification reads the enabled features"
+)]
+fn server_error(
+    message: &LineRef<'_>,
+    enabled_features: &BTreeSet<Feature>,
+) -> Option<ServerError> {
+    if let Some(reply) = StandardReplyView::parse(message)
+        && reply.kind == StandardReplyKind::Fail
+    {
+        return Some(ServerError::Standard {
+            command: reply.command.to_ascii_uppercase(),
+            code: reply.code.to_ascii_uppercase(),
+            context: reply.context.into_iter().map(str::to_owned).collect(),
+            description: reply.description.to_owned(),
+            #[cfg(feature = "unstable")]
+            refusal: Refusal::from_standard_enabled(reply.command, reply.code, enabled_features),
+        });
+    }
+    let Command::Numeric(numeric) = message.command() else {
+        return None;
+    };
+    (numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN).then(|| ServerError::Numeric {
+        numeric,
+        params: message.params().map(str::to_owned).collect(),
+    })
 }
 
 fn sent_info(message: &LineRef<'_>) -> Option<SentInfo> {
