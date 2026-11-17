@@ -420,6 +420,44 @@ fn bouncer_sasl_return_after_an_unnamed_success_sends_no_credentials() {
 }
 
 #[test]
+fn bouncer_sasl_return_after_a_failed_login_sends_no_credentials() {
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
+    )
+    .connect_default()
+    .server(":bouncer.papo.test CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":bouncer.papo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .server(":bouncer.papo.test 904 papo :Invalid username or password")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .client("CAP END")
+    .server(":bouncer.papo.test CAP * DEL sasl")
+    .event(|event| {
+        matches!(event, Event::CapsChanged { removed, .. }
+                if removed.contains_key(&cap::SASL))
+    })
+    .welcome(":bouncer.papo.test 001 papo :Welcome to soju, papo")
+    .server(":bouncer.papo.test 422 papo :No MOTD")
+    .event(|event| matches!(event, Event::Connected(_)))
+    .server(":bouncer.papo.test CAP papo NEW sasl=PLAIN,ANONYMOUS")
+    .client("CAP REQ :sasl")
+    .server(":bouncer.papo.test CAP papo ACK sasl")
+    .event(|event| {
+        matches!(event, Event::CapsChanged { added, .. }
+                if added.contains_key(&cap::SASL))
+    })
+    .event(|event| {
+        matches!(event, Event::FeaturesChanged { added, .. }
+                if added.contains(&papo_core::Feature::Sasl))
+    })
+    .no_client()
+    .no_event();
+}
+
+#[test]
 fn starts_sasl_after_ack_and_holds_cap_end() {
     Transcript::new(
         Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),

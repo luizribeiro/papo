@@ -1,4 +1,4 @@
-//! A bouncer that re-advertises SASL after registration never receives the login again.
+//! A bouncer that re-advertises SASL after registration never receives the login.
 
 use std::time::Duration;
 
@@ -54,29 +54,43 @@ async fn assert_still_connected(events: &mut papo::Events) {
     }
 }
 
+async fn assert_late_offer_gets_no_login(sasl: Sasl, outcome: &str) {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://bouncer.papo.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .sasl(sasl)
+            .allow_insecure_auth(true),
+    );
+    log_in_to_the_bouncer(&mut wire, outcome).await;
+    welcome_before_the_upstream_registers(&mut wire).await;
+
+    wire.server(":bouncer.papo.test CAP papo-wire NEW sasl=PLAIN,ANONYMOUS")
+        .await;
+    expect_sent(&mut wire, "CAP REQ :sasl").await;
+    wire.server(":bouncer.papo.test CAP papo-wire ACK sasl")
+        .await;
+    wire.server("PING :bouncer.papo.test").await;
+    expect_sent(&mut wire, "PONG bouncer.papo.test").await;
+    assert_still_connected(&mut events).await;
+}
+
 #[tokio::test]
 async fn bouncer_login_never_reaches_a_late_sasl_offer() {
     for success in [
         ":bouncer.papo.test 903 papo-wire :SASL authentication successful",
         ":bouncer.papo.test 907 papo-wire :You have already authenticated using SASL",
     ] {
-        let (_client, mut events, mut wire) = wire(
-            papo::Client::builder("irc://bouncer.papo.test", "papo-wire")
-                .rate_limit(papo::RateLimit::unlimited())
-                .reconnect(Reconnect::never())
-                .sasl(Sasl::plain("alice", papo::Secret::new(PASSWORD)))
-                .allow_insecure_auth(true),
-        );
-        log_in_to_the_bouncer(&mut wire, success).await;
-        welcome_before_the_upstream_registers(&mut wire).await;
-
-        wire.server(":bouncer.papo.test CAP papo-wire NEW sasl=PLAIN,ANONYMOUS")
+        assert_late_offer_gets_no_login(Sasl::plain("alice", papo::Secret::new(PASSWORD)), success)
             .await;
-        expect_sent(&mut wire, "CAP REQ :sasl").await;
-        wire.server(":bouncer.papo.test CAP papo-wire ACK sasl")
-            .await;
-        wire.server("PING :bouncer.papo.test").await;
-        expect_sent(&mut wire, "PONG bouncer.papo.test").await;
-        assert_still_connected(&mut events).await;
     }
+}
+
+#[tokio::test]
+async fn failed_bouncer_login_never_reaches_a_late_sasl_offer() {
+    assert_late_offer_gets_no_login(
+        Sasl::plain("alice", papo::Secret::new(PASSWORD)).optional(),
+        ":bouncer.papo.test 904 papo-wire :Invalid username or password",
+    )
+    .await;
 }
