@@ -60,7 +60,7 @@ connect "services.papo.test" {{ host = "127.0.0.1"; port = 0; send_password = "p
 service {{ name = "services.papo.test"; }};
 exempt {{ ip = "127.0.0.1"; }};
 channel {{ use_invex = yes; use_except = yes; no_create_on_split = no; no_join_on_split = no; disable_local_channels = no; displayed_usercount = 0; autochanmodes = "+nt"; invite_notify_notice = no; }};
-general {{ throttle_count = 100; pace_wait_simple = 0 second; pace_wait = 0 second; connect_timeout = 1 second; sasl_service = "SaslServ"; max_monitor = 100; post_registration_delay = 0 seconds; }};
+general {{ throttle_count = 100; pace_wait_simple = 0 second; pace_wait = 0 second; connect_timeout = 1 second; sasl_service = "SaslServ"; max_monitor = 100; post_registration_delay = 0 seconds; disable_auth = yes; }};
 modules {{ path = "{modules}"; path = "{modules}/autoload"; }};
 "#,
                 cert = path("server.pem"),
@@ -103,6 +103,7 @@ mod tests {
         assert!(ircd.contains("extensions/tag_message_id"));
         assert!(ircd.contains(&format!("sslport = {}", config.tls.port())));
         assert!(ircd.contains("connect_timeout = 1 second"));
+        assert!(ircd.contains("disable_auth = yes;"));
         assert!(
             ircd.contains("oper:kill, oper:kline, oper:local_kill, oper:mass_notice, oper:routing")
         );

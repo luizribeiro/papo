@@ -76,6 +76,26 @@ impl Drop for TestServer {
 
 #[cfg(test)]
 mod tests {
+    use super::super::test_client::lines_until;
+
+    #[test]
+    fn skips_the_ident_lookup() {
+        let server = super::TestServer::start().unwrap();
+        let lines = lines_until(server.plaintext, "papo-ident", b"", |line| {
+            line.split(' ').nth(1) == Some("001")
+        });
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.ends_with(":*** Ident disabled, not checking ident")),
+            "{lines:?}"
+        );
+        assert!(
+            !lines.iter().any(|line| line.contains("Checking Ident")),
+            "{lines:?}"
+        );
+    }
+
     #[test]
     fn registers_an_account_through_linked_atheme() {
         let server = super::TestServer::start().unwrap();
