@@ -223,6 +223,7 @@ fn spawn_ergo(
             configuration.websocket,
             configuration.secure_websocket,
         ],
+        StartupBudget::new(Instant::now()),
         &mut child,
     )?;
     Ok(child)
@@ -241,7 +242,7 @@ pub(crate) fn wait_for_child<const N: usize>(
     )
 }
 
-fn wait_for_child_with<const N: usize>(
+pub(crate) fn wait_for_child_with<const N: usize>(
     server_name: &str,
     addresses: [SocketAddr; N],
     mut budget: StartupBudget,

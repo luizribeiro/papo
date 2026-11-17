@@ -1,10 +1,6 @@
 use std::{
-    fs, io,
-    net::SocketAddr,
-    os::unix::net::UnixDatagram,
-    path::Path,
-    process::Command,
-    time::{Duration, Instant},
+    fs, io, net::SocketAddr, os::unix::net::UnixDatagram, path::Path, process::Command,
+    time::Duration,
 };
 
 use super::{process::ServerChild, startup::StartupBudget};
@@ -30,9 +26,9 @@ impl ReadySignal {
     pub(crate) fn wait(
         self,
         _addresses: [SocketAddr; 4],
+        mut budget: StartupBudget,
         child: &mut ServerChild,
     ) -> io::Result<()> {
-        let mut budget = StartupBudget::new(Instant::now());
         let mut message = [0; 512];
         loop {
             child.check("Ergo")?;
@@ -56,5 +52,40 @@ impl ReadySignal {
                 Err(error) => return Err(error),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{io, net::SocketAddr, process::Command};
+
+    use super::ReadySignal;
+    use crate::native::{
+        directory::TemporaryDirectory, process::ServerChild, startup::tests::settled_budget,
+    };
+
+    #[test]
+    fn a_silent_idle_child_spends_the_readiness_budget() {
+        let directory = TemporaryDirectory::create().unwrap();
+        let mut command = Command::new("sleep");
+        command.arg("60");
+        let ready = ReadySignal::bind(directory.path(), &mut command).unwrap();
+        let mut child = ServerChild::spawn(&mut command).unwrap();
+        let budget = settled_budget(child.id(), false);
+
+        let error = ready
+            .wait(
+                [SocketAddr::from(([127, 0, 0, 1], 6667)); 4],
+                budget,
+                &mut child,
+            )
+            .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert!(
+            error
+                .to_string()
+                .starts_with("Ergo did not start: stayed idle before becoming ready (11.")
+        );
     }
 }
