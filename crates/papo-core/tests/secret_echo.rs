@@ -213,6 +213,31 @@ fn a_line_counts_each_of_its_secrets() {
 }
 
 #[test]
+fn refused_secret_sends_make_room_once_their_echo_is_overdue() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    for account in 0..32 {
+        session.send(now, identify_as(account)).unwrap();
+        session.handle_line(
+            now,
+            b":ergo.test 404 papo NickServ :Cannot send to user, you are not registered",
+        );
+    }
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    let almost = now + Duration::from_secs(29);
+    assert_eq!(
+        session.send(almost, identify_as(32)),
+        Err(RequestError::PendingLimit)
+    );
+
+    let overdue = now + Duration::from_secs(30);
+    session.send(overdue, identify_as(32)).unwrap();
+    assert!(echo_of(&mut session, overdue, 0).contains(PASSWORD));
+    assert!(echo_of(&mut session, overdue, 1).contains(":<redacted>"));
+}
+
+#[test]
 fn secret_sends_the_server_never_echoes_are_not_tracked() {
     let now = Instant::now();
     let mut session = session(now, "solanum.test", "server-time");

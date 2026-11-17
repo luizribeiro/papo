@@ -475,7 +475,7 @@ impl Session {
         if let Some(label) = &label {
             message = message.with_tag("label", label);
         }
-        let line = self.encode_user_line(&message)?;
+        let line = self.encode_user_line(now, &message)?;
         if let Some(label) = label {
             let echo = sent.then(|| SentEcho::from_message(&message)).flatten();
             self.requests.insert(
@@ -506,11 +506,12 @@ impl Session {
     /// Encodes a line we send, tracking the secrets its echo will repeat.
     pub(super) fn encode_user_line(
         &mut self,
+        now: Instant,
         message: &Line,
     ) -> Result<crate::WireLine, RequestError> {
         let line = message.encode()?;
         if self.echoes(&message.as_ref()) {
-            self.secret_echoes.track(message)?;
+            self.secret_echoes.track(now, message)?;
         }
         Ok(line)
     }

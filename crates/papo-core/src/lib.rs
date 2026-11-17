@@ -4028,6 +4028,7 @@ impl Session {
         let ctcp_rate_limit = RateLimiter::new(config.ctcp.rate);
         let state = State::new(&config);
         let batches = Batches::new(&config);
+        let secret_echoes = secret_echo::SecretEchoes::new(config.request_timeout);
         Self {
             account_registration: AccountRegistration::default(),
             away_on_connect_sent: false,
@@ -4058,7 +4059,7 @@ impl Session {
             next_transmit_token: 0,
             welcome_state,
             sasl,
-            secret_echoes: secret_echo::SecretEchoes::default(),
+            secret_echoes,
             state,
             state_generation: 0,
             typing_generation: 0,
@@ -4470,7 +4471,7 @@ impl Session {
     ) -> Result<TransmitToken, RequestError> {
         self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
-        let line = self.encode_user_line(&message)?;
+        let line = self.encode_user_line(now, &message)?;
         drop(message);
         let token = TransmitToken(self.next_transmit_token);
         self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
@@ -5055,7 +5056,7 @@ impl Session {
         if self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }
-        let line = self.encode_user_line(&message)?;
+        let line = self.encode_user_line(now, &message)?;
         let id = RequestId(self.next_request_id);
         let who_fence = matches!(matcher, Some(ResponseMatcher::Who(_)))
             .then(|| {
@@ -7500,13 +7501,16 @@ mod tests {
         use papo_proto::{Line, LineRef, Secret};
 
         use crate::secret_echo::SecretEchoes;
+        use std::time::Duration;
+        use web_time::Instant;
 
         const ECHO: &str = "@msgid=RfcBTzyxY120006;time=2026-11-17T10:02:11.482Z :papo!~papo@client.example PRIVMSG NickServ :IDENTIFY alice services-password-5129";
 
         fn tracking_identify() -> SecretEchoes {
-            let mut echoes = SecretEchoes::default();
+            let mut echoes = SecretEchoes::new(Duration::from_secs(30));
             echoes
                 .track(
+                    Instant::now(),
                     &Line::new("PRIVMSG")
                         .param("NickServ")
                         .param(Secret::new("IDENTIFY alice services-password-5129")),
@@ -7568,19 +7572,19 @@ mod tests {
 
         #[test]
         fn an_untracked_session_marks_nothing() {
-            let mut echoes = SecretEchoes::default();
+            let mut echoes = SecretEchoes::new(Duration::from_secs(30));
             echoes
-                .track(&Line::privmsg(
-                    "NickServ",
-                    "IDENTIFY alice services-password-5129",
-                ))
+                .track(
+                    Instant::now(),
+                    &Line::privmsg("NickServ", "IDENTIFY alice services-password-5129"),
+                )
                 .unwrap();
             assert_eq!(echoes.mark_echo(None, &LineRef::parse(ECHO).unwrap()), None);
         }
 
         #[test]
         fn refuses_a_secret_beyond_the_thirty_second_awaiting_its_echo() {
-            let mut echoes = SecretEchoes::default();
+            let mut echoes = SecretEchoes::new(Duration::from_secs(30));
             let identify = |account: usize| {
                 Line::new("PRIVMSG")
                     .param("NickServ")
@@ -7589,14 +7593,14 @@ mod tests {
                     )))
             };
             for account in 0..32 {
-                echoes.track(&identify(account)).unwrap();
+                echoes.track(Instant::now(), &identify(account)).unwrap();
             }
             assert_eq!(
-                echoes.track(&identify(32)),
+                echoes.track(Instant::now(), &identify(32)),
                 Err(crate::RequestError::PendingLimit)
             );
             assert_eq!(
-                echoes.track(&Line::privmsg("NickServ", "INFO alice")),
+                echoes.track(Instant::now(), &Line::privmsg("NickServ", "INFO alice")),
                 Ok(())
             );
         }
