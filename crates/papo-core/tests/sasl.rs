@@ -656,16 +656,32 @@ fn reports_every_failed_mechanism_and_continues_when_optional() {
 
 #[test]
 fn already_authenticated_counts_as_success() {
-    Transcript::new(
-        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
-    )
-    .connect_default()
-    .server("CAP * LS :sasl=PLAIN")
-    .client("CAP REQ :sasl")
-    .server("CAP * ACK :sasl")
-    .client("AUTHENTICATE PLAIN")
-    .server(":ergo.test 907 alice :You have already authenticated using SASL")
-    .client("CAP END");
+    for success in [
+        ":ergo.test 907 alice :You have already authenticated using SASL",
+        ":bouncer.papo.test 903 papo :SASL authentication successful",
+    ] {
+        Transcript::new(
+            Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+        )
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(success)
+        .client("CAP END")
+        .inspect(|session| assert_eq!(session.state().account(), &Account::Unknown));
+    }
+}
+
+#[test]
+fn an_unnamed_reauthentication_keeps_the_known_account() {
+    registered_with_required_sasl()
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN")
+        .server(":soju.test 907 papo :You have already authenticated using SASL")
+        .no_client()
+        .inspect(|session| assert_eq!(session.account(), Some("alice")));
 }
 
 fn registered_with_required_sasl() -> Transcript {

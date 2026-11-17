@@ -192,6 +192,8 @@ server-proof verification; failed or aborted exchanges discard the pending accou
 A successful SASL login is never repeated on its own when the server advertises `sasl` again;
 behind a bouncer such a later offer can come from the upstream network. `Session::reauthenticate`
 is the only way to log in again on the same connection.
+After a SASL success that names no account (903 without 900, or 907), `State::account` is
+`Account::Unknown` rather than `Account::LoggedOut`.
 
 `History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
 and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.

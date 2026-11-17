@@ -284,7 +284,8 @@ impl<'a> MetadataView<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Account {
-    /// No source has reported whether the user is logged in.
+    /// No source has named the user's account or reported them logged out; a server may have
+    /// confirmed a login without naming its account.
     Unknown,
     /// The user is known to be logged out.
     LoggedOut,
@@ -1069,7 +1070,14 @@ impl State {
     }
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
-        let account = Account::from_notify(account, self.casemapping);
+        self.set_own_account(Account::from_notify(account, self.casemapping));
+    }
+
+    pub(crate) fn forget_own_account(&mut self) {
+        self.set_own_account(Account::Unknown);
+    }
+
+    fn set_own_account(&mut self, account: Account) {
         self.users
             .get_mut(self.nick.key())
             .expect("own user is always present")

@@ -5859,6 +5859,7 @@ impl Session {
                     self.state.sync_own_account(Some(&account));
                 }
                 AccountUpdate::LoggedOut => self.state.sync_own_account(None),
+                AccountUpdate::Unknown => self.state.forget_own_account(),
             }
         }
         self.maybe_send_away_on_connect();

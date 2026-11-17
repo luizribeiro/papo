@@ -208,6 +208,7 @@ pub(super) enum AccountUpdate {
     Unchanged,
     LoggedIn(String),
     LoggedOut,
+    Unknown,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -591,6 +592,8 @@ impl SaslSession {
                 self.completion = Completion::Success;
                 if let Some(account) = self.pending_account.take() {
                     self.publish_account(Some(account));
+                } else if self.account.is_none() {
+                    self.account_update = AccountUpdate::Unknown;
                 }
             }
         } else if message.command_is("904") || message.command_is("905") {
