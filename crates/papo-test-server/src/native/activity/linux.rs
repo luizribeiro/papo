@@ -13,10 +13,7 @@ pub(crate) fn of(pid: u32) -> Activity {
     tasks
         .flatten()
         .filter_map(|task| parse(&fs::read_to_string(task.path().join("stat")).ok()?))
-        .fold(Activity::default(), |total, thread| Activity {
-            busy: total.busy || thread.busy,
-            cpu: total.cpu + thread.cpu,
-        })
+        .sum()
 }
 
 fn parse(stat: &str) -> Option<Activity> {
