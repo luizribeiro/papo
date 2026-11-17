@@ -216,7 +216,6 @@ fn spawn_ergo(
     let mut command = configuration.command("run", directory)?;
     let ready = ReadySignal::bind(directory.path(), &mut command)?;
     let mut child = ServerChild::spawn(&mut command)?;
-    let deadline = Instant::now() + Duration::from_secs(10);
     ready.wait(
         [
             configuration.plaintext,
@@ -224,7 +223,6 @@ fn spawn_ergo(
             configuration.websocket,
             configuration.secure_websocket,
         ],
-        deadline,
         &mut child,
     )?;
     Ok(child)

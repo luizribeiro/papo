@@ -16,6 +16,7 @@ mod soju;
 mod soju_config;
 mod solanum;
 mod solanum_config;
+mod startup;
 mod unrealircd;
 
 pub use fault::FaultProxy;

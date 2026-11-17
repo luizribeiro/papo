@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::process::ServerChild;
+use super::{process::ServerChild, startup::StartupBudget};
 
 pub(crate) struct ReadySignal {
     socket: UnixDatagram,
@@ -30,12 +30,13 @@ impl ReadySignal {
     pub(crate) fn wait(
         self,
         _addresses: [SocketAddr; 4],
-        deadline: Instant,
         child: &mut ServerChild,
     ) -> io::Result<()> {
+        let mut budget = StartupBudget::new(Instant::now());
         let mut message = [0; 512];
-        while Instant::now() < deadline {
+        loop {
             child.check("Ergo")?;
+            child.charge("Ergo", &mut budget)?;
             match self.socket.recv(&mut message) {
                 Ok(count)
                     if message[..count]
@@ -55,6 +56,5 @@ impl ReadySignal {
                 Err(error) => return Err(error),
             }
         }
-        Err(child.timeout("Ergo"))
     }
 }

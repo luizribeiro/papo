@@ -4,9 +4,10 @@ use std::{
     process::{Child, Command, ExitStatus, Stdio},
     sync::{Arc, Mutex},
     thread,
+    time::Instant,
 };
 
-use super::activity;
+use super::{activity, startup::StartupBudget};
 
 const STDERR_LIMIT: usize = 4096;
 const START_ATTEMPTS: usize = 3;
@@ -60,6 +61,18 @@ impl ServerChild {
 
     pub(crate) fn check(&mut self, name: &str) -> io::Result<()> {
         self.try_wait(name).map(|_| ())
+    }
+
+    /// Fails once the child has spent its startup budget without becoming ready.
+    pub(crate) fn charge(&self, name: &str, budget: &mut StartupBudget) -> io::Result<()> {
+        budget
+            .observe(Instant::now(), activity::of(self.id()))
+            .map_err(|reason| {
+                self.failure(
+                    io::ErrorKind::TimedOut,
+                    format!("{name} did not start: {reason}"),
+                )
+            })
     }
 
     pub(crate) fn timeout(&self, name: &str) -> io::Error {
@@ -170,9 +183,39 @@ impl Tail {
 
 #[cfg(test)]
 mod tests {
-    use std::{io, process::Command};
+    use std::{
+        io,
+        process::Command,
+        time::{Duration, Instant},
+    };
 
     use super::{Failure, STDERR_LIMIT, ServerChild, Tail, retry_start};
+    use crate::native::{activity, startup::StartupBudget};
+
+    #[test]
+    fn only_an_idle_child_spends_its_startup_budget() {
+        let launch = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
+        let budget_for = |child: &ServerChild| {
+            let mut budget = StartupBudget::new(launch);
+            assert!(budget.observe(launch, activity::of(child.id())).is_ok());
+            budget
+        };
+        let busy =
+            ServerChild::spawn(Command::new("sh").args(["-c", "while :; do :; done"])).unwrap();
+        assert!(busy.charge("Ergo", &mut budget_for(&busy)).is_ok());
+
+        let idle = ServerChild::spawn(Command::new("sleep").arg("60")).unwrap();
+        while activity::of(idle.id()).busy {
+            std::thread::yield_now();
+        }
+        let error = idle.charge("Ergo", &mut budget_for(&idle)).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert!(
+            error
+                .to_string()
+                .starts_with("Ergo did not start: stayed idle before becoming ready (11.0 s idle")
+        );
+    }
 
     #[test]
     fn child_id_matches_the_spawned_process() {

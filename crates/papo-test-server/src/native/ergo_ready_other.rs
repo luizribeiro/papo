@@ -1,3 +1,4 @@
+use std::time::Duration;
 use std::{io, net::SocketAddr, path::Path, process::Command, time::Instant};
 
 use super::{process::ServerChild, server::wait_for_child_until};
@@ -12,9 +13,13 @@ impl ReadySignal {
     pub(crate) fn wait(
         self,
         addresses: [SocketAddr; 4],
-        deadline: Instant,
         child: &mut ServerChild,
     ) -> io::Result<()> {
-        wait_for_child_until("Ergo", addresses, deadline, child)
+        wait_for_child_until(
+            "Ergo",
+            addresses,
+            Instant::now() + Duration::from_secs(10),
+            child,
+        )
     }
 }
