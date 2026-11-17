@@ -1841,6 +1841,45 @@ async fn server_password_never_follows_a_batched_welcome() {
 }
 
 #[tokio::test]
+async fn account_creation_never_follows_a_batched_welcome() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://ergo.test", "papo-wire")
+            .create_account(papo::NewAccount::new(papo::Secret::new(PASSWORD)).account("alice"))
+            .allow_insecure_auth(true)
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(
+        ":ergo.test CAP * LS :draft/account-registration=before-connect,custom-account-name",
+    )
+    .await;
+    assert_eq!(
+        wire.next_sent().await,
+        "CAP REQ :draft/account-registration"
+    );
+    wire.server(":ergo.test BATCH +welcome metadata").await;
+    wire.server("@batch=welcome :ergo.test 001 papo-wire :Welcome to the Ergo test network")
+        .await;
+    wire.server(":ergo.test CAP * ACK :draft/account-registration")
+        .await;
+    wire.server(":ergo.test BATCH -welcome").await;
+
+    let disconnected = next_login_disconnect(&mut events).await;
+    assert!(matches!(
+        disconnected.cause,
+        DisconnectCause::Connect(ref error)
+            if error.kind() == ConnectErrorKind::CapabilityUnavailable
+    ));
+    assert!(disconnect_diagnostic(&disconnected).contains("draft/account-registration"));
+    while let Some(line) = wire.next_sent_or_closed().await {
+        assert!(!line.contains(PASSWORD), "{line}");
+    }
+}
+
+#[tokio::test]
 async fn plaintext_credentials_require_explicit_opt_in() {
     let result = papo::Client::builder("irc://offline.test", "papo-wire")
         .sasl(Sasl::plain("alice", papo::Secret::new(PASSWORD)))

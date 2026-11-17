@@ -159,6 +159,9 @@
 "security::server_password_never_follows_a_batched_welcome" = [
   "security.pass.none-after-welcome",
 ]
+"security::account_creation_never_follows_a_batched_welcome" = [
+  "security.account-registration.none-after-welcome",
+]
 "security::server_password_requires_sts_on_plaintext" = [
   "security.sts.password-required",
 ]

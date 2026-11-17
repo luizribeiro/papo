@@ -74,6 +74,7 @@ ids = [
   "security.sasl.no-auto-login-after-registration",
   "security.sasl.no-auto-login-beside-batched-welcome",
   "security.pass.none-after-welcome",
+  "security.account-registration.none-after-welcome",
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",
   "security.history.untagged-actor-not-current-holder",
   "security.history.logged-out-own-dm-peer",
