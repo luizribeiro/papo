@@ -5,14 +5,28 @@ use super::Activity;
 /// Linux reports CPU time in `USER_HZ` ticks, a fixed 100 per second on every supported architecture.
 const TICKS_PER_SECOND: u64 = 100;
 
-/// Samples every thread of `pid`; a process that cannot be read looks idle.
+/// Samples every thread of `pid` and of its descendants, since a server may hand its startup work to
+/// helper processes; a process that cannot be read looks idle.
 pub(crate) fn of(pid: u32) -> Activity {
     let Ok(tasks) = fs::read_dir(format!("/proc/{pid}/task")) else {
         return Activity::default();
     };
     tasks
         .flatten()
-        .filter_map(|task| parse(&fs::read_to_string(task.path().join("stat")).ok()?))
+        .map(|task| {
+            let path = task.path();
+            let thread = fs::read_to_string(path.join("stat"))
+                .ok()
+                .and_then(|stat| parse(&stat))
+                .unwrap_or_default();
+            let children = fs::read_to_string(path.join("children")).unwrap_or_default();
+            thread
+                + children
+                    .split_whitespace()
+                    .filter_map(|child| child.parse().ok())
+                    .map(of)
+                    .sum()
+        })
         .sum()
 }
 
@@ -28,7 +42,10 @@ fn parse(stat: &str) -> Option<Activity> {
 
 #[cfg(test)]
 mod tests {
-    use std::{process::Command, time::Duration};
+    use std::{
+        process::Command,
+        time::{Duration, Instant},
+    };
 
     use super::{of, parse};
 
@@ -78,6 +95,31 @@ mod tests {
             }
         };
         assert!(of(std::process::id()).cpu >= spun);
+    }
+
+    #[test]
+    fn a_waiting_parent_is_busy_while_its_child_works() {
+        let mut parent = Command::new("sh")
+            .args(["-c", "sh -c 'while :; do :; done' & wait"])
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let busy = loop {
+            let tree = of(parent.id());
+            if tree.busy && tree.cpu > Duration::ZERO || Instant::now() > deadline {
+                break tree.busy;
+            }
+            std::thread::yield_now();
+        };
+        let children = format!("/proc/{0}/task/{0}/children", parent.id());
+        for child in std::fs::read_to_string(children)
+            .unwrap()
+            .split_whitespace()
+        {
+            Command::new("kill").arg(child).status().unwrap();
+        }
+        parent.wait().unwrap();
+        assert!(busy);
     }
 
     #[test]
