@@ -6694,8 +6694,6 @@ impl Session {
         if let Some(request) = request
             && !deferred
         {
-            let whois_channels = parse_whois_channels(&messages, self.isupport.value());
-            let enabled_features = self.supported_features();
             let echoed = (request.sent && emit_events).then(|| {
                 messages
                     .iter()
@@ -6708,8 +6706,7 @@ impl Session {
                     .cloned()
                     .collect::<Vec<_>>()
             });
-            self.outbox.event(Event::Response(Response {
-                id: request.id,
+            let response = Response {
                 sent: if request.sent {
                     echo.as_ref()
                         .and_then(|message| sent_info(&message.as_ref()))
@@ -6721,7 +6718,6 @@ impl Session {
                 } else {
                     None
                 },
-                lines: messages,
                 history: history.and_then(|(target, items, end)| {
                     Some(HistoryPage {
                         conversation: self.history_conversation(&target)?,
@@ -6730,12 +6726,10 @@ impl Session {
                     })
                 }),
                 history_targets: history_targets.map(|targets| self.history_targets(targets)),
-                whois_channels,
-                mode_list: None,
-                state_limit: None,
-                enabled_features,
                 subject_tokens,
-            }));
+                ..self.completed_response(request.id, messages)
+            };
+            self.outbox.event(Event::Response(response));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_line(message, None);
                 self.outbox.event(Event::Line(received));

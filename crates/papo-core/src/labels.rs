@@ -67,13 +67,11 @@ impl Session {
         if !message.command_is("ACK") {
             lines.push(message.to_owned());
         }
-        let whois_channels = parse_whois_channels(&lines, self.isupport.value());
         if !self
             .unlabelled_requests
             .iter()
             .any(|request| request.id == id)
         {
-            let enabled_features = self.supported_features();
             let echo = if message.command_is("ACK") {
                 lines.first().map(Line::as_ref)
             } else {
@@ -82,18 +80,11 @@ impl Session {
             let sent = echo
                 .filter(|echo| request.sent && is_echoed(echo.command()))
                 .and_then(|echo| sent_info(&echo));
-            self.outbox.event(Event::Response(Response {
-                id,
+            let response = Response {
                 sent,
-                lines,
-                history: None,
-                history_targets: None,
-                whois_channels,
-                mode_list: None,
-                state_limit: None,
-                enabled_features,
-                subject_tokens: Vec::new(),
-            }));
+                ..self.completed_response(id, lines)
+            };
+            self.outbox.event(Event::Response(response));
         }
         Some(true)
     }
@@ -118,6 +109,23 @@ impl Session {
             .map(|(_, label)| label.clone())
     }
 
+    /// Builds the response to request `id` from its delivered `lines`; every optional result
+    /// starts absent.
+    pub(super) fn completed_response(&self, id: RequestId, lines: Vec<Line>) -> Response {
+        Response {
+            id,
+            sent: None,
+            whois_channels: parse_whois_channels(&lines, self.isupport.value()),
+            lines,
+            history: None,
+            history_targets: None,
+            mode_list: None,
+            state_limit: None,
+            enabled_features: self.supported_features(),
+            subject_tokens: Vec::new(),
+        }
+    }
+
     pub(super) fn resolve_deferred(&mut self, id: RequestId) -> bool {
         let Some(index) = self.unlabelled_requests.iter().position(|request| {
             request.id == id
@@ -128,20 +136,8 @@ impl Session {
         };
         let request = self.unlabelled_requests.remove(index).unwrap();
         self.away_messages.remove(&id);
-        let whois_channels = parse_whois_channels(request.lines.as_slice(), self.isupport.value());
-        let enabled_features = self.supported_features();
-        self.outbox.event(Event::Response(Response {
-            id,
-            sent: None,
-            lines: request.lines.into_vec(),
-            history: None,
-            history_targets: None,
-            whois_channels,
-            mode_list: None,
-            state_limit: None,
-            enabled_features,
-            subject_tokens: Vec::new(),
-        }));
+        let response = self.completed_response(id, request.lines.into_vec());
+        self.outbox.event(Event::Response(response));
         true
     }
 
@@ -262,20 +258,9 @@ impl Session {
         if complete {
             let request = self.unlabelled_requests.remove(index).unwrap();
             self.away_messages.remove(&request.id);
-            let whois_channels =
-                parse_whois_channels(request.lines.as_slice(), self.isupport.value());
-            let enabled_features = self.supported_features();
             let mut response = Response {
-                id: request.id,
-                sent: None,
-                lines: request.lines.into_vec(),
-                history: None,
-                history_targets: None,
-                whois_channels,
-                mode_list: None,
-                state_limit: None,
-                enabled_features,
                 subject_tokens: request.subject_tokens,
+                ..self.completed_response(request.id, request.lines.into_vec())
             };
             if let Some(matcher) = request.boundary.matcher() {
                 self.finish_mode_list_response(matcher, &mut response);
@@ -306,19 +291,12 @@ impl Session {
         };
         self.state
             .warn_limit(crate::StateLimit::ListEntries, &mut self.outbox);
-        let enabled_features = self.supported_features();
-        self.outbox.event(Event::Response(Response {
-            id,
-            sent: None,
-            lines,
-            history: None,
-            history_targets: None,
+        let response = Response {
             whois_channels: Vec::new(),
-            mode_list: None,
             state_limit: Some(crate::StateLimit::ListEntries),
-            enabled_features,
-            subject_tokens: Vec::new(),
-        }));
+            ..self.completed_response(id, lines)
+        };
+        self.outbox.event(Event::Response(response));
     }
 
     pub(super) fn start_deferred_who(&mut self) {
