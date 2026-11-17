@@ -1845,8 +1845,10 @@ impl Response {
     #[must_use]
     pub fn __subject_token(&self, line: usize) -> Option<ReplyToken> {
         self.subject_tokens
-            .iter()
-            .find_map(|(index, token)| (*index == line).then_some(*token))
+            .binary_search_by_key(&line, |(index, _)| *index)
+            .ok()
+            .and_then(|found| self.subject_tokens.get(found))
+            .map(|(_, token)| *token)
     }
 
     /// Returns the first standard failure or error numeric in this response.

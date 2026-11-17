@@ -155,3 +155,40 @@ fn a_reply_row_about_an_untracked_person_records_no_identity() {
         }
     }
 }
+
+#[test]
+fn each_row_of_a_multi_row_reply_records_its_own_subject() {
+    let now = Instant::now();
+    let mut session = session(false);
+    let tracked = |session: &Session, nick| session.state().__reply_token_for(nick);
+    let (alice, mallory) = (tracked(&session, "alice"), tracked(&session, "mallory"));
+    session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["*.example", "%tcuhnfar,152"]),
+            ResponseMatcher::Who("*.example".into()),
+        )
+        .unwrap();
+    for line in [
+        ":ergo.test 354 papo 152 #review ~alice cloak.example alice H 0 :Alice Liddell",
+        ":ergo.test 354 papo 152 * ~bob users.example bob H 0 :Bob",
+        QUIT,
+        ":ergo.test 354 papo 152 #review ~mallory users.example mallory H 0 :Mallory",
+        ":ergo.test 315 papo *.example :End of WHO list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .unwrap();
+
+    let tokens = (0..response.lines.len())
+        .map(|index| response.__subject_token(index))
+        .collect::<Vec<_>>();
+    assert_eq!(tokens[0], Some(alice));
+    assert!(tokens[1].is_some_and(|token| !token.__is_known()));
+    assert_eq!(tokens[2..], [Some(mallory), None]);
+}
