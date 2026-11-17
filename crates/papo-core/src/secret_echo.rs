@@ -78,6 +78,15 @@ impl SecretEchoes {
         Ok(())
     }
 
+    /// Lets the secrets of an earlier connection make room, while still marking their repeats.
+    ///
+    /// A new connection never echoes their lines, but a bouncer may replay them.
+    pub(crate) fn handle_connected(&mut self) {
+        for entry in &mut self.entries {
+            entry.echoed = true;
+        }
+    }
+
     /// Returns `line`, or a copy of `message`, with every repeated secret marked secret.
     pub(crate) fn mark_echo(&mut self, line: Option<Line>, message: &LineRef<'_>) -> Option<Line> {
         let repeated = message

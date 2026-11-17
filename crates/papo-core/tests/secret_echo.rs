@@ -238,6 +238,17 @@ fn refused_secret_sends_make_room_once_their_echo_is_overdue() {
 }
 
 #[test]
+fn a_new_connection_lets_unanswered_secrets_make_room() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    assert!((0..10_000).any(|_| session.send(now, identify_as(0)).is_err()));
+    session.handle_disconnected(now);
+    register(&mut session, now, "ergo.test", ERGO_CAPS);
+    session.send(now, identify_as(1)).unwrap();
+    assert!(echo_of(&mut session, now, 0).contains(":<redacted>"));
+}
+
+#[test]
 fn secret_sends_the_server_never_echoes_are_not_tracked() {
     let now = Instant::now();
     let mut session = session(now, "solanum.test", "server-time");

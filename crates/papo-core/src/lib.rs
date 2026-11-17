@@ -4106,6 +4106,7 @@ impl Session {
         self.ctcp_rate_limit.reset(now);
         self.ctcp_sources.clear();
         self.requests.clear();
+        self.secret_echoes.handle_connected();
         self.pending_mark_reads.clear();
         self.unlabelled_requests.clear();
         self.away_messages.clear();
