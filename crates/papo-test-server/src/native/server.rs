@@ -405,7 +405,7 @@ mod tests {
         let address = listener.local_addr().unwrap();
         drop(listener);
         let mut child = ServerChild::spawn(std::process::Command::new("sleep").arg("60")).unwrap();
-        let budget = settled_budget(child.id(), false);
+        let budget = settled_budget(&[child.id()], false);
 
         let error = wait_for_child_with("InspIRCd", [address], budget, &mut child).unwrap_err();
 

@@ -58,14 +58,16 @@ pub(crate) mod tests {
     use super::StartupBudget;
     use crate::native::activity::{self, Activity};
 
-    /// Waits until the child samples as `busy`, then ages a budget eleven seconds from that sample.
-    pub(crate) fn settled_budget(pid: u32, busy: bool) -> StartupBudget {
-        while activity::of(pid).busy != busy {
+    /// Waits until the children together sample as `busy`, then ages a budget eleven seconds from
+    /// that sample.
+    pub(crate) fn settled_budget(pids: &[u32], busy: bool) -> StartupBudget {
+        let sample = || pids.iter().map(|pid| activity::of(*pid)).sum::<Activity>();
+        while sample().busy != busy {
             std::thread::yield_now();
         }
         let launch = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
         let mut budget = StartupBudget::new(launch);
-        budget.observe(launch, activity::of(pid)).unwrap();
+        budget.observe(launch, sample()).unwrap();
         budget
     }
 

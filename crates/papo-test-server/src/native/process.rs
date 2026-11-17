@@ -203,13 +203,13 @@ mod tests {
         let busy =
             ServerChild::spawn(Command::new("sh").args(["-c", "while :; do :; done"])).unwrap();
         assert!(
-            busy.charge("Ergo", &mut settled_budget(busy.id(), true))
+            busy.charge("Ergo", &mut settled_budget(&[busy.id()], true))
                 .is_ok()
         );
 
         let idle = ServerChild::spawn(Command::new("sleep").arg("60")).unwrap();
         let error = idle
-            .charge("Ergo", &mut settled_budget(idle.id(), false))
+            .charge("Ergo", &mut settled_budget(&[idle.id()], false))
             .unwrap_err();
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert!(

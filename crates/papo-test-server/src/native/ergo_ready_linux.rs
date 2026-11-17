@@ -71,7 +71,7 @@ mod tests {
         command.arg("60");
         let ready = ReadySignal::bind(directory.path(), &mut command).unwrap();
         let mut child = ServerChild::spawn(&mut command).unwrap();
-        let budget = settled_budget(child.id(), false);
+        let budget = settled_budget(&[child.id()], false);
 
         let error = ready
             .wait(
