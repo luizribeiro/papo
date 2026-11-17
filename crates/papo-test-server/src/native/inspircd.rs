@@ -1,11 +1,4 @@
-use std::{
-    env, io,
-    net::SocketAddr,
-    path::PathBuf,
-    process::Command,
-    thread,
-    time::{Duration, Instant},
-};
+use std::{env, io, net::SocketAddr, path::PathBuf, process::Command};
 
 use super::{
     atheme, certificate, directory::TemporaryDirectory, inspircd_config::Configuration, process,
@@ -32,7 +25,7 @@ impl TestServer {
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;
         let config = Configuration::new(&directory)?;
-        let ircd = ServerChild::spawn(
+        let mut ircd = ServerChild::spawn(
             Command::new(
                 env::var("INSPIRCD_BIN").map_err(|_| io::Error::other("INSPIRCD_BIN is unset"))?,
             )
@@ -40,35 +33,13 @@ impl TestServer {
             .arg(directory.path().join("inspircd.conf"))
             .current_dir(directory.path()),
         )?;
-        let mut server = Self {
-            children: vec![ircd],
+        super::server::wait_for_child("InspIRCd", config.endpoints, &mut ircd)?;
+        let atheme = atheme::link(&directory, "InspIRCd", &mut ircd)?;
+        Ok(Self {
+            children: vec![ircd, atheme],
             directory,
             endpoints: config.endpoints,
-        };
-        server.wait_for(false)?;
-        server
-            .children
-            .push(ServerChild::spawn(&mut atheme::command(
-                &server.directory,
-            )?)?);
-        server.wait_for(true)?;
-        Ok(server)
-    }
-    fn wait_for(&mut self, services: bool) -> io::Result<()> {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        if !services {
-            let endpoints = self.endpoints;
-            return super::server::wait_for_child("InspIRCd", endpoints, &mut self.children[0]);
-        }
-        while Instant::now() < deadline {
-            self.children[0].check("InspIRCd")?;
-            self.children[1].check("Atheme")?;
-            if atheme::linked(self.directory.path()) {
-                return Ok(());
-            }
-            thread::sleep(Duration::from_millis(20));
-        }
-        Err(self.children[1].timeout("Atheme"))
+        })
     }
 
     /// Returns the plaintext, TLS, WebSocket, and secure WebSocket listeners.

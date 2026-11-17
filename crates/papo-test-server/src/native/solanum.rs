@@ -1,11 +1,4 @@
-use std::{
-    env, io,
-    net::SocketAddr,
-    path::PathBuf,
-    process::Command,
-    thread,
-    time::{Duration, Instant},
-};
+use std::{env, io, net::SocketAddr, path::PathBuf, process::Command};
 
 use super::{
     atheme, certificate, directory::TemporaryDirectory, process, process::ServerChild,
@@ -33,7 +26,7 @@ impl TestServer {
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;
         let config = Configuration::new(&directory)?;
-        let ircd = ServerChild::spawn(
+        let mut ircd = ServerChild::spawn(
             Command::new(
                 env::var("SOLANUM_BIN").map_err(|_| io::Error::other("SOLANUM_BIN is unset"))?,
             )
@@ -46,36 +39,14 @@ impl TestServer {
             .env("BANDB_DBPATH", directory.path().join("ban.db"))
             .current_dir(directory.path()),
         )?;
-        let mut server = Self {
-            children: vec![ircd],
+        super::server::wait_for_child("Solanum", [config.plaintext, config.tls], &mut ircd)?;
+        let atheme = atheme::link(&directory, "Solanum", &mut ircd)?;
+        Ok(Self {
+            children: vec![ircd, atheme],
             directory,
             plaintext: config.plaintext,
             tls: config.tls,
-        };
-        server.wait_for(false)?;
-        server
-            .children
-            .push(ServerChild::spawn(&mut atheme::command(
-                &server.directory,
-            )?)?);
-        server.wait_for(true)?;
-        Ok(server)
-    }
-    fn wait_for(&mut self, services: bool) -> io::Result<()> {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        if !services {
-            let endpoints = [self.plaintext, self.tls];
-            return super::server::wait_for_child("Solanum", endpoints, &mut self.children[0]);
-        }
-        while Instant::now() < deadline {
-            self.children[0].check("Solanum")?;
-            self.children[1].check("Atheme")?;
-            if atheme::linked(self.directory.path()) {
-                return Ok(());
-            }
-            thread::sleep(Duration::from_millis(20));
-        }
-        Err(self.children[1].timeout("Atheme"))
+        })
     }
     /// Returns the plaintext and TLS listeners.
     #[must_use]

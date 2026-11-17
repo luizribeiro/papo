@@ -83,7 +83,7 @@ fn wait_for_link(
     }
 }
 
-pub(crate) fn command(directory: &TemporaryDirectory) -> io::Result<Command> {
+fn command(directory: &TemporaryDirectory) -> io::Result<Command> {
     let path = |file| directory.path().join(file);
     let mut command =
         Command::new(env::var("ATHEME_BIN").map_err(|_| io::Error::other("ATHEME_BIN is unset"))?);
@@ -100,7 +100,7 @@ pub(crate) fn command(directory: &TemporaryDirectory) -> io::Result<Command> {
     Ok(command)
 }
 
-pub(crate) fn linked(directory: &Path) -> bool {
+fn linked(directory: &Path) -> bool {
     fs::read_to_string(directory.join("atheme.log"))
         .is_ok_and(|log| log.contains("finished synching with uplink"))
 }

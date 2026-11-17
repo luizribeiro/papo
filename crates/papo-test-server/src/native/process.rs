@@ -85,11 +85,6 @@ impl ServerChild {
             })
     }
 
-    pub(crate) fn timeout(&self, name: &str) -> io::Error {
-        let summary = format!("{name} did not start ({})", activity::of(self.id()));
-        self.failure(io::ErrorKind::TimedOut, summary)
-    }
-
     pub(crate) fn stop(&mut self) -> io::Result<()> {
         if self.child.try_wait()?.is_none() {
             self.child.kill()?;
