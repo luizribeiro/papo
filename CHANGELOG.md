@@ -195,7 +195,9 @@ behind a bouncer such a later offer can come from the upstream network. A 001 co
 moment it is read, even when it arrives inside a batch that holds it back. The server password
 follows the same rule: a `CAP LS` reply after 001 sends no `PASS`. An app that wants a late
 login calls `Session::reauthenticate`, whose failure is reported as `AuthenticationFailed` and
-never closes the connection.
+never closes the connection. Account creation requested before 001 never sends `REGISTER` after
+it: a 001 read first closes a connection configured to create its account, and fails an early
+`create_account` call as unsupported. A `create_account` call after 001 is unchanged.
 After a SASL success that names no account (903 without 900, or 907), `State::account` is
 `Account::Unknown` rather than `Account::LoggedOut`.
 A `REGISTER VERIFICATION_REQUIRED` reply leaves `State::account` as it was.

@@ -307,6 +307,8 @@ impl Builder {
     /// This requires `draft/account-registration` with `before-connect`; a named account that
     /// differs from the nick also requires `custom-account-name`. Otherwise the connection fails
     /// with [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
+    /// The account is created only before the server's welcome (numeric 001). If the welcome
+    /// arrives first, the connection fails with the same error and the password is never sent.
     ///
     /// ```
     /// let account = papo::NewAccount::new(papo::Secret::new("correct horse battery staple"))

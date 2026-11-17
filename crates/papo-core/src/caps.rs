@@ -454,7 +454,7 @@ fn required_in(config: &Config, requested: &[String]) -> Option<Cap> {
         .map(|name| Cap::from(name.as_str()))
 }
 
-fn close_required(required: &Cap, reason: &str, outbox: &mut Outbox) {
+pub(super) fn close_required(required: &Cap, reason: &str, outbox: &mut Outbox) {
     outbox.close(
         CloseKind::CapabilityUnavailable,
         format!(

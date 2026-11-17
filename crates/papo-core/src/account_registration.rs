@@ -105,9 +105,9 @@ impl AccountRegistration {
         self.waiting = true;
     }
 
-    pub(super) fn cancel_pending(&mut self) {
-        self.pending = None;
+    pub(super) fn cancel_pending(&mut self) -> Option<PendingRegistration> {
         self.waiting = false;
+        self.pending.take()
     }
 
     pub(super) const fn authentication_finished(&self) -> bool {

@@ -51,6 +51,29 @@ fn account_creation_requires_before_connect_registration() {
 }
 
 #[test]
+fn account_creation_acknowledged_only_after_the_welcome_sends_no_password() {
+    Transcript::new(Config::default().create_account_on_connect(
+        Some("alice"),
+        Some("alice@example.org"),
+        papo_core::Secret::new("correct horse battery staple"),
+    ))
+    .connect_default()
+    .server(":ergo.test CAP * LS :draft/account-registration=before-connect,custom-account-name")
+    .client("CAP REQ :draft/account-registration")
+    .server(":ergo.test 001 papo :Welcome to the Ergo test network")
+    .event(|event| {
+        matches!(event, Event::Close {
+            kind: CloseKind::CapabilityUnavailable,
+            reason,
+            ..
+        } if reason.contains("draft/account-registration") && reason.contains("welcome"))
+    })
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("001")))
+    .server(":ergo.test CAP * ACK :draft/account-registration")
+    .no_client();
+}
+
+#[test]
 fn custom_account_name_requires_its_capability_value() {
     Transcript::new(Config::default().create_account_on_connect(
         Some("alice"),

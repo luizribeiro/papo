@@ -559,6 +559,35 @@ fn only_account_request_failures_release_cap_negotiation() {
 }
 
 #[test]
+fn early_registration_is_refused_when_the_welcome_comes_first() {
+    let mut registration = None;
+    Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect")
+        .client("CAP REQ :draft/account-registration")
+        .update(|session| {
+            registration = Some(session.next_request_id());
+            session
+                .create_account(
+                    std::time::Instant::now(),
+                    None,
+                    None,
+                    papo_core::Secret::new("password"),
+                )
+                .unwrap();
+        })
+        .server(":ergo.test 001 papo :Welcome to the Ergo test network")
+        .event(|event| {
+            matches!(event, Event::RequestUnsupported { id, unsupported, .. }
+                if Some(*id) == registration && unsupported.feature == Feature::AccountCreation)
+        })
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("001")))
+        .server("CAP * ACK :draft/account-registration")
+        .client("CAP END")
+        .no_client();
+}
+
+#[test]
 fn pending_cap_request_preserves_queued_registration() {
     Transcript::new(Config::default().wanted_caps(["draft/account-registration"]))
         .connect_default()
