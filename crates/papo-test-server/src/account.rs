@@ -95,18 +95,26 @@ pub fn change_account_password_at(
     }
     let stream = TcpStream::connect(address)?;
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
-    let mut connection = BufReader::new(stream);
+    change_password_on(&mut BufReader::new(stream), name, current, replacement)
+}
+
+fn change_password_on(
+    connection: &mut BufReader<TcpStream>,
+    name: &str,
+    current: &str,
+    replacement: &str,
+) -> io::Result<()> {
     send(
-        &mut connection,
+        connection,
         &format!("PASS {name}:{current}\r\nNICK {name}\r\nUSER papo 0 * :papo password change\r\n"),
     )?;
-    await_account_welcome(&mut connection, name, Instant::now() + READ_TIMEOUT)?;
+    await_account_welcome(connection, name, Instant::now() + READ_TIMEOUT)?;
     send(
-        &mut connection,
+        connection,
         &format!("PRIVMSG NickServ :PASSWD {current} {replacement} {replacement}\r\n"),
     )?;
     read_reply(
-        &mut connection,
+        connection,
         "waiting for NickServ to answer PASSWD",
         passwd_verdict,
     )
@@ -264,8 +272,8 @@ mod tests {
     };
 
     use super::{
-        atheme_verdict, await_account_welcome, change_account_password_at, credentials_valid,
-        passwd_verdict, read_until, register_atheme,
+        atheme_verdict, await_account_welcome, change_account_password_at, change_password_on,
+        credentials_valid, passwd_verdict, read_until, register_atheme,
     };
 
     const ERGO_LOGIN: &str = ":ergo.test 900 * * papo-password :You are now logged in as papo-password\r\n\
@@ -430,6 +438,29 @@ mod tests {
                 .unwrap_err()
                 .kind(),
             io::ErrorKind::InvalidInput
+        );
+    }
+
+    #[test]
+    fn changes_a_password_after_a_dying_session_releases_the_nick() {
+        let (mut connection, server) = scripted_server(&format!(
+            "{ERGO_LOGIN}{NICK_IN_USE}{WELCOME}:ergo.test 221 papo-password +Zi\r\n\
+             :NickServ!NickServ@localhost NOTICE papo-password :Password changed\r\n"
+        ));
+        change_password_on(
+            &mut connection,
+            "papo-password",
+            "q7Hx-2mZp_9vLcT4wRfB",
+            "r8Ky-3nAq_6wMdP5xTgC",
+        )
+        .unwrap();
+        assert_eq!(
+            client_lines(connection, server),
+            "PASS papo-password:q7Hx-2mZp_9vLcT4wRfB\r\n\
+             NICK papo-password\r\n\
+             USER papo 0 * :papo password change\r\n\
+             NICK papo-password\r\n\
+             PRIVMSG NickServ :PASSWD q7Hx-2mZp_9vLcT4wRfB r8Ky-3nAq_6wMdP5xTgC r8Ky-3nAq_6wMdP5xTgC\r\n"
         );
     }
 
