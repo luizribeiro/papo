@@ -466,8 +466,7 @@ impl Session {
     ) -> Result<(), RequestError> {
         self.check_line_audience(&message.as_ref())?;
         self.rate_limit.advance(now);
-        let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
-            && (is_echoed(message.as_ref().command()) || message.as_ref().command_is("RELAYMSG"));
+        let sent = self.echoes(&message.as_ref());
         let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE);
         let label = labelled.then(|| encode_label(id.0));
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
@@ -496,6 +495,12 @@ impl Session {
         self.outbox
             .transmit_guarded(line, None, Some(id), guard, requires_registration);
         Ok(())
+    }
+
+    /// Whether the server will echo `message` back to us.
+    fn echoes(&self, message: &LineRef<'_>) -> bool {
+        self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
+            && (is_echoed(message.command()) || message.command_is("RELAYMSG"))
     }
 }
 
