@@ -55,38 +55,36 @@ impl Peer {
         &mut self,
         mut extract: impl for<'event> FnMut(&'event Event) -> Option<&'event T>,
     ) -> Result<(T, Arc<State>)> {
+        self.wait_until(|event, _| extract(event).cloned()).await
+    }
+
+    async fn wait_until<T>(
+        &mut self,
+        mut accept: impl FnMut(&Event, &Arc<State>) -> Option<T>,
+    ) -> Result<(T, Arc<State>)> {
         let result = timeout(DEFAULT_TIMEOUT, async {
             loop {
-                let Some((event, state)) = self.events.next().await else {
-                    return Err(FixtureError::with_events(
-                        "driver stopped while waiting for an event",
-                        self.recent.make_contiguous(),
-                    )
-                    .into());
+                let Some((event, state)) = self.next_event().await else {
+                    return Err(self.failure("driver stopped while waiting for an event"));
                 };
-                let found = extract(&event).cloned();
-                let disconnected = event.as_disconnected().cloned();
-                self.remember(event);
-                if let Some(found) = found {
+                if let Some(found) = accept(&event, &state) {
                     return Ok((found, state));
                 }
-                if let Some(disconnected) = disconnected {
-                    return Err(FixtureError::with_events(
-                        disconnected,
-                        self.recent.make_contiguous(),
-                    )
-                    .into());
+                if let Some(disconnected) = event.as_disconnected() {
+                    return Err(self.failure(disconnected));
                 }
             }
         })
         .await;
         result.unwrap_or_else(|_| {
-            Err(FixtureError::with_events(
-                "timed out after 10 seconds waiting for an event",
-                self.recent.make_contiguous(),
-            )
-            .into())
+            Err(self.failure("timed out after 10 seconds waiting for an event"))
         })
+    }
+
+    async fn next_event(&mut self) -> Option<(Event, Arc<State>)> {
+        let (event, state) = self.events.next().await?;
+        self.remember(event.clone());
+        Some((event, state))
     }
 
     /// Verifies that no event accepted by `extract` arrives before a PING fence.
@@ -106,27 +104,15 @@ impl Peer {
             loop {
                 tokio::select! {
                     biased;
-                    item = self.events.next() => {
+                    item = self.next_event() => {
                         let Some((event, _)) = item else {
-                            return Err(FixtureError::with_events(
-                                "driver stopped before the PING fence",
-                                self.recent.make_contiguous(),
-                            ).into());
+                            return Err(self.failure("driver stopped before the PING fence"));
                         };
-                        let matched = extract(&event).is_some();
-                        let disconnected = event.as_disconnected().cloned();
-                        self.remember(event);
-                        if matched {
-                            return Err(FixtureError::with_events(
-                                "unexpected event before the PING fence",
-                                self.recent.make_contiguous(),
-                            ).into());
+                        if extract(&event).is_some() {
+                            return Err(self.failure("unexpected event before the PING fence"));
                         }
-                        if let Some(disconnected) = disconnected {
-                            return Err(FixtureError::with_events(
-                                disconnected,
-                                self.recent.make_contiguous(),
-                            ).into());
+                        if let Some(disconnected) = event.as_disconnected() {
+                            return Err(self.failure(disconnected));
                         }
                     }
                     result = &mut ping => return result.map(|_| ()).map_err(Error::from),
@@ -135,11 +121,7 @@ impl Peer {
         })
         .await;
         result.unwrap_or_else(|_| {
-            Err(FixtureError::with_events(
-                "timed out after 10 seconds waiting for the PING fence",
-                self.recent.make_contiguous(),
-            )
-            .into())
+            Err(self.failure("timed out after 10 seconds waiting for the PING fence"))
         })
     }
 
@@ -232,6 +214,10 @@ impl Peer {
             .reason(reason)
     }
 
+    fn failure(&mut self, message: impl std::fmt::Display) -> Error {
+        FixtureError::with_events(message, self.recent.make_contiguous()).into()
+    }
+
     fn remember(&mut self, event: Event) {
         if self.recent.len() == EVENT_HISTORY {
             self.recent.pop_front();
@@ -283,6 +269,23 @@ mod tests {
         let error = peer.wait_for(Event::as_message).await.unwrap_err();
         assert!(error.to_string().contains("driver stopped"));
         assert!(error.to_string().contains("last events"));
+    }
+
+    #[tokio::test]
+    async fn a_failed_wait_reports_the_events_it_passed_over() {
+        let (client, events, mut wire) =
+            papo_testing::wire(Client::builder("irc://offline.test", "alice-1469-5"));
+        wire.register(&[]).await;
+        wire.server(":ergo.test NOTICE alice-1469-5 :Server maintenance begins in 5 minutes")
+            .await;
+        wire.close().await;
+        let mut peer = Peer::new(client, events);
+        let error = peer.wait_for(Event::as_message).await.unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Server maintenance begins in 5 minutes")
+        );
     }
 
     #[tokio::test]
