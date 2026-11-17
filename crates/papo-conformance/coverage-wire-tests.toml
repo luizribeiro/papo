@@ -156,6 +156,9 @@
   "security.s3.pass-after-sts-decision",
   "security.adv-1.pass-before-sts",
 ]
+"security::server_password_never_follows_a_batched_welcome" = [
+  "security.pass.none-after-welcome",
+]
 "security::server_password_requires_sts_on_plaintext" = [
   "security.sts.password-required",
 ]

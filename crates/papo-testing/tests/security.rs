@@ -1818,6 +1818,29 @@ async fn server_password_requires_sts_on_plaintext() {
 }
 
 #[tokio::test]
+async fn server_password_never_follows_a_batched_welcome() {
+    let (_client, _events, mut wire) = wire(
+        papo::Client::builder("irc://bouncer.papo.test", "papo-wire")
+            .password(papo::Secret::new(PASSWORD))
+            .allow_insecure_auth(true)
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":bouncer.papo.test BATCH +welcome metadata")
+        .await;
+    wire.server("@batch=welcome :bouncer.papo.test 001 papo-wire :Welcome to soju, papo-wire")
+        .await;
+    wire.server(":bouncer.papo.test CAP * LS :sasl=PLAIN").await;
+    wire.server(":bouncer.papo.test BATCH -welcome").await;
+    wire.server("PING :bouncer.papo.test").await;
+    assert_eq!(wire.next_sent().await, "CAP END");
+    assert_eq!(wire.next_sent().await, "PONG bouncer.papo.test");
+}
+
+#[tokio::test]
 async fn plaintext_credentials_require_explicit_opt_in() {
     let result = papo::Client::builder("irc://offline.test", "papo-wire")
         .sasl(Sasl::plain("alice", papo::Secret::new(PASSWORD)))
