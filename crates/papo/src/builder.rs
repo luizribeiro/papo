@@ -251,6 +251,10 @@ impl Builder {
     ///
     /// The connection fails with [`ConnectErrorKind::SaslUnavailable`](crate::ConnectErrorKind::SaslUnavailable)
     /// when the server offers no usable SASL capability or mechanism.
+    ///
+    /// papo logs in only during registration. A `sasl` capability the server offers after the
+    /// welcome gets no credentials, because behind a bouncer it can belong to the upstream
+    /// network.
     pub fn sasl(mut self, sasl: Sasl) -> Self {
         self.config.sasl = Some(sasl);
         self.credentials_configured = true;

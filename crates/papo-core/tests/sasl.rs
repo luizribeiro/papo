@@ -782,8 +782,7 @@ fn in_exchange_sasl_failure_still_closes_required_authentication() {
     .no_event();
 }
 
-#[test]
-fn authenticates_when_sasl_arrives_after_connect() {
+fn sasl_offered_after_connect() -> Transcript {
     Transcript::new(
         Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
     )
@@ -797,7 +796,6 @@ fn authenticates_when_sasl_arrives_after_connect() {
     .server("CAP papo NEW :sasl=PLAIN")
     .client("CAP REQ :sasl")
     .server("CAP papo ACK :sasl")
-    .client("AUTHENTICATE PLAIN")
     .event(|event| {
         matches!(event, Event::CapsChanged { added, .. }
             if added.contains_key(&cap::SASL))
@@ -806,67 +804,58 @@ fn authenticates_when_sasl_arrives_after_connect() {
         matches!(event, Event::FeaturesChanged { added, .. }
                 if added.contains(&papo_core::Feature::Sasl))
     })
-    .server("AUTHENTICATE +")
-    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
-    .server(":ergo.test 900 papo papo!u@host alice :logged in")
-    .server(":ergo.test 903 papo :SASL authentication successful")
-    .inspect(|session| assert_eq!(session.account(), Some("alice")));
+    .no_client()
+}
+
+#[test]
+fn authenticates_after_connect_only_when_asked() {
+    sasl_offered_after_connect()
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .server(":ergo.test 900 papo papo!u@host alice :logged in")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .inspect(|session| assert_eq!(session.account(), Some("alice")));
 }
 
 #[test]
 fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
-    Transcript::new(
-        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
-    )
-    .connect_default()
-    .server("CAP * LS :")
-    .client("CAP END")
-    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
-    .welcome(":ergo.test 001 papo :Welcome")
-    .server(":ergo.test 376 papo :End of MOTD")
-    .event(|event| matches!(event, Event::Connected(_)))
-    .server("CAP papo NEW :sasl=PLAIN")
-    .client("CAP REQ :sasl")
-    .server("CAP papo ACK :sasl")
-    .client("AUTHENTICATE PLAIN")
-    .event(|event| {
-        matches!(event, Event::CapsChanged { added, .. }
-            if added.contains_key(&cap::SASL))
-    })
-    .event(|event| {
-        matches!(event, Event::FeaturesChanged { added, .. }
-                if added.contains(&papo_core::Feature::Sasl))
-    })
-    .server("CAP * DEL :sasl")
-    .event(|event| {
-        matches!(event, Event::CapsChanged { removed, .. }
-            if removed.contains_key(&cap::SASL))
-    })
-    .event(|event| {
-        matches!(event, Event::AuthenticationFailed { reason, .. }
-            if reason.contains("disappeared"))
-    })
-    .event(|event| {
-        matches!(event, Event::FeaturesChanged { removed, .. }
-                if removed.contains(&papo_core::Feature::Sasl))
-    })
-    .deadline(Some(std::time::Duration::from_secs(60)))
-    .server("CAP * NEW :sasl")
-    .client("CAP REQ :sasl")
-    .server("CAP * ACK :sasl")
-    .client("AUTHENTICATE PLAIN")
-    .event(|event| {
-        matches!(event, Event::CapsChanged { added, .. }
-            if added.contains_key(&cap::SASL))
-    })
-    .event(|event| {
-        matches!(event, Event::FeaturesChanged { added, .. }
-                if added.contains(&papo_core::Feature::Sasl))
-    })
-    .server(":ergo.test 907 papo :already authenticated")
-    .no_client()
-    .reauthenticate()
-    .client("AUTHENTICATE PLAIN");
+    sasl_offered_after_connect()
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN")
+        .server("CAP * DEL :sasl")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { removed, .. }
+                if removed.contains_key(&cap::SASL))
+        })
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("disappeared"))
+        })
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { removed, .. }
+                    if removed.contains(&papo_core::Feature::Sasl))
+        })
+        .deadline(Some(std::time::Duration::from_secs(60)))
+        .server("CAP * NEW :sasl")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, .. }
+                if added.contains_key(&cap::SASL))
+        })
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, .. }
+                    if added.contains(&papo_core::Feature::Sasl))
+        })
+        .no_client()
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN")
+        .server(":ergo.test 907 papo :already authenticated")
+        .no_client()
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN");
 }
 
 #[test]
@@ -1118,6 +1107,7 @@ fn reconnect_resets_every_sasl_exchange_state() {
     .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
     .server(":ergo.test 903 alice :SASL authentication successful")
     .client("CAP END")
+    .welcome(":ergo.test 001 alice :Welcome to the ErgoTest IRC Network alice")
     .inspect(|session| assert_eq!(session.account(), Some("alice")))
     .disconnect()
     .connect_default()

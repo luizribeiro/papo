@@ -176,6 +176,7 @@ pub(super) struct SaslSession {
     active: Option<Mechanism>,
     awaiting_challenge: bool,
     completion: Completion,
+    registration: Registration,
     account: Option<String>,
     pending_account: Option<String>,
     account_update: AccountUpdate,
@@ -200,6 +201,12 @@ enum Completion {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Registration {
+    Registering,
+    Welcomed,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -265,6 +272,7 @@ impl std::fmt::Debug for SaslSession {
             .field("active", &self.active)
             .field("awaiting_challenge", &self.awaiting_challenge)
             .field("completion", &self.completion)
+            .field("registration", &self.registration)
             .field("account", &self.account)
             .field("pending_account", &self.pending_account)
             .field("account_update", &self.account_update)
@@ -303,6 +311,7 @@ impl SaslSession {
                 Completion::Pending
             },
             configured,
+            registration: Registration::Registering,
             account: None,
             pending_account: None,
             account_update: AccountUpdate::Unchanged,
@@ -332,6 +341,7 @@ impl SaslSession {
         } else {
             Completion::Pending
         };
+        self.registration = Registration::Registering;
         self.account = None;
         self.pending_account = None;
         self.account_update = AccountUpdate::Unchanged;
@@ -354,8 +364,12 @@ impl SaslSession {
         advertised: Option<&str>,
         outbox: &mut Outbox,
     ) {
+        // Behind a bouncer, a `CAP NEW sasl` after a login or after 001 can come from the
+        // upstream network.
+        if self.registration == Registration::Welcomed {
+            return;
+        }
         match self.completion {
-            // Behind a bouncer, a later `CAP NEW sasl` can come from the upstream network.
             Completion::Success => return,
             Completion::Failed => self.reset_exchange(),
             Completion::Pending => {}
@@ -425,6 +439,9 @@ impl SaslSession {
         message: &LineRef<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
+        if message.command_is("001") {
+            self.registration = Registration::Welcomed;
+        }
         if self.handle_status(now, message, outbox) {
             return Handled::Yes;
         }

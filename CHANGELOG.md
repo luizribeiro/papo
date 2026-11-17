@@ -189,9 +189,10 @@ SASL failure numerics for raw, post-registration authentication attempts are now
 warnings without closing the connection or changing papo's completed SASL exchange.
 An account reported during SASL is published only after the exchange succeeds, including SCRAM
 server-proof verification; failed or aborted exchanges discard the pending account.
-A successful SASL login is never repeated on its own when the server advertises `sasl` again;
-behind a bouncer such a later offer can come from the upstream network. `Session::reauthenticate`
-is the only way to log in again on the same connection.
+papo starts SASL on its own only during registration. A `sasl` capability offered after numeric
+001 gets no credentials, whether the earlier exchange succeeded, failed or never ran, because
+behind a bouncer such a later offer can come from the upstream network. An app that wants a late
+login calls `Session::reauthenticate`.
 After a SASL success that names no account (903 without 900, or 907), `State::account` is
 `Account::Unknown` rather than `Account::LoggedOut`.
 

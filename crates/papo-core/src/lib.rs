@@ -5754,9 +5754,11 @@ impl Session {
 
     /// Starts another SASL exchange with the configured credentials.
     ///
-    /// This is the only way papo repeats a successful login on the same connection: a server
-    /// that re-advertises `sasl` gets no credentials on its own. Behind a bouncer, a login after
-    /// registration may reach the upstream network rather than the bouncer.
+    /// papo logs in on its own only during registration. After numeric 001 this is the only way
+    /// to log in, whether the earlier exchange succeeded, failed or never ran: a server that
+    /// offers `sasl` later, through `CAP NEW`, gets no credentials unless the app calls this.
+    /// Behind a bouncer, a login after registration may reach the upstream network rather than
+    /// the bouncer.
     pub fn reauthenticate(&mut self, now: Instant) {
         let available = self.caps.enabled().contains_key(&cap::SASL);
         self.sasl.reauthenticate(
