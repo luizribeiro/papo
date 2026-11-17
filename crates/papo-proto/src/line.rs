@@ -281,9 +281,14 @@ impl<'a> LineRef<'a> {
     }
 
     /// Copies this borrowed view into an owned line without re-parsing it.
+    ///
+    /// A view of an owned [`Line`] keeps the secret provenance of its parameters.
     #[must_use]
     pub fn to_owned(&self) -> Line {
-        let mut line = Line::new(self.command).with_params(self.params());
+        let mut line = match self.params {
+            ParamStorage::Owned(params) => Line::new(self.command).with_params(params.to_vec()),
+            ParamStorage::Wire(_) => Line::new(self.command).with_params(self.params()),
+        };
         line.source = self.source.map(str::to_owned);
         line.tags = self
             .tags()
@@ -1132,6 +1137,35 @@ mod tests {
                 expected_wire
             );
         }
+    }
+
+    #[test]
+    fn owning_a_view_again_keeps_secret_parameters() {
+        let mut echo = crate::LineRef::parse(
+            "@msgid=RfcBTzyxY120006 :papo!~papo@client.example PRIVMSG NickServ :IDENTIFY alice services-password-5129",
+        )
+        .unwrap()
+        .to_owned();
+        echo.__mark_secret(1);
+
+        let owned = echo.as_ref().to_owned();
+        assert_eq!(owned, echo);
+        assert_eq!(
+            owned
+                .params()
+                .iter()
+                .map(super::Param::__is_secret)
+                .collect::<Vec<_>>(),
+            [false, true]
+        );
+        assert_eq!(
+            owned.as_ref().param(1),
+            Some("IDENTIFY alice services-password-5129")
+        );
+        let wire = crate::LineRef::parse(":papo!~papo@client.example PRIVMSG NickServ :INFO alice")
+            .unwrap()
+            .to_owned();
+        assert!(!wire.params().iter().any(super::Param::__is_secret));
     }
 
     #[test]
