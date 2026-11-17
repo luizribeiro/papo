@@ -371,6 +371,7 @@ impl SaslSession {
         }
         match self.completion {
             Completion::Success => return,
+            Completion::Pending if self.active.is_some() || self.aborting => return,
             Completion::Failed => self.reset_exchange(),
             Completion::Pending => {}
         }

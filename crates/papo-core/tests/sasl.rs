@@ -457,6 +457,42 @@ fn bouncer_sasl_return_after_a_failed_login_sends_no_credentials() {
     .no_event();
 }
 
+fn scram_then_plain_started() -> Transcript {
+    Transcript::with_entropy(
+        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server(":ergo.test CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+}
+
+fn ack_sasl_again(transcript: Transcript) -> Transcript {
+    transcript
+        .server(":ergo.test CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+        .client("CAP REQ :sasl")
+        .server(":ergo.test CAP * ACK :sasl")
+        .no_client()
+        .no_event()
+}
+
+#[test]
+fn a_repeated_sasl_ack_does_not_start_the_next_mechanism_early() {
+    ack_sasl_again(scram_then_plain_started())
+        .server(":ergo.test 904 alice :SASL authentication failed")
+        .client("AUTHENTICATE PLAIN");
+
+    ack_sasl_again(
+        scram_then_plain_started()
+            .advance(std::time::Duration::from_secs(30))
+            .client("AUTHENTICATE *"),
+    )
+    .server(":ergo.test 906 alice :SASL authentication aborted")
+    .client("AUTHENTICATE PLAIN");
+}
+
 #[test]
 fn starts_sasl_after_ack_and_holds_cap_end() {
     Transcript::new(
