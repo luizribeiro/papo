@@ -165,6 +165,7 @@ ids = [
   "security.bouncer.upstream-drop-identity",
   "regression.history.expired-label-deduplicated",
   "regression.labeled-response.late-live",
+  "regression.labeled-response.service-reply-in-send-batch",
   "regression.multiline.oversized-live",
   "security.inj-2.action-segment-framing",
   "security.inj-1.plain-text-ctcp-delimiter",

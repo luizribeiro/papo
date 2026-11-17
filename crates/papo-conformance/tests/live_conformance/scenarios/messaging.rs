@@ -1286,3 +1286,25 @@ async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()
     assert_eq!(reply.in_reply_to.as_ref(), historical.msgid());
     Ok(())
 }
+
+/// a service's reply to our labelled message reaches the application
+#[scenario(covers = ["regression.labeled-response.service-reply-in-send-batch"])]
+async fn service_reply_to_a_labelled_message(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let nickserv = alice.query("NickServ")?;
+    alice.privmsg(&nickserv, "HELP").await?;
+    let reply = alice
+        .wait_for(|event| {
+            event.as_notice().filter(|notice| {
+                notice
+                    .actor
+                    .nick()
+                    .as_str()
+                    .eq_ignore_ascii_case("NickServ")
+            })
+        })
+        .await?;
+    assert!(conversation_is_private(&reply.conversation));
+    assert!(!reply.text.is_empty());
+    Ok(())
+}
