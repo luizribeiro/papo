@@ -264,8 +264,8 @@ mod tests {
     };
 
     use super::{
-        atheme_verdict, await_account_welcome, credentials_valid, passwd_verdict, read_until,
-        register_atheme,
+        atheme_verdict, await_account_welcome, change_account_password_at, credentials_valid,
+        passwd_verdict, read_until, register_atheme,
     };
 
     const ERGO_LOGIN: &str = ":ergo.test 900 * * papo-password :You are now logged in as papo-password\r\n\
@@ -395,9 +395,11 @@ mod tests {
         let changed = ":NickServ!NickServ@localhost NOTICE papo-password :Password changed";
         let refused = ":NickServ!NickServ@localhost NOTICE papo-password :Password incorrect";
         let mode = ":ergo.test 221 papo-password +Zi";
+        let server_notice = ":ergo.test NOTICE * :*** Looking up your hostname...";
         assert!(passwd_verdict(changed).unwrap().is_ok());
         assert!(passwd_verdict(refused).unwrap().is_err());
         assert!(passwd_verdict(mode).is_none());
+        assert!(passwd_verdict(server_notice).is_none());
     }
 
     #[test]
@@ -429,5 +431,25 @@ mod tests {
                 .kind(),
             io::ErrorKind::InvalidInput
         );
+    }
+
+    #[test]
+    fn refuses_a_password_change_that_would_split_its_parameters() {
+        let address = "127.0.0.1:1".parse::<SocketAddr>().unwrap();
+        let (current, replacement) = ("q7Hx-2mZp_9vLcT4wRfB", "r8Ky-3nAq_6wMdP5xTgC");
+        for (name, current, replacement) in [
+            ("papo password", current, replacement),
+            ("papo-password", "q7Hx 2mZp", replacement),
+            ("papo-password", current, "r8Ky 3nAq"),
+            ("papo-password", current, "r8Ky\r\nQUIT"),
+        ] {
+            let error =
+                change_account_password_at(address, name, current, replacement).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                io::ErrorKind::InvalidInput,
+                "{name} {current}"
+            );
+        }
     }
 }
