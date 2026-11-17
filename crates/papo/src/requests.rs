@@ -300,9 +300,10 @@ pub(crate) fn whois(
 /// recorded when the row arrived, so a later holder of the nickname is never adopted. A WHOIS
 /// reply without `RPL_WHOISUSER` has no such row and names the requested user's current holder.
 ///
-/// A person papo tracks is followed by that identity alone: the state often knows no account
-/// for them, and a guard naming one would refuse them. For anyone else the handle keeps the
-/// account the reply showed, which the `WHO` check before a send then requires of the holder.
+/// A person papo can prove is followed by that identity alone: the state often knows no
+/// account for them, and a guard naming one would refuse them. Without that proof the handle
+/// keeps the account the reply showed, which the `WHO` check before a send then requires of the
+/// holder.
 fn reply_user(
     client: &crate::Client,
     mapping: papo_proto::Casemapping,
@@ -310,14 +311,15 @@ fn reply_user(
     token: Option<papo_core::ReplyToken>,
     account: Account,
 ) -> crate::UserHandle {
-    let tracked = token.is_some_and(papo_core::ReplyToken::__is_known);
-    let account = if tracked { Account::Unknown } else { account };
-    crate::UserHandle::from_event(
-        client.origin().__nick(mapping, nick),
-        account,
-        token,
-        Some(&client.state),
-    )
+    let nick = client.origin().__nick(mapping, nick);
+    let build =
+        |account| crate::UserHandle::from_event(nick.clone(), account, token, Some(&client.state));
+    let proven = build(Account::Unknown);
+    if proven.proof().is_some() {
+        proven
+    } else {
+        build(account)
+    }
 }
 
 fn whois_account(
@@ -870,6 +872,51 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn a_reply_handle_keeps_the_rows_account_when_its_subject_cannot_be_proven() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            ":papo!~papo@localhost JOIN #review",
+            ":alice!~alice@cloak.example JOIN #review",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let request = Line::new("WHO").with_params(["alice", WHOX_FIELDS]);
+        let matcher = ResponseMatcher::Who("alice".into());
+        session.request_with_matcher(now, request, matcher).unwrap();
+        session.handle_line(
+            now,
+            b":ergo.test 354 papo 152 #review ~alice cloak.example alice H alice-account :Alice Liddell",
+        );
+        session.handle_line(now, b":alice!~alice@cloak.example QUIT :Quit: bye");
+        for guest in 0..2_000 {
+            for line in [
+                format!(":guest{guest}!~guest@users.example JOIN #review"),
+                format!(":guest{guest}!~guest@users.example QUIT :Quit: bye"),
+            ] {
+                session.handle_line(now, line.as_bytes());
+            }
+        }
+        session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
+        let response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) => Some(response),
+                _ => None,
+            })
+            .unwrap();
+        let client = crate::driver::test_support::client_with_commands(&session).0;
+
+        let user = who(response, &Isupport::default(), &client, true).unwrap()[0]
+            .user
+            .clone();
+        assert!(user.proof().is_none());
+        assert_eq!(
+            user.account().name().map(crate::AccountName::as_str),
+            Some("alice-account")
+        );
     }
 
     struct BoundedCase {
