@@ -17,6 +17,8 @@ mod soju_config;
 mod solanum;
 mod solanum_config;
 mod startup;
+#[cfg(test)]
+mod test_client;
 mod unrealircd;
 
 pub use fault::FaultProxy;

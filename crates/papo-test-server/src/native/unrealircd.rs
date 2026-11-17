@@ -184,15 +184,9 @@ fn required_env(name: &str) -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::HashSet,
-        fs,
-        io::{BufRead, BufReader, Write},
-        net::TcpStream,
-        time::Duration,
-    };
+    use std::{collections::HashSet, fs};
 
-    use super::super::directory::TemporaryDirectory;
+    use super::super::{directory::TemporaryDirectory, test_client::lines_until};
 
     use super::Configuration;
 
@@ -224,31 +218,10 @@ mod tests {
     #[test]
     fn runs_without_hostname_or_ident_lookups() {
         let server = super::TestServer::start().unwrap();
-        let stream = TcpStream::connect(server.config.plaintext).unwrap();
-        stream
-            .set_read_timeout(Some(Duration::from_secs(10)))
-            .unwrap();
-        let mut connection = BufReader::new(stream);
-        let mut lines = Vec::new();
-        connection
-            .get_mut()
-            .write_all(b"NICK papo-oper\r\nUSER papo 0 * :papo\r\n")
-            .unwrap();
-        while !lines
-            .last()
-            .is_some_and(|line: &String| line.contains("options::dont-resolve:"))
-        {
-            let mut line = String::new();
-            assert_ne!(connection.read_line(&mut line).unwrap(), 0, "{lines:?}");
-            if let Some(token) = line.strip_prefix("PING ") {
-                let pong = format!("PONG {token}");
-                connection.get_mut().write_all(pong.as_bytes()).unwrap();
-            } else if line.contains(" 001 ") {
-                let stats = b"OPER papo papo-oper-password\r\nSTATS S\r\n";
-                connection.get_mut().write_all(stats).unwrap();
-            }
-            lines.push(line.trim_end().to_owned());
-        }
+        let stats = b"OPER papo papo-oper-password\r\nSTATS S\r\n";
+        let lines = lines_until(server.config.plaintext, "papo-oper", stats, |line| {
+            line.contains("options::dont-resolve:")
+        });
         assert!(
             lines
                 .iter()
