@@ -149,6 +149,9 @@
 "bouncer_sasl::failed_bouncer_login_never_reaches_a_late_sasl_offer" = [
   "security.sasl.no-auto-login-after-registration",
 ]
+"bouncer_sasl::bouncer_login_never_reaches_a_sasl_offer_beside_a_batched_welcome" = [
+  "security.sasl.no-auto-login-beside-batched-welcome",
+]
 "security::server_password_waits_for_sts" = [
   "security.s3.pass-after-sts-decision",
   "security.adv-1.pass-before-sts",

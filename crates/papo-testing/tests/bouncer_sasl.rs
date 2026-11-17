@@ -64,15 +64,22 @@ async fn assert_late_offer_gets_no_login(sasl: Sasl, outcome: &str) {
     );
     log_in_to_the_bouncer(&mut wire, outcome).await;
     welcome_before_the_upstream_registers(&mut wire).await;
+    offer_sasl_late(&mut wire).await;
+    assert_no_login_followed(&mut wire, &mut events).await;
+}
 
+async fn offer_sasl_late(wire: &mut Wire) {
     wire.server(":bouncer.papo.test CAP papo-wire NEW sasl=PLAIN,ANONYMOUS")
         .await;
-    expect_sent(&mut wire, "CAP REQ :sasl").await;
+    expect_sent(wire, "CAP REQ :sasl").await;
     wire.server(":bouncer.papo.test CAP papo-wire ACK sasl")
         .await;
+}
+
+async fn assert_no_login_followed(wire: &mut Wire, events: &mut papo::Events) {
     wire.server("PING :bouncer.papo.test").await;
-    expect_sent(&mut wire, "PONG bouncer.papo.test").await;
-    assert_still_connected(&mut events).await;
+    expect_sent(wire, "PONG bouncer.papo.test").await;
+    assert_still_connected(events).await;
 }
 
 #[tokio::test]
@@ -93,4 +100,28 @@ async fn failed_bouncer_login_never_reaches_a_late_sasl_offer() {
         ":bouncer.papo.test 904 papo-wire :Invalid username or password",
     )
     .await;
+}
+
+#[tokio::test]
+async fn bouncer_login_never_reaches_a_sasl_offer_beside_a_batched_welcome() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://bouncer.papo.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .sasl(Sasl::plain("alice", papo::Secret::new(PASSWORD)).optional())
+            .allow_insecure_auth(true),
+    );
+    log_in_to_the_bouncer(
+        &mut wire,
+        ":bouncer.papo.test 904 papo-wire :Invalid username or password",
+    )
+    .await;
+    wire.server(":bouncer.papo.test CAP * DEL sasl").await;
+    wire.server(":bouncer.papo.test BATCH +welcome metadata")
+        .await;
+    wire.server("@batch=welcome :bouncer.papo.test 001 papo-wire :Welcome to soju, papo-wire")
+        .await;
+    offer_sasl_late(&mut wire).await;
+    wire.server(":bouncer.papo.test BATCH -welcome").await;
+    assert_no_login_followed(&mut wire, &mut events).await;
 }
