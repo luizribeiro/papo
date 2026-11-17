@@ -1,10 +1,12 @@
 use std::{
     io::{self, BufRead, BufReader, Write},
     net::{SocketAddr, TcpStream},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{DeploymentProfile, ServerInfo};
+
+const READ_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Creates an account through `IRCv3` `draft/account-registration`.
 ///
@@ -51,7 +53,7 @@ pub fn register_account_at(address: SocketAddr, name: &str, password: &str) -> i
         ));
     }
     let stream = TcpStream::connect(address)?;
-    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+    stream.set_read_timeout(Some(READ_TIMEOUT))?;
     let mut connection = BufReader::new(stream);
     send(&mut connection, "CAP LS 302\r\n")?;
     read_until(&mut connection, "waiting for CAP LS", |line| {
@@ -92,17 +94,13 @@ pub fn change_account_password_at(
         ));
     }
     let stream = TcpStream::connect(address)?;
-    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+    stream.set_read_timeout(Some(READ_TIMEOUT))?;
     let mut connection = BufReader::new(stream);
     send(
         &mut connection,
         &format!("PASS {name}:{current}\r\nNICK {name}\r\nUSER papo 0 * :papo password change\r\n"),
     )?;
-    read_until(
-        &mut connection,
-        "waiting for the welcome after PASS",
-        |line| line.contains(" 001 "),
-    )?;
+    await_account_welcome(&mut connection, name, Instant::now() + READ_TIMEOUT)?;
     send(
         &mut connection,
         &format!("PRIVMSG NickServ :PASSWD {current} {replacement} {replacement}\r\n"),
@@ -112,6 +110,44 @@ pub fn change_account_password_at(
         "waiting for NickServ to answer PASSWD",
         passwd_verdict,
     )
+}
+
+enum Registration {
+    Welcomed,
+    NickInUse,
+}
+
+/// Ergo refuses the nick with 433 while an earlier session of the same account is still being
+/// torn down: the dying client keeps the nick until its teardown finishes, and a session can't
+/// attach to it. Asking again once that teardown ends succeeds.
+fn await_account_welcome(
+    connection: &mut BufReader<TcpStream>,
+    name: &str,
+    deadline: Instant,
+) -> io::Result<()> {
+    let step = "waiting for the welcome after PASS";
+    loop {
+        match read_reply(connection, step, registration_verdict)? {
+            Registration::Welcomed => return Ok(()),
+            Registration::NickInUse if Instant::now() < deadline => {
+                send(connection, &format!("NICK {name}\r\n"))?;
+            }
+            Registration::NickInUse => {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    format!("nick {name} stayed in use while {step}"),
+                ));
+            }
+        }
+    }
+}
+
+fn registration_verdict(line: &str) -> Option<io::Result<Registration>> {
+    match line.split(' ').nth(1) {
+        Some("001") => Some(Ok(Registration::Welcomed)),
+        Some("433") => Some(Ok(Registration::NickInUse)),
+        _ => None,
+    }
 }
 
 fn passwd_verdict(line: &str) -> Option<io::Result<()>> {
@@ -132,7 +168,7 @@ pub(crate) fn register_atheme(address: SocketAddr, name: &str, password: &str) -
         ));
     }
     let stream = TcpStream::connect(address)?;
-    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+    stream.set_read_timeout(Some(READ_TIMEOUT))?;
     let mut connection = BufReader::new(stream);
     send(
         &mut connection,
@@ -186,11 +222,11 @@ fn read_until(
     })
 }
 
-fn read_reply(
+fn read_reply<T>(
     connection: &mut BufReader<TcpStream>,
     step: &str,
-    decide: impl Fn(&str) -> Option<io::Result<()>>,
-) -> io::Result<()> {
+    decide: impl Fn(&str) -> Option<io::Result<T>>,
+) -> io::Result<T> {
     for _ in 0..128 {
         let line = read_line(connection, step)?;
         if let Some(token) = line.strip_prefix("PING ") {
@@ -224,13 +260,26 @@ mod tests {
     use std::{
         io::{self, BufReader, Write},
         net::{Shutdown, SocketAddr, TcpListener, TcpStream},
-        time::Duration,
+        time::{Duration, Instant},
     };
 
-    use super::{atheme_verdict, credentials_valid, passwd_verdict, read_until, register_atheme};
+    use super::{
+        atheme_verdict, await_account_welcome, credentials_valid, passwd_verdict, read_until,
+        register_atheme,
+    };
 
     const ERGO_LOGIN: &str = ":ergo.test 900 * * papo-password :You are now logged in as papo-password\r\n\
                               :ergo.test 903 * :Authentication successful\r\n";
+    const NICK_IN_USE: &str = ":ergo.test 433 * papo-password :Nickname is already in use\r\n";
+    const WELCOME: &str =
+        ":ergo.test 001 papo-password :Welcome to the ErgoTest IRC Network papo-password\r\n";
+
+    fn client_lines(connection: BufReader<TcpStream>, mut server: TcpStream) -> String {
+        drop(connection);
+        let mut lines = String::new();
+        io::Read::read_to_string(&mut server, &mut lines).unwrap();
+        lines
+    }
 
     fn scripted_server(lines: &str) -> (BufReader<TcpStream>, TcpStream) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -296,7 +345,7 @@ mod tests {
 
     #[test]
     fn answers_ping_while_waiting() {
-        let (mut connection, mut server) = scripted_server(
+        let (mut connection, server) = scripted_server(
             "PING papo-password\r\n\
              :ergo.test 001 papo-password :Welcome to the ErgoTest IRC Network papo-password\r\n",
         );
@@ -304,11 +353,41 @@ mod tests {
             line.contains(" 001 ")
         })
         .unwrap();
-        server.shutdown(Shutdown::Write).unwrap();
-        drop(connection);
-        let mut answered = String::new();
-        io::Read::read_to_string(&mut server, &mut answered).unwrap();
-        assert_eq!(answered, "PONG papo-password\r\n");
+        assert_eq!(client_lines(connection, server), "PONG papo-password\r\n");
+    }
+
+    #[test]
+    fn asks_for_the_nick_again_while_a_dying_session_holds_it() {
+        let (mut connection, server) =
+            scripted_server(&format!("{ERGO_LOGIN}{NICK_IN_USE}{WELCOME}"));
+        let deadline = Instant::now() + Duration::from_secs(60);
+        await_account_welcome(&mut connection, "papo-password", deadline).unwrap();
+        assert_eq!(client_lines(connection, server), "NICK papo-password\r\n");
+    }
+
+    #[test]
+    fn keeps_asking_past_the_line_budget_until_the_deadline() {
+        let refusals = NICK_IN_USE.repeat(300);
+        let (mut connection, server) = scripted_server(&format!("{refusals}{WELCOME}"));
+        let deadline = Instant::now() + Duration::from_secs(60);
+        await_account_welcome(&mut connection, "papo-password", deadline).unwrap();
+        assert_eq!(
+            client_lines(connection, server),
+            "NICK papo-password\r\n".repeat(300)
+        );
+    }
+
+    #[test]
+    fn stops_asking_once_the_deadline_passes() {
+        let (mut connection, server) = scripted_server(&NICK_IN_USE.repeat(3));
+        let error =
+            await_account_welcome(&mut connection, "papo-password", Instant::now()).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(
+            error.to_string(),
+            "nick papo-password stayed in use while waiting for the welcome after PASS"
+        );
+        assert_eq!(client_lines(connection, server), "");
     }
 
     #[test]
