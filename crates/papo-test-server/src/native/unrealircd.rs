@@ -2,8 +2,6 @@ use std::{
     env, fs, io,
     path::{Path, PathBuf},
     process::Command,
-    thread,
-    time::{Duration, Instant},
 };
 
 use super::{atheme, certificate, directory::TemporaryDirectory, process, process::ServerChild};
@@ -131,44 +129,21 @@ impl TestServer {
             &required_env("UNREALIRCD_CONFIG")?,
             &required_env("ATHEME_MODULES")?,
         )?;
-        let unreal =
+        let mut unreal =
             ServerChild::spawn(&mut Configuration::command("UNREALIRCD_BIN", &directory)?)?;
-        let mut server = Self {
-            children: vec![unreal],
+        let endpoints = [
+            config.plaintext,
+            config.tls,
+            config.websocket,
+            config.secure_websocket,
+        ];
+        super::server::wait_for_child("UnrealIRCd", endpoints, &mut unreal)?;
+        let atheme = atheme::link(&directory, "UnrealIRCd", &mut unreal)?;
+        Ok(Self {
+            children: vec![unreal, atheme],
             directory,
             config,
-        };
-        server.wait_for(false)?;
-        let atheme = ServerChild::spawn(&mut atheme::command(&server.directory)?)?;
-        server.children.push(atheme);
-        server.wait_for(true)?;
-        Ok(server)
-    }
-
-    fn wait_for(&mut self, services: bool) -> io::Result<()> {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        if !services {
-            let endpoints = [
-                self.config.plaintext,
-                self.config.tls,
-                self.config.websocket,
-                self.config.secure_websocket,
-            ];
-            return super::server::wait_for_child("UnrealIRCd", endpoints, &mut self.children[0]);
-        }
-        while Instant::now() < deadline {
-            self.children[0].check("UnrealIRCd")?;
-            self.children[1].check("Atheme")?;
-            if self.services_linked() {
-                return Ok(());
-            }
-            thread::sleep(Duration::from_millis(20));
-        }
-        Err(self.children[1].timeout("Atheme"))
-    }
-
-    fn services_linked(&self) -> bool {
-        atheme::linked(self.directory.path())
+        })
     }
 
     /// Returns the plaintext, TLS, WebSocket, and secure WebSocket listeners.

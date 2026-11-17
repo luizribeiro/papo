@@ -1,6 +1,12 @@
-use std::{env, fs, io, path::Path, process::Command};
+use std::{
+    env, fs, io,
+    path::Path,
+    process::Command,
+    thread,
+    time::{Duration, Instant},
+};
 
-use super::directory::TemporaryDirectory;
+use super::{directory::TemporaryDirectory, process::ServerChild, startup::StartupBudget};
 
 pub(crate) fn write_config(
     directory: &Path,
@@ -48,6 +54,35 @@ saslserv {{ nick = "SaslServ"; }};
     )
 }
 
+/// Starts Atheme and waits until it has synced with `ircd`, which already accepts clients.
+pub(crate) fn link(
+    directory: &TemporaryDirectory,
+    ircd_name: &str,
+    ircd: &mut ServerChild,
+) -> io::Result<ServerChild> {
+    let mut atheme = ServerChild::spawn(&mut command(directory)?)?;
+    let budget = StartupBudget::new(Instant::now());
+    wait_for_link(directory.path(), (ircd_name, ircd), &mut atheme, budget)?;
+    Ok(atheme)
+}
+
+fn wait_for_link(
+    directory: &Path,
+    (ircd_name, ircd): (&str, &mut ServerChild),
+    atheme: &mut ServerChild,
+    mut budget: StartupBudget,
+) -> io::Result<()> {
+    loop {
+        ircd.check(ircd_name)?;
+        atheme.check("Atheme")?;
+        if linked(directory) {
+            return Ok(());
+        }
+        atheme.charge("Atheme", &mut budget)?;
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
 pub(crate) fn command(directory: &TemporaryDirectory) -> io::Result<Command> {
     let path = |file| directory.path().join(file);
     let mut command =
@@ -72,9 +107,68 @@ pub(crate) fn linked(directory: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, io, process::Command};
 
     use super::super::directory::TemporaryDirectory;
+    use crate::native::{process::ServerChild, startup::tests::settled_budget};
+
+    const CONNECTED: &str = "[2026-11-17 04:40:38] uplink_connect(): connecting to first entry irc.papo.test[127.0.0.1]:33159.
+[2026-11-17 04:40:38] irc_handle_connect(): connection to uplink established
+";
+
+    fn sleeping() -> ServerChild {
+        ServerChild::spawn(Command::new("sleep").arg("60")).unwrap()
+    }
+
+    fn wait_with(log: &str, mut ircd: ServerChild) -> io::Result<()> {
+        let directory = TemporaryDirectory::create().unwrap();
+        fs::write(directory.path().join("atheme.log"), log).unwrap();
+        let mut atheme = sleeping();
+        let budget = settled_budget(&[atheme.id(), ircd.id()], false);
+        super::wait_for_link(
+            directory.path(),
+            ("Solanum", &mut ircd),
+            &mut atheme,
+            budget,
+        )
+    }
+
+    #[test]
+    fn a_link_that_never_syncs_spends_the_startup_budget() {
+        let error = wait_with(CONNECTED, sleeping()).unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        let message = error.to_string();
+        assert!(
+            message.starts_with(
+                "Atheme did not start: stayed idle before becoming ready (11.0 s idle"
+            ),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn a_synced_link_is_ready_whatever_the_budget_says() {
+        let synced = "[2026-11-17 04:40:38] m_pong(): finished synching with uplink (0 ms)\n";
+
+        wait_with(&format!("{CONNECTED}{synced}"), sleeping()).unwrap();
+    }
+
+    #[test]
+    fn an_ircd_that_exits_ends_the_link_wait() {
+        let exiting = ServerChild::spawn(Command::new("sh").args(["-c", "exit 1"])).unwrap();
+        let stat = format!("/proc/{}/stat", exiting.id());
+        while !fs::read_to_string(&stat).unwrap().contains(") Z ") {
+            std::thread::yield_now();
+        }
+
+        let message = wait_with(CONNECTED, exiting).unwrap_err().to_string();
+
+        assert!(
+            message.starts_with("Solanum exited with exit status: 1"),
+            "{message}"
+        );
+    }
 
     #[test]
     fn writes_protocol_and_uplink_configuration() {
