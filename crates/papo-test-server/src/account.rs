@@ -54,11 +54,11 @@ pub fn register_account_at(address: SocketAddr, name: &str, password: &str) -> i
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     let mut connection = BufReader::new(stream);
     send(&mut connection, "CAP LS 302\r\n")?;
-    read_until(&mut connection, |line| {
+    read_until(&mut connection, "waiting for CAP LS", |line| {
         line.contains(" CAP * LS ") && line.contains("draft/account-registration")
     })?;
     send(&mut connection, "CAP REQ :draft/account-registration\r\n")?;
-    read_until(&mut connection, |line| {
+    read_until(&mut connection, "waiting for CAP ACK", |line| {
         line.contains(" CAP * ACK ") && line.contains("draft/account-registration")
     })?;
     send(&mut connection, &format!("NICK {name}\r\n"))?;
@@ -66,7 +66,9 @@ pub fn register_account_at(address: SocketAddr, name: &str, password: &str) -> i
         &mut connection,
         &format!("REGISTER {name} * :{password}\r\n"),
     )?;
-    read_until(&mut connection, |line| line.contains(" REGISTER SUCCESS "))
+    read_until(&mut connection, "waiting for REGISTER SUCCESS", |line| {
+        line.contains(" REGISTER SUCCESS ")
+    })
 }
 
 /// Changes an Ergo account password through its local `NickServ` service.
@@ -96,12 +98,20 @@ pub fn change_account_password_at(
         &mut connection,
         &format!("PASS {name}:{current}\r\nNICK {name}\r\nUSER papo 0 * :papo password change\r\n"),
     )?;
-    read_until(&mut connection, |line| line.contains(" 001 "))?;
+    read_until(
+        &mut connection,
+        "waiting for the welcome after PASS",
+        |line| line.contains(" 001 "),
+    )?;
     send(
         &mut connection,
         &format!("PRIVMSG NickServ :PASSWD {current} {replacement} {replacement}\r\n"),
     )?;
-    read_reply(&mut connection, passwd_verdict)
+    read_reply(
+        &mut connection,
+        "waiting for NickServ to answer PASSWD",
+        passwd_verdict,
+    )
 }
 
 fn passwd_verdict(line: &str) -> Option<io::Result<()>> {
@@ -128,12 +138,18 @@ pub(crate) fn register_atheme(address: SocketAddr, name: &str, password: &str) -
         &mut connection,
         &format!("NICK {name}\r\nUSER papo 0 * :papo account registration\r\n"),
     )?;
-    read_until(&mut connection, |line| line.contains(" 001 "))?;
+    read_until(&mut connection, "waiting for the welcome", |line| {
+        line.contains(" 001 ")
+    })?;
     send(
         &mut connection,
         &format!("PRIVMSG NickServ :REGISTER {password} papo@example.invalid\r\n"),
     )?;
-    read_reply(&mut connection, atheme_verdict)
+    read_reply(
+        &mut connection,
+        "waiting for NickServ to answer REGISTER",
+        atheme_verdict,
+    )
 }
 
 fn atheme_verdict(line: &str) -> Option<io::Result<()>> {
@@ -158,9 +174,10 @@ fn send(connection: &mut BufReader<TcpStream>, line: &str) -> io::Result<()> {
 
 fn read_until(
     connection: &mut BufReader<TcpStream>,
+    step: &str,
     accepted: impl Fn(&str) -> bool,
 ) -> io::Result<()> {
-    read_reply(connection, |line| {
+    read_reply(connection, step, |line| {
         if line.contains(" FAIL REGISTER ") {
             Some(Err(io::Error::other(line.trim().to_owned())))
         } else {
@@ -171,23 +188,35 @@ fn read_until(
 
 fn read_reply(
     connection: &mut BufReader<TcpStream>,
+    step: &str,
     decide: impl Fn(&str) -> Option<io::Result<()>>,
 ) -> io::Result<()> {
     for _ in 0..128 {
-        let mut line = String::new();
-        if connection.read_line(&mut line)? == 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "server closed the connection",
-            ));
-        }
+        let line = read_line(connection, step)?;
         if let Some(token) = line.strip_prefix("PING ") {
             send(connection, &format!("PONG {token}"))?;
         } else if let Some(verdict) = decide(&line) {
             return verdict;
         }
     }
-    Err(io::Error::other("server sent 128 lines without an answer"))
+    Err(io::Error::other(format!(
+        "server sent 128 lines without an answer while {step}"
+    )))
+}
+
+fn read_line(connection: &mut BufReader<TcpStream>, step: &str) -> io::Result<String> {
+    let mut line = String::new();
+    match connection.read_line(&mut line) {
+        Ok(0) => Err(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            format!("server closed the connection while {step}"),
+        )),
+        Ok(_) => Ok(line),
+        Err(error) => Err(io::Error::new(
+            error.kind(),
+            format!("{error} while {step}"),
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -195,9 +224,13 @@ mod tests {
     use std::{
         io::{self, BufReader, Write},
         net::{Shutdown, SocketAddr, TcpListener, TcpStream},
+        time::Duration,
     };
 
     use super::{atheme_verdict, credentials_valid, passwd_verdict, read_until, register_atheme};
+
+    const ERGO_LOGIN: &str = ":ergo.test 900 * * papo-password :You are now logged in as papo-password\r\n\
+                              :ergo.test 903 * :Authentication successful\r\n";
 
     fn scripted_server(lines: &str) -> (BufReader<TcpStream>, TcpStream) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -208,16 +241,57 @@ mod tests {
     }
 
     fn wait_for_welcome(connection: &mut BufReader<TcpStream>) -> io::Error {
-        read_until(connection, |line| line.contains(" 001 ")).unwrap_err()
+        read_until(connection, "waiting for the welcome after PASS", |line| {
+            line.contains(" 001 ")
+        })
+        .unwrap_err()
     }
 
     #[test]
-    fn endless_unrelated_lines_end_the_wait() {
+    fn a_read_timeout_names_the_stalled_step() {
+        let (mut connection, _server) = scripted_server(ERGO_LOGIN);
+        connection
+            .get_ref()
+            .set_read_timeout(Some(Duration::from_millis(50)))
+            .unwrap();
+        let error = wait_for_welcome(&mut connection);
+        assert!(
+            matches!(
+                error.kind(),
+                io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+            ),
+            "{error:?}"
+        );
+        assert!(
+            error
+                .to_string()
+                .ends_with(" while waiting for the welcome after PASS"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_closed_connection_names_the_stalled_step() {
+        let (mut connection, server) = scripted_server(ERGO_LOGIN);
+        server.shutdown(Shutdown::Write).unwrap();
+        let error = wait_for_welcome(&mut connection);
+        assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
+        assert_eq!(
+            error.to_string(),
+            "server closed the connection while waiting for the welcome after PASS"
+        );
+    }
+
+    #[test]
+    fn endless_unrelated_lines_name_the_stalled_step() {
         let (mut connection, _server) = scripted_server(
             &":ergo.test NOTICE * :*** Looking up your hostname...\r\n".repeat(128),
         );
         let error = wait_for_welcome(&mut connection);
-        assert_eq!(error.to_string(), "server sent 128 lines without an answer");
+        assert_eq!(
+            error.to_string(),
+            "server sent 128 lines without an answer while waiting for the welcome after PASS"
+        );
     }
 
     #[test]
@@ -226,7 +300,10 @@ mod tests {
             "PING papo-password\r\n\
              :ergo.test 001 papo-password :Welcome to the ErgoTest IRC Network papo-password\r\n",
         );
-        read_until(&mut connection, |line| line.contains(" 001 ")).unwrap();
+        read_until(&mut connection, "waiting for the welcome", |line| {
+            line.contains(" 001 ")
+        })
+        .unwrap();
         server.shutdown(Shutdown::Write).unwrap();
         drop(connection);
         let mut answered = String::new();
