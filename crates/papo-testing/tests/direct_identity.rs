@@ -183,3 +183,42 @@ async fn nick_text_is_not_a_message_target() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn departed_handle_never_reaches_another_nick_on_the_same_account() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["account-tag", "extended-join"]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo!~papo@localhost JOIN #release * :Papo",
+        ":alice!~alice@cloak.example JOIN #release alice-account :Alice",
+        ":relaybot!~relay@bots.example JOIN #release alice-account :Shared relay bot",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+    let alice = client.query("alice").unwrap();
+
+    wire.server(":alice!~alice@cloak.example PART #release :bye")
+        .await;
+    while !matches!(next_active_event(&mut events).await, papo::Event::Parted(_)) {}
+    let sent = tokio::time::timeout(
+        Duration::from_secs(1),
+        client.privmsg(&alice, "alice only: the deploy token is hunter2"),
+    )
+    .await
+    .unwrap();
+    assert!(matches!(sent, Err(papo::Error::TargetGone)), "{sent:?}");
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}

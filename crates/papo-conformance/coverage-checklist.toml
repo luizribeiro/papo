@@ -138,6 +138,7 @@ ids = [
   "security.guard-proof.event-identity-at-arrival",
   "security.guard-proof.past-line-names",
   "security.guard-proof.unseen-message-peer-handoff",
+  "security.d-4.departed-handle-account-retarget",
   "security.guard-proof.who-proof-nick-handoff",
   "security.guard-proof.no-account-tag-handoff",
   "security.guard-proof.who-expected-account",

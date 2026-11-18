@@ -286,3 +286,6 @@
 "catchup_bound::unanswered_catchup_never_grows_with_live_traffic" = [
   "security.catchup.unanswered-request-bound",
 ]
+"direct_identity::departed_handle_never_reaches_another_nick_on_the_same_account" = [
+  "security.d-4.departed-handle-account-retarget",
+]
