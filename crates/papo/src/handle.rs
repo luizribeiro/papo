@@ -1434,12 +1434,15 @@ mod tests {
             bob_name.check(&client.query("bob").unwrap().key()),
             crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::DifferentAccount)
         ));
-        for current in [carol.key(), client.query("carol").unwrap().key()] {
-            assert!(matches!(
-                carol_name.check(&current),
-                crate::PeerKeyCheck::Upgrade(_)
-            ));
-        }
+        assert_eq!(
+            carol.key().to_string(),
+            carol_name.to_string(),
+            "a departed handle must not follow a later session on the same account"
+        );
+        assert!(matches!(
+            carol_name.check(&client.query("carol").unwrap().key()),
+            crate::PeerKeyCheck::Upgrade(_)
+        ));
     }
 
     #[test]

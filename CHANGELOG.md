@@ -378,6 +378,10 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 - The setter from `Channel::topic_set_by` and `ModeListEntry::actor`, and the actor of an
   archived JOIN, QUIT or TOPIC, is a past name: sends through it fail with `Error::TargetGone`,
   as for an archived message's actor. They used to reach the nickname's current holder.
+- A send through a user's handle never reaches another nick logged into the same account. Once papo
+  sees the user quit or part the last shared channel, it fails with `Error::TargetGone`, even when
+  a new session takes the same nick and account; it used to go to any other tracked user on that
+  account, chosen arbitrarily when there were several.
 
 ### Migration from the 2026-10-24 API
 

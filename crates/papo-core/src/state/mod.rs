@@ -783,13 +783,7 @@ impl State {
         if let Some((_, nick, _)) = proven {
             return crate::RecipientStatus::Current(nick.clone());
         }
-        let matching = tracked.or_else(|| match &guard.account {
-            Account::LoggedIn(expected) => self.users.values().find(
-                |user| matches!(&user.account, Account::LoggedIn(actual) if actual == expected),
-            ),
-            Account::Unknown | Account::LoggedOut => None,
-        });
-        if let Some(user) = matching {
+        if let Some(user) = tracked {
             return crate::RecipientStatus::Current(user.nick.clone());
         }
         if guard.token.identity.is_some_and(|identity| {
