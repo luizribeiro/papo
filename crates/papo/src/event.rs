@@ -2891,9 +2891,11 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(nick, account.clone(), token);
             Event::AccountChanged(AccountChanged {
+                actor_account: line_account,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2909,9 +2911,11 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::AwayChanged(AwayChanged {
+                actor_account: line_account,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2928,9 +2932,11 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::HostChanged(HostChanged {
+                actor_account: line_account,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2947,9 +2953,11 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::RealnameChanged(RealnameChanged {
+                actor_account: line_account,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -3845,6 +3853,66 @@ mod tests {
                     .map(super::NickChanged::actor_account)
             }),
         ]);
+    }
+
+    #[test]
+    fn presence_events_report_the_account_of_the_triggering_line() {
+        let now = Instant::now();
+        let cases: [(&str, ActorAccount); 4] = [
+            (
+                "@account=reviewer :emily!~e@cloak.example AWAY :Reviewing the release",
+                |event| {
+                    event
+                        .as_away_changed()
+                        .map(super::AwayChanged::actor_account)
+                },
+            ),
+            (
+                "@account=reviewer :emily!~e@cloak.example ACCOUNT reviewer",
+                |event| {
+                    event
+                        .as_account_changed()
+                        .map(super::AccountChanged::actor_account)
+                },
+            ),
+            (
+                "@account=reviewer :emily!~e@cloak.example CHGHOST ~emily users.example",
+                |event| {
+                    event
+                        .as_host_changed()
+                        .map(super::HostChanged::actor_account)
+                },
+            ),
+            (
+                "@account=reviewer :emily!~e@cloak.example SETNAME :Emily Reviewer",
+                |event| {
+                    event
+                        .as_realname_changed()
+                        .map(super::RealnameChanged::actor_account)
+                },
+            ),
+        ];
+        for (line, accessor) in cases {
+            let mut session = Session::new(Config::default().nick("papo"));
+            session.handle_line(now, b":papo!~papo@localhost JOIN #review");
+            session.handle_line(now, b":emily!~e@cloak.example JOIN #review");
+            while session.poll_event().is_some() {}
+            session.handle_line(now, line.as_bytes());
+            let event = std::iter::from_fn(|| session.poll_event())
+                .find_map(|event| {
+                    if let CoreEvent::Forward(event) = from_core(event)
+                        && accessor(&event).is_some()
+                    {
+                        return Some(event);
+                    }
+                    None
+                })
+                .unwrap_or_else(|| panic!("expected a presence change for {line}"));
+            assert!(
+                matches!(accessor(&event), Some(Account::LoggedIn(name)) if name == "reviewer"),
+                "{event:?}"
+            );
+        }
     }
 
     #[test]

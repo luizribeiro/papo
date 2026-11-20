@@ -265,6 +265,8 @@ pub papo::event::AccountChanged::actor_party: papo::Party
 pub papo::event::AccountChanged::new: papo::Account
 pub papo::event::AccountChanged::received_at: std::time::SystemTime
 pub papo::event::AccountChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::AccountChanged
+pub const fn papo::event::AccountChanged::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::AccountChanged
 pub fn papo::event::AccountChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AccountChanged
@@ -304,6 +306,8 @@ pub papo::event::AwayChanged::actor_party: papo::Party
 pub papo::event::AwayChanged::new: papo::Away
 pub papo::event::AwayChanged::received_at: std::time::SystemTime
 pub papo::event::AwayChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::AwayChanged
+pub const fn papo::event::AwayChanged::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::AwayChanged
 pub fn papo::event::AwayChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AwayChanged
@@ -577,6 +581,8 @@ pub papo::event::HostChanged::new_host: alloc::string::String
 pub papo::event::HostChanged::new_username: alloc::string::String
 pub papo::event::HostChanged::received_at: std::time::SystemTime
 pub papo::event::HostChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::HostChanged
+pub const fn papo::event::HostChanged::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::HostChanged
 pub fn papo::event::HostChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::HostChanged
@@ -1017,6 +1023,8 @@ pub papo::event::RealnameChanged::actor_party: papo::Party
 pub papo::event::RealnameChanged::new: alloc::string::String
 pub papo::event::RealnameChanged::received_at: std::time::SystemTime
 pub papo::event::RealnameChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::RealnameChanged
+pub const fn papo::event::RealnameChanged::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::RealnameChanged
 pub fn papo::event::RealnameChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::RealnameChanged

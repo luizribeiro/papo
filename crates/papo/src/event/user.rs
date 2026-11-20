@@ -76,7 +76,10 @@ pub struct AwayChanged {
     pub new: Away,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
+
+super::actor_account_accessor!(AwayChanged);
 
 /// A user's account state changed.
 ///
@@ -97,7 +100,10 @@ pub struct AccountChanged {
     pub new: Account,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
+
+super::actor_account_accessor!(AccountChanged);
 
 /// A user's username or hostname changed.
 ///
@@ -118,7 +124,10 @@ pub struct HostChanged {
     pub new_host: String,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
+
+super::actor_account_accessor!(HostChanged);
 
 /// A user's real name changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -134,7 +143,10 @@ pub struct RealnameChanged {
     pub new: String,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
+
+super::actor_account_accessor!(RealnameChanged);
 
 /// A monitored nickname came online.
 #[derive(Clone, Debug, Eq, PartialEq)]
