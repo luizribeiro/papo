@@ -314,14 +314,11 @@ impl SetModes {
         self.optional_list(false, crate::Feature::Quiet, target)
     }
 
-    /// Grants channel-operator privileges to a guarded user identity.
+    /// Grants channel-operator privileges to `nick`.
     ///
-    /// ```compile_fail
-    /// # fn unguarded(client: &papo::Client, nick: &papo::Nick) {
-    /// let _ = client.mode("#papo").op(nick);
-    /// # }
-    /// ```
-    pub fn op(self, nick: &crate::UserHandle) -> Self {
+    /// A [`crate::UserHandle`] follows its proven identity. Text and [`crate::Nick`] address
+    /// the current holder.
+    pub fn op(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(true, 'o', nick)
     }
 
@@ -332,8 +329,10 @@ impl SetModes {
         self.prefix_change(false, 'o', nick)
     }
 
-    /// Grants half-operator privileges to a guarded user identity.
-    pub fn halfop(self, nick: &crate::UserHandle) -> Self {
+    /// Grants half-operator privileges to `nick`.
+    ///
+    /// Accepts the same nickname and identity arguments as [`Self::op`].
+    pub fn halfop(self, nick: impl crate::AsNick) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
@@ -344,8 +343,10 @@ impl SetModes {
         self.optional_prefix(false, crate::Feature::Halfop, nick)
     }
 
-    /// Grants voice privileges to a guarded user identity.
-    pub fn voice(self, nick: &crate::UserHandle) -> Self {
+    /// Grants voice privileges to `nick`.
+    ///
+    /// Accepts the same nickname and identity arguments as [`Self::op`].
+    pub fn voice(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(true, 'v', nick)
     }
 
@@ -356,11 +357,12 @@ impl SetModes {
         self.prefix_change(false, 'v', nick)
     }
 
-    /// Grants an advertised membership prefix to a guarded user identity.
+    /// Grants an advertised membership prefix to `nick`.
     ///
     /// This covers server-specific owner and administrator modes such as `q` and `a`; prefer the
-    /// named helpers for operator, half-operator, and voice privileges.
-    pub fn prefix(self, mode: char, nick: &crate::UserHandle) -> Self {
+    /// named helpers for operator, half-operator, and voice privileges. Accepts the same
+    /// nickname and identity arguments as [`Self::op`].
+    pub fn prefix(self, mode: char, nick: impl crate::AsNick) -> Self {
         self.prefix_change(true, mode, nick)
     }
 
@@ -765,7 +767,7 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
                 .into_iter()
                 .any(|prefix| prefix.mode() == mode) =>
         {
-            return Err(invalid("prefix modes require a guarded nickname"));
+            return Err(invalid("prefix modes require a nickname helper"));
         }
         Selector::Letter(mode) => mode,
         Selector::Prefix(mode) => isupport
@@ -1226,7 +1228,7 @@ mod tests {
                 assert!(matches!(
                     encode(&support, "#papo", &[raw]),
                     Err(Error::InvalidInput(InvalidInput::InvalidMode(message)))
-                        if message == "prefix modes require a guarded nickname"
+                        if message == "prefix modes require a nickname helper"
                 ));
 
                 let guarded = Change {

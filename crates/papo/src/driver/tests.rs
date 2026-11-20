@@ -6053,7 +6053,7 @@ async fn membership_actions_confirm_success_and_refusal() {
     ));
     assert!(matches!(
         client
-            .invite(&client.query("dave").unwrap(), "not-a-channel")
+            .invite(client.query("dave").unwrap(), "not-a-channel")
             .await,
         Err(Error::InvalidInput(_))
     ));
@@ -7662,6 +7662,52 @@ async fn rejected_monitor_entry_does_not_fail_a_watched_send() {
     client_line(&mut server, b"PRIVMSG alice :release approved\r\n").await;
     assert!(within(sent).await.unwrap().is_ok());
     assert!(!watch.is_live());
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn invite_and_privilege_grants_accept_nicknames() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let task = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver PREFIX=(qaohv)~&@%+ CHANMODES=beI,k,l,imnst :are supported\r\nPING :prefix-fence\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PONG prefix-fence\r\n").await;
+
+    let invite = tokio::spawn(client.invite(test_nick("Alice"), "#review"));
+    client_line(&mut server, b"@label=0 INVITE Alice #review\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :ergo.test 341 papo-driver Alice #review\r\n",
+    )
+    .await;
+    within(invite).await.unwrap().unwrap();
+
+    let request = client
+        .mode("#review")
+        .op("Alice")
+        .halfop(test_nick("bob"))
+        .voice("carol")
+        .prefix('a', test_nick("dave"));
+    let modes = tokio::spawn(async move { request.await });
+    for (label, change) in [
+        (1, "+o Alice"),
+        (2, "+h bob"),
+        (3, "+v carol"),
+        (4, "+a dave"),
+    ] {
+        let command = format!("@label={label} MODE #review {change}\r\n");
+        client_line(&mut server, command.as_bytes()).await;
+        let echo = format!("@label={label} :papo-driver!papo@localhost MODE #review {change}\r\n");
+        server_line(&mut server, echo.as_bytes()).await;
+    }
+    assert_eq!(within(modes).await.unwrap().unwrap().applied.len(), 4);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

@@ -1913,23 +1913,17 @@ impl Client {
         })
     }
 
-    /// Invites a guarded user identity to `channel`.
+    /// Invites `nick` to `channel`.
     ///
-    /// Create one from a typed nickname with [`Client::query`], or pass a received event's sender
-    /// handle to retain that identity.
-    ///
-    /// ```compile_fail
-    /// # fn unguarded(client: &papo::Client, nick: &papo::Nick, channel: &papo::ChannelName) {
-    /// let _ = client.invite(nick, channel);
-    /// # }
-    /// ```
+    /// A [`crate::UserHandle`] retains the user's identity. Text and [`crate::Nick`] address the
+    /// current holder.
     ///
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn invite(
         &self,
-        nick: &crate::UserHandle,
+        nick: impl crate::AsNick,
         channel: impl crate::AsChannel,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();

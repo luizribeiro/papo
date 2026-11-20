@@ -23,6 +23,8 @@ output tests. Their example binaries require TLS when sending credentials.
 
 `Client::typing` accepts plain text and `Nick` targets for the nickname's current holder.
 
+`Client::invite` and the `SetModes` privilege grants accept plain text and `Nick` in addition to `UserHandle`.
+
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 
