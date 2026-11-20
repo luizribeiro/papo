@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::Stdio,
     time::{Duration, Instant},
 };
@@ -14,6 +14,7 @@ pub(super) struct BouncerExample {
 impl BouncerExample {
     pub(super) fn start(
         url: &str,
+        ca_pem_path: &Path,
         upstream: &str,
         nick: &str,
         account: &str,
@@ -23,6 +24,7 @@ impl BouncerExample {
         let stdout = directory.join(format!("{nick}.stdout"));
         let child = std::process::Command::new(env!("CARGO_BIN_EXE_bouncer-networks"))
             .args([url, upstream])
+            .env("SSL_CERT_FILE", ca_pem_path)
             .env("IRC_NICK", nick)
             .env("IRC_ACCOUNT", account)
             .env("IRC_PASSWORD", password)

@@ -7,8 +7,9 @@ control connection's endpoint, credentials, TLS settings, and reconnect policy. 
 connection subscribes to network-list changes, so each change is reported once. The example
 awaits `Client::quit` for both connections before exiting.
 
-Pass the bouncer URL and the new upstream's `irc://` or `ircs://` URL as arguments. Set `IRC_NICK`
-to the upstream nickname, `IRC_ACCOUNT` to the soju account, and `IRC_PASSWORD` to its password.
+Pass the bouncer's `ircs://` URL and the new upstream's `irc://` or `ircs://` URL as arguments.
+Set `IRC_NICK` to the upstream nickname, `IRC_ACCOUNT` to the soju account, and `IRC_PASSWORD` to
+its password.
 
 ```sh
 IRC_NICK=alice IRC_ACCOUNT=alice IRC_PASSWORD='correct horse battery staple' \

@@ -16,10 +16,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let account = env::var("IRC_ACCOUNT")?;
     let password = env::var("IRC_PASSWORD")?;
 
-    let insecure = bouncer_url.starts_with("irc://");
     let (manager, mut manager_events) = Client::builder(bouncer_url, &nick)
         .sasl(Sasl::plain(&account, Secret::new(password)))
-        .allow_insecure_auth(insecure)
         .enable(Feature::Bouncer)
         .connect()
         .await?;
