@@ -298,6 +298,9 @@ impl State {
     /// This is `None` until the server advertises `CASEMAPPING` in `005`, unless
     /// [`crate::Builder::casemapping`] seeded the rules before connecting. Waiting avoids
     /// creating names under guessed rules that cannot compare equal to names created later.
+    ///
+    /// When [`crate::event::CasemappingChanged`] arrives, rebuild saved names and
+    /// maps or sets keyed by them using the current rules.
     #[must_use]
     pub const fn name_rules(&self) -> Option<crate::NameRules<'_>> {
         self.known_name_rules()

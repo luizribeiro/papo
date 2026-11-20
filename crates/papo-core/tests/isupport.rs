@@ -40,6 +40,27 @@ fn reports_first_known_rules_and_changes_to_known_rules() {
 }
 
 #[test]
+fn a_reconnected_session_learns_name_rules_again() {
+    use papo_proto::Casemapping::{Ascii, Rfc1459};
+
+    let line = ":ergo.test 005 papo CASEMAPPING=ascii :are supported by this server";
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(line)
+        .event(|event| event == &Event::__casemapping_changed(None, Ascii))
+        .disconnect()
+        .inspect(|session| assert!(session.__name_rules_known()))
+        .connect_default()
+        .inspect(|session| {
+            assert!(!session.__name_rules_known());
+            assert_eq!(session.isupport().casemapping(), Rfc1459);
+        })
+        .server(line)
+        .event(|event| event == &Event::__casemapping_changed(None, Ascii))
+        .no_event();
+}
+
+#[test]
 fn applies_multiple_005_lines_and_enforces_utf8only() {
     Transcript::new(Config::default())
         .connect_default()

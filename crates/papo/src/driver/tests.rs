@@ -10654,15 +10654,20 @@ async fn name_rules_wait_for_isupport_casemapping() {
     welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
-    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
+    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=rfc1459 :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        Event::CasemappingChanged(changed)
+            if changed.old.is_none() && changed.new == crate::Casemapping::Rfc1459
+    ));
+    assert_connected(&mut events).await;
 
     let confirmed = client
         .state()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .account("{ops}");
-    assert_eq!(confirmed.casemapping(), crate::Casemapping::Ascii);
+    assert_eq!(confirmed.casemapping(), crate::Casemapping::Rfc1459);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
