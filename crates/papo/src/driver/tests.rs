@@ -8533,6 +8533,49 @@ async fn reactions_reject_messages_without_identifiers_before_writing() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn typing_to_text_and_typed_nicknames_needs_no_lookup() {
+    let (mut server, client, _events, driver) = scripted(config().wanted_caps(["message-tags"]));
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+    client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
+
+    within(client.typing("alice", Typing::Active))
+        .await
+        .unwrap();
+    client_line(&mut server, b"@+typing=active TAGMSG alice\r\n").await;
+    within(client.typing(test_nick("bob"), Typing::Done))
+        .await
+        .unwrap();
+    client_line(&mut server, b"@+typing=done TAGMSG bob\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn typing_without_name_rules_writes_nothing() {
+    let session = Session::new(Config::default().nick("papo"));
+    let (client, mut commands) = client_with_commands(&session);
+    for result in [
+        client.typing("alice", Typing::Active).await,
+        client.typing(test_nick("alice"), Typing::Active).await,
+    ] {
+        assert!(matches!(
+            result,
+            Err(Error::InvalidInput(crate::InvalidInput::NameRulesUnknown))
+        ));
+    }
+    assert!(matches!(
+        commands.try_recv(),
+        Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     let (mut server, client, _events, driver) = scripted(config().wanted_caps(["message-tags"]));

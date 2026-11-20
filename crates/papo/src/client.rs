@@ -1289,8 +1289,8 @@ impl Client {
     ///
     /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
-    /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
-    /// [`Error::InvalidInput`] or [`Error::Disconnected`]. A reference without a server message
+    /// [`UnsupportedReason::TagDenied`]. Unknown name rules, an invalid target, or encoding
+    /// failure returns [`Error::InvalidInput`]. A driver failure returns [`Error::Disconnected`]. A reference without a server message
     /// identifier returns [`InvalidInput::UnusableMessageReference`].
     /// A private reference whose nickname is proven to belong to another user returns
     /// [`Error::TargetGone`].
@@ -1385,7 +1385,9 @@ impl Client {
         })
     }
 
-    /// Sends a typing state to a channel, guarded direct recipient, or return address.
+    /// Sends a typing state to a channel, nickname, guarded direct recipient, or return address.
+    ///
+    /// A nickname in text or as a [`crate::Nick`] addresses whoever holds that name.
     ///
     /// While composing, send [`Typing::Active`] every three seconds so recipients can refresh
     /// their local expiry deadline. Repeated active states within three seconds are silently

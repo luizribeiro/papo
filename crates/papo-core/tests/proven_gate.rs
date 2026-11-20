@@ -129,6 +129,26 @@ fn current_name_notice_uses_the_requested_wire_name() {
 }
 
 #[test]
+fn current_name_typing_keeps_its_target_after_a_rename() {
+    let now = Instant::now();
+    let mut session = shared_users();
+    let proof = session
+        .__prove_current_name(session.state().casemapping().nick("alice"))
+        .unwrap();
+    let line = papo_proto::Line::tagmsg("alice").with_tag("+typing", "active");
+    session
+        .send_person_tracked(now, proof, PersonCommand::__new(line).unwrap())
+        .unwrap();
+    session.handle_line(now, b":alice!a@alice.example NICK alicia");
+
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@+typing=active TAGMSG alice\r\n"
+    );
+    assert!(session.poll_transmit().is_none());
+}
+
+#[test]
 fn queued_send_rewrites_renamed_recipient() {
     let mut session = shared_users();
     let proof = event_proof(&mut session);
