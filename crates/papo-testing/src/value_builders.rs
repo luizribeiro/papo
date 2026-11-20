@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use papo::{DisconnectCause, Disconnected, Error, ServerError, State};
+use papo::{
+    DisconnectCause, Disconnected, Error, Feature, ServerError, State, Unsupported,
+    UnsupportedReason,
+};
 
 /// Builds an origin-free nickname for test input.
 #[must_use]
@@ -24,6 +27,12 @@ pub fn account(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::A
 #[must_use]
 pub fn mask(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::Mask {
     papo::__testing::mask(casemapping, text.as_ref())
+}
+
+/// Builds a diagnostic for an unavailable IRC feature.
+#[must_use]
+pub const fn unsupported(feature: Feature, reason: UnsupportedReason) -> Unsupported {
+    Unsupported::new(feature, reason)
 }
 
 /// Builds a minimal immutable client-state snapshot.
@@ -110,9 +119,11 @@ impl ErrorBuilder {
 
 #[cfg(test)]
 mod tests {
-    use papo::{DisconnectCause, Error};
+    use std::time::Duration;
 
-    use super::{ErrorBuilder, StateBuilder};
+    use papo::{DisconnectCause, Error, Feature, Refusal, UnsupportedReason};
+
+    use super::{ErrorBuilder, StateBuilder, unsupported};
 
     #[test]
     fn builds_state_and_distinct_error_categories() {
@@ -121,14 +132,64 @@ mod tests {
         assert!(state.is_connected());
 
         assert!(matches!(ErrorBuilder::timeout().build(), Error::Timeout));
-        assert!(matches!(
-            ErrorBuilder::disconnected(DisconnectCause::PingTimeout, 1, None).build(),
-            Error::Disconnected(disconnected)
-                if disconnected.cause == DisconnectCause::PingTimeout
-        ));
-        assert!(matches!(
-            ErrorBuilder::numeric(403, vec!["alice".into(), "No such channel".into()]).build(),
-            Error::Server(error) if error.code() == "403"
-        ));
+    }
+
+    #[test]
+    fn builds_disconnect_details() {
+        let delay = Duration::from_secs(5);
+        let Error::Disconnected(details) =
+            ErrorBuilder::disconnected(DisconnectCause::PingTimeout, 2, Some(delay)).build()
+        else {
+            panic!("expected disconnect details");
+        };
+        assert_eq!(details.cause, DisconnectCause::PingTimeout);
+        assert_eq!(details.attempt, 2);
+        assert_eq!(details.reconnect_in, Some(delay));
+    }
+
+    #[test]
+    fn builds_numeric_and_standard_refusals() {
+        for (builder, numeric, command, code, description, params, refusal) in [
+            (
+                ErrorBuilder::numeric(403, vec!["#papo".into(), "No such channel".into()]),
+                Some(403),
+                None,
+                "403",
+                "No such channel",
+                &["#papo", "No such channel"][..],
+                Refusal::NoSuchChannel,
+            ),
+            (
+                ErrorBuilder::standard(
+                    "CHATHISTORY",
+                    "INVALID_PARAMS",
+                    vec!["LATEST".into(), "#papo".into()],
+                    "Invalid parameters",
+                ),
+                None,
+                Some("CHATHISTORY"),
+                "INVALID_PARAMS",
+                "Invalid parameters",
+                &["LATEST", "#papo"][..],
+                Refusal::InvalidParameters,
+            ),
+        ] {
+            let Error::Server(error) = builder.build() else {
+                panic!("expected server refusal");
+            };
+            assert_eq!(error.numeric(), numeric);
+            assert_eq!(error.command().map(papo::Command::as_str), command);
+            assert_eq!(error.code(), code);
+            assert_eq!(error.description(), description);
+            assert_eq!(error.params(), params);
+            assert_eq!(error.refusal(), refusal);
+        }
+    }
+
+    #[test]
+    fn builds_unsupported_feature_details() {
+        let details = unsupported(Feature::Monitor, UnsupportedReason::LimitZero);
+        assert_eq!(details.feature, Feature::Monitor);
+        assert_eq!(details.reason, UnsupportedReason::LimitZero);
     }
 }
