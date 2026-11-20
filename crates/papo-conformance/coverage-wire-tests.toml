@@ -289,3 +289,6 @@
 "direct_identity::departed_handle_never_reaches_another_nick_on_the_same_account" = [
   "security.d-4.departed-handle-account-retarget",
 ]
+"actor_account::archived_account_evidence_ignores_the_current_account" = [
+  "security.actor-account.wire-replay",
+]

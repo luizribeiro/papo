@@ -1,7 +1,7 @@
 use papo::{CtcpReplies, Event};
 use papo_conformance_macros::scenario;
 
-use super::support::{message_text, wait_channel_mode};
+use super::support::{latest_history_with, message_text, wait_channel_mode};
 use crate::Scenario;
 
 fn profile() -> String {
@@ -406,5 +406,75 @@ async fn secret_redaction_reason_without_echo_message(s: Scenario) -> papo_testi
         .await?;
     assert!(leaked.is_empty(), "the secret reached an event: {leaked:?}");
     assert_eq!(reason, Some(Some("<redacted>".to_owned())));
+    Ok(())
+}
+
+/// keeps a replayed message's account independent of the nickname's current holder
+#[scenario(
+    requires(caps = ["account-tag", "batch", "draft/chathistory"]),
+    covers = ["security.actor-account.replay"]
+)]
+async fn replay_account_comes_from_the_archived_line(s: Scenario) -> papo_testing::Result<()> {
+    let writer = s.connect("writer").await?;
+    let mut reader = s.connect("reader").await?;
+    let channel = s.channel_name();
+    writer.join(&channel).await?;
+    reader.join(&channel).await?;
+    let original_nick = writer.snapshot().nick().to_string();
+    let nick = papo_test_server::unique("reviewer");
+    writer.set_nick(&nick).await?;
+    let old_text = "release notes are ready for review";
+    writer.privmsg(&channel, old_text).await?;
+    let old = reader
+        .wait_for(|event| message_text(event, old_text))
+        .await?;
+    assert_eq!(old.actor_account(), &papo::Account::LoggedOut);
+    latest_history_with(&reader, &channel, old_text).await?;
+
+    writer.set_nick(&original_nick).await?;
+    reader
+        .wait_for(|event| {
+            event
+                .as_nick_changed()
+                .filter(|change| change.old == nick.as_str())
+        })
+        .await?;
+    let password = super::support::PASSWORD;
+    papo_test_server::create_account(&s.server, &nick, password)?;
+    let addr = s.server.plaintext_addr();
+    let endpoint = papo::Endpoint::plaintext(addr.ip().to_string(), addr.port())?;
+    let login = s
+        .server
+        .bouncer_account_login(&nick, "Review team", &nick, password)?;
+    let sasl = login.map_or_else(
+        || papo::Sasl::plain(&nick, papo::Secret::new(password)),
+        |login| papo::Sasl::plain(login.username(), papo::Secret::new(login.password())),
+    );
+    let replacement = s
+        .connect_with(
+            papo::Client::builder(endpoint, &nick)
+                .sasl(sasl)
+                .allow_insecure_auth(true),
+        )
+        .await?;
+    replacement.join(&channel).await?;
+    let new_text = "review is complete";
+    replacement.privmsg(&channel, new_text).await?;
+    let current = reader
+        .wait_for(|event| message_text(event, new_text))
+        .await?;
+    assert_eq!(current.actor.nick(), nick.as_str());
+    assert!(
+        matches!(current.actor_account(), papo::Account::LoggedIn(name) if name == nick.as_str())
+    );
+
+    let page = latest_history_with(&reader, &channel, new_text).await?;
+    let archived = page
+        .chat_messages()
+        .find(|message| message.text == old_text)
+        .unwrap();
+    assert_eq!(archived.actor.nick(), nick.as_str());
+    assert_eq!(archived.actor_account(), &papo::Account::Unknown);
+    assert_eq!(old.actor_account(), &papo::Account::LoggedOut);
     Ok(())
 }
