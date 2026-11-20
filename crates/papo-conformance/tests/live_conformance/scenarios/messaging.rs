@@ -321,6 +321,37 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// delivers a by-name private message between peers with no shared channel
+#[scenario(covers = ["base.privmsg.user-dm"])]
+async fn by_name_direct_message(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let bob_state = bob.snapshot();
+    let bob_nick = bob_state.nick().as_str();
+    let sent = alice.privmsg(bob_nick, "review is ready").await?;
+    assert!(matches!(sent.conversation, papo::Conversation::Private(nick) if nick == bob_nick));
+
+    let received = bob
+        .wait_for(|event| message_text(event, "review is ready"))
+        .await?;
+    assert!(is_private(&received));
+    assert_eq!(received.actor.nick(), alice.snapshot().nick().as_str());
+
+    let wire = s.rendered_wire_log();
+    assert!(
+        !wire
+            .lines()
+            .filter_map(|line| line.split_once(" -> "))
+            .any(|(_, line)| {
+                papo::LineRef::parse(line).is_ok_and(|line| {
+                    line.command_is("WHO") || line.command_is("WHOIS") || line.command_is("MONITOR")
+                })
+            }),
+        "{wire}"
+    );
+    Ok(())
+}
+
 /// direct PRIVMSG and NOTICE traffic has distinct sender and recipient views
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
