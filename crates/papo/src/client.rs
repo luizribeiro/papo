@@ -683,12 +683,33 @@ impl Client {
                 person: Some(proven.core),
             });
         }
-        let channel = parts.channel.as_deref().cloned();
-        let text = self.resolve(crate::target::Role::Send(argument), parts)?;
+        crate::ForeignReference::require_local(parts.origin, self.origin)?;
+        let state = self.state();
+        state
+            .known_name_rules()
+            .ok_or(InvalidInput::NameRulesUnknown)?;
+        let text = current_channel_text(&state, parts.text.into_owned(), parts.channel.as_deref())?;
+        let checked = || {
+            let (status, target) = state.parse_target_inner(&text)?;
+            if status.is_some() {
+                refuse_stacked_status(&state, &text)?;
+            }
+            Ok(target)
+        };
+        let target =
+            checked().map_err(|reason| InvalidInput::invalid_argument(argument, &text, reason))?;
+        let person = match target {
+            papo_core::Conversation::Private(nick) => {
+                Some(crate::identity::prove_current_name(&state, nick)?.core)
+            }
+            _ => None,
+        };
         Ok(ResolvedSend {
             text,
-            guard: channel.map(papo_core::TargetGuard::Channel),
-            person: None,
+            guard: parts
+                .channel
+                .map(|channel| papo_core::TargetGuard::Channel(*channel)),
+            person,
         })
     }
 
@@ -715,23 +736,6 @@ impl Client {
                 .to_string();
         }
         let result = match role {
-            crate::target::Role::Send(_) => {
-                state
-                    .parse_target_inner(&text)
-                    .and_then(|(status, target)| {
-                        if status.is_some() {
-                            refuse_stacked_status(&state, &text)
-                        } else if matches!(target, papo_core::Conversation::Channel(_))
-                            || parts.user.is_some()
-                        {
-                            Ok(())
-                        } else {
-                            Err(crate::InvalidIdentifier::InvalidPrefix(
-                                text.chars().next().unwrap_or('\0'),
-                            ))
-                        }
-                    })
-            }
             crate::target::Role::Channel(_) => {
                 name_rules.channel(&text).check(state.isupport().inner())
             }
@@ -884,7 +888,6 @@ impl Client {
     /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
     /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
     /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
-    /// This is the explicit escape hatch for deliberately unguarded direct-message targets.
     ///
     /// # Errors
     ///
@@ -1131,7 +1134,7 @@ impl Client {
         receiver.await.map_err(|_| Error::connection_lost())?
     }
 
-    /// Sends a message to a channel or guarded [`crate::UserHandle`].
+    /// Sends a message to a channel, nickname, guarded [`crate::UserHandle`], or return address.
     ///
     /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
     /// which is not also emitted as an event. Applications that log every message must log their
@@ -1147,19 +1150,11 @@ impl Client {
     /// # }
     /// ```
     ///
-    /// A typed nickname is not a message target; create a [`crate::UserHandle`] first:
-    ///
-    /// ```compile_fail
-    /// # fn unguarded(client: &papo::Client, nick: &papo::Nick) {
-    /// let _ = client.privmsg(nick, "unguarded");
-    /// # }
-    /// ```
-    ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`] for empty text, a nickname passed as text, or an
-    /// unencodable message, and [`Error::TargetGone`] when a guarded recipient has left or its
-    /// nickname has changed hands.
+    /// Returns [`Error::InvalidInput`] when name rules are unknown, the target is invalid, or
+    /// the message is empty or unencodable. A guarded recipient that has left or whose nickname
+    /// has changed hands returns [`Error::TargetGone`].
     /// [`Error::TooManyPendingRequests`] when 256 labelled requests are pending, [`Error::Timeout`] while
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
@@ -1180,7 +1175,7 @@ impl Client {
         }
     }
 
-    /// Sends a notice to a channel, guarded direct recipient, or return address.
+    /// Sends a notice to a channel, nickname, guarded direct recipient, or return address.
     ///
     /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
@@ -1207,7 +1202,7 @@ impl Client {
         }
     }
 
-    /// Sends a CTCP ACTION to a channel, guarded direct recipient, or return address.
+    /// Sends a CTCP ACTION to a channel, nickname, guarded direct recipient, or return address.
     ///
     /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///

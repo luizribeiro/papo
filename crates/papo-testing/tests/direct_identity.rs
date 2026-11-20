@@ -164,7 +164,7 @@ async fn user_handles_identify_users_not_accounts() {
 }
 
 #[tokio::test]
-async fn nick_text_is_not_a_message_target() {
+async fn text_targets_route_to_nicknames_and_channels() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -173,15 +173,18 @@ async fn nick_text_is_not_a_message_target() {
     wire.register(&[]).await;
     connected(&mut events).await;
 
-    assert!(matches!(
-        client.privmsg("alice", "unguarded").await,
-        Err(papo::Error::InvalidInput(_))
-    ));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
-            .await
-            .is_err()
-    );
+    for target in ["alice", "#review"] {
+        client.privmsg(target, "release approved").await.unwrap();
+        assert_eq!(
+            wire.next_sent().await,
+            format!("PRIVMSG {target} :release approved")
+        );
+        client.notice(target, "review received").await.unwrap();
+        assert_eq!(
+            wire.next_sent().await,
+            format!("NOTICE {target} :review received")
+        );
+    }
 }
 
 #[tokio::test]

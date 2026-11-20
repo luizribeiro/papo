@@ -251,10 +251,9 @@
 //! to the same plain string. Converting a typed name into a string explicitly discards this
 //! protection.
 //!
-//! The sealed [`Target`] trait accepts channel text, channel handles, user handles, and return
-//! addresses. Nickname text and typed nicknames are refused as message
-//! targets; use [`Client::query`] to create a [`UserHandle`] or [`Client::send_raw`] as the
-//! explicit escape hatch for an unguarded protocol line.
+//! The sealed [`Target`] trait accepts nicknames, channel names, handles, and return addresses.
+//! A nickname in text addresses its current holder. A [`UserHandle`] addresses
+//! the person the client observed.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

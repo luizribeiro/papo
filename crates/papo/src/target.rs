@@ -42,7 +42,6 @@ pub(crate) mod sealed {
 
 #[derive(Clone, Copy)]
 pub(crate) enum Role {
-    Send(&'static str),
     Channel(&'static str),
     Nick(&'static str),
     Account(&'static str),
@@ -53,8 +52,7 @@ pub(crate) enum Role {
 impl Role {
     pub(crate) const fn argument(self) -> &'static str {
         match self {
-            Self::Send(argument)
-            | Self::Channel(argument)
+            Self::Channel(argument)
             | Self::Nick(argument)
             | Self::Account(argument)
             | Self::Conversation(argument)
@@ -65,12 +63,13 @@ impl Role {
 
 /// A destination accepted by message-sending operations.
 ///
-/// Plain text is accepted only when it names a channel. Direct user lines require a
-/// [`crate::UserHandle`]. Typed handles, channel names, and
-/// message references retain the client that produced them and are refused by another client.
+/// Plain text names a channel if it starts with a server-advertised channel prefix. A nickname
+/// in text addresses whoever holds it. Typed names, handles, and message
+/// references retain the client that produced them and are refused by another client.
 /// A single status prefix such as `@#ops` is preserved; stacked prefixes such as `+@#ops` are
 /// refused because servers disagree on their audience. [`crate::Client::send_raw`] is the explicit
-/// escape hatch for unguarded targets and server-wide targets such as `*` and `$opers`.
+/// escape hatch for server-wide targets such as `*` and `$opers`. See [`crate::Conversation`] for
+/// guidance on status-prefixed audiences.
 pub trait Target: sealed::Sealed {
     /// Returns the destination and its safety metadata.
     #[doc(hidden)]

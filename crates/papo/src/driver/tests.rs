@@ -5418,15 +5418,6 @@ async fn query_who_failure_never_sends_chat() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn plain_text_dm_remains_invalid() {
-    let client = crate::Client::disconnected_for_test();
-    assert!(matches!(
-        client.privmsg("alice", "release approved").await,
-        Err(Error::InvalidInput(_))
-    ));
-}
-
-#[tokio::test(flavor = "current_thread")]
 async fn open_rejects_stranger_with_current_key() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);

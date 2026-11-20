@@ -113,8 +113,19 @@ fn current_name_targets_current_holder() {
 }
 
 #[test]
-fn text_person_input_uses_current_holder() {
-    current_name_targets_current_holder();
+fn current_name_notice_uses_the_requested_wire_name() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let nick = session.state().casemapping().nick("Alice");
+    let proof = session.__prove_current_name(nick).unwrap();
+    session
+        .send_person_text_detailed(now, proof, TextKind::Notice, "review received", &[])
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"NOTICE Alice :review received\r\n"
+    );
+    assert!(session.poll_transmit().is_none());
 }
 
 #[test]

@@ -65,6 +65,13 @@ pub(crate) async fn prove_parts(
         .known_name_rules()
         .ok_or(crate::InvalidInput::NameRulesUnknown)?
         .nick(nick);
+    prove_current_name(&state, nick)
+}
+
+pub(crate) fn prove_current_name(
+    state: &crate::State,
+    nick: crate::Nick,
+) -> Result<ProvenUser, crate::Error> {
     let core = state
         .core
         .__prove_current_name(nick.clone())
