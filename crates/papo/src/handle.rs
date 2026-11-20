@@ -22,6 +22,7 @@ enum WatchIdentity {
 #[derive(Default)]
 pub(crate) struct WatchRegistry {
     entries: Mutex<HashMap<WatchIdentity, WatchEntry>>,
+    accepted_names: Mutex<Vec<crate::Nick>>,
     commands: Mutex<Option<tokio::sync::mpsc::WeakSender<crate::driver::Command>>>,
     next_order: AtomicU64,
 }
@@ -114,12 +115,17 @@ impl WatchRegistry {
     }
 
     pub(crate) fn update_live(&self, state: &crate::State) {
-        let monitored: Vec<_> = state.monitored().map(ToString::to_string).collect();
+        let monitored: Vec<_> = state.monitored().cloned().collect();
         for (identity, entry) in lock(&self.entries).iter_mut() {
-            entry.live = entry
-                .nick(identity)
-                .is_some_and(|nick| monitored.iter().any(|known| state.same_name(known, &nick)));
+            if let WatchIdentity::User(_) = identity {
+                entry.live = entry.nick(identity).is_some_and(|nick| {
+                    monitored
+                        .iter()
+                        .any(|known| state.same_name(known.as_str(), &nick))
+                });
+            }
         }
+        *lock(&self.accepted_names) = monitored;
     }
 
     fn wake(&self) {
@@ -149,9 +155,14 @@ impl Watch {
     /// Reports whether the server currently accepted this watch.
     #[must_use]
     pub fn is_live(&self) -> bool {
-        lock(&self.0.registry.entries)
-            .get(&self.0.identity)
-            .is_some_and(|entry| entry.live)
+        match &self.0.identity {
+            WatchIdentity::Name(nick) => lock(&self.0.registry.accepted_names)
+                .iter()
+                .any(|known| known == nick.as_str()),
+            WatchIdentity::User(_) => lock(&self.0.registry.entries)
+                .get(&self.0.identity)
+                .is_some_and(|entry| entry.live),
+        }
     }
 }
 

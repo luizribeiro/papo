@@ -11104,6 +11104,9 @@ async fn nickname_watch_stays_on_the_name_across_renames() {
     .await;
     client_line(&mut server, b"PONG monitor-started\r\n").await;
     assert!(watch.is_live());
+    let same_name = client.watch("ALICE");
+    assert!(same_name.is_live());
+    drop(same_name);
 
     server_line(
         &mut server,
