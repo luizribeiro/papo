@@ -1954,6 +1954,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::ChannelRenamed(crate::event::ChannelRenamed {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,

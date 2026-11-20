@@ -418,6 +418,8 @@ pub papo::event::ChannelRenamed::old: papo::ChannelName
 pub papo::event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
 pub papo::event::ChannelRenamed::received_at: std::time::SystemTime
 pub papo::event::ChannelRenamed::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::ChannelRenamed
+pub const fn papo::event::ChannelRenamed::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::ChannelRenamed
 pub fn papo::event::ChannelRenamed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ChannelRenamed
@@ -754,6 +756,8 @@ pub papo::event::ModeChanged::received_at: std::time::SystemTime
 pub papo::event::ModeChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::ModeChanged::subject: papo::Subject
 impl papo::event::ModeChanged
+pub const fn papo::event::ModeChanged::actor_account(&self) -> &papo::Account
+impl papo::event::ModeChanged
 pub fn papo::event::ModeChanged::subject_party(&self, &papo::ModeChange) -> papo::Party
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
@@ -831,6 +835,8 @@ pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
 pub papo::event::NickChanged::received_at: std::time::SystemTime
 pub papo::event::NickChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::NickChanged
+pub const fn papo::event::NickChanged::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::NickChanged
 pub fn papo::event::NickChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::NickChanged
@@ -938,6 +944,8 @@ pub papo::event::Quit::netsplit: core::option::Option<papo::event::SplitServers>
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo::event::Quit::received_at: std::time::SystemTime
 pub papo::event::Quit::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::Quit
+pub const fn papo::event::Quit::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::Quit
 pub fn papo::event::Quit::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Quit
@@ -1159,6 +1167,8 @@ pub papo::event::TopicChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::TopicChanged::received_at: std::time::SystemTime
 pub papo::event::TopicChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
+impl papo::event::TopicChanged
+pub const fn papo::event::TopicChanged::actor_account(&self) -> &papo::Account
 impl core::clone::Clone for papo::event::TopicChanged
 pub fn papo::event::TopicChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TopicChanged

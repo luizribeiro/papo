@@ -24,9 +24,12 @@ pub struct Quit {
     pub channels: Vec<crate::ChannelHandle>,
     /// Who the disconnected user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: Box<Account>,
     /// The netsplit batch that carried this quit, when applicable.
     pub netsplit: Option<SplitServers>,
 }
+
+super::actor_account_accessor!(Quit);
 
 /// A user changed nickname.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -48,7 +51,10 @@ pub struct NickChanged {
     pub channels: Vec<crate::ChannelHandle>,
     /// Who the renamed user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
+
+super::actor_account_accessor!(NickChanged);
 
 /// A user's away state changed.
 ///

@@ -135,7 +135,10 @@ pub struct TopicChanged {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
+
+super::actor_account_accessor!(TopicChanged);
 
 /// A user or channel mode changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -153,10 +156,13 @@ pub struct ModeChanged {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// Parsed mode operations in wire order.
     pub changes: Vec<crate::ModeChange>,
     pub(crate) own_nick: Option<Nick>,
 }
+
+super::actor_account_accessor!(ModeChanged);
 
 impl ModeChanged {
     /// Returns who the user a mode change is about is relative to you.
@@ -199,8 +205,11 @@ pub struct ChannelRenamed {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,
 }
+
+super::actor_account_accessor!(ChannelRenamed);
 
 super::actor_account_accessor!(Joined, Parted, Kicked, Invited);

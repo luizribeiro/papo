@@ -2810,12 +2810,14 @@ pub(crate) fn from_core_with_receipt(
             netsplit,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let account = facts
                 .as_ref()
                 .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
             let actor = user_at_arrival(nick, account, token);
             Event::Quit(Quit {
+                actor_account: Box::new(line_account),
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2837,9 +2839,11 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(new.clone(), envelope.account.clone(), token);
             Event::NickChanged(NickChanged {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2860,12 +2864,14 @@ pub(crate) fn from_core_with_receipt(
             reason,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let Some(actor) = actor_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::ChannelRenamed(ChannelRenamed {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2962,6 +2968,7 @@ pub(crate) fn from_core_with_receipt(
             changes,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let Some(actor) = source::from_line(
                 source::LinePrefix::Core(actor),
@@ -2973,6 +2980,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::ModeChanged(ModeChanged {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3007,6 +3015,7 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let Some(actor) = source::from_line(
                 source::LinePrefix::Core(actor),
@@ -3018,6 +3027,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::TopicChanged(TopicChanged {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3418,6 +3428,10 @@ mod tests {
     }
 
     fn mapped_live_event(line: &str, now: Instant) -> Event {
+        mapped_live_event_with_account_tag(line, now, false)
+    }
+
+    fn mapped_live_event_with_account_tag(line: &str, now: Instant, account_tag: bool) -> Event {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(now, line.as_bytes());
         let core = session.poll_event().expect("line produced an event");
@@ -3425,7 +3439,7 @@ mod tests {
             core,
             session.isupport().casemapping(),
             crate::Origin::NONE,
-            false,
+            account_tag,
             UNIX_EPOCH,
         ) {
             CoreEvent::Forward(event) => event,
@@ -3433,7 +3447,7 @@ mod tests {
                 line,
                 crate::Origin::NONE,
                 session.isupport(),
-                false,
+                account_tag,
                 UNIX_EPOCH,
                 None,
             ),
@@ -3743,20 +3757,94 @@ mod tests {
     }
 
     #[test]
-    fn membership_events_report_the_tagged_actor_account() {
+    fn an_untagged_join_uses_capability_and_source_inference() {
         let now = Instant::now();
-        for (_, _, line) in MESSAGE_EVENT_METADATA_CASES {
+        let join = ":alice!~alice@cloak.example JOIN #review alice :Alice";
+        for (line, cap, expected) in [
+            (join, true, Account::LoggedOut),
+            (join, false, Account::Unknown),
+            (
+                ":papo!~papo@localhost JOIN #review papo :Papo",
+                true,
+                Account::Unknown,
+            ),
+        ] {
+            let event = mapped_live_event_with_account_tag(line, now, cap);
+            assert_eq!(event.as_joined().unwrap().actor_account(), &expected);
+        }
+    }
+
+    type ActorAccount = fn(&Event) -> Option<&Account>;
+
+    fn assert_tagged_actor_accounts(cases: &[(&str, ActorAccount)]) {
+        let now = Instant::now();
+        for &(kind, account) in cases {
+            let (_, _, line) = MESSAGE_EVENT_METADATA_CASES
+                .iter()
+                .find(|(name, _, _)| *name == kind)
+                .unwrap();
             let line = line.replacen('@', "@account=reviewer;", 1);
             let event = mapped_live_event(&line, now);
-            let account = match &event {
-                Event::Joined(event) => event.actor_account(),
-                Event::Parted(event) => event.actor_account(),
-                Event::Kicked(event) => event.actor_account(),
-                Event::Invited(event) => event.actor_account(),
-                _ => continue,
+            assert!(
+                matches!(account(&event), Some(Account::LoggedIn(name)) if name == "reviewer"),
+                "{kind}: {event:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn membership_events_report_the_tagged_actor_account() {
+        let now = Instant::now();
+        let cases = MESSAGE_EVENT_METADATA_CASES
+            .into_iter()
+            .filter(|(kind, _, _)| matches!(*kind, "Joined" | "Parted" | "Kicked" | "Invited"));
+        for (kind, _, line) in cases {
+            let line = line.replacen('@', "@account=reviewer;", 1);
+            let event = mapped_live_event(&line, now);
+            let account = match (kind, &event) {
+                ("Joined", Event::Joined(event)) => event.actor_account(),
+                ("Parted", Event::Parted(event)) => event.actor_account(),
+                ("Kicked", Event::Kicked(event)) => event.actor_account(),
+                ("Invited", Event::Invited(event)) => event.actor_account(),
+                _ => panic!("expected {kind}, got {event:?}"),
             };
             assert!(matches!(account, Account::LoggedIn(name) if name == "reviewer"));
         }
+    }
+
+    #[test]
+    fn channel_events_report_the_tagged_actor_account() {
+        assert_tagged_actor_accounts(&[
+            ("TopicChanged", |event| {
+                event
+                    .as_topic_changed()
+                    .map(super::TopicChanged::actor_account)
+            }),
+            ("ModeChanged", |event| {
+                event
+                    .as_mode_changed()
+                    .map(super::ModeChanged::actor_account)
+            }),
+            ("ChannelRenamed", |event| {
+                event
+                    .as_channel_renamed()
+                    .map(super::ChannelRenamed::actor_account)
+            }),
+        ]);
+    }
+
+    #[test]
+    fn user_events_report_the_tagged_actor_account() {
+        assert_tagged_actor_accounts(&[
+            ("Quit", |event| {
+                event.as_quit().map(super::Quit::actor_account)
+            }),
+            ("NickChanged", |event| {
+                event
+                    .as_nick_changed()
+                    .map(super::NickChanged::actor_account)
+            }),
+        ]);
     }
 
     #[test]
@@ -6340,6 +6428,7 @@ mod tests {
     fn mode_event(subject: Subject, own_nick: Option<&str>) -> super::ModeChanged {
         let mapping = Casemapping::Rfc1459;
         super::ModeChanged {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -7066,6 +7155,7 @@ mod tests {
                 subject_party: Party::Me,
             }),
             Event::NickChanged(super::NickChanged {
+                actor_account: crate::Account::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,

@@ -593,6 +593,7 @@ fn quit(
     );
     let actor = user_from_line(message, &envelope, mapping, origin)?;
     Some(Event::Quit(Quit {
+        actor_account: Box::new(envelope.tagged_account()),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -681,6 +682,7 @@ fn nick_changed(
     let actor =
         crate::UserHandle::from_history(new.clone(), source.account().clone(), Some(&client.state));
     Some(Event::NickChanged(NickChanged {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -712,6 +714,7 @@ fn topic_changed(
     );
     let actor = actor_from_line(message, &envelope, mapping, origin)?;
     Some(Event::TopicChanged(TopicChanged {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -774,6 +777,7 @@ fn mode_changed(
         crate::Source::Server(server) => crate::Source::Server(server),
     };
     Some(Event::ModeChanged(ModeChanged {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
