@@ -10,34 +10,46 @@ use papo::Reconnect;
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
-const GATED_PERSON_METHODS: &[&str] = &[
-    "papo::Client::action",
-    "papo::Client::invite",
-    "papo::Client::kick",
-    "papo::Client::notice",
-    "papo::Client::privmsg",
-    "papo::Client::typing",
-    "papo::Client::whois",
-    "papo::Kickban::nick",
-    "papo::Metadata::clear_on",
-    "papo::Metadata::get",
-    "papo::Metadata::list",
-    "papo::Metadata::remove_on",
-    "papo::Metadata::set_on",
-    "papo::Metadata::sync",
-    "papo::SetModes::dehalfop",
-    "papo::SetModes::deop",
-    "papo::SetModes::devoice",
-    "papo::SetModes::halfop",
-    "papo::SetModes::op",
-    "papo::SetModes::prefix",
-    "papo::SetModes::voice",
+const GATED_PERSON_METHODS: &[(&str, &str)] = &[
+    (
+        "papo::Client::action",
+        "PRIVMSG alice :\u{1}ACTION waves\u{1}",
+    ),
+    ("papo::Client::invite", "INVITE alice #review"),
+    (
+        "papo::Client::kick",
+        "KICK #review alice :repeated flooding",
+    ),
+    ("papo::Client::notice", "NOTICE alice classified"),
+    ("papo::Client::privmsg", "PRIVMSG alice classified"),
+    ("papo::Client::typing", "@+typing=active TAGMSG alice"),
+    ("papo::Client::whois", "WHOIS alice"),
+    ("papo::Kickban::nick", "KICK #review alice :ban evasion"),
+    ("papo::Metadata::clear_on", "METADATA alice CLEAR"),
+    ("papo::Metadata::get", "METADATA alice GET display-name"),
+    ("papo::Metadata::list", "METADATA alice LIST"),
+    (
+        "papo::Metadata::remove_on",
+        "METADATA alice SET display-name",
+    ),
+    (
+        "papo::Metadata::set_on",
+        "METADATA alice SET display-name Mallory",
+    ),
+    ("papo::Metadata::sync", "METADATA alice SYNC"),
+    ("papo::SetModes::dehalfop", "MODE #review -h alice"),
+    ("papo::SetModes::deop", "MODE #review -o alice"),
+    ("papo::SetModes::devoice", "MODE #review -v alice"),
+    ("papo::SetModes::halfop", "MODE #review +h alice"),
+    ("papo::SetModes::op", "MODE #review +o alice"),
+    ("papo::SetModes::prefix", "MODE #review +q alice"),
+    ("papo::SetModes::voice", "MODE #review +v alice"),
 ];
 
-async fn call_with_handed_off_person(
+async fn call_person_method(
     client: &papo::Client,
     method: &str,
-    alice: &papo::UserHandle,
+    alice: impl papo::AsNick + papo::AsConversation + papo::Target + Copy,
 ) -> Result<(), papo::Error> {
     let display_name = papo::metadata::keys::DISPLAY_NAME;
     let metadata = client.metadata();
@@ -76,13 +88,15 @@ async fn call_with_handed_off_person(
         "papo::SetModes::halfop" => modes.halfop(alice).await.map(drop),
         "papo::SetModes::op" => modes.op(alice).await.map(drop),
         "papo::SetModes::prefix" => {
-            let owner = modes.prefix('q', alice).await;
-            let admin = client.mode("#review").prefix('a', alice).await;
-            match (owner, admin) {
-                (Err(papo::Error::TargetGone), Err(papo::Error::TargetGone)) => {
+            if matches!(modes.prefix('q', alice).await, Err(papo::Error::TargetGone))
+                && matches!(
+                    client.mode("#review").prefix('a', alice).await,
                     Err(papo::Error::TargetGone)
-                }
-                _ => Ok(()),
+                )
+            {
+                Err(papo::Error::TargetGone)
+            } else {
+                Ok(())
             }
         }
         "papo::SetModes::voice" => modes.voice(alice).await.map(drop),
@@ -124,8 +138,8 @@ async fn assert_nickname_handoff_is_refused() {
         papo::Event::NickChanged(_)
     ));
 
-    for method in GATED_PERSON_METHODS {
-        let result = call_with_handed_off_person(&client, method, &alice).await;
+    for (method, _) in GATED_PERSON_METHODS {
+        let result = call_person_method(&client, method, &alice).await;
         assert!(
             matches!(result, Err(papo::Error::TargetGone)),
             "{method} did not refuse the handoff: {result:?}"
@@ -141,6 +155,43 @@ async fn assert_nickname_handoff_is_refused() {
 #[tokio::test]
 async fn person_method_identity_matrix() {
     assert_nickname_handoff_is_refused().await;
+
+    for &(method, expected) in GATED_PERSON_METHODS {
+        let (client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test", "papo")
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(Reconnect::never()),
+        );
+        wire.register(&["message-tags", "labeled-response", "draft/metadata-2"])
+            .await;
+        connected(&mut events).await;
+        wire.server(":offline.test 005 papo CHANMODES=beI,k,l,imnst :are supported")
+            .await;
+        wire.server("PING :mode-rules").await;
+        assert_eq!(wire.next_sent().await, "PONG mode-rules");
+
+        let request =
+            tokio::spawn(async move { call_person_method(&client, method, "alice").await });
+        let mut sent = tokio::time::timeout(Duration::from_secs(1), wire.next_sent())
+            .await
+            .unwrap_or_else(|_| panic!("{method} did not send a command"));
+        if method == "papo::Kickban::nick" {
+            let (label, ban) = sent.split_once(' ').unwrap();
+            assert_eq!(ban, "MODE #review +b *!*@cloak.example");
+            wire.server(format!("{label} :papo!p@localhost {ban}"))
+                .await;
+            sent = tokio::time::timeout(Duration::from_secs(1), wire.next_sent())
+                .await
+                .expect("kickban did not send KICK after MODE confirmation");
+        }
+        let command = if sent.starts_with("@label=") {
+            sent.split_once(' ').unwrap().1
+        } else {
+            &sent
+        };
+        assert_eq!(command, expected, "{method}");
+        request.abort();
+    }
 }
 
 #[tokio::test]
@@ -173,6 +224,7 @@ const UNGATED_PERSON_INPUTS: &[(&str, &str)] = &[
     ("papo::Client::query", "local handle constructor"),
     ("papo::Client::relay", "relayed source label"),
     ("papo::Client::set_nick", "the client's own nickname"),
+    ("papo::Client::watch", "fixed nickname presence lease"),
     ("papo::State::metadata", "local state lookup"),
     ("papo::State::presence", "local state lookup"),
     ("papo::State::read_marker", "local state lookup"),
@@ -189,10 +241,11 @@ fn person_taking_methods() -> std::collections::BTreeSet<&'static str> {
             let item = item.strip_prefix("const ").unwrap_or(item);
             let (path, signature) = item.strip_prefix("fn ")?.split_once('(')?;
             let arguments = signature.split(" -> ").next()?;
-            PERSON_ARGUMENTS
-                .iter()
-                .any(|argument| arguments.contains(argument))
-                .then(|| path.split('<').next().unwrap_or(path))
+            (path == "papo::Client::watch"
+                || PERSON_ARGUMENTS
+                    .iter()
+                    .any(|argument| arguments.contains(argument)))
+            .then(|| path.split('<').next().unwrap_or(path))
         })
         .collect()
 }
@@ -201,8 +254,8 @@ fn person_taking_methods() -> std::collections::BTreeSet<&'static str> {
 async fn all_public_person_methods_are_gated() {
     let classified: std::collections::BTreeSet<_> = GATED_PERSON_METHODS
         .iter()
-        .copied()
-        .chain(UNGATED_PERSON_INPUTS.iter().map(|(method, _)| *method))
+        .chain(UNGATED_PERSON_INPUTS)
+        .map(|(method, _)| *method)
         .collect();
     assert_eq!(
         classified.len(),
