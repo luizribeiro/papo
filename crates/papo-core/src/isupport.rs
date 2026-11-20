@@ -26,9 +26,9 @@ impl IsupportState {
         }
     }
 
-    pub(super) fn handle_connected(&mut self) {
+    pub(super) fn handle_connected(&mut self, casemapping: Casemapping) {
         self.decoding = self.configured_decoding;
-        self.value = seeded(self.value.casemapping());
+        self.value = seeded(casemapping);
         self.limit_warned = false;
     }
 

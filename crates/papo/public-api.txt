@@ -392,7 +392,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CapsChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::CapsChanged
 #[non_exhaustive] pub struct papo::event::CasemappingChanged
 pub papo::event::CasemappingChanged::new: papo::Casemapping
-pub papo::event::CasemappingChanged::old: papo::Casemapping
+pub papo::event::CasemappingChanged::old: core::option::Option<papo::Casemapping>
 impl core::clone::Clone for papo::event::CasemappingChanged
 pub fn papo::event::CasemappingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CasemappingChanged

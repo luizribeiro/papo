@@ -18,14 +18,20 @@ fn registered_after_collision(config: Config, monitor: bool) -> Transcript {
 }
 
 fn registered_after_collision_with(config: Config, isupport: &str) -> Transcript {
-    Transcript::new(config.alt_nicks(["papo_"]))
+    let transcript = Transcript::new(config.alt_nicks(["papo_"]))
         .connect_default()
         .server(":ergo.test 433 * papo :Nickname is already in use")
         .client("NICK papo_")
         .server(":ergo.test CAP * LS :")
         .client("CAP END")
         .welcome(":ergo.test 001 papo_ :Welcome to Ergo")
-        .server(isupport)
+        .server(isupport);
+    let transcript = if isupport.contains(" CASEMAPPING=rfc1459 ") {
+        transcript.event(|event| matches!(event, Event::CasemappingChanged { old: None, .. }))
+    } else {
+        transcript.no_event()
+    };
+    transcript
         .server(":ergo.test 422 papo_ :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
 }

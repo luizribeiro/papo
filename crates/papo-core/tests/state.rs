@@ -414,6 +414,7 @@ fn rejects_invalid_targets_and_unadvertised_status_prefixes() {
 fn conversations_preserve_spelling_and_use_server_comparison_rules() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 STATUSMSG=@ CHANTYPES=# :are supported")
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .inspect(|session| {
             let conversation = session.state().conversation("Alice[bot]").unwrap();
             assert_eq!(conversation, "alice{bot}");
@@ -427,7 +428,7 @@ fn conversations_preserve_spelling_and_use_server_comparison_rules() {
 }
 
 #[test]
-fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
+fn seeded_rules_apply_offline_and_at_the_start_of_the_connection() {
     Transcript::new(
         Config::default()
             .nick("emily[bot]")
@@ -444,8 +445,8 @@ fn seeded_rules_apply_offline_then_the_connection_uses_the_protocol_default() {
     })
     .connect()
     .inspect(|session| {
-        assert_eq!(session.state().casemapping(), Casemapping::Rfc1459);
-        assert_eq!(session.state().nick(), "emily{bot}");
+        assert_eq!(session.state().casemapping(), Casemapping::Ascii);
+        assert_ne!(session.state().nick(), "emily{bot}");
     })
     .ignore_rest();
 }
@@ -485,7 +486,7 @@ fn reports_each_rules_change_against_the_previous_rules() {
         matches!(
             event,
             Event::CasemappingChanged {
-                old: Casemapping::Ascii,
+                old: Some(Casemapping::Ascii),
                 new: Casemapping::Rfc1459Strict,
                 ..
             }
@@ -496,7 +497,7 @@ fn reports_each_rules_change_against_the_previous_rules() {
         matches!(
             event,
             Event::CasemappingChanged {
-                old: Casemapping::Rfc1459Strict,
+                old: Some(Casemapping::Rfc1459Strict),
                 new: Casemapping::Rfc1459,
                 ..
             }

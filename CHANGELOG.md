@@ -566,6 +566,8 @@ mask, conversation, parse_target, parse_extban, is_valid_nick, is_valid_channel}
 their `NameRules` replacements are `nick`, `channel`, `account`, `mask`, `conversation`, `target`,
 `parse_extban`, `check_nick`, and `check_channel`.
 
+`CasemappingChanged` now fires when name rules first become known and on later changes. Its `old` field is optional.
+
 A `CASEMAPPING` token papo doesn't know, such as `rfc8265`, leaves `State::name_rules()` `None`
 even when `Builder::casemapping` seeded rules, and papo compares names as `ascii` meanwhile, so two
 nicks the server keeps apart, such as `alice[m]` and `alice{m}`, are never merged.

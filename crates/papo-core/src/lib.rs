@@ -2796,14 +2796,14 @@ pub enum Event {
         /// Behaviors that became unavailable.
         removed: Vec<Feature>,
     },
-    /// A connection advertised name rules different from the remembered rules.
+    /// A connection established or changed its known name rules.
     ///
     /// Applications with maps or sets keyed by names must rebuild them because existing names
     /// retain the old casemapping.
     #[non_exhaustive]
     CasemappingChanged {
-        /// Rules retained from the previous connection or offline seed.
-        old: Casemapping,
+        /// Previously known rules, including any configured seed.
+        old: Option<Casemapping>,
         /// Rules advertised by the current connection.
         new: Casemapping,
     },
@@ -3145,7 +3145,7 @@ macro_rules! hidden_event_constructors {
 hidden_event_constructors! {
     __malformed(line: Vec<u8>) => Malformed;
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
-    __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
+    __casemapping_changed(old: Option<Casemapping>, new: Casemapping) => CasemappingChanged;
     __channel_recreated(channel: ChannelName, previous_created_at: papo_proto::ServerTime, created_at: papo_proto::ServerTime) => ChannelRecreated;
     __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, actor_party: Party, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
@@ -3655,7 +3655,6 @@ pub struct Session {
     metadata_subscriptions_sent: bool,
     bouncer_resync: BouncerResync,
     rate_limit: RateLimiter,
-    remembered_casemapping: Casemapping,
     requests: PendingRequests,
     pending_mark_reads: VecDeque<PendingMarkRead>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
@@ -3698,7 +3697,6 @@ impl std::fmt::Debug for Session {
             )
             .field("bouncer_resync", &self.bouncer_resync)
             .field("rate_limit", &self.rate_limit)
-            .field("remembered_casemapping", &self.remembered_casemapping)
             .field("requests", &self.requests)
             .field("pending_mark_reads", &self.pending_mark_reads)
             .field("unlabelled_requests", &self.unlabelled_requests)
@@ -3993,7 +3991,6 @@ impl Session {
     }
 
     fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
-        let remembered_casemapping = config.casemapping;
         let name_rules_known = config.casemapping_seeded;
         let origin = config.origin;
         let connection = Connection {
@@ -4032,7 +4029,6 @@ impl Session {
             metadata_subscriptions_sent: false,
             bouncer_resync: BouncerResync::Idle,
             rate_limit,
-            remembered_casemapping,
             requests: BTreeMap::new(),
             pending_mark_reads: VecDeque::new(),
             unlabelled_requests: VecDeque::new(),
@@ -4102,12 +4098,13 @@ impl Session {
         self.bouncer_resync = BouncerResync::Idle;
         self.caps.handle_connected(now);
         self.utf8_casemapping_warning = Utf8CasemappingWarning::Pending;
-        self.isupport.handle_connected();
+        self.isupport.handle_connected(self.config.casemapping);
+        self.name_rules_known = self.config.casemapping_seeded;
         self.sasl.handle_connected();
         self.nick_regain.reset();
         self.ops_only.clear();
         self.state
-            .reset(&self.config, Casemapping::default(), self.isupport.value());
+            .reset(&self.config, self.config.casemapping, self.isupport.value());
         self.state_generation = self.state_generation.wrapping_add(1);
         self.typing_generation = self.typing_generation.wrapping_add(1);
         self.keepalive
@@ -4382,7 +4379,6 @@ impl Session {
         self.metadata_subscriptions_sent = false;
         self.bouncer_resync = BouncerResync::Idle;
         let casemapping = self.state.casemapping();
-        self.remembered_casemapping = casemapping;
         self.state
             .reset(&self.config, casemapping, self.isupport.value());
         self.sync_monitored_state();
@@ -6588,6 +6584,7 @@ impl Session {
     }
 
     fn remember_casemapping(&mut self) {
+        let old = self.name_rules_known.then(|| self.state.casemapping());
         let new = self.isupport.value().casemapping();
         self.state.update_isupport(self.isupport.value(), new);
         if self.utf8_casemapping_warning == Utf8CasemappingWarning::Pending
@@ -6600,16 +6597,12 @@ impl Session {
             self.outbox.event(Event::Utf8CasemappingUnsupported);
             self.utf8_casemapping_warning = Utf8CasemappingWarning::Emitted;
         }
-        if new != self.remembered_casemapping {
-            self.outbox.event(Event::CasemappingChanged {
-                old: self.remembered_casemapping,
-                new,
-            });
-        }
         if let Some(advertised) = self.isupport.value().__advertised_casemapping() {
             self.name_rules_known = advertised.is_ok();
         }
-        self.remembered_casemapping = new;
+        if self.name_rules_known && old != Some(new) {
+            self.outbox.event(Event::CasemappingChanged { old, new });
+        }
     }
 
     fn dispatch_batch_messages(

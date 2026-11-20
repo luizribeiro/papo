@@ -7,19 +7,36 @@ use papo_proto::Advertised;
 use support::Transcript;
 
 #[test]
-fn name_rules_require_an_explicit_casemapping_or_seed() {
-    let now = std::time::Instant::now();
-    let mut session = Session::new(Config::default());
-    assert!(!session.__name_rules_known());
+fn reports_first_known_rules_and_changes_to_known_rules() {
+    use papo_proto::Casemapping::{Ascii, Rfc1459};
 
-    session.handle_line(now, b":ergo.test 005 papo NETWORK=Ergo :are supported");
-    assert!(!session.__name_rules_known());
-
-    session.handle_line(now, b":ergo.test 005 papo CASEMAPPING=ascii :are supported");
-    assert!(session.__name_rules_known());
-
-    let seeded = Session::new(Config::default().casemapping(papo_proto::Casemapping::Ascii));
-    assert!(seeded.__name_rules_known());
+    for (seed, new, expected_old) in [
+        (None, Ascii, Some(None)),
+        (None, Rfc1459, Some(None)),
+        (Some(Ascii), Ascii, None),
+        (Some(Ascii), Rfc1459, Some(Some(Ascii))),
+    ] {
+        let config = seed.map_or_else(Config::default, |seed| Config::default().casemapping(seed));
+        let line = format!(":ergo.test 005 papo CASEMAPPING={new} :are supported by this server");
+        let transcript = Transcript::new(config)
+            .connect_default()
+            .server(":ergo.test CAP * LS :")
+            .client("CAP END")
+            .server(":ergo.test 005 papo NETWORK=ErgoTest :are supported by this server")
+            .no_event()
+            .inspect(|session| assert_eq!(session.__name_rules_known(), seed.is_some()))
+            .advance(std::time::Duration::from_millis(20))
+            .server(&line)
+            .inspect(|session| {
+                assert!(session.__name_rules_known());
+                assert_eq!(session.state().casemapping(), new);
+            });
+        let transcript = match expected_old {
+            Some(old) => transcript.event(|event| event == &Event::__casemapping_changed(old, new)),
+            None => transcript,
+        };
+        transcript.no_event().server(&line).no_event();
+    }
 }
 
 #[test]
@@ -235,14 +252,21 @@ fn a_later_unknown_casemapping_makes_known_rules_unknown() {
         b":ergo.test 005 papo CASEMAPPING=rfc8265 :are supported by this server",
     );
 
+    assert_eq!(session.poll_event(), None);
+    assert!(!session.__name_rules_known());
+
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CASEMAPPING=ascii :are supported by this server",
+    );
     assert_eq!(
         session.poll_event(),
         Some(Event::__casemapping_changed(
-            papo_proto::Casemapping::Rfc1459,
-            papo_proto::Casemapping::Ascii,
+            None,
+            papo_proto::Casemapping::Ascii
         ))
     );
-    assert!(!session.__name_rules_known());
+    assert!(session.__name_rules_known());
 }
 
 #[test]

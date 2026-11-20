@@ -512,7 +512,7 @@ pub papo_core::Event::CapsChanged::added: papo::Capabilities
 pub papo_core::Event::CapsChanged::removed: papo::Capabilities
 #[non_exhaustive] pub papo_core::Event::CasemappingChanged
 pub papo_core::Event::CasemappingChanged::new: papo::Casemapping
-pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
+pub papo_core::Event::CasemappingChanged::old: core::option::Option<papo::Casemapping>
 #[non_exhaustive] pub papo_core::Event::ChannelRecreated
 pub papo_core::Event::ChannelRecreated::channel: papo::ChannelName
 pub papo_core::Event::ChannelRecreated::created_at: papo_proto::time::ServerTime

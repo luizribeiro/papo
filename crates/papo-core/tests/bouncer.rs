@@ -158,7 +158,7 @@ fn requires_the_welcome_to_confirm_the_bound_network() {
         ":soju.example 005 papo CASEMAPPING=rfc1459 :are supported",
         ":soju.example 005 papo BOUNCER_NETID=41 :are supported",
     ] {
-        Transcript::new(bound_config())
+        let transcript = Transcript::new(bound_config())
             .connect_default()
             .server("CAP * LS :soju.im/bouncer-networks")
             .client("CAP REQ :soju.im/bouncer-networks")
@@ -166,7 +166,13 @@ fn requires_the_welcome_to_confirm_the_bound_network() {
             .client("BOUNCER BIND 42")
             .client("CAP END")
             .welcome(":soju.example 001 papo :Welcome to soju")
-            .server(isupport)
+            .server(isupport);
+        let transcript = if isupport.contains(" CASEMAPPING=rfc1459 ") {
+            transcript.event(|event| matches!(event, Event::CasemappingChanged { old: None, .. }))
+        } else {
+            transcript.no_event()
+        };
+        transcript
             .server(":soju.example 422 papo :MOTD File is missing")
             .event(|event| {
                 matches!(event, Event::Close {

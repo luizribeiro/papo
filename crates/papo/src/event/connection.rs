@@ -126,15 +126,17 @@ pub struct FeaturesChanged {
     pub removed: Vec<Feature>,
 }
 
-/// Server-defined name rules changed.
+/// The connection established or changed its known name rules.
 ///
-/// Applications with maps or sets keyed by names must rebuild them because existing names retain
-/// the old casemapping and deliberately do not compare equal to names built with the new rules.
+/// Applications with maps or sets keyed by names must rebuild them with
+/// [`State::name_rules`](crate::State::name_rules). Existing names retain their casemapping.
+/// A server advertisement confirming a [`Builder::casemapping`](crate::Builder::casemapping)
+/// seed leaves the rules unchanged.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct CasemappingChanged {
-    /// Rules retained from the previous connection or offline seed.
-    pub old: Casemapping,
+    /// Previously known rules, including any configured seed. `None` marks the first known rules.
+    pub old: Option<Casemapping>,
     /// Rules advertised by the current connection.
     pub new: Casemapping,
 }

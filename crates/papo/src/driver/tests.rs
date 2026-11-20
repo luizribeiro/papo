@@ -10597,7 +10597,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::CasemappingChanged(changed))
-            if changed.old == crate::Casemapping::Rfc1459
+            if changed.old == Some(crate::Casemapping::Rfc1459)
                 && changed.new == crate::Casemapping::Ascii
     ));
     assert_connected(&mut events).await;
@@ -10716,7 +10716,7 @@ async fn casemapping_change_refolds_the_state_snapshot() {
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::CasemappingChanged(changed))
-            if changed.old == crate::Casemapping::Rfc1459
+            if changed.old == Some(crate::Casemapping::Rfc1459)
                 && changed.new == crate::Casemapping::Ascii
     ));
     let ascii = client.state();

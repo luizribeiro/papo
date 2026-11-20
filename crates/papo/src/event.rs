@@ -1662,7 +1662,7 @@ pub enum Event {
     CapsChanged(CapsChanged),
     /// Optional behaviors available on an established connection changed.
     FeaturesChanged(FeaturesChanged),
-    /// Server-defined name comparison rules changed between connections.
+    /// The connection established or changed its known name rules.
     CasemappingChanged(CasemappingChanged),
     /// A channel join configured or remembered by papo was refused.
     AutoJoinFailed(AutoJoinFailed),
@@ -4789,11 +4789,11 @@ mod tests {
     #[test]
     fn maps_casemapping_changes() {
         let event = forwarded(papo_core::Event::__casemapping_changed(
-            Casemapping::Ascii,
+            Some(Casemapping::Ascii),
             Casemapping::Rfc1459Strict,
         ));
         let changed = event.as_casemapping_changed().unwrap();
-        assert_eq!(changed.old, Casemapping::Ascii);
+        assert_eq!(changed.old, Some(Casemapping::Ascii));
         assert_eq!(changed.new, Casemapping::Rfc1459Strict);
     }
 
