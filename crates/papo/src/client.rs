@@ -652,6 +652,23 @@ fn refuse_stacked_status(state: &State, text: &str) -> Result<(), crate::Invalid
     }
 }
 
+fn current_channel_text(
+    state: &State,
+    text: String,
+    channel: Option<&papo_core::ChannelGuard>,
+) -> Result<String, Error> {
+    if let Some(channel) = channel {
+        let current = state.resolve_channel(channel).ok_or(Error::TargetGone)?;
+        if current != *channel.__channel() {
+            let prefix = text
+                .strip_suffix(channel.__channel().as_str())
+                .ok_or(Error::TargetGone)?;
+            return Ok(format!("{prefix}{current}"));
+        }
+    }
+    Ok(text)
+}
+
 impl Client {
     async fn resolve_send(
         &self,
@@ -682,20 +699,12 @@ impl Client {
     ) -> Result<String, Error> {
         let parts = parts.into();
         crate::ForeignReference::require_local(parts.origin, self.origin)?;
-        let mut text = parts.text.into_owned();
         let state = self.state();
         let name_rules = state
             .known_name_rules()
             .ok_or(InvalidInput::NameRulesUnknown)?;
-        if let Some(channel) = parts.channel.as_deref() {
-            let current = state.resolve_channel(channel).ok_or(Error::TargetGone)?;
-            if current != *channel.__channel() {
-                let prefix = text
-                    .strip_suffix(channel.__channel().as_str())
-                    .ok_or(Error::TargetGone)?;
-                text = format!("{prefix}{current}");
-            }
-        }
+        let mut text =
+            current_channel_text(&state, parts.text.into_owned(), parts.channel.as_deref())?;
         if matches!(role, crate::target::Role::Nick(_))
             && let Some(proof) = parts.user.as_ref().and_then(crate::UserHandle::proof)
         {
