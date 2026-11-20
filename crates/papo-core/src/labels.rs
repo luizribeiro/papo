@@ -4,6 +4,15 @@ use crate::{
     Session, UnlabelledRequest, WireLine, cap, parse_whois_channels, sent_info,
 };
 
+pub(super) fn who_target<'a>(message: &LineRef<'a>) -> Option<&'a str> {
+    if message.command() != Command::Who
+        || !matches!(message.param(1), None | Some(crate::state::WHOX_FIELDS))
+    {
+        return None;
+    }
+    message.param(0)
+}
+
 impl UnlabelledRequest {
     fn push_or_overflow(
         &mut self,
@@ -39,6 +48,19 @@ impl UnlabelledRequest {
 }
 
 impl Session {
+    pub(super) fn who_reply_target(&self, message: &LineRef<'_>) -> Option<String> {
+        if !matches!(
+            message.command(),
+            Command::Numeric(Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL)
+        ) {
+            return None;
+        }
+        self.unlabelled_requests.iter().find_map(|request| {
+            request.deferred.is_none().then_some(())?;
+            request.who_target.clone()
+        })
+    }
+
     pub(super) fn resolve_message(&mut self, message: &LineRef<'_>) -> Option<bool> {
         let label = message
             .tag("label")
@@ -388,6 +410,7 @@ impl Session {
         row_limit: usize,
         fence: Option<String>,
         deferred: Option<WireLine>,
+        who_target: Option<String>,
     ) {
         let channel_join = boundary
             .matcher()
@@ -399,6 +422,7 @@ impl Session {
             channel_join,
             fence,
             deferred,
+            who_target,
             lines: crate::bounded::BoundedCollection::new(row_limit),
             subject_tokens: Vec::new(),
         });

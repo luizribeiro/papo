@@ -1787,6 +1787,7 @@ struct UnlabelledRequest {
     channel_join: Option<ChannelJoinReservation>,
     fence: Option<String>,
     deferred: Option<WireLine>,
+    who_target: Option<String>,
     lines: bounded::BoundedCollection<Line>,
     subject_tokens: Vec<(usize, ReplyToken)>,
 }
@@ -5030,7 +5031,7 @@ impl Session {
                 self.away_messages.insert(id, message);
             }
             if track_sync {
-                self.track_unlabelled(id, boundary, response_row_limit, None, None);
+                self.track_unlabelled(id, boundary, response_row_limit, None, None, None);
             }
             if let Some(channel) = who_sweep {
                 self.state.track_who(&channel);
@@ -5064,7 +5065,15 @@ impl Session {
             self.outbox.transmit_ordered(ping, Some(*request));
         }
         let deferred = who_fence.is_some().then(|| line.clone());
-        self.track_unlabelled(id, boundary, response_row_limit, fence.clone(), deferred);
+        let who_target = labels::who_target(&message.as_ref()).map(str::to_owned);
+        self.track_unlabelled(
+            id,
+            boundary,
+            response_row_limit,
+            fence.clone(),
+            deferred,
+            who_target,
+        );
         if let Some(message) = away_message {
             self.away_messages.insert(id, message);
         }
@@ -5968,6 +5977,7 @@ impl Session {
             .flatten()
             .and_then(|channel| self.pending_channel_join(channel))
             .map(|reservation| reservation.epoch);
+        let who_target = self.who_reply_target(message);
         let state_handled = whoami
             || self.handle_duplicate_own_join(message)
             || self.state.handle_message(
@@ -5982,6 +5992,7 @@ impl Session {
                     subscription_batch: context.batch_type() == Some("metadata-subs"),
                 },
                 own_away_message.as_deref(),
+                who_target.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
         let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
@@ -6741,6 +6752,7 @@ impl Session {
                 subscription_batch: false,
             },
             None,
+            None,
             &mut self.outbox,
         ) == Handled::Yes;
         let generated = self.outbox.events.split_off(event_count);
@@ -7223,6 +7235,7 @@ mod tests {
                 channel_join: None,
                 fence: None,
                 deferred: None,
+                who_target: None,
                 lines: crate::bounded::BoundedCollection::new(1_000),
                 subject_tokens: Vec::new(),
             },
@@ -7236,6 +7249,7 @@ mod tests {
                 channel_join: None,
                 fence: None,
                 deferred: None,
+                who_target: None,
                 lines: crate::bounded::BoundedCollection::new(1_000),
                 subject_tokens: Vec::new(),
             },

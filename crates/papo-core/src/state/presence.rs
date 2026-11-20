@@ -354,6 +354,7 @@ impl State {
         message: &LineRef<'_>,
         isupport: &Isupport,
         own_away_message: Option<&str>,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         self.handle_visible_host(message, outbox)
@@ -361,7 +362,7 @@ impl State {
             .or_else(|| self.handle_away(message, own_away_message, outbox))
             .or_else(|| self.handle_identity_change(message, outbox))
             .or_else(|| self.handle_bot_numeric(message))
-            .or_else(|| self.handle_who(message, isupport, outbox))
+            .or_else(|| self.handle_who(message, isupport, who_target, outbox))
     }
 
     fn handle_bot_numeric(&mut self, message: &LineRef<'_>) -> Option<Handled> {
@@ -462,6 +463,7 @@ impl State {
         &mut self,
         message: &LineRef<'_>,
         isupport: &Isupport,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         if message.command() == Command::Numeric(Numeric::RPL_ENDOFWHO) {
@@ -475,9 +477,9 @@ impl State {
             return Some(Handled::Yes);
         }
         if let Some(reply) = WhoxReply::parse(message, WHOX_FIELDS) {
-            return self.handle_whox_reply(message, &reply, isupport, outbox);
+            return self.handle_whox_reply(message, &reply, isupport, who_target, outbox);
         }
-        self.handle_plain_who(message, isupport, outbox)
+        self.handle_plain_who(message, isupport, who_target, outbox)
     }
 
     fn handle_whox_reply(
@@ -485,19 +487,17 @@ impl State {
         message: &LineRef<'_>,
         reply: &WhoxReply<'_>,
         isupport: &Isupport,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
-        let (Some(channel), Some(nick)) = (reply.channel, reply.nick) else {
-            return Some(Handled::No);
-        };
-        if reply.token != Some(WHOX_TOKEN)
-            || !self
-                .who_sweeps
-                .contains_key(&self.casemapping.channel(channel))
-        {
+        let nick = reply.nick?;
+        if reply.token != Some(WHOX_TOKEN) {
             return None;
         }
         let flags = reply.flags(isupport)?;
+        let Some(channel) = reply.channel.filter(|channel| self.is_who_sweep(channel)) else {
+            return self.apply_nick_who_away(message, who_target, nick, flags.presence, outbox);
+        };
         let applied = self.apply_who_user(
             message,
             WhoUser {
@@ -597,6 +597,7 @@ impl State {
         &mut self,
         message: &LineRef<'_>,
         isupport: &Isupport,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         if message.command() != Command::Numeric(Numeric::RPL_WHOREPLY) {
@@ -610,12 +611,6 @@ impl State {
             message.param(6)?,
             message.param(7)?,
         );
-        if !self
-            .who_sweeps
-            .contains_key(&self.casemapping.channel(channel))
-        {
-            return None;
-        }
         let realname = hopcount_realname.split_once(' ')?.1;
         let flags = WhoxFlags {
             presence: raw_flags.chars().find_map(|flag| match flag {
@@ -638,6 +633,9 @@ impl State {
                 })
                 .collect(),
         };
+        if !self.is_who_sweep(channel) {
+            return self.apply_nick_who_away(message, who_target, nick, flags.presence, outbox);
+        }
         self.apply_who_user(
             message,
             WhoUser {
@@ -650,6 +648,26 @@ impl State {
             &flags,
             outbox,
         );
+        Some(Handled::Yes)
+    }
+
+    fn is_who_sweep(&self, channel: &str) -> bool {
+        self.who_sweeps
+            .contains_key(&self.casemapping.channel(channel))
+    }
+
+    fn apply_nick_who_away(
+        &mut self,
+        message: &LineRef<'_>,
+        target: Option<&str>,
+        nick: &str,
+        presence: Option<WhoxPresence>,
+        outbox: &mut Outbox,
+    ) -> Option<Handled> {
+        if !self.names_equal(target?, nick) {
+            return None;
+        }
+        self.apply_who_away(message, nick, presence, outbox);
         Some(Handled::Yes)
     }
 

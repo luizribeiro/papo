@@ -35,7 +35,7 @@ use crate::{
     typing::{Typers, TypingTable},
 };
 
-const WHOX_FIELDS: &str = "%tcuhnfar,152";
+pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
@@ -1156,6 +1156,7 @@ impl State {
         no_implicit_names: bool,
         metadata: MetadataContext,
         own_away_message: Option<&str>,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, enabled_caps, outbox);
@@ -1193,7 +1194,8 @@ impl State {
                 outbox,
             );
         }
-        if let Some(handled) = self.handle_user_update(message, isupport, own_away_message, outbox)
+        if let Some(handled) =
+            self.handle_user_update(message, isupport, own_away_message, who_target, outbox)
         {
             return handled;
         }
@@ -2514,6 +2516,7 @@ mod metadata_tests {
                     subscription_batch: false,
                 },
                 None,
+                None,
                 &mut outbox,
             );
             outbox.events.clear();
@@ -2545,6 +2548,7 @@ mod metadata_tests {
                 max_keys: 100,
                 subscription_batch: false,
             },
+            None,
             None,
             &mut outbox,
         );

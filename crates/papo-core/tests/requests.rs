@@ -5,7 +5,7 @@ mod support;
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
-    Config, Conversation, Event, ListMode, RateLimit, Refusal, RequestError, RequestId,
+    Away, Config, Conversation, Event, ListMode, RateLimit, Refusal, RequestError, RequestId,
     ResponseMatcher, Secret, ServerError, Session, TextKind, WhoOnJoin, sts::ConnectionSecurity,
 };
 use papo_proto::{Command, Line, LineRef, Numeric};
@@ -1721,6 +1721,49 @@ fn who_request_outcome(
         }
     }
     (refreshed, responded)
+}
+
+#[test]
+fn single_nick_who_reports_changes_to_known_away_status() {
+    let now = Instant::now();
+    for (selector, here, gone) in [
+        (
+            None,
+            ":ergo.test 352 papo #review ~alice cloak.example ergo.test alice H :0 Alice Liddell",
+            ":ergo.test 352 papo #review ~alice cloak.example ergo.test alice G :0 Alice Liddell",
+        ),
+        (
+            Some("%tcuhnfar,152"),
+            ":ergo.test 354 papo 152 * ~alice cloak.example alice H 0 :Alice Liddell",
+            ":ergo.test 354 papo 152 * ~alice cloak.example alice G 0 :Alice Liddell",
+        ),
+    ] {
+        let mut session = Session::new(Config::default().who_on_join(WhoOnJoin::Never));
+        complete_registration(&mut session, now);
+        session.handle_line(now, b":papo!papo@127.0.0.1 JOIN #review");
+        session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
+        session.handle_line(now, b":ergo.test 301 papo alice :Out for lunch");
+        while session.poll_event().is_some() {}
+
+        for (row, expected) in [(here, Away::Present), (gone, Away::__away_value(None))] {
+            let request = Line::new("WHO").with_params(["ALICE"].into_iter().chain(selector));
+            let id = session
+                .request_with_matcher(now, request.clone(), ResponseMatcher::Who("ALICE".into()))
+                .unwrap();
+            assert_eq!(session.poll_transmit().unwrap(), request.encode().unwrap());
+            let arrival = now + std::time::Duration::from_millis(10);
+            session.handle_line(arrival, row.as_bytes());
+            assert!(matches!(session.poll_event(),
+                Some(Event::AwayChanged { nick, away, .. }) if nick == "alice" && away == expected
+            ));
+            assert_eq!(session.state().user("alice").unwrap().away(), &expected);
+            session.handle_line(arrival, b":ergo.test 315 papo ALICE :End of WHO list");
+            assert!(matches!(session.poll_event(),
+                Some(Event::Response(response)) if response.id == id && response.lines.len() == 2
+            ));
+            assert_eq!(session.poll_event(), None);
+        }
+    }
 }
 
 #[test]
