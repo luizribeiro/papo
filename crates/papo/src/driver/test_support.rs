@@ -645,10 +645,7 @@ pub(crate) async fn add_monitors(
     nicks: &[&str],
 ) -> Vec<crate::Watch> {
     let expected = format!("MONITOR + {}\r\n", nicks.join(","));
-    let watches = nicks
-        .iter()
-        .map(|nick| client.query(*nick).unwrap().watch())
-        .collect();
+    let watches = nicks.iter().map(|nick| client.watch(*nick)).collect();
     client_line(server, expected.as_bytes()).await;
     watches
 }

@@ -111,7 +111,7 @@ async fn bare_dotted_monitor_entry_reports_online_without_panicking() {
         next_active_event(&mut events).await,
         papo::Event::FeaturesChanged { .. }
     ) {}
-    let _watch = client.query("bot.v2").unwrap().watch();
+    let _watch = client.watch("bot.v2");
     assert_eq!(wire.next_sent().await, "MONITOR + bot.v2");
 
     wire.server(":offline.test 730 papo :bot.v2").await;
@@ -558,7 +558,7 @@ async fn foreign_watch_remove_never_reaches_either_wire() {
         client_pair(&[]).await;
     advertise_monitor(&first, &mut first_wire, "papo-first").await;
     advertise_monitor(&second, &mut second_wire, "papo-second").await;
-    let watch = first.query("alice").unwrap().watch();
+    let watch = first.watch("alice");
     assert_eq!(first_wire.next_sent().await, "MONITOR + alice");
 
     drop(watch);
@@ -1310,7 +1310,7 @@ async fn monitored_metadata_is_not_inherited_after_a_nickname_handoff() {
         next_active_event(&mut events).await,
         papo::Event::FeaturesChanged { .. }
     ) {}
-    let _watch = client.query("bob").unwrap().watch();
+    let _watch = client.watch("bob");
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
     for line in [
         ":papo-wire!p@localhost JOIN #review",
@@ -2030,7 +2030,7 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
     }
 
     assert!(client.query("bad\rnick").is_err());
-    let _watch = client.query("bob").unwrap().watch();
+    let _watch = client.watch("bob");
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 }
 

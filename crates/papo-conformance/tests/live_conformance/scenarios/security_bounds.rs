@@ -211,7 +211,7 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
     ping.await.unwrap()?;
     assert_eq!(client.snapshot().monitor_online().count(), 0);
 
-    let _watch = client.query("alice")?.watch();
+    let _watch = client.watch("alice");
     assert_eq!(wire.next_sent().await, "MONITOR + alice");
     wire.server(":offline.test 730 papo-wire :alice!~alice@cloak.example")
         .await;

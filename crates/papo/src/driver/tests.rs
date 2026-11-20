@@ -10985,7 +10985,7 @@ async fn watch_reacquires_after_reconnect() {
     let ([mut first, mut second], client, mut events, driver) = reconnecting_monitor_driver();
     let driver = tokio::spawn(driver);
     complete_connect_monitor(&mut first, &mut events, 100).await;
-    let watch = client.query("alice").unwrap().watch();
+    let watch = client.watch("alice");
     client_line(&mut first, b"MONITOR + alice\r\n").await;
     server_line(&mut first, b":ergo.test 731 papo-driver :alice\r\n").await;
     while !matches!(
@@ -11013,8 +11013,8 @@ async fn drop_while_disconnected_is_not_restored() {
     let ([mut first, mut second], client, mut events, driver) = reconnecting_monitor_driver();
     let driver = tokio::spawn(driver);
     complete_connect_monitor(&mut first, &mut events, 100).await;
-    let alice = client.query("alice").unwrap().watch();
-    let bob = client.query("bob").unwrap().watch();
+    let alice = client.watch("alice");
+    let bob = client.watch("bob");
     client_line(&mut first, b"MONITOR + alice,bob\r\n").await;
 
     lose_connection(&mut first, &mut events).await;
@@ -11032,7 +11032,7 @@ async fn dropped_wakeup_still_reconciles_registry() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     complete_connect_monitor(&mut server, &mut events, 100).await;
-    let watch = client.query("alice").unwrap().watch();
+    let watch = client.watch("alice");
     client_line(&mut server, b"MONITOR + alice\r\n").await;
 
     while client

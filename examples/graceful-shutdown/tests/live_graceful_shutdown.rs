@@ -68,7 +68,7 @@ impl Watched {
         .connect()
         .await
         .unwrap();
-        let watch = observer.query(&nick).unwrap().watch();
+        let watch = observer.watch(&nick);
         Self {
             server,
             nick,

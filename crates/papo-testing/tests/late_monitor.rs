@@ -19,7 +19,7 @@ async fn watch_reaches_the_server_when_monitor_is_advertised_late() {
     );
     wire.register(&[]).await;
     connected(&mut events).await;
-    let watch = client.query("alice").unwrap().watch();
+    let watch = client.watch("alice");
     assert!(
         tokio::time::timeout(Duration::from_millis(50), wire.next_sent())
             .await

@@ -79,7 +79,7 @@ async fn watch_is_kept_while_peer_is_offline() {
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 100).await;
 
-    let watch = client.query("alice").unwrap().watch();
+    let watch = client.watch("alice");
     assert_eq!(wire.next_sent().await, "MONITOR + alice");
     wire.server(":offline.test 731 papo :alice").await;
     assert!(matches!(
@@ -135,7 +135,7 @@ async fn query_send_does_not_fail_when_the_monitor_list_is_full() {
     wire.register(&[]).await;
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 1).await;
-    let _bob = client.query("bob").unwrap().watch();
+    let _bob = client.watch("bob");
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 
     let alice = client.query("alice").unwrap();
