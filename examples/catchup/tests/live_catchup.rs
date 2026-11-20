@@ -26,7 +26,6 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let (persistent, mut persistent_events) = Client::builder(endpoint.clone(), &account)
             .allow_insecure_auth(true)
             .sasl(Sasl::plain(&account, papo::Secret::new(PASSWORD)))
-            .enable(papo::Feature::Persistence)
             .autojoin([&channel])
             .connect()
             .await
