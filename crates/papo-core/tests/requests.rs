@@ -1725,7 +1725,6 @@ fn who_request_outcome(
 
 #[test]
 fn single_nick_who_reports_changes_to_known_away_status() {
-    let now = Instant::now();
     for (selector, here, gone) in [
         (
             None,
@@ -1738,6 +1737,7 @@ fn single_nick_who_reports_changes_to_known_away_status() {
             ":ergo.test 354 papo 152 * ~alice cloak.example alice G 0 :Alice Liddell",
         ),
     ] {
+        let mut now = Instant::now();
         let mut session = Session::new(Config::default().who_on_join(WhoOnJoin::Never));
         complete_registration(&mut session, now);
         session.handle_line(now, b":papo!papo@127.0.0.1 JOIN #review");
@@ -1751,18 +1751,106 @@ fn single_nick_who_reports_changes_to_known_away_status() {
                 .request_with_matcher(now, request.clone(), ResponseMatcher::Who("ALICE".into()))
                 .unwrap();
             assert_eq!(session.poll_transmit().unwrap(), request.encode().unwrap());
-            let arrival = now + std::time::Duration::from_millis(10);
-            session.handle_line(arrival, row.as_bytes());
+            now += std::time::Duration::from_millis(10);
+            session.handle_line(now, row.as_bytes());
             assert!(matches!(session.poll_event(),
                 Some(Event::AwayChanged { nick, away, .. }) if nick == "alice" && away == expected
             ));
             assert_eq!(session.state().user("alice").unwrap().away(), &expected);
-            session.handle_line(arrival, b":ergo.test 315 papo ALICE :End of WHO list");
+            session.handle_line(now, b":ergo.test 315 papo ALICE :End of WHO list");
             assert!(matches!(session.poll_event(),
                 Some(Event::Response(response)) if response.id == id && response.lines.len() == 2
             ));
             assert_eq!(session.poll_event(), None);
         }
+    }
+}
+
+#[test]
+fn labelled_nick_who_uses_its_own_rows_to_refresh_away_status() {
+    let now = Instant::now();
+    let mut session = labelled_session_with(now, Config::default().who_on_join(WhoOnJoin::Never));
+    for line in [
+        ":papo!papo@127.0.0.1 JOIN #review",
+        ":alice!~alice@cloak.example JOIN #review",
+        ":dan!~dan@cloak.example JOIN #review",
+        ":ergo.test 301 papo alice :Out for lunch",
+        ":ergo.test 301 papo dan :Reviewing the release notes",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["alice", "%tcuhnfar,152"]),
+            ResponseMatcher::Who("alice".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=0 WHO alice %tcuhnfar,152\r\n"
+    );
+    for line in [
+        "@label=0 :ergo.test BATCH +who-1 labeled-response",
+        "@batch=who-1 :ergo.test 354 papo 152 * ~dan cloak.example dan H 0 :Dan Garcia",
+        "@batch=who-1 :ergo.test 354 papo 152 * ~alice cloak.example alice H 0 :Alice Liddell",
+        "@batch=who-1 :ergo.test 315 papo alice :End of WHO list",
+        ":ergo.test BATCH -who-1",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(matches!(session.poll_event(),
+        Some(Event::AwayChanged { nick, away: Away::Present, .. }) if nick == "alice"
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id && response.lines.len() == 3
+    ));
+    assert_eq!(
+        session.state().user("alice").unwrap().away(),
+        &Away::Present
+    );
+    assert_eq!(
+        session.state().user("dan").unwrap().away(),
+        &Away::__away_value(Some("Reviewing the release notes".into()))
+    );
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn nick_who_ignores_rows_without_a_matching_standard_request() {
+    for (request, mask) in [
+        (Line::new("WHO").param("ali*"), "ali*"),
+        (Line::new("WHO").param("alice"), "dan"),
+        (Line::new("MODE").param("alice"), "alice"),
+        (
+            Line::new("WHO").with_params(["alice", "%tcuhnfar,311"]),
+            "alice",
+        ),
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().who_on_join(WhoOnJoin::Never));
+        complete_registration(&mut session, now);
+        session.handle_line(now, b":papo!papo@127.0.0.1 JOIN #review");
+        session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
+        session.handle_line(now, b":ergo.test 301 papo alice :Out for lunch");
+        while session.poll_event().is_some() {}
+
+        session
+            .request_with_matcher(now, request, ResponseMatcher::Who(mask.into()))
+            .unwrap();
+        session.poll_transmit().unwrap();
+        session.handle_line(
+            now,
+            b":ergo.test 354 papo 152 * ~alice cloak.example alice H 0 :Alice Liddell",
+        );
+        assert_eq!(session.poll_event(), None);
+        assert_eq!(
+            session.state().user("alice").unwrap().away(),
+            &Away::__away_value(Some("Out for lunch".into())),
+        );
     }
 }
 

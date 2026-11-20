@@ -48,12 +48,22 @@ impl UnlabelledRequest {
 }
 
 impl Session {
-    pub(super) fn who_reply_target(&self, message: &LineRef<'_>) -> Option<String> {
+    pub(super) fn who_reply_target(
+        &self,
+        message: &LineRef<'_>,
+        enclosing_request: Option<&PendingRequest>,
+    ) -> Option<String> {
         if !matches!(
             message.command(),
             Command::Numeric(Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL)
         ) {
             return None;
+        }
+        if let Some(request) = enclosing_request {
+            return request.who_target.clone();
+        }
+        if let Some(label) = message.tag("label") {
+            return self.requests.get(label.as_ref())?.who_target.clone();
         }
         self.unlabelled_requests.iter().find_map(|request| {
             request.deferred.is_none().then_some(())?;
@@ -499,6 +509,7 @@ impl Session {
                     feature,
                     emit_events,
                     echo,
+                    who_target: None,
                 },
             );
         } else {

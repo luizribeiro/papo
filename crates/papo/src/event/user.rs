@@ -52,6 +52,9 @@ pub struct NickChanged {
 
 /// A user's away state changed.
 ///
+/// Channel and single-nickname WHO replies can report changes to an already known away status.
+/// Initial statuses learned in a channel refresh are covered by [`crate::Event::MembersRefreshed`].
+///
 /// This derived event keeps the triggering line's time but not its message identifier, so it
 /// cannot collide with the typed event produced from the same line during deduplication.
 #[derive(Clone, Debug, Eq, PartialEq)]

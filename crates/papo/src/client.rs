@@ -1584,6 +1584,8 @@ impl Client {
     ///
     /// When the argument names a joined channel, the reply refreshes that channel's member facts
     /// in [`crate::State`] and emits [`crate::Event::MembersRefreshed`] at numeric `315`.
+    /// Channel refreshes and single-nickname queries emit [`crate::Event::AwayChanged`] for
+    /// changes to a known away status.
     ///
     /// # Errors
     ///

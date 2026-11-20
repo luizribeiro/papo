@@ -3037,11 +3037,13 @@ pub enum Event {
         actor_party: Party,
     },
     /// A user's away state changed.
+    ///
+    /// WHO replies emit this event when they change a known away status.
     #[non_exhaustive]
     AwayChanged {
         /// Identity and time facts from the line.
         envelope: LineEnvelope,
-        /// The affected user's prefix.
+        /// The affected user's prefix when available, otherwise their nickname.
         actor: String,
         /// The affected user's nickname.
         nick: Nick,
@@ -3562,6 +3564,7 @@ struct PendingRequest {
     feature: Option<Feature>,
     emit_events: bool,
     echo: Option<SentEcho>,
+    who_target: Option<String>,
 }
 
 #[derive(Debug)]
@@ -4797,6 +4800,7 @@ impl Session {
                     feature: None,
                     emit_events: false,
                     echo: Some(SentEcho::new(Command::parse(kind.command()), target, text)),
+                    who_target: None,
                 },
             );
         }
@@ -5003,6 +5007,12 @@ impl Session {
         boundary: ResponseBoundary,
     ) -> Result<RequestId, RequestError> {
         let matcher = boundary.matcher();
+        let who_target = match matcher {
+            Some(ResponseMatcher::Who(mask)) => labels::who_target(&message.as_ref())
+                .filter(|target| self.state.names_equal(target, mask))
+                .map(str::to_owned),
+            _ => None,
+        };
         let response_row_limit = matcher.map_or(Ok(10_000), |matcher| {
             self.response_row_limit(&message, matcher)
         })?;
@@ -5027,6 +5037,9 @@ impl Session {
                 return Err(RequestError::PendingLimit);
             }
             let id = self.queue_request(now, message, None, true)?;
+            if let Some(request) = self.requests.get_mut(&encode_label(id.0)) {
+                request.who_target = who_target;
+            }
             if let Some(message) = away_message {
                 self.away_messages.insert(id, message);
             }
@@ -5065,7 +5078,6 @@ impl Session {
             self.outbox.transmit_ordered(ping, Some(*request));
         }
         let deferred = who_fence.is_some().then(|| line.clone());
-        let who_target = labels::who_target(&message.as_ref()).map(str::to_owned);
         self.track_unlabelled(
             id,
             boundary,
@@ -5860,7 +5872,7 @@ impl Session {
         message: &LineRef<'_>,
         context: &DispatchContext,
         emit_unhandled: bool,
-        enclosing_request: Option<RequestId>,
+        enclosing_request: Option<&PendingRequest>,
     ) {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
@@ -5977,7 +5989,7 @@ impl Session {
             .flatten()
             .and_then(|channel| self.pending_channel_join(channel))
             .map(|reservation| reservation.epoch);
-        let who_target = self.who_reply_target(message);
+        let who_target = self.who_reply_target(message, enclosing_request);
         let state_handled = whoami
             || self.handle_duplicate_own_join(message)
             || self.state.handle_message(
@@ -6028,7 +6040,7 @@ impl Session {
                     .is_some_and(|request| request.sent)
             })
             && self.is_own_source(message);
-        let labelled_request = enclosing_request.or_else(|| {
+        let labelled_request = enclosing_request.map(|request| request.id).or_else(|| {
             message
                 .tag("label")
                 .and_then(|label| self.requests.get(label.as_ref()).map(|request| request.id))
@@ -6634,7 +6646,7 @@ impl Session {
                 &message.as_ref(),
                 context,
                 request.is_none() || !answers,
-                request.map(|request| request.id),
+                request,
             );
             if !answers {
                 unanswering_events.extend(self.outbox.events.drain(queued_events..));
