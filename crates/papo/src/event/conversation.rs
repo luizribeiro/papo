@@ -24,6 +24,7 @@ pub struct BroadcastCtcp {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// The command with its original spelling.
@@ -40,6 +41,8 @@ pub struct BroadcastCtcp {
     pub tags: Tags,
 }
 
+super::actor_account_accessor!(BroadcastCtcp);
+
 /// A tag-only message sent to a server-wide audience.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -48,6 +51,7 @@ pub struct BroadcastTagMsg {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// Tags in wire order with last-wins lookup.
@@ -56,6 +60,8 @@ pub struct BroadcastTagMsg {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
 }
+
+super::actor_account_accessor!(BroadcastTagMsg);
 
 fn broadcast_origin(to: &Broadcast, actor: &crate::UserHandle) -> crate::Origin {
     match to {
@@ -112,6 +118,7 @@ pub struct Reacted {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -130,6 +137,8 @@ pub struct Reacted {
     pub action: ReactionAction,
 }
 
+super::actor_account_accessor!(Reacted);
+
 /// A message was removed from history.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -144,6 +153,7 @@ pub struct Redacted {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -157,6 +167,8 @@ pub struct Redacted {
     /// The optional human-readable reason.
     pub reason: Option<String>,
 }
+
+super::actor_account_accessor!(Redacted);
 
 /// A user's typing state changed.
 ///
@@ -203,6 +215,7 @@ pub struct TagMsg {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -214,6 +227,8 @@ pub struct TagMsg {
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
 }
+
+super::actor_account_accessor!(TagMsg);
 
 macro_rules! reference_accessors {
     ($($ty:ty),+ $(,)?) => {

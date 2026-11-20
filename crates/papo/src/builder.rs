@@ -983,6 +983,7 @@ mod tests {
             "emily".into(),
         );
         let tag = crate::event::TagMsg {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,

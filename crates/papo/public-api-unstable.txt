@@ -362,6 +362,8 @@ pub papo::event::BroadcastCtcp::server_time: core::option::Option<papo_proto::ti
 pub papo::event::BroadcastCtcp::tags: papo::Tags
 pub papo::event::BroadcastCtcp::to: papo::event::Broadcast
 impl papo::event::BroadcastCtcp
+pub const fn papo::event::BroadcastCtcp::actor_account(&self) -> &papo::Account
+impl papo::event::BroadcastCtcp
 pub fn papo::event::BroadcastCtcp::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::BroadcastCtcp
 pub fn papo::event::BroadcastCtcp::clone(&self) -> Self
@@ -384,6 +386,8 @@ pub papo::event::BroadcastTagMsg::actor_party: papo::Party
 pub papo::event::BroadcastTagMsg::received_at: std::time::SystemTime
 pub papo::event::BroadcastTagMsg::tags: papo::Tags
 pub papo::event::BroadcastTagMsg::to: papo::event::Broadcast
+impl papo::event::BroadcastTagMsg
+pub const fn papo::event::BroadcastTagMsg::actor_account(&self) -> &papo::Account
 impl papo::event::BroadcastTagMsg
 pub const fn papo::event::BroadcastTagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::BroadcastTagMsg
@@ -533,6 +537,8 @@ pub papo::event::CtcpQuery::received_at: std::time::SystemTime
 pub papo::event::CtcpQuery::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
+pub const fn papo::event::CtcpQuery::actor_account(&self) -> &papo::Account
+impl papo::event::CtcpQuery
 pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpQuery::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::CtcpQuery
@@ -562,6 +568,8 @@ pub papo::event::CtcpReply::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::CtcpReply::tags: papo::Tags
+impl papo::event::CtcpReply
+pub const fn papo::event::CtcpReply::actor_account(&self) -> &papo::Account
 impl papo::event::CtcpReply
 pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpReply::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1005,6 +1013,8 @@ pub papo::event::Reacted::reacts_to: papo::MessageId
 pub papo::event::Reacted::received_at: std::time::SystemTime
 pub papo::event::Reacted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Reacted
+pub const fn papo::event::Reacted::actor_account(&self) -> &papo::Account
+impl papo::event::Reacted
 pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Reacted::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::Reacted
@@ -1076,6 +1086,8 @@ pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::redacts: papo::MessageId
 pub papo::event::Redacted::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::Redacted
+pub const fn papo::event::Redacted::actor_account(&self) -> &papo::Account
 impl papo::event::Redacted
 pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Redacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1174,6 +1186,8 @@ pub papo::event::TagMsg::actor_party: papo::Party
 pub papo::event::TagMsg::received_at: std::time::SystemTime
 pub papo::event::TagMsg::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TagMsg::tags: papo::Tags
+impl papo::event::TagMsg
+pub const fn papo::event::TagMsg::actor_account(&self) -> &papo::Account
 impl papo::event::TagMsg
 pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::TagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>

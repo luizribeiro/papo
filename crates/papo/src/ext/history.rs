@@ -350,6 +350,7 @@ fn historical_tagmsg(
     );
     receipt.set_reference(envelope.msgid.iter().cloned(), None);
     Some(Event::TagMsg(TagMsg {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -444,6 +445,7 @@ fn reaction(
         return_address,
     );
     Some(Event::Reacted(Reacted {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -505,6 +507,7 @@ fn redaction(
         return_address,
     );
     Some(Event::Redacted(Redacted {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,

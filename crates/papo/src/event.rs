@@ -117,6 +117,7 @@ pub struct CtcpQuery {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: Account,
     /// The IRC conversation to which the CTCP message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -150,6 +151,7 @@ pub struct CtcpReply {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: Account,
     /// The IRC conversation to which the CTCP reply belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -174,6 +176,8 @@ pub struct CtcpReply {
     pub tags: Tags,
     pub(crate) receipt: crate::message_ref::Receipt,
 }
+
+actor_account_accessor!(CtcpQuery, CtcpReply);
 
 macro_rules! ctcp_return_address {
     ($($ty:ty),+ $(,)?) => {
@@ -557,6 +561,7 @@ fn ctcp_from_line(
     };
     if reply {
         Ok(Event::CtcpReply(CtcpReply {
+            actor_account: metadata.actor_account,
             actor,
             actor_party: metadata.actor_party,
             conversation: metadata.conversation,
@@ -571,6 +576,7 @@ fn ctcp_from_line(
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
+            actor_account: metadata.actor_account,
             actor,
             actor_party: metadata.actor_party,
             conversation: metadata.conversation,
@@ -640,6 +646,12 @@ fn broadcast_from_line(
     let tags = Tags::from_message(&message);
     if message.command_is("TAGMSG") {
         return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
+            actor_account: line_actor_account(
+                &message,
+                &envelope,
+                actor_party,
+                account_tag_enabled,
+            ),
             actor,
             actor_party,
             to,
@@ -652,6 +664,7 @@ fn broadcast_from_line(
         return Err(raw);
     };
     Ok(Event::BroadcastCtcp(BroadcastCtcp {
+        actor_account: line_actor_account(&message, &envelope, actor_party, account_tag_enabled),
         actor,
         actor_party,
         to,
@@ -2419,6 +2432,7 @@ pub(crate) fn from_core_with_receipt(
             );
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             let tag = TagMsg {
+                actor_account: actor_account(&message.envelope, message.actor_party),
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2444,6 +2458,7 @@ pub(crate) fn from_core_with_receipt(
                 });
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
+                    actor_account: tag.actor_account,
                     msgid: tag.msgid,
                     server_time: tag.server_time,
                     received_at: tag.received_at,
@@ -2502,6 +2517,7 @@ pub(crate) fn from_core_with_receipt(
             );
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             Event::Redacted(Redacted {
+                actor_account: actor_account(&redacted.envelope, redacted.actor_party),
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3244,6 +3260,7 @@ mod tests {
             Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
         ] {
             let event = BroadcastTagMsg {
+                actor_account: Account::Unknown,
                 actor: actor.clone(),
                 actor_party: Party::Other,
                 to,
@@ -3254,6 +3271,7 @@ mod tests {
             assert_eq!(event.origin(), origin);
         }
         let ctcp = BroadcastCtcp {
+            actor_account: Account::Unknown,
             actor,
             actor_party: Party::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
@@ -3913,6 +3931,43 @@ mod tests {
                 "{event:?}"
             );
         }
+    }
+
+    #[test]
+    fn broadcasts_events_report_the_tagged_actor_account() {
+        assert_tagged_actor_accounts(&[
+            ("CtcpQuery", |event| {
+                event.as_ctcp_query().map(super::CtcpQuery::actor_account)
+            }),
+            ("CtcpReply", |event| {
+                event.as_ctcp_reply().map(super::CtcpReply::actor_account)
+            }),
+            ("BroadcastCtcp", |event| {
+                event
+                    .as_broadcast_ctcp()
+                    .map(super::BroadcastCtcp::actor_account)
+            }),
+            ("BroadcastTagMsg", |event| {
+                event
+                    .as_broadcast_tag_msg()
+                    .map(super::BroadcastTagMsg::actor_account)
+            }),
+        ]);
+    }
+
+    #[test]
+    fn tagged_events_report_the_tagged_actor_account() {
+        assert_tagged_actor_accounts(&[
+            ("TagMsg", |event| {
+                event.as_tag_msg().map(super::TagMsg::actor_account)
+            }),
+            ("Reacted", |event| {
+                event.as_reacted().map(super::Reacted::actor_account)
+            }),
+            ("Redacted", |event| {
+                event.as_redacted().map(super::Redacted::actor_account)
+            }),
+        ]);
     }
 
     #[test]
