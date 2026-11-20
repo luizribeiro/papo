@@ -2520,32 +2520,57 @@ fn falls_back_to_plain_who_without_whox() {
 }
 
 #[test]
-fn who_here_flags_clear_a_previous_away_state() {
-    Transcript::new(Config::default().nick("emily"))
-        .server(":emily!em@127.0.0.1 JOIN #papo")
-        .event(|event| matches!(event, Event::Joined { .. }))
-        .server(":dan!~dan@cloak.example JOIN #papo")
-        .event(|event| matches!(event, Event::Joined { .. }))
-        .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event(|event| {
-            matches!(
-                event,
-                Event::AwayChanged {
-                    away: Away::Away {
-                        message: Some(_),
-                        ..
-                    },
-                    ..
-                }
-            )
-        })
-        .server(":ergo.test 366 emily #papo :End of NAMES list")
-        .client("MODE #papo")
-        .client("WHO #papo")
-        .event(|event| matches!(event, Event::ChannelSynced { .. }))
-        .server(":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan H :0 Daniel Garcia")
-        .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
-        .no_event();
+fn channel_who_reports_changes_to_known_away_status() {
+    for (isupport, request, here, gone) in [
+        (
+            ":ergo.test 005 emily PREFIX=(ov)@+ :are supported",
+            "WHO #papo",
+            ":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan H :0 Daniel Garcia",
+            ":ergo.test 352 emily #papo ~dan cloak.example ergo.test dan G :0 Daniel Garcia",
+        ),
+        (
+            ":ergo.test 005 emily WHOX PREFIX=(ov)@+ :are supported",
+            "WHO #papo %tcuhnfar,152",
+            ":ergo.test 354 emily 152 #papo ~dan cloak.example dan H 0 :Daniel Garcia",
+            ":ergo.test 354 emily 152 #papo ~dan cloak.example dan G 0 :Daniel Garcia",
+        ),
+    ] {
+        Transcript::new(Config::default().nick("emily"))
+            .connect()
+            .client("CAP LS 302")
+            .client("NICK emily")
+            .client("USER papo 0 * papo")
+            .welcome(":ergo.test 001 emily :Welcome to Ergo")
+            .server(isupport)
+            .server(":emily!em@127.0.0.1 JOIN #papo")
+            .event(|event| matches!(event, Event::Joined { .. }))
+            .server(":dan!~dan@cloak.example JOIN #papo")
+            .event(|event| matches!(event, Event::Joined { .. }))
+            .server(":ergo.test 301 emily dan :Gone to lunch")
+            .event(|event| matches!(event, Event::AwayChanged { .. }))
+            .server(":ergo.test 366 emily #papo :End of NAMES list")
+            .client("MODE #papo")
+            .client(request)
+            .event(|event| matches!(event, Event::ChannelSynced { .. }))
+            .advance(Duration::from_millis(10))
+            .server(here)
+            .event(|event| {
+                matches!(event, Event::AwayChanged { nick, away: Away::Present, .. } if nick == "dan")
+            })
+            .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::Present))
+            .server(here)
+            .no_event()
+            .server(gone)
+            .event(|event| {
+                matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, .. } if nick == "dan")
+            })
+            .inspect(|session| assert_eq!(session.state().user("dan").unwrap().away(), &Away::__away_value(None)))
+            .server(gone)
+            .no_event()
+            .server(":ergo.test 315 emily #papo :End of WHO list")
+            .event(|event| matches!(event, Event::MembersRefreshed { .. }))
+            .no_event();
+    }
 }
 
 #[test]

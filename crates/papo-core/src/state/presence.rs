@@ -475,13 +475,14 @@ impl State {
             return Some(Handled::Yes);
         }
         if let Some(reply) = WhoxReply::parse(message, WHOX_FIELDS) {
-            return self.handle_whox_reply(&reply, isupport, outbox);
+            return self.handle_whox_reply(message, &reply, isupport, outbox);
         }
         self.handle_plain_who(message, isupport, outbox)
     }
 
     fn handle_whox_reply(
         &mut self,
+        message: &LineRef<'_>,
         reply: &WhoxReply<'_>,
         isupport: &Isupport,
         outbox: &mut Outbox,
@@ -498,6 +499,7 @@ impl State {
         }
         let flags = reply.flags(isupport)?;
         let applied = self.apply_who_user(
+            message,
             WhoUser {
                 channel,
                 nick,
@@ -516,6 +518,7 @@ impl State {
 
     fn apply_who_user(
         &mut self,
+        message: &LineRef<'_>,
         reply: WhoUser<'_>,
         flags: &WhoxFlags,
         outbox: &mut Outbox,
@@ -553,19 +556,41 @@ impl State {
             if !realname_changed {
                 user.realname = reply.realname.map(str::to_owned);
             }
-            user.away = match flags.presence {
-                Some(WhoxPresence::Gone) => match &user.away {
-                    Away::Away { message: Some(_) } => user.away.clone(),
-                    Away::Unknown | Away::Present | Away::Away { message: None } => {
-                        Away::Away { message: None }
-                    }
-                },
-                Some(WhoxPresence::Here) => Away::Present,
-                None => user.away.clone(),
-            };
             user.is_bot = Some(flags.bot);
         }
+        self.apply_who_away(message, reply.nick, flags.presence, outbox);
         true
+    }
+
+    fn apply_who_away(
+        &mut self,
+        message: &LineRef<'_>,
+        nick: &str,
+        presence: Option<WhoxPresence>,
+        outbox: &mut Outbox,
+    ) {
+        let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) else {
+            return;
+        };
+        let away = match (presence, &user.away) {
+            (Some(WhoxPresence::Here), Away::Unknown | Away::Away { .. }) => Away::Present,
+            (Some(WhoxPresence::Gone), Away::Unknown | Away::Present) => {
+                Away::Away { message: None }
+            }
+            _ => return,
+        };
+        let known = user.away != Away::Unknown;
+        user.away = away.clone();
+        if known {
+            outbox.event(Event::AwayChanged {
+                envelope: crate::LineEnvelope::from_line(message),
+                actor: nick.to_owned(),
+                nick: self.casemapping.nick(nick),
+                away,
+                token: self.__reply_token_for(nick),
+                actor_party: self.nick_party(nick),
+            });
+        }
     }
 
     fn handle_plain_who(
@@ -614,6 +639,7 @@ impl State {
                 .collect(),
         };
         self.apply_who_user(
+            message,
             WhoUser {
                 channel,
                 nick,
