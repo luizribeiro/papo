@@ -29,6 +29,7 @@ pub enum TypingReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TypingChanged {
+    envelope: LineEnvelope,
     /// Valid server time on the line that caused the change, when supplied.
     ///
     /// This is `None` when a local typing deadline caused the change.
@@ -55,6 +56,13 @@ pub struct TypingChanged {
 }
 
 impl TypingChanged {
+    /// Returns account evidence on the line from this typer, when one caused the change.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __line_envelope(&self) -> &LineEnvelope {
+        &self.envelope
+    }
+
     /// Returns the typer's identity when their notification arrived.
     #[doc(hidden)]
     #[must_use]
@@ -481,7 +489,8 @@ impl Session {
         let actor_party = self.actor_party(message);
         let actor_token = self.state.source_token(message);
         let peer_token = self.state.conversation_token(&conversation);
-        let server_time = LineEnvelope::from_line(message).server_time();
+        let envelope = LineEnvelope::from_line(message);
+        let server_time = envelope.server_time();
         if actor_party == Party::Other {
             let nick = self.names().nick(nick);
             let evicted = TypingTable::notify(
@@ -507,6 +516,7 @@ impl Session {
             }
         }
         self.outbox.event(Event::TypingChanged(TypingChanged {
+            envelope,
             server_time,
             actor: actor.to_owned(),
             actor_token,
@@ -547,11 +557,10 @@ impl Session {
         if let Some(deadline) =
             TypingTable::stop_sender(&mut self.state.typing, &conversation, &nick)
         {
-            self.outbox.event(Event::TypingChanged(stopped(
-                deadline,
-                TypingReason::Messaged,
-                LineEnvelope::from_line(message).server_time(),
-            )));
+            let envelope = LineEnvelope::from_line(message);
+            let mut change = stopped(deadline, TypingReason::Messaged, envelope.server_time());
+            change.envelope = envelope;
+            self.outbox.event(Event::TypingChanged(change));
         }
     }
 
@@ -614,12 +623,15 @@ impl Session {
             _ => return,
         };
         if !silent {
+            let envelope = LineEnvelope::from_line(message);
             for deadline in removed {
-                self.outbox.event(Event::TypingChanged(stopped(
-                    deadline,
-                    TypingReason::Departed,
-                    LineEnvelope::from_line(message).server_time(),
-                )));
+                let same_actor = matches!(message.source(), Some(Source::User { nick, .. })
+                    if mapping.nick(nick) == deadline.nick);
+                let mut change = stopped(deadline, TypingReason::Departed, envelope.server_time());
+                if same_actor {
+                    change.envelope = envelope.clone();
+                }
+                self.outbox.event(Event::TypingChanged(change));
             }
         }
     }
@@ -654,6 +666,7 @@ fn stopped(
     server_time: Option<papo_proto::ServerTime>,
 ) -> TypingChanged {
     TypingChanged {
+        envelope: LineEnvelope::default(),
         server_time,
         actor: deadline.actor,
         actor_token: deadline.actor_token,

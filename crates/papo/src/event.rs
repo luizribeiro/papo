@@ -421,6 +421,17 @@ pub enum Incomplete {
 }
 
 impl Incomplete {
+    /// Returns the actor's account as reported for the received portion.
+    ///
+    /// See [`Message::actor_account`] for the meaning of each status.
+    #[must_use]
+    pub const fn actor_account(&self) -> &Account {
+        match self {
+            Self::Message(message) => message.actor_account(),
+            Self::Notice(notice) => notice.actor_account(),
+        }
+    }
+
     /// Returns the message when this is [`Self::Message`].
     #[must_use]
     pub const fn as_message(&self) -> Option<&Message> {
@@ -2378,6 +2389,7 @@ pub(crate) fn from_core_with_receipt(
             return CoreEvent::Line(CoreLine::Incomplete(message.message));
         }
         papo_core::Event::TypingChanged(change) => {
+            let line_account = actor_account(change.__line_envelope(), change.actor_party);
             actor_token = Some(change.__actor_token());
             let change_peer = change.__peer_token();
             peer_token = Some(change_peer);
@@ -2401,6 +2413,7 @@ pub(crate) fn from_core_with_receipt(
                 return_address,
             );
             Event::TypingChanged(TypingChanged {
+                actor_account: line_account,
                 server_time: change.server_time,
                 received_at,
                 actor,
@@ -2484,6 +2497,7 @@ pub(crate) fn from_core_with_receipt(
                 let mut receipt = tag.receipt;
                 receipt.set_reference([], None);
                 Event::TypingChanged(TypingChanged {
+                    actor_account: tag.actor_account,
                     server_time: tag.server_time,
                     received_at: tag.received_at,
                     actor: tag.actor,
@@ -3968,6 +3982,65 @@ mod tests {
                 event.as_redacted().map(super::Redacted::actor_account)
             }),
         ]);
+    }
+
+    #[test]
+    fn partial_lines_keep_their_reported_accounts() {
+        let now = Instant::now();
+        for line in [
+            "@account=alice :alice!~a@cloak.example PRIVMSG #review :release ready",
+            "@account=alice :alice!~a@cloak.example NOTICE #review :maintenance begins soon",
+        ] {
+            let event = mapped_live_event(line, now);
+            let Some(Event::Incomplete(incomplete)) = super::mark_incomplete(event) else {
+                panic!("expected a partial message or notice");
+            };
+            assert!(
+                matches!(incomplete.actor_account(), Account::LoggedIn(account) if account == "alice")
+            );
+        }
+    }
+
+    #[test]
+    fn typing_accounts_follow_the_typer_line_that_caused_the_change() {
+        let now = Instant::now();
+        let alice = Account::LoggedIn(Casemapping::default().account("alice"));
+        for (line, expected) in [
+            (
+                ":alice!~a@cloak.example PRIVMSG #review :release ready",
+                &Account::Unknown,
+            ),
+            (
+                "@account=alice :alice!~a@cloak.example PART #review :Lunch",
+                &alice,
+            ),
+            (
+                "@account=moderator :chanop!~op@staff.example KICK #review alice :Flooding",
+                &Account::Unknown,
+            ),
+        ] {
+            let mut session = Session::new(Config::default().nick("papo"));
+            session.handle_line(
+                now,
+                b"@account=alice;+typing=active :alice!~a@cloak.example TAGMSG #review",
+            );
+            let CoreEvent::Forward(Event::TypingChanged(active)) =
+                from_core(session.poll_event().unwrap())
+            else {
+                panic!("expected typing notification");
+            };
+            assert_eq!(active.actor_account(), &alice);
+
+            session.handle_line(now, line.as_bytes());
+            let done = std::iter::from_fn(|| session.poll_event())
+                .find_map(|event| match from_core(event) {
+                    CoreEvent::Forward(Event::TypingChanged(event)) => Some(event),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("expected typing to stop on {line}"));
+            assert_eq!(done.state, Typing::Done);
+            assert_eq!(done.actor_account(), expected);
+        }
     }
 
     #[test]

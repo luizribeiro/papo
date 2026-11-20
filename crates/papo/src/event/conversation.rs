@@ -187,6 +187,7 @@ pub struct TypingChanged {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The IRC conversation where typing is occurring.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -200,6 +201,8 @@ pub struct TypingChanged {
     /// Why the state changed.
     pub reason: TypingReason,
 }
+
+super::actor_account_accessor!(TypingChanged);
 
 /// A tag-only message with no more specific typed event.
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -1244,6 +1244,8 @@ pub papo::event::TypingChanged::received_at: std::time::SystemTime
 pub papo::event::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TypingChanged::state: papo::Typing
 impl papo::event::TypingChanged
+pub const fn papo::event::TypingChanged::actor_account(&self) -> &papo::Account
+impl papo::event::TypingChanged
 pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
 impl papo::event::TypingChanged
 pub fn papo::event::TypingChanged::return_address(&self) -> papo::MessageRef
@@ -1843,6 +1845,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 pub papo::Incomplete::Message(papo::Message)
 pub papo::Incomplete::Notice(papo::event::Notice)
 impl papo::Incomplete
+pub const fn papo::Incomplete::actor_account(&self) -> &papo::Account
 pub const fn papo::Incomplete::as_message(&self) -> core::option::Option<&papo::Message>
 pub const fn papo::Incomplete::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 pub fn papo::Incomplete::conversation(&self) -> &papo::Conversation

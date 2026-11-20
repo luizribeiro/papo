@@ -292,16 +292,19 @@ fn chat_messages_stop_typing_before_the_message_event() {
         _ = session.poll_event();
         session.handle_line(
             now,
-            format!(":alice!~a@cloak {command} #papo :hello from Alice").as_bytes(),
+            format!("@account=alice :alice!~a@cloak {command} #papo :hello from Alice").as_bytes(),
         );
+        let mut events = std::iter::from_fn(|| session.poll_event())
+            .filter(|event| !matches!(event, Event::AccountChanged { .. }));
 
         assert!(matches!(
-            session.poll_event(),
+            events.next(),
             Some(Event::TypingChanged(change))
                 if change.reason == papo_core::TypingReason::Messaged
+                    && change.__line_envelope().__actor_account_evidence() == (Some("alice"), true)
         ));
         assert!(matches!(
-            session.poll_event(),
+            events.next(),
             Some(Event::Line(line)) if line.as_ref().command_is(command)
         ));
         let conversation = conversation(&session, "#papo");
@@ -311,22 +314,31 @@ fn chat_messages_stop_typing_before_the_message_event() {
 
 #[test]
 fn part_and_kick_emit_departed_typing_before_departure() {
-    for line in [
-        ":alice!~a@cloak PART #papo :Leaving",
-        ":ChanServ!service@services KICK #papo alice :Requested",
+    for (line, account_evidence) in [
+        (
+            "@account=alice :alice!~a@cloak PART #papo :Leaving",
+            (Some("alice"), true),
+        ),
+        (
+            "@account=moderator :chanop!~op@staff.example KICK #papo alice :Requested",
+            (None, false),
+        ),
     ] {
         let now = Instant::now();
         let mut session = Session::new(Config::default());
         session.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
         _ = session.poll_event();
         session.handle_line(now, line.as_bytes());
+        let mut events = std::iter::from_fn(|| session.poll_event())
+            .filter(|event| !matches!(event, Event::AccountChanged { .. }));
         assert!(matches!(
-            session.poll_event(),
+            events.next(),
             Some(Event::TypingChanged(change))
                 if change.reason == papo_core::TypingReason::Departed
+                    && change.__line_envelope().__actor_account_evidence() == account_evidence
         ));
         assert!(matches!(
-            session.poll_event(),
+            events.next(),
             Some(Event::Parted { .. } | Event::Kicked { .. })
         ));
     }
