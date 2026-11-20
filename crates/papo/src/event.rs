@@ -60,6 +60,21 @@ pub use user::{
     RealnameChanged, SplitServers,
 };
 
+macro_rules! actor_account_accessor {
+    ($($ty:ty),+ $(,)?) => {$(
+        impl $ty {
+            /// Returns the actor's account as reported for this line.
+            ///
+            /// See [`crate::Message::actor_account`] for the meaning of each status.
+            #[must_use]
+            pub const fn actor_account(&self) -> &crate::Account {
+                &self.actor_account
+            }
+        }
+    )+};
+}
+use actor_account_accessor;
+
 /// The semantic kind of an incoming user message or notice.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
@@ -1504,6 +1519,14 @@ pub(crate) struct EventEnvelope {
 }
 
 impl EventEnvelope {
+    pub(crate) fn tagged_account(&self) -> Account {
+        if matches!(self.account, Account::LoggedIn(_)) {
+            self.account.clone()
+        } else {
+            Account::Unknown
+        }
+    }
+
     fn with_account(mut self, account: Account) -> Self {
         if self.account == Account::Unknown {
             self.account = account;
@@ -1546,8 +1569,9 @@ pub(crate) fn joined_from_line(
         (Some(_), Some(account)) => Account::LoggedIn(origin.__account(casemapping, account)),
     };
     let envelope =
-        line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at)
-            .with_account(account);
+        line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at);
+    let actor_account = envelope.tagged_account();
+    let envelope = envelope.with_account(account);
     let actor = source::from_line(
         source::LinePrefix::Raw(line.raw_source()?),
         &envelope,
@@ -1558,6 +1582,7 @@ pub(crate) fn joined_from_line(
         return None;
     };
     Some(Joined {
+        actor_account,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -2264,6 +2289,16 @@ pub(crate) fn from_core_with_receipt(
     reply_state: Option<&papo_core::State>,
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> CoreEvent {
+    let actor_account = |envelope: &papo_core::LineEnvelope, party| {
+        let (tag, user_source) = envelope.__actor_account_evidence();
+        if let Some(name) = tag {
+            Account::LoggedIn(origin.__account(casemapping, name))
+        } else if account_tag_enabled && party == papo_core::Party::Other && user_source {
+            Account::LoggedOut
+        } else {
+            Account::Unknown
+        }
+    };
     let map_envelope = |envelope| {
         core_envelope(
             envelope,
@@ -2632,9 +2667,11 @@ pub(crate) fn from_core_with_receipt(
             netjoin,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::Joined(Joined {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2662,12 +2699,14 @@ pub(crate) fn from_core_with_receipt(
             actor_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let account = facts
                 .as_ref()
                 .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
             let actor = user_at_arrival(nick, account, token);
             Event::Parted(Parted {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2691,6 +2730,7 @@ pub(crate) fn from_core_with_receipt(
             reason,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let Some(actor) = source::from_line(
                 source::LinePrefix::Core(actor),
@@ -2702,6 +2742,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::Kicked(Kicked {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2731,6 +2772,7 @@ pub(crate) fn from_core_with_receipt(
             subject_party,
             ..
         } => {
+            let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
             let Some(actor) = actor_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
@@ -2744,6 +2786,7 @@ pub(crate) fn from_core_with_receipt(
                 origin,
             );
             Event::Invited(Invited {
+                actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3696,6 +3739,23 @@ mod tests {
                 conversation,
                 "{expected}"
             );
+        }
+    }
+
+    #[test]
+    fn membership_events_report_the_tagged_actor_account() {
+        let now = Instant::now();
+        for (_, _, line) in MESSAGE_EVENT_METADATA_CASES {
+            let line = line.replacen('@', "@account=reviewer;", 1);
+            let event = mapped_live_event(&line, now);
+            let account = match &event {
+                Event::Joined(event) => event.actor_account(),
+                Event::Parted(event) => event.actor_account(),
+                Event::Kicked(event) => event.actor_account(),
+                Event::Invited(event) => event.actor_account(),
+                _ => continue,
+            };
+            assert!(matches!(account, Account::LoggedIn(name) if name == "reviewer"));
         }
     }
 
@@ -6955,6 +7015,7 @@ mod tests {
         let own_handle = crate::__testing::user_handle(mapping.nick("Papo[Bot]"));
         let events = [
             Event::Joined(super::Joined {
+                actor_account: crate::Account::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -6964,6 +7025,7 @@ mod tests {
                 netjoin: None,
             }),
             Event::Parted(super::Parted {
+                actor_account: crate::Account::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -6974,6 +7036,7 @@ mod tests {
                 actor_party: Party::Me,
             }),
             Event::Kicked(super::Kicked {
+                actor_account: crate::Account::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -6986,6 +7049,7 @@ mod tests {
                 reason: None,
             }),
             Event::Invited(super::Invited {
+                actor_account: crate::Account::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7012,6 +7076,7 @@ mod tests {
                 actor_party: Party::Me,
             }),
             Event::Joined(super::Joined {
+                actor_account: crate::Account::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,

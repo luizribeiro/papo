@@ -1971,6 +1971,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -1984,6 +1985,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -1999,6 +2001,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2013,6 +2016,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2034,6 +2038,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2049,6 +2054,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
+            actor_account: crate::Account::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2123,6 +2129,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         ..super::PostConnect::default()
     };
     let joined = Event::Joined(crate::event::Joined {
+        actor_account: crate::Account::Unknown,
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,

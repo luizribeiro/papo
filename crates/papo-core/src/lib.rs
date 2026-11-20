@@ -2008,10 +2008,18 @@ pub struct HistoryLine {
 pub struct LineEnvelope {
     msgid: Option<String>,
     server_time: Option<papo_proto::ServerTime>,
-    account: Option<String>,
-    account_known: bool,
+    account: AccountEvidence,
+    user_source: bool,
     bot: bool,
     oper: Option<OperTag>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+enum AccountEvidence {
+    #[default]
+    Unknown,
+    Tag(String),
+    Command(Option<String>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2027,8 +2035,12 @@ impl LineEnvelope {
             server_time: line
                 .tag("time")
                 .and_then(|value| papo_proto::ServerTime::from_stored(&value).ok()),
-            account: line.tag("account").map(std::borrow::Cow::into_owned),
-            account_known: line.tag("account").is_some(),
+            account: line
+                .tag("account")
+                .map_or(AccountEvidence::Unknown, |name| {
+                    AccountEvidence::Tag(name.into_owned())
+                }),
+            user_source: matches!(line.source(), Some(papo_proto::Source::User { .. })),
             bot: line.tags().any(|(key, _)| key == "bot"),
             oper: line
                 .tags()
@@ -2040,9 +2052,8 @@ impl LineEnvelope {
     }
 
     pub(crate) fn with_account(mut self, account: Option<&str>) -> Self {
-        if !self.account_known {
-            self.account = account.map(str::to_owned);
-            self.account_known = true;
+        if !self.__account_known() {
+            self.account = AccountEvidence::Command(account.map(str::to_owned));
         }
         self
     }
@@ -2062,14 +2073,30 @@ impl LineEnvelope {
     /// Returns the actor's authenticated account, when tagged.
     #[must_use]
     pub fn account(&self) -> Option<&str> {
-        self.account.as_deref()
+        match &self.account {
+            AccountEvidence::Tag(name) => Some(name),
+            AccountEvidence::Command(name) => name.as_deref(),
+            AccountEvidence::Unknown => None,
+        }
     }
 
     /// Returns whether this line proves the actor's account state.
     #[doc(hidden)]
     #[must_use]
     pub const fn __account_known(&self) -> bool {
-        self.account_known
+        !matches!(self.account, AccountEvidence::Unknown)
+    }
+
+    /// Returns the account tag and whether the line came with a user prefix.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __actor_account_evidence(&self) -> (Option<&str>, bool) {
+        let tag = if let AccountEvidence::Tag(name) = &self.account {
+            Some(name.as_str())
+        } else {
+            None
+        };
+        (tag, self.user_source)
     }
 
     /// Returns whether this line carries the bot tag.

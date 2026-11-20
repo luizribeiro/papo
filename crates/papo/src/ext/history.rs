@@ -559,6 +559,7 @@ fn parted(
     let actor =
         crate::UserHandle::from_history(actor.nick(), actor.account().clone(), Some(&client.state));
     Some(Event::Parted(Parted {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -637,6 +638,7 @@ fn kicked(
         crate::Source::Server(server) => crate::Source::Server(server),
     };
     Some(Event::Kicked(Kicked {
+        actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,

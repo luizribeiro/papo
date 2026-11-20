@@ -22,6 +22,7 @@ pub struct Joined {
     pub actor: crate::UserHandle,
     /// Who the joining user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// The netjoin batch that carried this join, when applicable.
     pub netjoin: Option<super::SplitServers>,
 }
@@ -62,6 +63,7 @@ pub struct Parted {
     pub reason: Option<String>,
     /// Who the departing user is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
 }
 
 /// A user was removed from a shared channel with `KICK`.
@@ -84,6 +86,7 @@ pub struct Kicked {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// Who the removed user is relative to you.
     pub subject_party: Party,
     /// The optional kick reason.
@@ -108,6 +111,7 @@ pub struct Invited {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: crate::Account,
     /// Who the invited user is relative to you.
     pub subject_party: Party,
     pub(crate) receipt: crate::message_ref::Receipt,
@@ -198,3 +202,5 @@ pub struct ChannelRenamed {
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,
 }
+
+super::actor_account_accessor!(Joined, Parted, Kicked, Invited);
