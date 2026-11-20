@@ -1,8 +1,12 @@
 //! Peer identity invalidation across a bouncer upstream session.
 
-use std::time::Instant;
+mod support;
 
-use papo_core::{Account, Config, RecipientStatus, Session};
+use std::time::{Duration, Instant};
+
+use papo_core::{Account, Config, Event, RecipientStatus, Session};
+use papo_proto::Casemapping;
+use support::Transcript;
 
 fn replay(session: &mut Session, trace: &str) {
     let now = Instant::now();
@@ -69,4 +73,39 @@ fn selected_bouncer_network_drop_ends_peer_identity() {
         &mut session,
         include_str!("data/soju-upstream-drop-unstable.irc"),
     );
+}
+
+#[test]
+fn late_soju_isupport_establishes_name_rules_after_welcome() {
+    let upstream_isupport = include_str!("data/soju-upstream-drop-stable.irc")
+        .lines()
+        .filter_map(|line| line.strip_prefix("S: "))
+        .find(|line| line.starts_with(":bouncer.papo.test 005 "))
+        .unwrap();
+
+    Transcript::new(Config::default().nick("papo-bouncer"))
+        .connect()
+        .client("CAP LS 302")
+        .client("NICK papo-bouncer")
+        .client("USER papo 0 * papo")
+        .server(":bouncer.papo.test CAP * LS :")
+        .client("CAP END")
+        .welcome(":bouncer.papo.test 001 papo-bouncer :Welcome to soju, papo-bouncer")
+        .server(
+            ":bouncer.papo.test 005 papo-bouncer BOUNCER_NETID=1 CHATHISTORY=1000 :are supported",
+        )
+        .server(":bouncer.papo.test 422 papo-bouncer :Use /motd to read the message of the day")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .inspect(|session| assert!(!session.__name_rules_known()))
+        .no_event()
+        .advance(Duration::from_secs(1))
+        .server(upstream_isupport)
+        .event(|event| event == &Event::__casemapping_changed(None, Casemapping::Ascii))
+        .inspect(|session| {
+            assert!(session.__name_rules_known());
+            assert_eq!(session.state().casemapping(), Casemapping::Ascii);
+        })
+        .event(|event| matches!(event, Event::FeaturesChanged { .. }))
+        .no_event()
+        .no_client();
 }

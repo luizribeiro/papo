@@ -48,7 +48,7 @@ impl Peer {
         let (known, _) = self
             .wait_until(|event, state| {
                 held.push_back((event.clone(), Arc::clone(state)));
-                let known = state.name_rules().is_some();
+                let known = event.as_casemapping_changed().is_some();
                 (known || held.len() == HELD_EVENTS).then_some(known)
             })
             .await?;
@@ -361,8 +361,20 @@ mod tests {
 
         let notice = peer.wait_for(Event::as_notice).await.unwrap();
         assert_eq!(notice.raw_text, "connected to alice-1469-3");
-        let changed = peer.wait_for(Event::as_casemapping_changed).await.unwrap();
+        let (changed, state) = peer
+            .wait_for_with_state(Event::as_casemapping_changed)
+            .await
+            .unwrap();
+        assert_eq!(changed.old, None);
         assert_eq!(changed.new, papo::Casemapping::Ascii);
+        assert_eq!(
+            state
+                .name_rules()
+                .unwrap()
+                .nick("alice[work]")
+                .casemapping(),
+            changed.new
+        );
         let remembered = peer
             .recent
             .iter()
