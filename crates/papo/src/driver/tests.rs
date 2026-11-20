@@ -11086,6 +11086,39 @@ async fn query_event_and_reconnect_spend_no_monitor_slot() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn nickname_watch_stays_on_the_name_across_renames() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect_monitor(&mut server, &mut events, 100).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo\r\n:alice!~alice@cloak.example JOIN #papo\r\n",
+    )
+    .await;
+    let watch = client.watch("alice");
+    client_line(&mut server, b"MONITOR + alice\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\nPING :monitor-started\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PONG monitor-started\r\n").await;
+    assert!(watch.is_live());
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example NICK alicia\r\nPING :rename-fence\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PONG rename-fence\r\n").await;
+    assert!(watch.is_live());
+    drop(watch);
+    client_line(&mut server, b"MONITOR - alice\r\n").await;
+
+    quit_cleanly(&mut server, client, driver).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn watch_follows_its_users_rename() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);

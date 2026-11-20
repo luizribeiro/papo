@@ -65,6 +65,24 @@ fn monitored(session: &papo_core::Session) -> Vec<String> {
 }
 
 #[test]
+fn reconciled_nickname_watch_stays_on_the_name() {
+    registered()
+        .server(":papo!p@localhost JOIN #review")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":alice!~alice@cloak.example JOIN #review")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+        .update(|session| session.__reconcile_watches(vec!["alice".into()]))
+        .client("MONITOR + alice")
+        .server(":alice!~alice@cloak.example NICK alicia")
+        .event(|event| matches!(event, Event::NickChanged { .. }))
+        .no_client()
+        .inspect(|session| assert_eq!(monitored(session), ["alice"]))
+        .update(|session| session.__reconcile_watches(vec![]))
+        .client("MONITOR - alice")
+        .no_client();
+}
+
+#[test]
 fn reconciled_watches_publish_monitored_state() {
     let generation = Cell::new(0);
     registered()

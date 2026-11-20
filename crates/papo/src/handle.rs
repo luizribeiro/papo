@@ -13,9 +13,15 @@ enum UserIdentity {
     Proven(papo_core::ReplyToken),
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum WatchIdentity {
+    Name(String),
+    User(UserIdentity),
+}
+
 #[derive(Default)]
 pub(crate) struct WatchRegistry {
-    entries: Mutex<HashMap<UserIdentity, WatchEntry>>,
+    entries: Mutex<HashMap<WatchIdentity, WatchEntry>>,
     commands: Mutex<Option<tokio::sync::mpsc::WeakSender<crate::driver::Command>>>,
     next_order: AtomicU64,
 }
@@ -27,10 +33,23 @@ impl std::fmt::Debug for WatchRegistry {
 }
 
 struct WatchEntry {
-    user: Weak<UserInner>,
+    user: Option<Weak<UserInner>>,
     leases: usize,
     live: bool,
     order: u64,
+}
+
+impl WatchEntry {
+    fn nick(&self, identity: &WatchIdentity) -> Option<String> {
+        match identity {
+            WatchIdentity::Name(nick) => Some(nick.clone()),
+            WatchIdentity::User(_) => Some(
+                UserHandle(self.user.as_ref()?.upgrade()?)
+                    .nick()
+                    .to_string(),
+            ),
+        }
+    }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -48,22 +67,33 @@ impl WatchRegistry {
     }
 
     fn acquire(self: &Arc<Self>, user: &UserHandle) -> Watch {
-        let identity = user.0.identity.clone();
+        self.acquire_target(WatchIdentity::User(user.0.identity.clone()), Some(&user.0))
+    }
+
+    fn acquire_target(
+        self: &Arc<Self>,
+        identity: WatchIdentity,
+        user: Option<&Arc<UserInner>>,
+    ) -> Watch {
         let mut entries = lock(&self.entries);
         let retained = if let Some(entry) = entries.get_mut(&identity) {
             entry.leases = entry.leases.saturating_add(1);
-            entry.user.upgrade().unwrap_or_else(|| Arc::clone(&user.0))
+            entry
+                .user
+                .as_ref()
+                .and_then(Weak::upgrade)
+                .or_else(|| user.cloned())
         } else {
             entries.insert(
                 identity.clone(),
                 WatchEntry {
-                    user: Arc::downgrade(&user.0),
+                    user: user.map(Arc::downgrade),
                     leases: 1,
                     live: false,
                     order: self.next_order.fetch_add(1, Ordering::Relaxed),
                 },
             );
-            Arc::clone(&user.0)
+            user.cloned()
         };
         drop(entries);
         self.wake();
@@ -76,25 +106,19 @@ impl WatchRegistry {
 
     pub(crate) fn desired(&self) -> Vec<String> {
         let mut desired: Vec<_> = lock(&self.entries)
-            .values()
-            .filter_map(|entry| Some((entry.order, entry.user.upgrade()?)))
+            .iter()
+            .filter_map(|(identity, entry)| Some((entry.order, entry.nick(identity)?)))
             .collect();
         desired.sort_unstable_by_key(|(order, _)| *order);
-        desired
-            .into_iter()
-            .map(|(_, user)| UserHandle(user).nick().to_string())
-            .collect()
+        desired.into_iter().map(|(_, nick)| nick).collect()
     }
 
     pub(crate) fn update_live(&self, state: &crate::State) {
         let monitored: Vec<_> = state.monitored().map(ToString::to_string).collect();
-        for entry in lock(&self.entries).values_mut() {
-            entry.live = entry.user.upgrade().is_some_and(|user| {
-                let nick = UserHandle(user).nick();
-                monitored
-                    .iter()
-                    .any(|known| state.same_name(known, nick.as_str()))
-            });
+        for (identity, entry) in lock(&self.entries).iter_mut() {
+            entry.live = entry
+                .nick(identity)
+                .is_some_and(|nick| monitored.iter().any(|known| state.same_name(known, &nick)));
         }
     }
 
@@ -117,8 +141,8 @@ pub struct Watch(Arc<WatchLease>);
 
 struct WatchLease {
     registry: Arc<WatchRegistry>,
-    identity: UserIdentity,
-    _user: Arc<UserInner>,
+    identity: WatchIdentity,
+    _user: Option<Arc<UserInner>>,
 }
 
 impl Watch {
@@ -410,7 +434,10 @@ impl UserHandle {
         })
     }
 
-    /// Acquires a synchronous lease requesting server-side presence tracking.
+    /// Acquires a server-side presence watch for the user this handle represents.
+    ///
+    /// It follows nickname changes the client observes for that user. Use [`crate::Client::watch`]
+    /// to watch a fixed nickname.
     #[must_use]
     pub fn watch(&self) -> Watch {
         let registry = self
@@ -626,6 +653,18 @@ impl crate::Client {
                 )),
             }
         })
+    }
+
+    /// Acquires a server-side presence watch for the supplied nickname.
+    ///
+    /// The spelling is interpreted by this client's server. The watch stays on that name when
+    /// its holder renames. Use [`UserHandle::watch`] to watch a user the client observed.
+    /// An invalid nickname or unavailable monitor slot leaves the watch inactive.
+    #[must_use]
+    pub fn watch(&self, nick: impl AsRef<str>) -> Watch {
+        self.state()
+            .watch_registry()
+            .acquire_target(WatchIdentity::Name(nick.as_ref().to_owned()), None)
     }
 
     /// Creates a user handle without sending an IRC command.

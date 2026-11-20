@@ -25,6 +25,8 @@ output tests. Their example binaries require TLS when sending credentials.
 
 `Client::invite` and the `SetModes` privilege grants accept plain text and `Nick` in addition to `UserHandle`.
 
+`Client::watch` acquires a presence watch on a fixed nickname. `UserHandle::watch` follows observed renames.
+
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 
@@ -240,7 +242,7 @@ Every `UserHandle` a live event carries, including the peer of a private convers
 
 `State::presence` reports online, offline, or unknown evidence for a `UserHandle` without allocating a monitor slot.
 
-`UserHandle::watch` is now the sole public owner of server-side `MONITOR` entries; its synchronous `Watch` lease reports whether the server accepted the entry.
+A synchronous `Watch` lease reports whether the server accepted its `MONITOR` entry.
 
 Watches and monitored nicknames now reach the server when `MONITOR` is first advertised after the connection
 finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported instead.
