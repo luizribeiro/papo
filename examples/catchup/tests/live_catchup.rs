@@ -65,10 +65,10 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         }
 
         let output = Command::new(env!("CARGO_BIN_EXE_catchup"))
-            .arg(format!("irc://{}", server.plaintext_addr()))
+            .arg(format!("ircs://{}", server.tls_addr()))
+            .env("SSL_CERT_FILE", server.ca_pem_path())
             .env("IRC_NICK", &account)
             .env("IRC_PASSWORD", PASSWORD)
-            .env("IRC_ALLOW_INSECURE_AUTH", "1")
             .env("IRC_CHANNEL", &channel)
             .output()
             .unwrap();

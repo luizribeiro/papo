@@ -9,9 +9,8 @@ If history or read-marker handling fails, it prints `could not catch up: …` an
 Apps that persisted that server time can restore it with `ServerTime::from_stored` and pass it to
 `client.mark_read(channel).up_to_time(time)` after reconnecting.
 
-Pass an `irc://` or `ircs://` server URL as the first argument. Set `IRC_NICK` to the account
-name and `IRC_PASSWORD` to its SASL PLAIN password. Plaintext `irc://` with credentials also needs
-`IRC_ALLOW_INSECURE_AUTH=1`; use `ircs://` normally.
+Pass an `ircs://` server URL as the first argument. Set `IRC_NICK` to the account name and
+`IRC_PASSWORD` to its SASL PLAIN password.
 
 ```sh
 IRC_NICK=alice IRC_PASSWORD='correct horse battery staple' \
