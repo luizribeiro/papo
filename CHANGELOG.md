@@ -14,6 +14,9 @@ provider, `websocket` adds native and WASI WebSocket transports, `precis` adds U
 and account comparison, and `unstable` exposes experimental extension APIs without semantic
 versioning guarantees.
 
+The account creation, catchup, and bouncer network examples use TLS for login in their live
+output tests. Their example binaries require TLS when sending credentials.
+
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 

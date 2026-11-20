@@ -12,10 +12,10 @@ async fn creates_and_logs_in_during_connection_setup() {
         let server = from_env();
         let account = unique("papo-create-account");
         let output = Command::new(env!("CARGO_BIN_EXE_create-account"))
-            .arg(format!("irc://{}", server.plaintext_addr()))
+            .arg(format!("ircs://{}", server.tls_addr()))
+            .env("SSL_CERT_FILE", server.ca_pem_path())
             .env("IRC_NICK", &account)
             .env("IRC_PASSWORD", "q7Hx-2mZp_9vLcT4wRfB")
-            .env("IRC_ALLOW_INSECURE_AUTH", "1")
             .output()
             .unwrap();
 

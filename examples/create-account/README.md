@@ -5,9 +5,8 @@ it prints the instructions and reads the verification code from standard input. 
 awaits `Client::quit` before exiting. A rejected code is reported on standard error; the example
 does not prompt again.
 
-Pass an `irc://` or `ircs://` server URL as the first argument. Set `IRC_NICK` to the new account
-name, `IRC_PASSWORD` to its password, and optionally set `IRC_EMAIL`. Plaintext `irc://` with
-credentials also needs `IRC_ALLOW_INSECURE_AUTH=1`; use `ircs://` normally.
+Pass an `ircs://` server URL as the first argument. Set `IRC_NICK` to the new account name,
+`IRC_PASSWORD` to its password, and optionally set `IRC_EMAIL`.
 
 ```sh
 IRC_NICK=alice IRC_PASSWORD='correct horse battery staple' \
