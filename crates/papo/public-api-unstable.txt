@@ -883,6 +883,7 @@ pub papo::event::Notice::server_time: core::option::Option<papo_proto::time::Ser
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
+pub const fn papo::event::Notice::actor_account(&self) -> &papo::Account
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
 pub fn papo::event::Notice::return_address(&self) -> papo::NoticeRef
 pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
@@ -1085,6 +1086,7 @@ pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
 pub papo::event::ServerNotice::to: papo::event::Audience
 impl papo::event::ServerNotice
+pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::Account
 pub fn papo::event::ServerNotice::return_address(&self) -> core::option::Option<papo::NoticeRef>
 pub fn papo::event::ServerNotice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::ServerNotice
@@ -3055,6 +3057,7 @@ pub papo::Message::server_time: core::option::Option<papo_proto::time::ServerTim
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
+pub const fn papo::Message::actor_account(&self) -> &papo::Account
 pub const fn papo::Message::channel_context(&self) -> core::option::Option<&papo::Conversation>
 pub const fn papo::Message::conversation(&self) -> &papo::Conversation
 pub fn papo::Message::is_own(&self) -> bool

@@ -231,6 +231,7 @@ pub fn message(
     let actor = actor.unwrap_or_else(|| user_handle(crate::Casemapping::default().nick("unknown")));
     let receipt = receipt(&actor, &conversation, None, None);
     Message {
+        actor_account: crate::Account::Unknown,
         actor,
         actor_party: Party::Other,
         conversation,
@@ -252,6 +253,7 @@ pub fn message(
 
 /// Sets the account fact on a test message actor.
 pub fn set_message_account(message: &mut Message, account: crate::Account) {
+    message.actor_account = account.clone();
     message.actor = crate::UserHandle::current_name(message.actor.nick(), account, None, None);
     if let crate::Conversation::Private(user) = &mut message.conversation {
         *user = message.actor.clone();

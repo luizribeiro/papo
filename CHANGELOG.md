@@ -40,6 +40,8 @@ while disconnected, it still skips the current backoff and retries immediately.
 Channel and single-nick WHO replies now emit `AwayChanged` when they change a known away status.
 Initial away statuses learned in a channel refresh are included in `MembersRefreshed`.
 
+`actor_account()` reports the account evidence on the event’s own IRC line, including in history.
+
 `Party::{Me, Other, Unknown}` says who an event's actor (`actor_party`) or subject
 (`subject_party`, `ModeChanged::subject_party(&change)`) is relative to you. papo decides it when
 the line arrives, from the nick and account you held then, and a replayed history line is `Me` or

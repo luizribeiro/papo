@@ -295,6 +295,7 @@ pub struct Message {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: Account,
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -337,6 +338,7 @@ pub struct Notice {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: Account,
     /// The chat conversation to which the notice belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -439,6 +441,7 @@ pub struct ServerNotice {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
+    pub(crate) actor_account: Account,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
@@ -490,6 +493,7 @@ impl std::ops::Deref for Other {
 }
 
 struct MessageMetadata {
+    actor_account: Account,
     actor: Source,
     actor_party: Party,
     conversation: Conversation,
@@ -783,6 +787,16 @@ pub(crate) fn mark_incomplete(event: Event) -> Option<Event> {
 }
 
 impl Message {
+    /// Returns the actor's account as reported for this line.
+    ///
+    /// An `account` tag supplies the name. An untagged live line from another user
+    /// with `account-tag` enabled reports [`Account::LoggedOut`]. Other untagged lines,
+    /// including own echoes, server lines and history, report [`Account::Unknown`].
+    #[must_use]
+    pub const fn actor_account(&self) -> &Account {
+        &self.actor_account
+    }
+
     /// Returns the conversation captured from the received line.
     #[must_use]
     pub const fn conversation(&self) -> &Conversation {
@@ -911,6 +925,7 @@ impl Message {
         Ok(Self {
             actor,
             actor_party: metadata.actor_party,
+            actor_account: metadata.actor_account,
             conversation,
             status: metadata.status,
             text,
@@ -949,6 +964,14 @@ impl Message {
 }
 
 impl Notice {
+    /// Returns the actor's account as reported for this line.
+    ///
+    /// See [`Message::actor_account`] for the meaning of each account status.
+    #[must_use]
+    pub const fn actor_account(&self) -> &Account {
+        &self.actor_account
+    }
+
     /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
@@ -1031,6 +1054,7 @@ impl Notice {
         Ok(Self {
             actor,
             actor_party: metadata.actor_party,
+            actor_account: metadata.actor_account,
             conversation,
             status: metadata.status,
             text,
@@ -1055,6 +1079,14 @@ impl Notice {
 }
 
 impl ServerNotice {
+    /// Returns the actor's account as reported for this line.
+    ///
+    /// See [`Message::actor_account`] for the meaning of each account status.
+    #[must_use]
+    pub const fn actor_account(&self) -> &Account {
+        &self.actor_account
+    }
+
     /// Returns the address that reaches the recipients of the notice.
     ///
     /// Channel notices preserve their exact status-prefixed audience. Broadcasts, `WALLOPS`, and
@@ -1160,6 +1192,12 @@ impl ServerNotice {
             }
         };
         Ok(Self {
+            actor_account: line_actor_account(
+                &message,
+                &envelope,
+                actor_party,
+                account_tag_enabled,
+            ),
             actor,
             actor_party,
             kind,
@@ -1398,6 +1436,7 @@ fn message_metadata(
         crate::message_ref::Receipt::new(actor.clone(), &conversation, reply_token, return_address);
     receipt.set_reference(envelope.msgid.iter().cloned(), None);
     Some(MessageMetadata {
+        actor_account: line_actor_account(message, &envelope, actor_party, account_tag_enabled),
         actor,
         actor_party,
         conversation,
@@ -1419,6 +1458,23 @@ pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation)
             .param(0)
             .map_or_else(|| channel.name().to_string(), str::to_owned),
         Conversation::Private(user) => user.nick().to_string(),
+    }
+}
+
+fn line_actor_account(
+    line: &LineRef<'_>,
+    envelope: &EventEnvelope,
+    party: Party,
+    account_tag_enabled: bool,
+) -> Account {
+    if account_tag_enabled
+        && party == Party::Other
+        && matches!(line.source(), Some(papo_proto::Source::User { .. }))
+        || matches!(envelope.account, Account::LoggedIn(_))
+    {
+        envelope.account.clone()
+    } else {
+        Account::Unknown
     }
 }
 
@@ -3640,6 +3696,71 @@ mod tests {
                 conversation,
                 "{expected}"
             );
+        }
+    }
+
+    #[test]
+    fn message_accounts_follow_line_evidence() {
+        let now = Instant::now();
+        let cases = [
+            (
+                "@account=alice :alice!~a@cloak.example PRIVMSG papo :release ready",
+                true,
+                Some("alice"),
+            ),
+            (
+                "@+account=alice :bob!~b@cloak.example PRIVMSG papo :release ready",
+                true,
+                Some("*"),
+            ),
+            (
+                ":alice!~a@cloak.example PRIVMSG papo :release shipped",
+                false,
+                None,
+            ),
+            (
+                ":papo!~p@localhost PRIVMSG bob :thanks for the update",
+                true,
+                None,
+            ),
+            (
+                ":ergo.test NOTICE papo :Maintenance in five minutes",
+                true,
+                None,
+            ),
+            (
+                ":NickServ!NickServ@localhost NOTICE papo :You're not logged into an account",
+                true,
+                Some("*"),
+            ),
+        ];
+        for (line, cap, expected) in cases {
+            let mut session = Session::new(Config::default().nick("papo"));
+            session.handle_line(now, line.as_bytes());
+            let Some(papo_core::Event::Line(line)) = session.poll_event() else {
+                panic!("expected a line event for {line}");
+            };
+            let event = super::incoming_from_core(
+                line,
+                crate::Origin::NONE,
+                session.isupport(),
+                cap,
+                UNIX_EPOCH,
+                None,
+            );
+            let account = match &event {
+                Event::Message(event) => event.actor_account(),
+                Event::Notice(event) => event.actor_account(),
+                Event::ServerNotice(event) => event.actor_account(),
+                _ => panic!("expected a message or notice, got {event:?}"),
+            };
+            match expected {
+                Some("*") => assert_eq!(account, &Account::LoggedOut),
+                Some(name) => {
+                    assert!(matches!(account, Account::LoggedIn(account) if account == name));
+                }
+                None => assert_eq!(account, &Account::Unknown),
+            }
         }
     }
 
