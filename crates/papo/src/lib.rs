@@ -252,7 +252,7 @@
 //! protection.
 //!
 //! The sealed [`Target`] trait accepts nicknames, channel names, handles, and return addresses.
-//! A nickname in text addresses its current holder. A [`UserHandle`] addresses
+//! A nickname in text or as a [`Nick`] addresses its current holder. A [`UserHandle`] addresses
 //! the person the client observed.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

@@ -270,6 +270,7 @@ impl crate::target::sealed::Sealed for MessageRef {}
 impl crate::Target for MessageRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
+            send_name: None,
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             channel: self
@@ -326,6 +327,7 @@ impl crate::target::sealed::Sealed for NoticeRef {}
 impl crate::Target for NoticeRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
+            send_name: None,
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             channel: self

@@ -685,11 +685,16 @@ impl Client {
         }
         crate::ForeignReference::require_local(parts.origin, self.origin)?;
         let state = self.state();
-        state
+        let names = state
             .known_name_rules()
             .ok_or(InvalidInput::NameRulesUnknown)?;
         let text = current_channel_text(&state, parts.text.into_owned(), parts.channel.as_deref())?;
         let checked = || {
+            if parts.send_name == Some(crate::target::sealed::SendName::Nick) {
+                let nick = names.nick(&text);
+                nick.check(state.isupport().inner())?;
+                return Ok(papo_core::Conversation::Private(nick));
+            }
             let (status, target) = state.parse_target_inner(&text)?;
             if status.is_some() {
                 refuse_stacked_status(&state, &text)?;
@@ -699,8 +704,14 @@ impl Client {
         let target =
             checked().map_err(|reason| InvalidInput::invalid_argument(argument, &text, reason))?;
         let person = match target {
-            papo_core::Conversation::Private(nick) => {
+            papo_core::Conversation::Private(nick) if parts.send_name.is_some() => {
                 Some(crate::identity::prove_current_name(&state, nick)?.core)
+            }
+            papo_core::Conversation::Private(_) => {
+                let reason = crate::InvalidIdentifier::InvalidPrefix(
+                    text.chars().next().unwrap_or_default(),
+                );
+                return Err(InvalidInput::invalid_argument(argument, text, reason).into());
             }
             _ => None,
         };
@@ -925,6 +936,7 @@ impl Client {
         text: impl Into<String>,
     ) -> crate::RequestFuture<SendOutcome> {
         let target = crate::target::sealed::Parts {
+            send_name: None,
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(query.conversation()),
             channel: None,
@@ -1135,6 +1147,8 @@ impl Client {
     }
 
     /// Sends a message to a channel, nickname, guarded [`crate::UserHandle`], or return address.
+    ///
+    /// A nickname in text or as a [`crate::Nick`] addresses whoever holds that name.
     ///
     /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
     /// which is not also emitted as an event. Applications that log every message must log their

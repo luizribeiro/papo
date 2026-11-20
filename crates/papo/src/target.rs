@@ -5,10 +5,17 @@ pub(crate) mod sealed {
 
     pub trait Sealed {}
 
+    #[derive(Clone, Copy, Eq, PartialEq)]
+    pub(crate) enum SendName {
+        Text,
+        Nick,
+    }
+
     #[derive(Clone)]
     pub struct Parts<'a> {
         pub(crate) text: Cow<'a, str>,
         pub(crate) origin: crate::Origin,
+        pub(crate) send_name: Option<SendName>,
         pub(crate) channel: Option<Box<papo_core::ChannelGuard>>,
         pub(crate) user: Option<crate::UserHandle>,
     }
@@ -22,6 +29,7 @@ pub(crate) mod sealed {
             Parts {
                 text: Cow::Owned(self.text.into_owned()),
                 origin: self.origin,
+                send_name: self.send_name,
                 channel: self.channel,
                 user: self.user,
             }
@@ -33,6 +41,7 @@ pub(crate) mod sealed {
             Self {
                 text: Cow::Owned(parts.text().to_owned()),
                 origin: parts.origin(),
+                send_name: None,
                 channel: None,
                 user: None,
             }
@@ -64,7 +73,7 @@ impl Role {
 /// A destination accepted by message-sending operations.
 ///
 /// Plain text names a channel if it starts with a server-advertised channel prefix. A nickname
-/// in text addresses whoever holds it. Typed names, handles, and message
+/// in text or as a [`crate::Nick`] addresses whoever holds it. Typed names, handles, and message
 /// references retain the client that produced them and are refused by another client.
 /// A single status prefix such as `@#ops` is preserved; stacked prefixes such as `+@#ops` are
 /// refused because servers disagree on their audience. [`crate::Client::send_raw`] is the explicit
@@ -131,6 +140,7 @@ fn text_parts(text: &str) -> sealed::Parts<'_> {
     sealed::Parts {
         text: Cow::Borrowed(text),
         origin: crate::Origin::NONE,
+        send_name: Some(sealed::SendName::Text),
         channel: None,
         user: None,
     }
@@ -187,12 +197,22 @@ fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
     sealed::Parts {
         text: Cow::Borrowed(text),
         origin,
+        send_name: None,
         channel: None,
         user: None,
     }
 }
 
 impl sealed::Sealed for crate::Nick {}
+
+impl Target for crate::Nick {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        sealed::Parts {
+            send_name: Some(sealed::SendName::Nick),
+            ..name_parts(self.as_str(), self.origin())
+        }
+    }
+}
 
 impl AsNick for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {

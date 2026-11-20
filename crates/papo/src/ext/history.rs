@@ -1084,6 +1084,7 @@ fn resolve_reference(
     client.resolve(
         crate::target::Role::Conversation("history: conversation"),
         crate::target::sealed::Parts {
+            send_name: None,
             text: std::borrow::Cow::Owned(target),
             origin: origin.unwrap_or(crate::Origin::NONE),
             channel: None,

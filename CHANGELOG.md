@@ -19,6 +19,8 @@ output tests. Their example binaries require TLS when sending credentials.
 
 `Client::privmsg`, `Client::notice`, and `Client::action` accept plain-text nicknames for the nickname's current holder.
 
+`Nick` implements `Target` for `Client::privmsg`, `Client::notice`, and `Client::action`.
+
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 

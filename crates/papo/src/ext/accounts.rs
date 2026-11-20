@@ -101,6 +101,7 @@ impl Client {
                     client.resolve(
                         crate::target::Role::Account("create_account: account"),
                         crate::target::sealed::Parts {
+                            send_name: None,
                             text: std::borrow::Cow::Owned(text),
                             origin,
                             channel: None,

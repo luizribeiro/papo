@@ -7537,6 +7537,64 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn typed_nickname_sends_to_the_current_holder() {
+    let (mut server, client, _events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect_unobserved(&mut server).await;
+
+    let state = client.state();
+    let names = state.name_rules().unwrap();
+    let alice = names.nick("Alice");
+    within(client.privmsg(&alice, "release approved"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG Alice :release approved\r\n").await;
+    within(client.notice(&alice, "release received"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"NOTICE Alice :release received\r\n").await;
+
+    assert!(matches!(
+        within(client.privmsg(names.nick("#release"), "release approved")).await,
+        Err(Error::InvalidInput(_))
+    ));
+    assert!(matches!(
+        within(client.privmsg(names.channel("Alice"), "release approved")).await,
+        Err(Error::InvalidInput(_))
+    ));
+    let foreign = crate::Origin::__new(9999).__nick(crate::Casemapping::default(), "Alice");
+    assert!(matches!(
+        within(client.notice(foreign, "release received")).await,
+        Err(Error::ForeignReference(_))
+    ));
+    server_line(&mut server, b"PING :nickname-fence\r\n").await;
+    client_line(&mut server, b"PONG nickname-fence\r\n").await;
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn name_send_without_name_rules_writes_nothing() {
+    let session = Session::new(Config::default().nick("papo"));
+    let (client, mut commands) = client_with_commands(&session);
+    for result in [
+        client.privmsg("alice", "release approved").await,
+        client.notice("alice", "release approved").await,
+        client.privmsg(test_nick("alice"), "release approved").await,
+        client.notice(test_nick("alice"), "release approved").await,
+    ] {
+        assert!(matches!(
+            result,
+            Err(Error::InvalidInput(crate::InvalidInput::NameRulesUnknown))
+        ));
+    }
+    assert!(matches!(
+        commands.try_recv(),
+        Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);

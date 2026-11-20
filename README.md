@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 We put a lot of effort into making papo hard to misuse. Not just by someone hostile, but also accidental misuse and footguns. One rule we had is that nothing should fall to documentation if it's a pitfall. We should always prefer structural fixes.
 
-**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. Sending to a nickname in text reaches its current holder. To answer the sender, reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`). A user handle also addresses a tracked person:
+**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. Sending to a nickname in text or as a `Nick` reaches its current holder. To answer the sender, reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`). A user handle also addresses a tracked person:
 
 ```rust
 let alice = client.query("alice")?;

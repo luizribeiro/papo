@@ -706,6 +706,7 @@ impl crate::target::sealed::Sealed for ChannelHandle {}
 impl crate::AsChannel for ChannelHandle {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
+            send_name: None,
             text: std::borrow::Cow::Owned(self.name().to_string()),
             origin: self.0.channel.origin(),
             channel: self.guard().cloned().map(Box::new),
@@ -719,6 +720,7 @@ impl crate::target::sealed::Sealed for UserHandle {}
 impl crate::Target for UserHandle {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
+            send_name: None,
             text: std::borrow::Cow::Owned(self.nick().to_string()),
             origin: self.0.nick.origin(),
             channel: None,
