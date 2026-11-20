@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Account, Config, Event};
+use papo_core::{Account, Away, Config, Event};
 use papo_proto::Casemapping;
 use support::Transcript;
 
@@ -35,6 +35,52 @@ fn finish_sweep(transcript: Transcript, rows: &[&str]) -> Transcript {
         .fold(transcript, |transcript, row| transcript.server(row))
         .server(":ergo.test 315 bob #papo :End of WHO list")
         .event_until(|event| matches!(event, Event::MembersRefreshed { .. }))
+}
+
+#[test]
+fn learning_many_initial_away_statuses_emits_one_refresh_event() {
+    let members = [
+        "alice", "dan", "emily", "ferris", "grace", "helen", "iris", "joel", "kai", "lena",
+        "marin", "nora", "omar", "pat", "quin", "rachel",
+    ];
+    let names = format!(":ergo.test 353 bob = #papo :@bob {}", members.join(" "));
+    let mut sweep = join_and_start_sweep(
+        Config::default(),
+        ":ergo.test 005 bob WHOX PREFIX=(ov)@+ :are supported",
+        &names,
+    )
+    .inspect(|session| {
+        for nick in members {
+            assert_eq!(session.state().user(nick).unwrap().away(), &Away::Unknown);
+        }
+    })
+    .no_event()
+    .server(":ergo.test 354 bob 152 #papo ~bob 127.0.0.1 bob H@ 0 :Bob Jones")
+    .no_event();
+    for (index, nick) in members.into_iter().enumerate() {
+        let flag = if index % 2 == 0 { 'H' } else { 'G' };
+        sweep = sweep
+            .server(&format!(
+                ":ergo.test 354 bob 152 #papo ~{nick} cloak.example {nick} {flag} 0 :{nick}"
+            ))
+            .no_event();
+    }
+    sweep
+        .server(":ergo.test 315 bob #papo :End of WHO list")
+        .event(
+            |event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"),
+        )
+        .no_event()
+        .inspect(|session| {
+            for (index, nick) in members.into_iter().enumerate() {
+                let expected = if index % 2 == 0 {
+                    Away::Present
+                } else {
+                    Away::__away_value(None)
+                };
+                assert_eq!(session.state().user(nick).unwrap().away(), &expected);
+            }
+        });
 }
 
 fn logged_in(account: &str) -> Account {
