@@ -417,7 +417,7 @@ impl ReplyReference for SendOutcome {
     }
 
     fn conversation(&self) -> &Conversation {
-        &self.conversation
+        SendOutcome::conversation(self)
     }
 
     fn server_time(&self) -> Option<crate::ServerTime> {
@@ -626,16 +626,19 @@ mod tests {
         assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120004")));
         assert_eq!(reference.origin(), origin);
 
-        let mut sent = SendOutcome {
-            conversation: Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
-            status: Some(crate::Prefix::__new('o', '@')),
-            receipt: Receipt::new(
-                crate::Source::User(user_handle(origin.__nick(mapping, "papo"))),
-                &Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
-                None,
-                "@#ops".into(),
-            ),
-            lines: [
+        let conversation = Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops")));
+        let receipt = Receipt::new(
+            crate::Source::User(user_handle(origin.__nick(mapping, "papo"))),
+            &conversation,
+            None,
+            "@#ops".into(),
+        );
+        let mut sent = SendOutcome::new(
+            conversation,
+            Some(crate::Prefix::__new('o', '@')),
+            receipt,
+            Vec::new(),
+            [
                 ("RfcBTzyxY120005", "deploy complete", None),
                 (
                     "RfcBTzyxY120006",
@@ -657,8 +660,7 @@ mod tests {
                 },
             })
             .into(),
-            fallbacks: Vec::new(),
-        };
+        );
         sent.receipt.set_reference(
             ["RfcBTzyxY120005", "RfcBTzyxY120006"].map(MessageId::from),
             None,

@@ -7873,9 +7873,9 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         .await
         .unwrap();
     assert!(
-        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
+        matches!(sent.conversation(), crate::Conversation::Channel(channel) if channel == "#papo")
     );
-    assert_eq!(sent.status, None);
+    assert_eq!(sent.status(), None);
     assert_eq!(sent.fallbacks, [crate::Fallback::SplitIntoLines]);
     let lines = format!(
         "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
@@ -7896,9 +7896,9 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let sent = client.privmsg("@#ops", "operators only").await.unwrap();
     client_line(&mut server, b"PRIVMSG @#ops :operators only\r\n").await;
     assert!(
-        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#ops")
+        matches!(sent.conversation(), crate::Conversation::Channel(channel) if channel == "#ops")
     );
-    assert_eq!(sent.status.map(crate::Prefix::symbol), Some('@'));
+    assert_eq!(sent.status().map(crate::Prefix::symbol), Some('@'));
     let sent = client
         .privmsg("#helpers", "reviewed")
         .reply_to(crate::MessageId::from("RfcBTzyxY120004"))
@@ -8204,9 +8204,9 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
         )]
     );
     assert!(
-        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
+        matches!(sent.conversation(), crate::Conversation::Channel(channel) if channel == "#papo")
     );
-    assert_eq!(sent.status, None);
+    assert_eq!(sent.status(), None);
 
     let sender = client.clone();
     let split = tokio::spawn(async move { sender.notice("#papo", "a".repeat(600)).await });
@@ -8423,8 +8423,8 @@ async fn channel_sends_preserve_membership_and_refuse_expired_handles() {
     client_line(&mut server, b"PRIVMSG #review :release approved\r\n").await;
     let sent = within(send_task).await.unwrap().unwrap();
     assert_eq!(
-        sent.conversation,
-        crate::Conversation::Channel(channel.clone())
+        sent.conversation(),
+        &crate::Conversation::Channel(channel.clone())
     );
 
     server_line(
@@ -9089,19 +9089,20 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     finish_registration(&mut server).await;
 
     let conversation = crate::Conversation::Channel(client.channel("#papo").unwrap());
-    let mut sent = crate::SendOutcome {
-        receipt: client.state().sent_receipt(&conversation, "#papo".into()),
+    let receipt = client.state().sent_receipt(&conversation, "#papo".into());
+    let mut sent = crate::SendOutcome::new(
         conversation,
-        status: None,
-        lines: [
+        None,
+        receipt,
+        Vec::new(),
+        [
             ("RfcBTzyxY120004", "first deployment line"),
             ("RfcBTzyxY120005", "second deployment line"),
             ("RfcBTzyxY120006", "third deployment line"),
         ]
         .map(|(id, text)| confirmed_line(id, None, text))
         .into(),
-        fallbacks: Vec::new(),
-    };
+    );
     sent.receipt.set_reference(
         ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"].map(crate::MessageId::from),
         None,

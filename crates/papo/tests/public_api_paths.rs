@@ -104,7 +104,7 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Outgoing,
     ),
     (
-        "pub papo::SendOutcome::conversation: papo::Conversation",
+        "pub const fn papo::SendOutcome::conversation(&self) -> &papo::Conversation",
         ConversationClass::Outgoing,
     ),
 ];
