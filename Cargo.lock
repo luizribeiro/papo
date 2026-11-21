@@ -536,7 +536,6 @@ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 name = "papo"
 version = "0.1.0"
 dependencies = [
- "futures-core",
  "futures-io",
  "futures-util",
  "getrandom 0.4.3",

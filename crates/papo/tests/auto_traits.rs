@@ -2,7 +2,6 @@
 
 use std::{future::IntoFuture, sync::Arc};
 
-use futures_core::Stream;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Kickban,
     KickbanNick, KickbanRequest, Line, ListRequest, Message as ChatMessage, NewAccount,
@@ -21,8 +20,6 @@ fn assert_send_static<T: Send + 'static>(_: T) {}
 fn assert_unpin<T: Unpin>() {}
 
 fn assert_clone<T: Clone>() {}
-
-fn assert_event_stream<T: Stream<Item = (Event, Arc<State>)>>() {}
 
 fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     assert_send_static(client.unreact(message, "👍"));
@@ -44,7 +41,6 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send_sync::<(Event, Arc<State>)>();
     assert_send_sync::<Error>();
     assert_clone::<Client>();
-    assert_event_stream::<Events>();
     assert_send_sync::<State>();
     assert_send::<RequestFuture<()>>();
     assert_unpin::<RequestFuture<()>>();

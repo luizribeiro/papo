@@ -36,7 +36,6 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-futures-core = "0.3.34"
 futures-io = "0.3.34"
 getrandom = { version = "0.4.3", features = ["wasm_js"] }
 papo-core = { path = "../papo-core", version = "=0.1.0" }

@@ -33,7 +33,6 @@ use std::{
 };
 use web_time::Instant;
 
-use futures_core::Stream;
 use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
     TextKind, TransmitToken, sts::StsStore,
@@ -659,17 +658,6 @@ impl Events {
             }
             task::Poll::Pending => task::Poll::Pending,
         }
-    }
-}
-
-impl Stream for Events {
-    type Item = (Event, Arc<State>);
-
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        context: &mut task::Context<'_>,
-    ) -> task::Poll<Option<Self::Item>> {
-        self.poll_next_with_state(context)
     }
 }
 

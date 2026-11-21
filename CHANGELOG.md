@@ -17,6 +17,8 @@ provider, `websocket` adds native and WASI WebSocket transports, `precis` adds U
 and account comparison, and `unstable` exposes experimental extension APIs without semantic
 versioning guarantees.
 
+Read events with `Events::next()`. The `futures_core::Stream` implementation has been removed.
+
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
 

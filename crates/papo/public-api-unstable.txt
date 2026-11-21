@@ -2709,9 +2709,6 @@ impl papo::Events
 pub async fn papo::Events::next(&mut self) -> core::option::Option<(papo::Event, alloc::rcs::arc::Arc<papo::State>)>
 impl core::fmt::Debug for papo::Events
 pub fn papo::Events::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl futures_core::stream::Stream for papo::Events
-pub type papo::Events::Item = (papo::Event, alloc::rcs::arc::Arc<papo::State>)
-pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
 impl core::marker::Freeze for papo::Events
 impl core::marker::Send for papo::Events
 impl core::marker::Sync for papo::Events
