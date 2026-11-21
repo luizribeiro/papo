@@ -135,25 +135,6 @@ impl core::marker::Unpin for papo_proto::Casemapping
 impl core::marker::UnsafeUnpin for papo_proto::Casemapping
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Casemapping
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Casemapping
-pub enum papo_proto::Color
-pub papo_proto::Color::Hex(u32)
-pub papo_proto::Color::Palette(u8)
-impl core::clone::Clone for papo_proto::Color
-pub fn papo_proto::Color::clone(&self) -> Self
-impl core::cmp::Eq for papo_proto::Color
-impl core::cmp::PartialEq for papo_proto::Color
-pub fn papo_proto::Color::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo_proto::Color
-pub fn papo_proto::Color::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo_proto::Color
-impl core::marker::StructuralPartialEq for papo_proto::Color
-impl core::marker::Freeze for papo_proto::Color
-impl core::marker::Send for papo_proto::Color
-impl core::marker::Sync for papo_proto::Color
-impl core::marker::Unpin for papo_proto::Color
-impl core::marker::UnsafeUnpin for papo_proto::Color
-impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Color
-impl core::panic::unwind_safe::UnwindSafe for papo_proto::Color
 #[non_exhaustive] pub enum papo_proto::Command<'a>
 pub papo_proto::Command::Account
 pub papo_proto::Command::Admin
@@ -904,57 +885,6 @@ impl<'a> core::marker::Unpin for papo_proto::ExtbanSyntax<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::ExtbanSyntax<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ExtbanSyntax<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ExtbanSyntax<'a>
-pub struct papo_proto::FormatBuilder
-impl papo_proto::FormatBuilder
-pub fn papo_proto::FormatBuilder::as_str(&self) -> &str
-pub fn papo_proto::FormatBuilder::bold(&mut self) -> &mut Self
-pub fn papo_proto::FormatBuilder::color(&mut self, u8, core::option::Option<u8>) -> &mut Self
-pub fn papo_proto::FormatBuilder::finish(self) -> alloc::string::String
-pub fn papo_proto::FormatBuilder::hex_color(&mut self, u32, core::option::Option<u32>) -> &mut Self
-pub fn papo_proto::FormatBuilder::italics(&mut self) -> &mut Self
-pub fn papo_proto::FormatBuilder::monospace(&mut self) -> &mut Self
-pub const fn papo_proto::FormatBuilder::new() -> Self
-pub fn papo_proto::FormatBuilder::reset(&mut self) -> &mut Self
-pub fn papo_proto::FormatBuilder::reset_colors(&mut self) -> &mut Self
-pub fn papo_proto::FormatBuilder::reverse(&mut self) -> &mut Self
-pub fn papo_proto::FormatBuilder::strikethrough(&mut self) -> &mut Self
-pub fn papo_proto::FormatBuilder::text(&mut self, impl core::convert::AsRef<str>) -> &mut Self
-pub fn papo_proto::FormatBuilder::underline(&mut self) -> &mut Self
-impl core::clone::Clone for papo_proto::FormatBuilder
-pub fn papo_proto::FormatBuilder::clone(&self) -> Self
-impl core::cmp::Eq for papo_proto::FormatBuilder
-impl core::cmp::PartialEq for papo_proto::FormatBuilder
-pub fn papo_proto::FormatBuilder::eq(&self, &Self) -> bool
-impl core::default::Default for papo_proto::FormatBuilder
-pub fn papo_proto::FormatBuilder::default() -> Self
-impl core::fmt::Debug for papo_proto::FormatBuilder
-pub fn papo_proto::FormatBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_proto::FormatBuilder
-impl core::marker::Freeze for papo_proto::FormatBuilder
-impl core::marker::Send for papo_proto::FormatBuilder
-impl core::marker::Sync for papo_proto::FormatBuilder
-impl core::marker::Unpin for papo_proto::FormatBuilder
-impl core::marker::UnsafeUnpin for papo_proto::FormatBuilder
-impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::FormatBuilder
-impl core::panic::unwind_safe::UnwindSafe for papo_proto::FormatBuilder
-pub struct papo_proto::Formatted<'a>
-impl<'a> papo_proto::Formatted<'a>
-pub const fn papo_proto::Formatted<'a>::new(&'a str) -> Self
-impl core::iter::traits::marker::FusedIterator for papo_proto::Formatted<'_>
-impl<'a> core::clone::Clone for papo_proto::Formatted<'a>
-pub fn papo_proto::Formatted<'a>::clone(&self) -> Self
-impl<'a> core::fmt::Debug for papo_proto::Formatted<'a>
-pub fn papo_proto::Formatted<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::iter::traits::iterator::Iterator for papo_proto::Formatted<'a>
-pub type papo_proto::Formatted<'a>::Item = papo_proto::Span<'a>
-pub fn papo_proto::Formatted<'a>::next(&mut self) -> core::option::Option<Self::Item>
-impl<'a> core::marker::Freeze for papo_proto::Formatted<'a>
-impl<'a> core::marker::Send for papo_proto::Formatted<'a>
-impl<'a> core::marker::Sync for papo_proto::Formatted<'a>
-impl<'a> core::marker::Unpin for papo_proto::Formatted<'a>
-impl<'a> core::marker::UnsafeUnpin for papo_proto::Formatted<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Formatted<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Formatted<'a>
 pub struct papo_proto::InvalidServerTime
 impl core::clone::Clone for papo_proto::time::InvalidServerTime
 pub fn papo_proto::time::InvalidServerTime::clone(&self) -> Self
@@ -1820,25 +1750,6 @@ impl<'a> core::marker::Unpin for papo_proto::Setname<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Setname<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Setname<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Setname<'a>
-#[non_exhaustive] pub struct papo_proto::Span<'a>
-pub papo_proto::Span::style: papo_proto::Style
-pub papo_proto::Span::text: &'a str
-impl<'a> core::clone::Clone for papo_proto::Span<'a>
-pub fn papo_proto::Span<'a>::clone(&self) -> Self
-impl<'a> core::cmp::Eq for papo_proto::Span<'a>
-impl<'a> core::cmp::PartialEq for papo_proto::Span<'a>
-pub fn papo_proto::Span<'a>::eq(&self, &Self) -> bool
-impl<'a> core::fmt::Debug for papo_proto::Span<'a>
-pub fn papo_proto::Span<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::marker::Copy for papo_proto::Span<'a>
-impl<'a> core::marker::StructuralPartialEq for papo_proto::Span<'a>
-impl<'a> core::marker::Freeze for papo_proto::Span<'a>
-impl<'a> core::marker::Send for papo_proto::Span<'a>
-impl<'a> core::marker::Sync for papo_proto::Span<'a>
-impl<'a> core::marker::Unpin for papo_proto::Span<'a>
-impl<'a> core::marker::UnsafeUnpin for papo_proto::Span<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Span<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Span<'a>
 pub struct papo_proto::StandardReply<'a>
 pub papo_proto::StandardReply::code: &'a str
 pub papo_proto::StandardReply::command: &'a str
@@ -1862,33 +1773,6 @@ impl<'a> core::marker::Unpin for papo_proto::StandardReply<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::StandardReply<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::StandardReply<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::StandardReply<'a>
-#[non_exhaustive] pub struct papo_proto::Style
-pub papo_proto::Style::bg: core::option::Option<papo_proto::Color>
-pub papo_proto::Style::bold: bool
-pub papo_proto::Style::fg: core::option::Option<papo_proto::Color>
-pub papo_proto::Style::italics: bool
-pub papo_proto::Style::monospace: bool
-pub papo_proto::Style::reverse: bool
-pub papo_proto::Style::strikethrough: bool
-pub papo_proto::Style::underline: bool
-impl core::clone::Clone for papo_proto::Style
-pub fn papo_proto::Style::clone(&self) -> Self
-impl core::cmp::Eq for papo_proto::Style
-impl core::cmp::PartialEq for papo_proto::Style
-pub fn papo_proto::Style::eq(&self, &Self) -> bool
-impl core::default::Default for papo_proto::Style
-pub fn papo_proto::Style::default() -> Self
-impl core::fmt::Debug for papo_proto::Style
-pub fn papo_proto::Style::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo_proto::Style
-impl core::marker::StructuralPartialEq for papo_proto::Style
-impl core::marker::Freeze for papo_proto::Style
-impl core::marker::Send for papo_proto::Style
-impl core::marker::Sync for papo_proto::Style
-impl core::marker::Unpin for papo_proto::Style
-impl core::marker::UnsafeUnpin for papo_proto::Style
-impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Style
-impl core::panic::unwind_safe::UnwindSafe for papo_proto::Style
 pub struct papo_proto::Tags<'a>
 impl core::iter::traits::marker::FusedIterator for papo_proto::Tags<'_>
 impl<'a> core::clone::Clone for papo_proto::Tags<'a>
@@ -2037,8 +1921,6 @@ impl papo_proto::AsNick for papo_proto::Nick
 impl papo_proto::AsNick for str
 impl<T: papo_proto::AsNick + ?core::marker::Sized> papo_proto::AsNick for &T
 pub fn papo_proto::canonical(&str) -> &str
-pub fn papo_proto::display_text(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::escape_tag_value(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::parse_353<'a>(&papo_proto::LineRef<'a>) -> core::option::Option<(&'a str, &'a str, impl core::iter::traits::iterator::Iterator<Item = &'a str>)>
 pub fn papo_proto::split_text(&str, usize) -> (alloc::vec::Vec<papo_proto::Segment<'_>>, &str)
-pub fn papo_proto::strip_formatting(&str) -> alloc::borrow::Cow<'_, str>

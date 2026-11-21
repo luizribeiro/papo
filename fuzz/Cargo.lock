@@ -214,6 +214,7 @@ dependencies = [
  "getrandom",
  "js-sys",
  "papo-core",
+ "papo-format",
  "papo-proto",
  "thiserror",
  "tokio",
@@ -236,6 +237,10 @@ dependencies = [
  "web-time",
  "zeroize",
 ]
+
+[[package]]
+name = "papo-format"
+version = "0.1.0"
 
 [[package]]
 name = "papo-fuzz"

@@ -418,9 +418,9 @@ pub use papo_proto::Prefix;
 pub use papo_proto::Source as LineSource;
 #[doc(inline)]
 pub use papo_proto::{
-    AccountName, AsAccount, BatchId, BatchType, BuildError, Casemapping, ChannelName, Color,
-    FormatBuilder, InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick, Origin,
-    Param, ServerName, Span, Style, Typing, UnknownCasemapping, WireLine, strip_formatting,
+    AccountName, AsAccount, BatchId, BatchType, BuildError, Casemapping, ChannelName,
+    InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick, Origin, Param,
+    ServerName, Typing, UnknownCasemapping, WireLine,
 };
 pub use peer_key::{InvalidPeerKey, NotSamePerson, PeerKey, PeerKeyCheck, PeerKeyMismatch};
 pub use reconnect::Reconnect;

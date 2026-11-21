@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use papo_proto::{Color, FormatBuilder, Formatted, Span, Style, display_text, strip_formatting};
+use papo_format::{Color, FormatBuilder, Formatted, Span, Style, display_text, strip_formatting};
 
 fn spans(text: &str) -> Vec<Span<'_>> {
     Formatted::new(text).collect()

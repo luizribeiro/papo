@@ -138,7 +138,7 @@ impl ConnectError {
     pub(crate) fn login(kind: ConnectErrorKind, message: impl Into<String>) -> Self {
         let message = message.into();
         let message = if displays_server_reason(kind) {
-            papo_proto::display_text(&message).into_owned()
+            papo_format::display_text(&message).into_owned()
         } else {
             message
         };
@@ -259,7 +259,7 @@ impl ServerError {
 
 impl fmt::Display for ServerError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let description = papo_proto::display_text(&self.description);
+        let description = papo_format::display_text(&self.description);
         match &self.command {
             Some(command) => write!(formatter, "{command} {}: {description}", self.code),
             None => write!(formatter, "server refusal {}: {description}", self.code),
@@ -320,20 +320,20 @@ impl fmt::Display for DisconnectCause {
                 write!(
                     formatter,
                     "the connection was lost: {}",
-                    papo_proto::display_text(message)
+                    papo_format::display_text(message)
                 )
             }
             Self::Connect(error) => error.fmt(formatter),
             Self::Server { message } => write!(
                 formatter,
                 "the server disconnected: {}",
-                papo_proto::display_text(message)
+                papo_format::display_text(message)
             ),
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
             Self::Protocol { message } => write!(
                 formatter,
                 "protocol failure: {}",
-                papo_proto::display_text(message)
+                papo_format::display_text(message)
             ),
             Self::Requested { .. } => formatter.write_str("the client disconnected"),
         }

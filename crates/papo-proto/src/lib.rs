@@ -18,7 +18,6 @@ mod casemapping;
 mod client_tags;
 mod command;
 mod ctcp;
-mod formatting;
 mod id;
 mod isupport;
 mod line;
@@ -39,9 +38,6 @@ pub use casemapping::{Casemapping, UnknownCasemapping};
 pub use client_tags::{Reaction, Typing};
 pub use command::Command;
 pub use ctcp::Ctcp;
-pub use formatting::{
-    Color, FormatBuilder, Formatted, Span, Style, display_text, strip_formatting,
-};
 pub use id::{
     AccountName, Address, AsAccount, AsChannel, AsNick, BatchId, BatchType, ChannelName,
     InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,

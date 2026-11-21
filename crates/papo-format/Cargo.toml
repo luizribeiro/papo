@@ -1,0 +1,13 @@
+[package]
+name = "papo-format"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish = true
+description = "Build, parse, and strip IRC text formatting"
+readme = "README.md"
+
+[lints]
+workspace = true

@@ -9,6 +9,9 @@ protocol surface. The 0.1 release includes `papo-testing`, version-locked to `pa
 stability promise even between patch releases. `papo-bot` stays unpublished. `papo-core` and
 `papo-proto` are internal lockstep implementation crates without independent stability guarantees.
 
+IRC text formatting helpers now live in `papo-format`, with no stability promise. Use
+`papo_format::Formatted::new(&message.raw_text)` for styled runs from messages and notices.
+
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
 and account comparison, and `unstable` exposes experimental extension APIs without semantic

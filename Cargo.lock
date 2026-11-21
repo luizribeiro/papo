@@ -543,6 +543,7 @@ dependencies = [
  "js-sys",
  "papo",
  "papo-core",
+ "papo-format",
  "papo-proto",
  "papo-test-server",
  "proptest",
@@ -655,6 +656,10 @@ dependencies = [
  "papo-test-server",
  "tokio",
 ]
+
+[[package]]
+name = "papo-format"
+version = "0.1.0"
 
 [[package]]
 name = "papo-graceful-shutdown"

@@ -49,11 +49,6 @@ fn inspect_source(source: &papo::Source) {
 
 #[test]
 fn everyday_api_is_nameable_from_the_facade() {
-    assert_eq!(
-        papo::strip_formatting("\x02bold\x02 and \x0312blue"),
-        "bold and blue"
-    );
-
     let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net", "emily")
         .casemapping(papo::Casemapping::default())
         .autojoin(["#papo"])

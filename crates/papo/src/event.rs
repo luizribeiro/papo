@@ -4,11 +4,12 @@
 )]
 
 use papo_core::{Account, RequestId, Response, Welcome, sts::StsAction};
+use papo_format::strip_formatting;
 use std::time::SystemTime;
 
 use papo_proto::{
     Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
-    Prefix, strip_formatting,
+    Prefix,
 };
 
 use crate::{Client, Conversation, Disconnected, ModeAction, ModeChange, ServerTime};
@@ -322,9 +323,12 @@ pub struct Message {
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
-    /// Display text with IRC formatting removed.
+    /// Display text with IRC formatting and unsafe terminal controls removed.
     pub text: String,
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
+    ///
+    /// Use [`papo_format::Formatted`](https://docs.rs/papo-format/latest/papo_format/struct.Formatted.html)
+    /// to read styled runs.
     pub raw_text: String,
     /// The semantic message kind.
     pub kind: MessageKind,
@@ -365,9 +369,12 @@ pub struct Notice {
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
-    /// Display text with IRC formatting removed.
+    /// Display text with IRC formatting and unsafe terminal controls removed.
     pub text: String,
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
+    ///
+    /// Use [`papo_format::Formatted`](https://docs.rs/papo-format/latest/papo_format/struct.Formatted.html)
+    /// to read styled runs.
     pub raw_text: String,
     /// The semantic notice kind.
     pub kind: MessageKind,
@@ -479,9 +486,12 @@ pub struct ServerNotice {
     /// The lowest-ranked `STATUSMSG` prefix on a channel audience, moved to
     /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
-    /// Display text with IRC formatting removed.
+    /// Display text with IRC formatting and unsafe terminal controls removed.
     pub text: String,
     /// Text with IRC formatting retained.
+    ///
+    /// Use [`papo_format::Formatted`](https://docs.rs/papo-format/latest/papo_format/struct.Formatted.html)
+    /// to read styled runs.
     pub raw_text: String,
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
@@ -982,11 +992,6 @@ impl Message {
         })
     }
 
-    /// Returns the formatted spans parsed from [`Self::raw_text`].
-    pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
-        papo_proto::Formatted::new(&self.raw_text)
-    }
-
     /// Returns the address that reaches the recipients of the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -1109,11 +1114,6 @@ impl Notice {
             tags: metadata.tags,
             receipt: metadata.receipt,
         })
-    }
-
-    /// Returns the formatted spans parsed from [`Self::raw_text`].
-    pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
-        papo_proto::Formatted::new(&self.raw_text)
     }
 }
 
@@ -1250,11 +1250,6 @@ impl ServerNotice {
             tags: Tags::from_message(&message),
             receipt,
         })
-    }
-
-    /// Returns the formatted spans parsed from [`Self::raw_text`].
-    pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
-        papo_proto::Formatted::new(&self.raw_text)
     }
 }
 
@@ -2544,7 +2539,7 @@ pub(crate) fn from_core_with_receipt(
                 reason: redacted
                     .reason
                     .filter(|reason| !reason.is_empty())
-                    .map(|reason| papo_proto::display_text(&reason).into_owned()),
+                    .map(|reason| papo_format::display_text(&reason).into_owned()),
             })
         }
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
@@ -2659,7 +2654,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::Close { kind, reason, .. } => return CoreEvent::Close { kind, reason },
         papo_core::Event::AuthenticationFailed { reason, .. } => {
             Event::Warning(Warning::AuthenticationFailed {
-                reason: papo_proto::display_text(&reason).into_owned(),
+                reason: papo_format::display_text(&reason).into_owned(),
             })
         }
         papo_core::Event::CapsChanged { added, removed, .. } => {
@@ -2743,7 +2738,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 facts,
                 channel: channel_handle(channel),
-                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
+                reason: reason.map(|reason| papo_format::display_text(&reason).into_owned()),
                 actor_party: Party::from_core(actor_party),
             })
         }
@@ -2788,7 +2783,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 actor_party: Party::from_core(actor_party),
                 subject_party: Party::from_core(subject_party),
-                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
+                reason: reason.map(|reason| papo_format::display_text(&reason).into_owned()),
             })
         }
         papo_core::Event::Invited {
@@ -2853,7 +2848,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 facts,
-                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
+                reason: reason.map(|reason| papo_format::display_text(&reason).into_owned()),
                 channels: channels.into_iter().map(&channel_handle).collect(),
                 actor_party: Party::from_core(actor_party),
                 netsplit: netsplit.map(SplitServers::from_core),
@@ -2910,7 +2905,7 @@ pub(crate) fn from_core_with_receipt(
                 new,
                 actor,
                 actor_party: Party::from_core(actor_party),
-                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
+                reason: reason.map(|reason| papo_format::display_text(&reason).into_owned()),
             })
         }
         papo_core::Event::AccountChanged {
@@ -3070,7 +3065,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel),
-                topic: topic.map(|topic| papo_proto::display_text(&topic).into_owned()),
+                topic: topic.map(|topic| papo_format::display_text(&topic).into_owned()),
                 actor,
                 actor_party: Party::from_core(actor_party),
             })
@@ -4375,7 +4370,7 @@ mod tests {
         );
         let notice = event.as_notice().unwrap();
 
-        let spans = notice.spans().collect::<Vec<_>>();
+        let spans = papo_format::Formatted::new(&notice.raw_text).collect::<Vec<_>>();
         assert_eq!(
             spans.iter().map(|span| span.text).collect::<Vec<_>>(),
             ["deployment ", "complete", " on Ergo"]

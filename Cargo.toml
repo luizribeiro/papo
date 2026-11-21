@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/papo-format",
   "crates/papo-proto",
   "crates/papo-core",
   "crates/papo-test-server",

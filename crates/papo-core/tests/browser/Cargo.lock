@@ -366,6 +366,7 @@ dependencies = [
  "getrandom 0.4.3",
  "js-sys",
  "papo-core",
+ "papo-format",
  "papo-proto",
  "rustls",
  "rustls-platform-verifier",
@@ -407,6 +408,10 @@ dependencies = [
  "web-sys",
  "web-time",
 ]
+
+[[package]]
+name = "papo-format"
+version = "0.1.0"
 
 [[package]]
 name = "papo-proto"

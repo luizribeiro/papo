@@ -10,11 +10,9 @@ pub use papo::Cap
 pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::ChannelName
-pub use papo::Color
 pub use papo::ConnectionEpoch
 pub use papo::CtcpReplies
 pub use papo::Feature
-pub use papo::FormatBuilder
 pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
 pub use papo::InvalidServerTime
@@ -42,9 +40,7 @@ pub use papo::Sasl
 pub use papo::Secret
 pub use papo::ServerName
 pub use papo::ServerTime
-pub use papo::Span
 pub use papo::StateLimit
-pub use papo::Style
 pub use papo::Typing
 pub use papo::UnknownCasemapping
 pub use papo::UnsupportedReason
@@ -52,7 +48,6 @@ pub use papo::User
 pub use papo::Visibility
 pub use papo::WhoOnJoin
 pub use papo::WireLine
-pub use papo::strip_formatting
 pub mod papo::cap
 pub use papo::cap::ACCOUNT_NOTIFY
 pub use papo::cap::ACCOUNT_REGISTRATION
@@ -883,7 +878,6 @@ impl papo::event::Notice
 pub const fn papo::event::Notice::actor_account(&self) -> &papo::Account
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
 pub fn papo::event::Notice::return_address(&self) -> papo::NoticeRef
-pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::Notice
 pub fn papo::event::Notice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Notice
@@ -1095,7 +1089,6 @@ pub papo::event::ServerNotice::to: papo::event::Audience
 impl papo::event::ServerNotice
 pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::Account
 pub fn papo::event::ServerNotice::return_address(&self) -> core::option::Option<papo::NoticeRef>
-pub fn papo::event::ServerNotice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::ServerNotice
 pub fn papo::event::ServerNotice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ServerNotice
@@ -2989,7 +2982,6 @@ pub fn papo::Message::is_own(&self) -> bool
 pub const fn papo::Message::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Message::origin(&self) -> papo::Origin
 pub fn papo::Message::return_address(&self) -> papo::MessageRef
-pub fn papo::Message::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::Message
 pub fn papo::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::Message
@@ -4286,25 +4278,6 @@ impl core::marker::Unpin for papo::ChannelName
 impl core::marker::UnsafeUnpin for papo::ChannelName
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ChannelName
 impl core::panic::unwind_safe::UnwindSafe for papo::ChannelName
-pub enum papo::Color
-pub papo::Color::Hex(u32)
-pub papo::Color::Palette(u8)
-impl core::clone::Clone for papo::Color
-pub fn papo::Color::clone(&self) -> Self
-impl core::cmp::Eq for papo::Color
-impl core::cmp::PartialEq for papo::Color
-pub fn papo::Color::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Color
-pub fn papo::Color::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::Color
-impl core::marker::StructuralPartialEq for papo::Color
-impl core::marker::Freeze for papo::Color
-impl core::marker::Send for papo::Color
-impl core::marker::Sync for papo::Color
-impl core::marker::Unpin for papo::Color
-impl core::marker::UnsafeUnpin for papo::Color
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Color
-impl core::panic::unwind_safe::UnwindSafe for papo::Color
 pub struct papo::ConnectionEpoch(_)
 impl core::clone::Clone for papo::ConnectionEpoch
 pub fn papo::ConnectionEpoch::clone(&self) -> Self
@@ -4420,39 +4393,6 @@ impl core::marker::Unpin for papo::Feature
 impl core::marker::UnsafeUnpin for papo::Feature
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Feature
 impl core::panic::unwind_safe::UnwindSafe for papo::Feature
-pub struct papo::FormatBuilder
-impl papo::FormatBuilder
-pub fn papo::FormatBuilder::as_str(&self) -> &str
-pub fn papo::FormatBuilder::bold(&mut self) -> &mut Self
-pub fn papo::FormatBuilder::color(&mut self, u8, core::option::Option<u8>) -> &mut Self
-pub fn papo::FormatBuilder::finish(self) -> alloc::string::String
-pub fn papo::FormatBuilder::hex_color(&mut self, u32, core::option::Option<u32>) -> &mut Self
-pub fn papo::FormatBuilder::italics(&mut self) -> &mut Self
-pub fn papo::FormatBuilder::monospace(&mut self) -> &mut Self
-pub const fn papo::FormatBuilder::new() -> Self
-pub fn papo::FormatBuilder::reset(&mut self) -> &mut Self
-pub fn papo::FormatBuilder::reset_colors(&mut self) -> &mut Self
-pub fn papo::FormatBuilder::reverse(&mut self) -> &mut Self
-pub fn papo::FormatBuilder::strikethrough(&mut self) -> &mut Self
-pub fn papo::FormatBuilder::text(&mut self, impl core::convert::AsRef<str>) -> &mut Self
-pub fn papo::FormatBuilder::underline(&mut self) -> &mut Self
-impl core::clone::Clone for papo::FormatBuilder
-pub fn papo::FormatBuilder::clone(&self) -> Self
-impl core::cmp::Eq for papo::FormatBuilder
-impl core::cmp::PartialEq for papo::FormatBuilder
-pub fn papo::FormatBuilder::eq(&self, &Self) -> bool
-impl core::default::Default for papo::FormatBuilder
-pub fn papo::FormatBuilder::default() -> Self
-impl core::fmt::Debug for papo::FormatBuilder
-pub fn papo::FormatBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::FormatBuilder
-impl core::marker::Freeze for papo::FormatBuilder
-impl core::marker::Send for papo::FormatBuilder
-impl core::marker::Sync for papo::FormatBuilder
-impl core::marker::Unpin for papo::FormatBuilder
-impl core::marker::UnsafeUnpin for papo::FormatBuilder
-impl core::panic::unwind_safe::RefUnwindSafe for papo::FormatBuilder
-impl core::panic::unwind_safe::UnwindSafe for papo::FormatBuilder
 #[non_exhaustive] pub enum papo::InvalidIdentifier
 pub papo::InvalidIdentifier::Empty
 pub papo::InvalidIdentifier::InvalidCharacter(char)
@@ -5193,22 +5133,6 @@ impl core::marker::Unpin for papo::ServerTime
 impl core::marker::UnsafeUnpin for papo::ServerTime
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ServerTime
 impl core::panic::unwind_safe::UnwindSafe for papo::ServerTime
-#[non_exhaustive] pub struct papo::Span<'a>
-pub papo::Span::style: papo::Style
-pub papo::Span::text: &'a str
-impl<'a> core::clone::Clone for papo::Span<'a>
-impl<'a> core::cmp::Eq for papo::Span<'a>
-impl<'a> core::cmp::PartialEq for papo::Span<'a>
-impl<'a> core::fmt::Debug for papo::Span<'a>
-impl<'a> core::marker::Copy for papo::Span<'a>
-impl<'a> core::marker::StructuralPartialEq for papo::Span<'a>
-impl<'a> core::marker::Freeze for papo::Span<'a>
-impl<'a> core::marker::Send for papo::Span<'a>
-impl<'a> core::marker::Sync for papo::Span<'a>
-impl<'a> core::marker::Unpin for papo::Span<'a>
-impl<'a> core::marker::UnsafeUnpin for papo::Span<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Span<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Span<'a>
 #[non_exhaustive] pub enum papo::StateLimit
 pub papo::StateLimit::Channels
 pub papo::StateLimit::IsupportTokens
@@ -5235,33 +5159,6 @@ impl core::marker::Unpin for papo::StateLimit
 impl core::marker::UnsafeUnpin for papo::StateLimit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::StateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo::StateLimit
-#[non_exhaustive] pub struct papo::Style
-pub papo::Style::bg: core::option::Option<papo::Color>
-pub papo::Style::bold: bool
-pub papo::Style::fg: core::option::Option<papo::Color>
-pub papo::Style::italics: bool
-pub papo::Style::monospace: bool
-pub papo::Style::reverse: bool
-pub papo::Style::strikethrough: bool
-pub papo::Style::underline: bool
-impl core::clone::Clone for papo::Style
-pub fn papo::Style::clone(&self) -> Self
-impl core::cmp::Eq for papo::Style
-impl core::cmp::PartialEq for papo::Style
-pub fn papo::Style::eq(&self, &Self) -> bool
-impl core::default::Default for papo::Style
-pub fn papo::Style::default() -> Self
-impl core::fmt::Debug for papo::Style
-pub fn papo::Style::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::Style
-impl core::marker::StructuralPartialEq for papo::Style
-impl core::marker::Freeze for papo::Style
-impl core::marker::Send for papo::Style
-impl core::marker::Sync for papo::Style
-impl core::marker::Unpin for papo::Style
-impl core::marker::UnsafeUnpin for papo::Style
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Style
-impl core::panic::unwind_safe::UnwindSafe for papo::Style
 pub enum papo::Typing
 pub papo::Typing::Active
 pub papo::Typing::Done
