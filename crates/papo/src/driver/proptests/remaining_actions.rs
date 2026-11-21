@@ -61,8 +61,6 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
                         .remove_with(removed, third.clone())
                         .ban(mapping.mask(second.clone()))
                         .unban(mapping.mask(third.clone()))
-                        .quiet(mapping.mask(second.clone()))
-                        .unquiet(mapping.mask(third.clone()))
                         .deop(mapping.nick(third.clone()))
                         .devoice(mapping.nick(third)),
                 )

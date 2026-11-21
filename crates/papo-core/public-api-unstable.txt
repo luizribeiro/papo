@@ -730,7 +730,6 @@ pub papo_core::Feature::NoImplicitNames
 pub papo_core::Feature::OperatorTags
 pub papo_core::Feature::Persistence
 pub papo_core::Feature::PreAway
-pub papo_core::Feature::Quiet
 pub papo_core::Feature::Reactions
 pub papo_core::Feature::ReadMarkers
 pub papo_core::Feature::Redaction

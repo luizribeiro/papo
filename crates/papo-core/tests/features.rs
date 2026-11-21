@@ -152,26 +152,25 @@ fn recognizes_moderation_features_from_server_advertisements() {
     let cases = [
         (
             ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu EXCEPTS EXTBAN=,m INVEX PREFIX=(qaohv)~&@%+ :are supported",
-            [true, true, true, false, false],
+            [true, true, true, false],
         ),
         (
             ":solanum.example 005 papo ACCOUNTEXTBAN=a CHANMODES=eIbq,k,flj,CFLPQcgimnprstz EXCEPTS EXTBAN=$,a INVEX PREFIX=(ov)@+ :are supported",
-            [false, true, true, true, true],
+            [false, true, true, true],
         ),
         (
             ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXCEPTS EXTBAN=~,acfijmnpqrtACFGOST INVEX PREFIX=(qaohv)~&@%+ :are supported",
-            [true, true, true, false, true],
+            [true, true, true, true],
         ),
         (
             ":irc.inspircd.example 005 papo ACCOUNTEXTBAN=account,R CHANMODES=b,k,l,MRimnprst EXTBAN=,RU PREFIX=(ov)@+ :are supported",
-            [false, false, false, false, true],
+            [false, false, false, true],
         ),
     ];
     let features = [
         Feature::Halfop,
         Feature::Excepts,
         Feature::Invex,
-        Feature::Quiet,
         Feature::AccountExtban,
     ];
 
@@ -350,7 +349,6 @@ fn every_feature_name_round_trips() {
         (Feature::Halfop, "half-operator privileges"),
         (Feature::Excepts, "ban exceptions"),
         (Feature::Invex, "invite exceptions"),
-        (Feature::Quiet, "quiet list"),
         (Feature::AccountExtban, "account extended bans"),
     ];
 

@@ -301,22 +301,6 @@ impl SetModes {
         self.optional_list(false, crate::Feature::Invex, target)
     }
 
-    /// Adds `target` to the channel quiet list.
-    ///
-    /// This is available when the server advertises `q` as a list mode, as Solanum does. Ergo
-    /// represents quiets as ban-list entries; use `.ban("m:*!*@host")` there.
-    pub fn quiet(self, target: impl Into<BanTarget>) -> Self {
-        self.optional_list(true, crate::Feature::Quiet, target)
-    }
-
-    /// Removes `target` from the channel quiet list.
-    ///
-    /// This is available when the server advertises `q` as a list mode, as Solanum does. Ergo
-    /// represents quiets as ban-list entries; use `.unban("m:*!*@host")` there.
-    pub fn unquiet(self, target: impl Into<BanTarget>) -> Self {
-        self.optional_list(false, crate::Feature::Quiet, target)
-    }
-
     /// Grants channel-operator privileges to `nick`.
     ///
     /// A [`crate::UserHandle`] follows its proven identity. Text and [`crate::Nick`] address
@@ -625,7 +609,6 @@ impl Change {
                         Selector::Letter(state.isupport().excepts().unwrap())
                     }
                     crate::Feature::Invex => Selector::Letter(state.isupport().invex().unwrap()),
-                    crate::Feature::Quiet => Selector::Letter('q'),
                     _ => unreachable!("mode helpers require mode-related features"),
                 }
             }
@@ -1510,48 +1493,5 @@ mod tests {
                 })) if actual == feature
             ));
         }
-    }
-
-    #[test]
-    fn resolves_quiet_only_for_a_dedicated_list_mode() {
-        let solanum = state(
-            ":solanum.example 005 papo PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :supported",
-        );
-        for set in [true, false] {
-            let change = Change {
-                set,
-                mode: Selector::Optional(Feature::Quiet),
-                arg: Some(Argument::Mask(
-                    solanum
-                        .name_rules()
-                        .expect("server advertised CASEMAPPING")
-                        .mask("*!*@gateway.example"),
-                )),
-            };
-            let resolved = change.resolve(&solanum).unwrap();
-            assert_eq!(resolved.set, set);
-            assert!(matches!(resolved.mode, Selector::Letter('q')));
-        }
-
-        let ergo = state(
-            ":ergo.test 005 papo PREFIX=(qaohv)~&@%+ CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :supported",
-        );
-        let change = Change {
-            set: true,
-            mode: Selector::Optional(Feature::Quiet),
-            arg: Some(Argument::Mask(
-                ergo.name_rules()
-                    .expect("server advertised CASEMAPPING")
-                    .mask("m:*!*@gateway.example"),
-            )),
-        };
-        assert!(matches!(
-            change.resolve(&ergo),
-            Err(crate::Error::Unsupported(crate::Unsupported {
-                feature: Feature::Quiet,
-                reason: UnsupportedReason::NotOffered,
-                ..
-            }))
-        ));
     }
 }

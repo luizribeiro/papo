@@ -101,8 +101,6 @@ macro_rules! feature_table {
             [] Excepts => "ban exceptions", [None, None];
             /// Published IRC channel invite exceptions, advertised through `INVEX`.
             [] Invex => "invite exceptions", [None, None];
-            /// A published IRC dedicated quiet list in the first `CHANMODES` group.
-            [] Quiet => "quiet list", [None, None];
             /// Published `IRCv3` account extended bans, advertised through `EXTBAN` and
             /// `ACCOUNTEXTBAN`.
             [] AccountExtban => "account extended bans", [None, None];
@@ -282,13 +280,6 @@ impl Session {
             Feature::Invex => {
                 return support
                     .invex()
-                    .map(|_| ())
-                    .ok_or(UnsupportedReason::NotOffered);
-            }
-            Feature::Quiet => {
-                return support
-                    .chanmodes()
-                    .filter(|groups| groups.list.contains('q'))
                     .map(|_| ())
                     .ok_or(UnsupportedReason::NotOffered);
             }

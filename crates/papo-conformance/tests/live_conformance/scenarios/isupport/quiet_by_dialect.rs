@@ -62,8 +62,8 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&bob, &mut alice, &channel).await?;
     join_seen_by(&carol, &mut alice, &channel).await?;
 
+    alice.mode(&channel).add_with(letter, &arg).await?;
     if matches!(dialect, Dialect::ListMode) {
-        alice.mode(&channel).quiet(arg.clone()).await?;
         assert!(
             alice
                 .list_modes(&channel, papo::ListMode::Quiet)
@@ -71,8 +71,6 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
                 .iter()
                 .any(|entry| entry.mask == echoed_arg.as_str())
         );
-    } else {
-        alice.mode(&channel).add_with(letter, arg.clone()).await?;
     }
     let on_bob = wait_channel_mode(&mut bob, &channel, letter).await?;
     let on_carol = wait_channel_mode(&mut carol, &channel, letter).await?;

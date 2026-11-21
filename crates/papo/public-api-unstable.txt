@@ -3716,14 +3716,12 @@ pub fn papo::SetModes::halfop(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::key(self, papo::Secret) -> Self
 pub fn papo::SetModes::op(self, impl papo::AsNick) -> Self
-pub fn papo::SetModes::quiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_key(self, papo::Secret) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl papo::AsNick) -> Self
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::SetModes::unquiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::voice(self, impl papo::AsNick) -> Self
 impl core::fmt::Debug for papo::SetModes
 pub fn papo::SetModes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -4468,7 +4466,6 @@ pub papo::Feature::NoImplicitNames
 pub papo::Feature::OperatorTags
 pub papo::Feature::Persistence
 pub papo::Feature::PreAway
-pub papo::Feature::Quiet
 pub papo::Feature::Reactions
 pub papo::Feature::ReadMarkers
 pub papo::Feature::Redaction

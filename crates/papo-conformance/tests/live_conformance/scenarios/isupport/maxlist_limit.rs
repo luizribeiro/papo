@@ -1,4 +1,4 @@
-use papo::{Error, Feature, Refusal, isupport::LimitValue};
+use papo::{Error, Refusal, isupport::LimitValue};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -20,7 +20,10 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
     let Some(LimitValue::Limited(maximum)) = maximum else {
         return s.skip("server does not advertise a finite MAXLIST for bans");
     };
-    let shared_quiet_list = state.supports(Feature::Quiet)
+    let shared_quiet_list = state
+        .isupport()
+        .chanmodes()
+        .is_some_and(|groups| groups.list.contains('q'))
         && state
             .isupport()
             .maxlist()
@@ -38,7 +41,7 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
         let mut request = alice.mode(&channel);
         for (offset, mask) in chunk.iter().enumerate() {
             request = if shared_quiet_list && chunk_index == 0 && offset == 0 {
-                request.quiet(mask)
+                request.add_with('q', mask.as_str())
             } else {
                 request.ban(mask)
             };
