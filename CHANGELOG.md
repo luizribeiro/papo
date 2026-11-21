@@ -21,6 +21,9 @@ Read events with `Events::next()`. The `futures_core::Stream` implementation has
 
 The capability-name conversion trait `AsCap` has been removed.
 
+Configure capability-dependent behavior through typed features. `Builder::request_caps`,
+and its three configuration errors have been removed.
+
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
 

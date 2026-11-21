@@ -60,7 +60,7 @@ fn allocate_origin() -> crate::Origin {
 /// Settings that require a capability, including account creation, metadata subscriptions,
 /// reconnect history, and selecting a bouncer network, fail connection setup when that
 /// capability is unavailable. [`Self::enable`] opts into known optional behavior only when its
-/// capabilities are offered. [`Self::request_caps`] is for vendor capabilities unknown to papo.
+/// capabilities are offered.
 #[must_use]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Builder {
@@ -357,50 +357,6 @@ impl Builder {
     pub fn allow_insecure_auth(mut self, allow: bool) -> Self {
         self.allow_insecure_auth = allow;
         self.config = self.config.allow_insecure_auth(allow);
-        self
-    }
-
-    /// Adds capability names unknown to papo to request when advertised.
-    ///
-    /// ```
-    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
-    ///     .request_caps(["vendor.example/network-state"]);
-    /// # _ = builder;
-    /// ```
-    pub fn request_caps<I, S>(mut self, caps: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        for capability in caps {
-            let capability = crate::Cap::from(capability.as_ref());
-            if !cfg!(feature = "unstable") && cap::is_unstable(capability.as_str()) {
-                self.invalid_input
-                    .get_or_insert(InvalidInput::UnstableCapability(capability));
-                continue;
-            }
-            if let Some(feature) = cap::__feature(capability.as_str()) {
-                self.invalid_input
-                    .get_or_insert(InvalidInput::KnownCapability {
-                        capability,
-                        feature,
-                    });
-                continue;
-            }
-            if cap::is_known(capability.as_str()) {
-                self.invalid_input
-                    .get_or_insert(InvalidInput::ManagedCapability(capability));
-                continue;
-            }
-            if !self
-                .config
-                .wanted_caps
-                .iter()
-                .any(|wanted| wanted == capability.as_str())
-            {
-                self.config.wanted_caps.push(capability.into());
-            }
-        }
         self
     }
 
@@ -861,6 +817,7 @@ mod tests {
         )
     }
 
+    #[cfg(feature = "unstable")]
     async fn assert_cap_request(builder: Builder, advertised: &str, expected: &str) {
         let (mut server, _client, _events, driver) = scripted(builder.config);
         let driver = tokio::spawn(driver);
@@ -1176,28 +1133,6 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn unknown_capability_is_requested_when_ergo_advertises_it() {
-        assert_cap_request(
-            Builder::new("ircs://irc.example.net").request_caps(["vendor.example/network-state"]),
-            "account-tag vendor.example/network-state",
-            "account-tag vendor.example/network-state",
-        )
-        .await;
-    }
-
-    #[cfg(not(feature = "unstable"))]
-    #[test]
-    fn unstable_capabilities_record_the_cargo_feature_error() {
-        let builder = Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]);
-        assert_eq!(
-            builder.invalid_input,
-            Some(InvalidInput::UnstableCapability(
-                "draft/persistence".to_owned().into()
-            ))
-        );
-    }
-
     #[cfg(feature = "unstable")]
     #[tokio::test(flavor = "current_thread")]
     #[allow(clippy::too_many_lines)]
@@ -1416,17 +1351,6 @@ mod tests {
                 InvalidInput::EmptyText,
             ),
             (
-                Builder::new("ircs://irc.example.net").request_caps(["chathistory"]),
-                InvalidInput::KnownCapability {
-                    capability: "chathistory".to_owned().into(),
-                    feature: crate::Feature::History,
-                },
-            ),
-            (
-                Builder::new("ircs://irc.example.net").request_caps(["sts"]),
-                InvalidInput::ManagedCapability("sts".to_owned().into()),
-            ),
-            (
                 Builder::new("ircs://irc.example.net").create_account(
                     NewAccount::new(crate::Secret::new("correct horse battery staple"))
                         .account("*"),
@@ -1438,14 +1362,6 @@ mod tests {
                 },
             ),
         ];
-        #[cfg(not(feature = "unstable"))]
-        let cases = cases
-            .into_iter()
-            .chain([(
-                Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]),
-                InvalidInput::UnstableCapability("draft/persistence".to_owned().into()),
-            )])
-            .collect::<Vec<_>>();
         for (builder, expected) in cases {
             let (_client, _events, driver) = builder.build();
             assert!(matches!(

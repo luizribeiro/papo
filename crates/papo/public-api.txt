@@ -1829,10 +1829,6 @@ pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 #[non_exhaustive] pub papo::InvalidInput::KickReasonTooLong
 pub papo::InvalidInput::KickReasonTooLong::actual: usize
 pub papo::InvalidInput::KickReasonTooLong::maximum: usize
-#[non_exhaustive] pub papo::InvalidInput::KnownCapability
-pub papo::InvalidInput::KnownCapability::capability: papo_core::cap::Cap
-pub papo::InvalidInput::KnownCapability::feature: papo::Feature
-pub papo::InvalidInput::ManagedCapability(papo_core::cap::Cap)
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
@@ -1849,7 +1845,6 @@ pub papo::InvalidInput::TlsConfig(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
 pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
-pub papo::InvalidInput::UnstableCapability(papo_core::cap::Cap)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::Url(papo::InvalidUrl)
 #[non_exhaustive] pub papo::InvalidInput::WiderThanReferenced
@@ -2295,7 +2290,6 @@ pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
 pub const fn papo::Builder::regain_nick(self, bool) -> Self
-pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self

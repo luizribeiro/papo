@@ -90,7 +90,6 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
                 .account(crate::Casemapping::default().account(a))
                 .email(b)
         ));
-        probe!(builder, a, b, _c => builder.request_caps([a, b]));
         probe!(builder, _a, _b, _c => builder.disable(crate::Feature::MessageTags));
         probe!(builder, a, b, _c => builder.metadata_subscriptions([
             crate::MetadataKey::new(a),

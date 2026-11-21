@@ -1242,21 +1242,6 @@ mod tests {
                 "server URL is empty",
             ),
             (
-                InvalidInput::KnownCapability {
-                    capability: "chathistory".into(),
-                    feature: crate::Feature::History,
-                },
-                "capability Cap(\"chathistory\") is known to papo; use enable(Feature::History)",
-            ),
-            (
-                InvalidInput::UnstableCapability("draft/persistence".into()),
-                "capability Cap(\"draft/persistence\") requires papo's `unstable` feature",
-            ),
-            (
-                InvalidInput::ManagedCapability("sts".into()),
-                "capability Cap(\"sts\") is configured through its typed builder method",
-            ),
-            (
                 InvalidInput::ZeroEventCapacity,
                 "event queue capacity must be positive",
             ),
