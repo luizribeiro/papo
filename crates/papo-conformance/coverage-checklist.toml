@@ -20,6 +20,7 @@ ids = [
   "base.names.secret-channel-visibility", "base.names.multiple-channels", "base.list.basic", "base.list.elist-filters",
   "base.mode.channel.query", "base.mode.channel.ban", "base.mode.channel.except", "base.mode.channel.invite-exception",
   "papo.moderation.list-modes",
+  "papo.moderation.generic-prefix",
   "base.mode.channel.key", "base.mode.channel.limit", "base.mode.channel.moderated", "base.mode.channel.secret",
   "base.mode.channel.no-external-messages", "base.mode.channel.op-voice-prefix", "base.mode.channel.err-unknown-mode", "base.mode.channel.err-invalid-param",
   "base.mode.channel.err-prefix-above-rank", "base.mode.channel.mixed-classes",

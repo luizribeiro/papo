@@ -5,6 +5,7 @@ mod casemapping_rfc1459;
 mod chanmode_classes;
 mod channellen_limit;
 mod chantypes_detection;
+mod generic_prefix_changes;
 mod isupport_snapshot;
 mod maxlist_limit;
 mod modes_limit;
