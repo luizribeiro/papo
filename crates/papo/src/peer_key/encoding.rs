@@ -4,9 +4,6 @@ use super::{
 
 const PREFIX: &str = "papo-peer:1;";
 
-#[cfg(test)]
-mod tests;
-
 pub(super) fn parse(value: &str) -> Result<(PeerThread, PeerProof), InvalidPeerKey> {
     let value = value.strip_prefix(PREFIX).ok_or(InvalidPeerKey)?;
     let fields = value

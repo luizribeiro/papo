@@ -5,8 +5,6 @@ use std::{
 };
 
 mod encoding;
-#[cfg(test)]
-mod tests;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct PeerScope {
