@@ -89,7 +89,6 @@ const PLAIN_RESULTS: &[(&str, Plain)] = &[
     ("papo::NetworkId", Plain::Value),
     ("papo::PersistenceStatus", Plain::Value),
     ("papo::ReadMarker", Plain::Value),
-    ("papo::UserHandle", Plain::Handle),
     (
         "std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>",
         Plain::List,

@@ -86,34 +86,6 @@ enum PeerProof {
 /// before trusting the current holder, and treat an [`InvalidPeerKey`] while loading storage as an
 /// identity that cannot be verified.
 ///
-/// ```no_run
-/// fn inspect_incoming(stored: &papo::PeerKey, sender: &papo::UserHandle) {
-///     let current = sender.key();
-///     match stored.check(&current) {
-///         papo::PeerKeyCheck::Match => {}
-///         papo::PeerKeyCheck::Upgrade(key) => persist(key),
-///         papo::PeerKeyCheck::Mismatch(reason) => warn(reason, &current),
-///     }
-/// }
-/// # fn persist(_: papo::PeerKey) {}
-/// # fn warn(_: papo::PeerKeyMismatch, _: &papo::PeerKey) {}
-///
-/// async fn open(
-///     client: &papo::Client,
-///     stored: &papo::PeerKey,
-/// ) -> Result<papo::UserHandle, papo::Error> {
-///     match client.open(stored).await {
-///         Ok(peer) => Ok(peer),
-///         Err(papo::Error::NotSamePerson(mismatch)) => {
-///             warn(mismatch.reason(), mismatch.current_key());
-///             let approved = mismatch.current_key().clone();
-///             client.open(&approved).await // only after the user approves replacement
-///         }
-///         Err(error) => Err(error),
-///     }
-/// }
-/// ```
-///
 /// Proof fields are private and cannot be constructed by applications:
 ///
 /// ```compile_fail
@@ -146,34 +118,6 @@ pub enum PeerKeyMismatch {
     CannotVerify,
 }
 
-/// A stored peer key that does not authorize the current nickname holder.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NotSamePerson {
-    reason: PeerKeyMismatch,
-    current: Box<PeerKey>,
-}
-
-impl NotSamePerson {
-    pub(crate) fn new(reason: PeerKeyMismatch, current: PeerKey) -> Self {
-        Self {
-            reason,
-            current: Box::new(current),
-        }
-    }
-
-    /// Returns why the current identity could not be accepted.
-    #[must_use]
-    pub const fn reason(&self) -> PeerKeyMismatch {
-        self.reason
-    }
-
-    /// Returns the current key for an explicit user-approved replacement.
-    #[must_use]
-    pub const fn current_key(&self) -> &PeerKey {
-        &self.current
-    }
-}
-
 /// An error returned when a persisted peer key is malformed or unsupported.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct InvalidPeerKey;
@@ -181,10 +125,6 @@ pub struct InvalidPeerKey;
 impl PeerKey {
     pub(crate) fn unverified(scope: Option<&PeerScope>, nick: &crate::Nick) -> Self {
         Self::new(PeerThread::new(scope, nick), PeerProof::Unverified(None))
-    }
-
-    pub(crate) fn nick(&self, origin: crate::Origin) -> crate::Nick {
-        origin.__nick(self.thread.casemapping, self.thread.nick.clone())
     }
 
     pub(crate) fn live(
@@ -377,12 +317,4 @@ impl fmt::Display for InvalidPeerKey {
     }
 }
 
-impl fmt::Display for NotSamePerson {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("the current nickname holder is not the saved person")
-    }
-}
-
 impl std::error::Error for InvalidPeerKey {}
-
-impl std::error::Error for NotSamePerson {}

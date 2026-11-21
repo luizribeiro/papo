@@ -1543,7 +1543,6 @@ pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::ForeignReference(papo::ForeignReference)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
-pub papo::Error::NotSamePerson(papo::NotSamePerson)
 pub papo::Error::NotVerified
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StateLimit(papo::StateLimit)
@@ -2425,7 +2424,6 @@ pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc:
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core::option::Option<papo::Whois>>
 impl papo::Client
 pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::Error>
-pub fn papo::Client::open(&self, &papo::PeerKey) -> papo::RequestFuture<papo::UserHandle>
 pub fn papo::Client::query(&self, impl papo::AsNick) -> core::result::Result<papo::UserHandle, papo::Error>
 pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
 impl papo::Client
@@ -3197,28 +3195,6 @@ impl core::marker::Unpin for papo::NickOutcome
 impl core::marker::UnsafeUnpin for papo::NickOutcome
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NickOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::NickOutcome
-pub struct papo::NotSamePerson
-impl papo::NotSamePerson
-pub const fn papo::NotSamePerson::current_key(&self) -> &papo::PeerKey
-pub const fn papo::NotSamePerson::reason(&self) -> papo::PeerKeyMismatch
-impl core::clone::Clone for papo::NotSamePerson
-pub fn papo::NotSamePerson::clone(&self) -> Self
-impl core::cmp::Eq for papo::NotSamePerson
-impl core::cmp::PartialEq for papo::NotSamePerson
-pub fn papo::NotSamePerson::eq(&self, &Self) -> bool
-impl core::error::Error for papo::NotSamePerson
-impl core::fmt::Debug for papo::NotSamePerson
-pub fn papo::NotSamePerson::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::NotSamePerson
-pub fn papo::NotSamePerson::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::NotSamePerson
-impl core::marker::Freeze for papo::NotSamePerson
-impl core::marker::Send for papo::NotSamePerson
-impl core::marker::Sync for papo::NotSamePerson
-impl core::marker::Unpin for papo::NotSamePerson
-impl core::marker::UnsafeUnpin for papo::NotSamePerson
-impl core::panic::unwind_safe::RefUnwindSafe for papo::NotSamePerson
-impl core::panic::unwind_safe::UnwindSafe for papo::NotSamePerson
 pub struct papo::NoticeRef
 impl core::clone::Clone for papo::NoticeRef
 pub fn papo::NoticeRef::clone(&self) -> Self

@@ -493,9 +493,6 @@ pub enum Error {
     /// The intended user left, changed nickname, or no longer holds a private reply nickname.
     #[error("the target user is no longer present")]
     TargetGone,
-    /// The current nickname holder does not match a saved peer key.
-    #[error(transparent)]
-    NotSamePerson(crate::NotSamePerson),
     /// The server's reply did not have the shape required by its command.
     #[error("the server sent an unexpected reply to {command}")]
     #[non_exhaustive]
