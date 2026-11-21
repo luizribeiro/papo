@@ -161,7 +161,7 @@ impl<'a> LineView<'a> {
     pub(crate) fn conversation(self) -> Option<Conversation> {
         match self {
             Self::Message(line) => Some(line.conversation.clone()),
-            Self::Notice(line) => Some(line.conversation.clone()),
+            Self::Notice(line) => Some(line.conversation().clone()),
             Self::Incomplete(line) => Some(line.conversation().clone()),
             Self::ServerNotice(line) => match &line.to {
                 Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
@@ -182,7 +182,7 @@ impl<'a> LineView<'a> {
             Self::Message(line) | Self::Incomplete(Incomplete::Message(line)) => {
                 line.msgid.as_ref()
             }
-            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.msgid.as_ref(),
+            Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.msgid(),
             Self::ServerNotice(line) => line.msgid.as_ref(),
             Self::CtcpQuery(line) => line.msgid.as_ref(),
             Self::CtcpReply(line) => line.msgid.as_ref(),

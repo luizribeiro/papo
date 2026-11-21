@@ -891,10 +891,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 pub papo::event::Notice::actor: papo::UserHandle
 pub papo::event::Notice::actor_party: papo::Party
 pub papo::event::Notice::channel_context: core::option::Option<papo::Conversation>
-pub papo::event::Notice::conversation: papo::Conversation
 pub papo::event::Notice::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::event::Notice::kind: papo::MessageKind
-pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime
 pub papo::event::Notice::relayed_by: core::option::Option<papo::Nick>
@@ -903,6 +901,8 @@ pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
 pub const fn papo::event::Notice::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Notice::conversation(&self) -> &papo::Conversation
+pub const fn papo::event::Notice::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
 pub fn papo::event::Notice::return_address(&self) -> papo::NoticeRef
 impl core::clone::Clone for papo::event::Notice

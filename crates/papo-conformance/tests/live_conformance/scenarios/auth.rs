@@ -290,7 +290,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert!(matches!(
-        nickserv.conversation,
+        nickserv.conversation(),
         papo::Conversation::Private(_)
     ));
 
@@ -309,7 +309,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert!(matches!(
-        chanserv.conversation,
+        chanserv.conversation(),
         papo::Conversation::Private(_)
     ));
     alice

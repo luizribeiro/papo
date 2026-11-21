@@ -36,7 +36,7 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub papo::event::Notice::conversation: papo::Conversation",
+        "pub const fn papo::event::Notice::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
     (
