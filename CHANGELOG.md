@@ -24,6 +24,8 @@ The capability-name conversion trait `AsCap` has been removed.
 Configure capability-dependent behavior through typed features. `Builder::request_caps`,
 and its three configuration errors have been removed.
 
+`Sasl::authzid` is removed. PLAIN and EXTERNAL use an empty authorization identity. `Sasl::device` applies to PLAIN and SCRAM-SHA-256.
+
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
 

@@ -26,21 +26,10 @@ pub struct Sasl {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Mechanism {
-    Plain {
-        username: String,
-        password: Secret,
-        authzid: Option<String>,
-    },
-    OAuthBearer {
-        token: Secret,
-    },
-    External {
-        authzid: Option<String>,
-    },
-    ScramSha256 {
-        username: String,
-        password: Secret,
-    },
+    Plain { username: String, password: Secret },
+    OAuthBearer { token: Secret },
+    External,
+    ScramSha256 { username: String, password: Secret },
 }
 
 impl Sasl {
@@ -57,7 +46,6 @@ impl Sasl {
             mechanisms: vec![Mechanism::Plain {
                 username: username.into(),
                 password,
-                authzid: None,
             }],
             required: true,
             device: None,
@@ -78,30 +66,10 @@ impl Sasl {
     #[must_use]
     pub fn external() -> Self {
         Self {
-            mechanisms: vec![Mechanism::External { authzid: None }],
+            mechanisms: vec![Mechanism::External],
             required: true,
             device: None,
         }
-    }
-
-    /// Sets the authorization identity sent by SASL PLAIN or EXTERNAL.
-    ///
-    /// This has no effect on SCRAM-SHA-256 or OAUTHBEARER mechanisms.
-    #[must_use]
-    pub fn authzid(mut self, authzid: impl Into<String>) -> Self {
-        for mechanism in &mut self.mechanisms {
-            match mechanism {
-                Mechanism::Plain {
-                    authzid: current, ..
-                }
-                | Mechanism::External { authzid: current } => {
-                    *current = Some(authzid.into());
-                    break;
-                }
-                Mechanism::OAuthBearer { .. } | Mechanism::ScramSha256 { .. } => {}
-            }
-        }
-        self
     }
 
     /// Appends `@<device>` to the PLAIN or SCRAM-SHA-256 authentication identity.
@@ -139,11 +107,7 @@ impl Sasl {
                     username: username.clone(),
                     password: password.clone(),
                 },
-                Mechanism::Plain {
-                    username,
-                    password,
-                    authzid: None,
-                },
+                Mechanism::Plain { username, password },
             ],
             required: true,
             device: None,
@@ -531,23 +495,15 @@ impl SaslSession {
         };
         let is_oauth_bearer = matches!(mechanism, Mechanism::OAuthBearer { .. });
         let response = match mechanism {
-            Mechanism::Plain {
-                username,
-                password,
-                authzid,
-            } => {
+            Mechanism::Plain { username, password } => {
                 let authcid = with_device(username, self.device.as_deref());
-                let password = password.expose();
-                let authorization_identity = authzid.as_deref().unwrap_or("");
-                let mut response = Zeroizing::new(Vec::with_capacity(
-                    authorization_identity.len() + authcid.len() + password.len() + 2,
-                ));
-                response.extend_from_slice(authorization_identity.as_bytes());
-                response.push(0);
-                response.extend_from_slice(authcid.as_bytes());
-                response.push(0);
-                response.extend_from_slice(password.as_bytes());
-                response
+                let fields: [&[u8]; 4] = [
+                    b"\0",
+                    authcid.as_bytes(),
+                    b"\0",
+                    password.expose().as_bytes(),
+                ];
+                Zeroizing::new(fields.concat())
             }
             Mechanism::OAuthBearer { token } => {
                 let token = token.expose();
@@ -557,9 +513,7 @@ impl SaslSession {
                 response.extend_from_slice(b"\x01\x01");
                 response
             }
-            Mechanism::External { authzid } => {
-                Zeroizing::new(authzid.as_deref().unwrap_or("").as_bytes().to_vec())
-            }
+            Mechanism::External => Zeroizing::new(Vec::new()),
             // SCRAM challenges return through `handle_scram_challenge` above.
             Mechanism::ScramSha256 { .. } => unreachable!(),
         };
@@ -925,7 +879,7 @@ impl Mechanism {
         match self {
             Self::Plain { .. } => "PLAIN",
             Self::OAuthBearer { .. } => "OAUTHBEARER",
-            Self::External { .. } => "EXTERNAL",
+            Self::External => "EXTERNAL",
             Self::ScramSha256 { .. } => "SCRAM-SHA-256",
         }
     }

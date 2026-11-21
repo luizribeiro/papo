@@ -307,15 +307,6 @@ fn debug_output_redacts_a_queued_oauth_bearer_response() {
 }
 
 #[test]
-fn external_accepts_an_authorization_identity() {
-    assert_ne!(Sasl::external(), Sasl::external().authzid("alice"));
-    assert_ne!(
-        Sasl::plain("alice", papo_core::Secret::new("hunter2")),
-        Sasl::plain("alice", papo_core::Secret::new("hunter2")).authzid("admin")
-    );
-}
-
-#[test]
 fn reauthentication_without_credentials_is_a_no_op() {
     Transcript::new(Config::default())
         .reauthenticate()
@@ -583,8 +574,7 @@ fn authenticates_with_plain_and_records_the_account() {
                 "alice",
                 papo_core::Secret::new("correct horse battery staple"),
             )
-            .device("phone")
-            .authzid("admin"),
+            .device("phone"),
         ),
     )
     .connect_default()
@@ -593,7 +583,7 @@ fn authenticates_with_plain_and_records_the_account() {
     .server("CAP * ACK :sasl")
     .client("AUTHENTICATE PLAIN")
     .server("AUTHENTICATE +")
-    .client("AUTHENTICATE YWRtaW4AYWxpY2VAcGhvbmUAY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+    .client("AUTHENTICATE AGFsaWNlQHBob25lAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=")
     .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
     .inspect(|session| {
         assert_eq!(session.account(), None);
@@ -1287,25 +1277,17 @@ fn reconnect_resets_every_sasl_exchange_state() {
 }
 
 #[test]
-fn authenticates_with_external_empty_and_explicit_authzids() {
-    for (sasl, expected) in [
-        (Sasl::external(), "AUTHENTICATE +"),
-        (
-            Sasl::external().authzid("alice@example.org"),
-            "AUTHENTICATE YWxpY2VAZXhhbXBsZS5vcmc=",
-        ),
-    ] {
-        Transcript::new(Config::default().sasl(sasl))
-            .connect_default()
-            .server("CAP * LS :sasl=EXTERNAL,PLAIN")
-            .client("CAP REQ :sasl")
-            .server("CAP * ACK :sasl")
-            .client("AUTHENTICATE EXTERNAL")
-            .server("AUTHENTICATE +")
-            .client(expected)
-            .server(":ergo.test 903 alice :SASL authentication successful")
-            .client("CAP END");
-    }
+fn authenticates_with_empty_external_authorization_identity() {
+    Transcript::new(Config::default().sasl(Sasl::external()))
+        .connect_default()
+        .server("CAP * LS :sasl=EXTERNAL,PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE EXTERNAL")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE +")
+        .server(":ergo.test 903 alice :SASL authentication successful")
+        .client("CAP END");
 }
 
 fn scram_start(require_sasl: bool) -> Transcript {

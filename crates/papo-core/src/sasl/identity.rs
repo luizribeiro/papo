@@ -5,17 +5,10 @@ impl Sasl {
         self.mechanisms
             .iter()
             .find_map(|mechanism| match mechanism {
-                Mechanism::Plain {
-                    username, authzid, ..
-                } => authzid
-                    .as_deref()
-                    .filter(|identity| !identity.is_empty())
-                    .or(Some(username)),
-                Mechanism::External { authzid } => {
-                    authzid.as_deref().filter(|identity| !identity.is_empty())
+                Mechanism::Plain { username, .. } | Mechanism::ScramSha256 { username, .. } => {
+                    Some(username.as_str())
                 }
-                Mechanism::ScramSha256 { username, .. } => Some(username),
-                Mechanism::OAuthBearer { .. } => None,
+                Mechanism::External | Mechanism::OAuthBearer { .. } => None,
             })
     }
 }
@@ -51,17 +44,7 @@ mod tests {
             Sasl::plain("alice", password()).authentication_identity(),
             Some("alice")
         );
-        assert_eq!(
-            Sasl::plain("alice", password())
-                .authzid("operator")
-                .authentication_identity(),
-            Some("operator")
-        );
         assert_eq!(Sasl::external().authentication_identity(), None);
-        assert_eq!(
-            Sasl::external().authzid("alice").authentication_identity(),
-            Some("alice")
-        );
         assert_eq!(
             Sasl::oauth_bearer(password()).authentication_identity(),
             None
