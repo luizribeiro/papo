@@ -413,6 +413,7 @@ mod tests {
 
     use papo_core::Capabilities;
     use papo_proto::Isupport;
+    use papo_testing::unsupported;
 
     use super::unstable_feature_for_cap;
     use super::{
@@ -513,11 +514,11 @@ mod tests {
     fn expect_skips_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [
-                Event::Warning(papo::event::Warning::Unsupported(papo::Unsupported::new(
+                Event::Warning(papo::event::Warning::Unsupported(unsupported(
                     papo::Feature::History,
                     papo::UnsupportedReason::NotOffered,
                 ))),
-                Event::Warning(papo::event::Warning::Unsupported(papo::Unsupported::new(
+                Event::Warning(papo::event::Warning::Unsupported(unsupported(
                     papo::Feature::Monitor,
                     papo::UnsupportedReason::NotOffered,
                 ))),
@@ -540,7 +541,7 @@ mod tests {
     fn expect_times_out_after_only_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [Event::Warning(papo::event::Warning::Unsupported(
-                papo::Unsupported::new(papo::Feature::Monitor, papo::UnsupportedReason::NotOffered),
+                unsupported(papo::Feature::Monitor, papo::UnsupportedReason::NotOffered),
             ))]
             .into(),
         };

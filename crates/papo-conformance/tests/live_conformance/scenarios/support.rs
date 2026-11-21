@@ -375,12 +375,12 @@ mod tests {
         );
     }
 
-    use papo::{Error, Feature, Unsupported, UnsupportedReason};
+    use papo::{Error, Feature, UnsupportedReason};
 
     use super::reaction_or_skip;
 
     fn unsupported(feature: Feature, reason: UnsupportedReason) -> Result<(), Error> {
-        Err(Error::Unsupported(Unsupported::new(feature, reason)))
+        Err(papo_testing::unsupported(feature, reason).into())
     }
 
     #[test]
