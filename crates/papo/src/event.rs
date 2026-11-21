@@ -5548,6 +5548,7 @@ mod tests {
             };
             match forwarded(papo_core::Event::TagMessage(tag)) {
                 Event::TypingChanged(typing) => {
+                    assert_eq!(typing.conversation().to_string(), "#ops");
                     assert_eq!(typing.return_address(), "@#ops");
                     Some(typing.state)
                 }
@@ -6085,7 +6086,7 @@ mod tests {
             Event::TagMsg(event) => ("TagMsg", &event.actor, Some(&event.conversation)),
             Event::Reacted(event) => ("Reacted", &event.actor, Some(&event.conversation)),
             Event::TypingChanged(event) => {
-                ("TypingChanged", &event.actor, Some(&event.conversation))
+                ("TypingChanged", &event.actor, Some(event.conversation()))
             }
             Event::Redacted(event) => (
                 "Redacted",
@@ -7829,7 +7830,7 @@ mod tests {
                         event
                             .as_typing_changed()
                             .filter(|change| change.state == crate::Typing::Active)
-                            .and_then(|change| private_peer(&change.conversation))
+                            .and_then(|change| private_peer(change.conversation()))
                     },
                 },
             ] {

@@ -465,13 +465,13 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(typing.state, papo::Typing::Active);
     assert_eq!(
-        conversation_name(&typing.conversation),
+        conversation_name(typing.conversation()),
         Some(channel.clone())
     );
     assert_eq!(
         phone
             .snapshot()
-            .typing(&typing.conversation)
+            .typing(typing.conversation())
             .filter(|typer| typer.nick() == desktop.snapshot().nick().as_str())
             .count(),
         0

@@ -1131,7 +1131,7 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(crate::source_nick(&typing.actor), Some(alice_nick.as_str()));
     assert_eq!(
-        conversation_name(&typing.conversation),
+        conversation_name(typing.conversation()),
         Some(alice_nick.to_string())
     );
     assert_eq!(typing.state, Typing::Active);
@@ -1184,7 +1184,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
         Some(alice.snapshot().nick().as_str())
     );
     assert_eq!(
-        conversation_name(&typing.conversation),
+        conversation_name(typing.conversation()),
         Some(channel.to_string())
     );
     assert_eq!(typing.state, Typing::Active);

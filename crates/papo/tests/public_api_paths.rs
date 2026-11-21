@@ -56,7 +56,7 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub papo::event::TypingChanged::conversation: papo::Conversation",
+        "pub const fn papo::event::TypingChanged::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
     (

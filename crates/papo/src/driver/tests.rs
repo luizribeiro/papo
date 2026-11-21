@@ -8707,7 +8707,7 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     )
     .await;
     let conversation = match next_event(&mut events).await {
-        Some(Event::TypingChanged(change)) => change.conversation,
+        Some(Event::TypingChanged(change)) => change.conversation().clone(),
         other => panic!("expected typing event, got {other:?}"),
     };
     let state = client.state();
@@ -8786,7 +8786,7 @@ async fn typing_changed_facts_come_from_paired_state() {
     assert_eq!(actor.username(), Some("~alice"));
     assert_eq!(actor.host(), Some("cloak.example"));
     assert_eq!(
-        state.typing(&change.conversation).next().unwrap().nick(),
+        state.typing(change.conversation()).next().unwrap().nick(),
         "alice"
     );
 

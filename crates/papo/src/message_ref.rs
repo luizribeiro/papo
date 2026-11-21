@@ -389,7 +389,7 @@ impl ReplyReference for TypingChanged {
     }
 
     fn conversation(&self) -> &Conversation {
-        &self.conversation
+        TypingChanged::conversation(self)
     }
 
     fn server_time(&self) -> Option<crate::ServerTime> {

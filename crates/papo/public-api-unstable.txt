@@ -1227,7 +1227,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 #[non_exhaustive] pub struct papo::event::TypingChanged
 pub papo::event::TypingChanged::actor: papo::UserHandle
 pub papo::event::TypingChanged::actor_party: papo::Party
-pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::received_at: std::time::SystemTime
 pub papo::event::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -1235,9 +1234,10 @@ pub papo::event::TypingChanged::state: papo::Typing
 impl papo::event::TypingChanged
 pub const fn papo::event::TypingChanged::actor_account(&self) -> &papo::Account
 impl papo::event::TypingChanged
-pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
-impl papo::event::TypingChanged
+pub const fn papo::event::TypingChanged::conversation(&self) -> &papo::Conversation
 pub fn papo::event::TypingChanged::return_address(&self) -> papo::MessageRef
+impl papo::event::TypingChanged
+pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged
