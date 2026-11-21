@@ -2,13 +2,24 @@ use std::io;
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command};
 
+/// Waits for the leader to exit while reserving its PID for group teardown.
+///
+/// The wait flags occupy disjoint bits, so addition combines them.
+const WAIT_FOR_EXIT: libc::c_int = libc::WEXITED + libc::WNOWAIT;
+/// Checks for the leader's exit without reaping it or blocking.
+const POLL_FOR_EXIT: libc::c_int = WAIT_FOR_EXIT + libc::WNOHANG;
+
 pub(super) fn prepare(command: &mut Command) {
     command.process_group(0);
 }
 
 #[allow(unsafe_code)]
 pub(super) fn exited(child: &mut Child, blocking: bool) -> io::Result<bool> {
-    let flags = libc::WEXITED | libc::WNOWAIT | if blocking { 0 } else { libc::WNOHANG };
+    let flags = if blocking {
+        WAIT_FOR_EXIT
+    } else {
+        POLL_FOR_EXIT
+    };
     loop {
         // SAFETY: siginfo_t can be zeroed. waitid leaves si_signo zero when there is no exit.
         let mut status = unsafe { std::mem::zeroed::<libc::siginfo_t>() };
@@ -39,7 +50,7 @@ pub(super) fn kill(child: &mut Child) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::process::Command;
+    use std::{process::Command, sync::mpsc, thread, time::Duration};
 
     use super::{exited, kill};
 
@@ -48,7 +59,14 @@ mod tests {
         let mut child = Command::new("true").spawn().unwrap();
         child.wait().unwrap();
 
-        let error = exited(&mut child, false).unwrap_err();
+        let (send, recv) = mpsc::channel();
+        thread::spawn(move || {
+            let _ = send.send(exited(&mut child, false));
+        });
+        let error = recv
+            .recv_timeout(Duration::from_secs(10))
+            .expect("wait retried a permanent error")
+            .unwrap_err();
         assert_eq!(error.raw_os_error(), Some(libc::ECHILD));
     }
 
