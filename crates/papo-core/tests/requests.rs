@@ -409,6 +409,47 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
 }
 
 #[test]
+fn custom_prefix_modes_round_trip_without_chanmodes() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for line in [
+        ":irc.papo.test 005 papo PREFIX=(ovq)@+! :are supported by this server",
+        ":papo!papo@localhost JOIN #review",
+        ":alice!alice@users.example JOIN #review",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    for (label, signed, expected) in [(0, "+q", &['!'][..]), (1, "-q", &[][..])] {
+        let id = session
+            .request_with_matcher(
+                now,
+                Line::new("MODE").with_params(["#review", signed, "alice"]),
+                ResponseMatcher::Mode("#review".into()),
+            )
+            .unwrap();
+        let command = format!("@label={label} MODE #review {signed} alice\r\n");
+        assert_eq!(
+            session.poll_transmit().unwrap().as_ref(),
+            command.as_bytes()
+        );
+        let echo = format!("@label={label} :papo!papo@localhost MODE #review {signed} alice");
+        session.handle_line(now, echo.as_bytes());
+        assert!(
+            std::iter::from_fn(|| session.poll_event())
+                .any(|event| matches!(event, Event::Response(response) if response.id == id))
+        );
+        let channel = session.state().channel("#review").unwrap();
+        let prefixes = channel.member("alice").unwrap().prefixes();
+        assert!(
+            prefixes
+                .iter()
+                .map(|prefix| prefix.symbol())
+                .eq(expected.iter().copied())
+        );
+    }
+}
+
+#[test]
 fn an_empty_non_who_response_completes_at_its_ping_fence() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));

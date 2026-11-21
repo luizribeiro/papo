@@ -48,9 +48,9 @@ pub struct ModeChanges;
 impl ModeChanges {
     /// Parses mode changes using the server's advertised channel-mode semantics.
     ///
-    /// A missing required argument is represented by `None`. When `CHANMODES` is
-    /// absent, mode letters are unknown and consume no arguments, which is suitable
-    /// for parsing user modes.
+    /// A missing required argument is represented by `None`. Without `CHANMODES`,
+    /// only membership modes explicitly advertised through `PREFIX` take arguments.
+    /// Use empty ISUPPORT for parsing user modes.
     #[must_use = "mode changes are parsed lazily"]
     pub fn parse<'a, I>(
         modestring: &'a str,
@@ -64,7 +64,10 @@ impl ModeChanges {
         let mut modes = modestring.chars();
         let mut args = args.into_iter();
         let chanmodes = isupport.chanmodes();
-        let prefixes = chanmodes.map_or_else(Vec::new, |_| isupport.prefix());
+        let prefixes = chanmodes.map_or_else(
+            || isupport.__advertised_prefix().unwrap_or_default(),
+            |_| isupport.prefix(),
+        );
         let mut action = ModeAction::Add;
 
         std::iter::from_fn(move || {
@@ -95,12 +98,13 @@ impl ModeChanges {
 }
 
 fn classify(mode: char, groups: Option<&ChanModes<'_>>, prefixes: &[Prefix]) -> ModeKind {
+    if let Some(prefix) = prefixes.iter().find(|prefix| prefix.mode() == mode) {
+        return ModeKind::Prefix(*prefix);
+    }
     let Some(groups) = groups else {
         return ModeKind::Unknown;
     };
-    if let Some(prefix) = prefixes.iter().find(|prefix| prefix.mode() == mode) {
-        ModeKind::Prefix(*prefix)
-    } else if groups.list.contains(mode) {
+    if groups.list.contains(mode) {
         ModeKind::List
     } else if groups.always.contains(mode) {
         ModeKind::AlwaysArg

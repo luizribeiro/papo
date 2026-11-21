@@ -367,6 +367,12 @@ impl Isupport {
             .unwrap_or_default()
     }
 
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __advertised_prefix(&self) -> Option<Vec<Prefix>> {
+        self.value("PREFIX").and_then(parse_prefix)
+    }
+
     /// Returns the four standard `CHANMODES` groups, ignoring any later groups.
     #[must_use]
     pub fn chanmodes(&self) -> Option<ChanModes<'_>> {
