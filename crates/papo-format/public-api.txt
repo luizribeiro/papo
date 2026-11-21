@@ -1,0 +1,119 @@
+pub mod papo_format
+pub enum papo_format::Color
+pub papo_format::Color::Hex(u32)
+pub papo_format::Color::Palette(u8)
+impl core::clone::Clone for papo_format::Color
+pub fn papo_format::Color::clone(&self) -> Self
+impl core::cmp::Eq for papo_format::Color
+impl core::cmp::PartialEq for papo_format::Color
+pub fn papo_format::Color::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_format::Color
+pub fn papo_format::Color::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_format::Color
+impl core::marker::StructuralPartialEq for papo_format::Color
+impl core::marker::Freeze for papo_format::Color
+impl core::marker::Send for papo_format::Color
+impl core::marker::Sync for papo_format::Color
+impl core::marker::Unpin for papo_format::Color
+impl core::marker::UnsafeUnpin for papo_format::Color
+impl core::panic::unwind_safe::RefUnwindSafe for papo_format::Color
+impl core::panic::unwind_safe::UnwindSafe for papo_format::Color
+pub struct papo_format::FormatBuilder
+impl papo_format::FormatBuilder
+pub fn papo_format::FormatBuilder::as_str(&self) -> &str
+pub fn papo_format::FormatBuilder::bold(&mut self) -> &mut Self
+pub fn papo_format::FormatBuilder::color(&mut self, u8, core::option::Option<u8>) -> &mut Self
+pub fn papo_format::FormatBuilder::finish(self) -> alloc::string::String
+pub fn papo_format::FormatBuilder::hex_color(&mut self, u32, core::option::Option<u32>) -> &mut Self
+pub fn papo_format::FormatBuilder::italics(&mut self) -> &mut Self
+pub fn papo_format::FormatBuilder::monospace(&mut self) -> &mut Self
+pub const fn papo_format::FormatBuilder::new() -> Self
+pub fn papo_format::FormatBuilder::reset(&mut self) -> &mut Self
+pub fn papo_format::FormatBuilder::reset_colors(&mut self) -> &mut Self
+pub fn papo_format::FormatBuilder::reverse(&mut self) -> &mut Self
+pub fn papo_format::FormatBuilder::strikethrough(&mut self) -> &mut Self
+pub fn papo_format::FormatBuilder::text(&mut self, impl core::convert::AsRef<str>) -> &mut Self
+pub fn papo_format::FormatBuilder::underline(&mut self) -> &mut Self
+impl core::clone::Clone for papo_format::FormatBuilder
+pub fn papo_format::FormatBuilder::clone(&self) -> Self
+impl core::cmp::Eq for papo_format::FormatBuilder
+impl core::cmp::PartialEq for papo_format::FormatBuilder
+pub fn papo_format::FormatBuilder::eq(&self, &Self) -> bool
+impl core::default::Default for papo_format::FormatBuilder
+pub fn papo_format::FormatBuilder::default() -> Self
+impl core::fmt::Debug for papo_format::FormatBuilder
+pub fn papo_format::FormatBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_format::FormatBuilder
+impl core::marker::Freeze for papo_format::FormatBuilder
+impl core::marker::Send for papo_format::FormatBuilder
+impl core::marker::Sync for papo_format::FormatBuilder
+impl core::marker::Unpin for papo_format::FormatBuilder
+impl core::marker::UnsafeUnpin for papo_format::FormatBuilder
+impl core::panic::unwind_safe::RefUnwindSafe for papo_format::FormatBuilder
+impl core::panic::unwind_safe::UnwindSafe for papo_format::FormatBuilder
+pub struct papo_format::Formatted<'a>
+impl<'a> papo_format::Formatted<'a>
+pub const fn papo_format::Formatted<'a>::new(&'a str) -> Self
+impl core::iter::traits::marker::FusedIterator for papo_format::Formatted<'_>
+impl<'a> core::clone::Clone for papo_format::Formatted<'a>
+pub fn papo_format::Formatted<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo_format::Formatted<'a>
+pub fn papo_format::Formatted<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::iter::traits::iterator::Iterator for papo_format::Formatted<'a>
+pub type papo_format::Formatted<'a>::Item = papo_format::Span<'a>
+pub fn papo_format::Formatted<'a>::next(&mut self) -> core::option::Option<Self::Item>
+impl<'a> core::marker::Freeze for papo_format::Formatted<'a>
+impl<'a> core::marker::Send for papo_format::Formatted<'a>
+impl<'a> core::marker::Sync for papo_format::Formatted<'a>
+impl<'a> core::marker::Unpin for papo_format::Formatted<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_format::Formatted<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_format::Formatted<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_format::Formatted<'a>
+#[non_exhaustive] pub struct papo_format::Span<'a>
+pub papo_format::Span::style: papo_format::Style
+pub papo_format::Span::text: &'a str
+impl<'a> core::clone::Clone for papo_format::Span<'a>
+pub fn papo_format::Span<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_format::Span<'a>
+impl<'a> core::cmp::PartialEq for papo_format::Span<'a>
+pub fn papo_format::Span<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_format::Span<'a>
+pub fn papo_format::Span<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_format::Span<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_format::Span<'a>
+impl<'a> core::marker::Freeze for papo_format::Span<'a>
+impl<'a> core::marker::Send for papo_format::Span<'a>
+impl<'a> core::marker::Sync for papo_format::Span<'a>
+impl<'a> core::marker::Unpin for papo_format::Span<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_format::Span<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_format::Span<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_format::Span<'a>
+#[non_exhaustive] pub struct papo_format::Style
+pub papo_format::Style::bg: core::option::Option<papo_format::Color>
+pub papo_format::Style::bold: bool
+pub papo_format::Style::fg: core::option::Option<papo_format::Color>
+pub papo_format::Style::italics: bool
+pub papo_format::Style::monospace: bool
+pub papo_format::Style::reverse: bool
+pub papo_format::Style::strikethrough: bool
+pub papo_format::Style::underline: bool
+impl core::clone::Clone for papo_format::Style
+pub fn papo_format::Style::clone(&self) -> Self
+impl core::cmp::Eq for papo_format::Style
+impl core::cmp::PartialEq for papo_format::Style
+pub fn papo_format::Style::eq(&self, &Self) -> bool
+impl core::default::Default for papo_format::Style
+pub fn papo_format::Style::default() -> Self
+impl core::fmt::Debug for papo_format::Style
+pub fn papo_format::Style::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_format::Style
+impl core::marker::StructuralPartialEq for papo_format::Style
+impl core::marker::Freeze for papo_format::Style
+impl core::marker::Send for papo_format::Style
+impl core::marker::Sync for papo_format::Style
+impl core::marker::Unpin for papo_format::Style
+impl core::marker::UnsafeUnpin for papo_format::Style
+impl core::panic::unwind_safe::RefUnwindSafe for papo_format::Style
+impl core::panic::unwind_safe::UnwindSafe for papo_format::Style
+pub fn papo_format::display_text(&str) -> alloc::borrow::Cow<'_, str>
+pub fn papo_format::strip_formatting(&str) -> alloc::borrow::Cow<'_, str>

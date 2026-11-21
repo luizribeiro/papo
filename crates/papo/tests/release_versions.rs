@@ -3,6 +3,7 @@
 const WORKSPACE_MANIFEST: &str = include_str!("../../../Cargo.toml");
 const PAPO_MANIFEST: &str = include_str!("../Cargo.toml");
 const CORE_MANIFEST: &str = include_str!("../../papo-core/Cargo.toml");
+const FORMAT_MANIFEST: &str = include_str!("../../papo-format/Cargo.toml");
 const PROTO_MANIFEST: &str = include_str!("../../papo-proto/Cargo.toml");
 
 fn section<'a>(manifest: &'a str, heading: &str) -> Vec<&'a str> {
@@ -51,12 +52,14 @@ fn published_crates_share_one_exact_version() {
     for (package, manifest) in [
         ("papo", PAPO_MANIFEST),
         ("papo-core", CORE_MANIFEST),
+        ("papo-format", FORMAT_MANIFEST),
         ("papo-proto", PROTO_MANIFEST),
     ] {
         assert_workspace_version(package, manifest);
     }
 
     assert_exact_requirement("papo", PAPO_MANIFEST, "papo-core", version);
+    assert_exact_requirement("papo", PAPO_MANIFEST, "papo-format", version);
     assert_exact_requirement("papo", PAPO_MANIFEST, "papo-proto", version);
     assert_exact_requirement("papo-core", CORE_MANIFEST, "papo-proto", version);
 }

@@ -4,7 +4,8 @@
 
 | Crate | |
 |---|---|
-| `papo` | The library, and the only crate applications depend on. |
+| `papo` | The IRC client library for applications. |
+| `papo-format` | IRC text formatting with no stability promise. |
 | `papo-testing` | Test helpers for apps built on papo. |
 | `papo-proto` | Internal: IRC line parsing and serialization. No I/O. |
 | `papo-core` | Internal: the sans-I/O client engine and tracked state. No I/O. |
@@ -14,6 +15,9 @@
 
 `papo-proto` and `papo-core` are published only because `papo` depends on them, and they move in
 lockstep with it.
+
+For a release, publish `papo-format` and `papo-proto` first, followed by `papo-core`,
+`papo`, and `papo-testing` in that order.
 
 ## Checks
 

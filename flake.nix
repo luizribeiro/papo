@@ -339,7 +339,7 @@
               }
               run_clippy --workspace
               # The workspace run unifies the unstable features papo-testing and papo-conformance enable.
-              run_clippy -p papo -p papo-core -p papo-proto
+              run_clippy -p papo -p papo-core -p papo-format -p papo-proto
               run_clippy --workspace --all-features
               run_clippy -p papo --no-default-features
               run_clippy -p papo --no-default-features --features websocket
@@ -353,13 +353,13 @@
               export CC_wasm32_wasip1=${wasiSdk}/bin/wasm32-wasip1-clang
               export CC_wasm32_wasip2=${wasiSdk}/bin/wasm32-wasip2-clang
               export WASI_SDK_PATH=${wasiSdk}
-              cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip1 --locked
+              cargo check -p papo-proto -p papo-core -p papo-format --all-targets --target wasm32-wasip1 --locked
               cargo check -p papo --example custom_stream --no-default-features --target wasm32-wasip1 --locked
               cargo check -p papo-bot --target wasm32-wasip1 --locked
-              cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
+              cargo check -p papo-proto -p papo-core -p papo-format --all-targets --target wasm32-wasip2 --locked
               cargo check -p papo-proto --all-targets --all-features --target wasm32-wasip2 --locked
               cargo check -p papo -p papo-bot --tests --target wasm32-wasip2 --locked
-              cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked
+              cargo check -p papo-proto -p papo-core -p papo-format --target wasm32-unknown-unknown --locked
               cargo check -p papo --target wasm32-unknown-unknown --no-default-features --locked
               cargo check -p papo --target wasm32-unknown-unknown --locked
               cargo check -p papo --target wasm32-unknown-unknown --all-features --locked
@@ -374,7 +374,7 @@
             text = ''
               export CC_wasm32_wasip3=${wasiSdk}/bin/wasm32-wasip3-clang
               export WASI_SDK_PATH=${wasiSdk}
-              ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --all-targets --locked
+              ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core -p papo-format --all-targets --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto --all-targets --all-features --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo -p papo-bot -p papo-conformance --locked
             '';
@@ -447,6 +447,7 @@
                   --color=never -s | bash nix/normalize-public-api.sh > "$output"
               }
               stable=websocket,tls-aws-lc,tls-ring
+              check_api papo-format papo_format "" crates/papo-format/public-api.txt target/public-api/papo-format
               check_api papo-proto papo_proto "" crates/papo-proto/public-api.txt target/public-api/papo-proto
               check_api papo-core papo_core "" crates/papo-core/public-api.txt target/public-api/papo-core-stable
               check_api papo-core papo_core unstable crates/papo-core/public-api-unstable.txt target/public-api/papo-core-unstable
@@ -488,7 +489,7 @@
             # Workspace runs unify features (papo-conformance enables papo's websocket and
             # unstable), hiding a package that breaks under its own default features.
             text = ''
-              for package in papo-proto papo-core papo papo-testing papo-bot; do
+              for package in papo-format papo-proto papo-core papo papo-testing papo-bot; do
                 cargo nextest run -p "$package" --locked
               done
             '';
