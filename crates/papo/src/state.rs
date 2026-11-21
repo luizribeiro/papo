@@ -255,11 +255,6 @@ impl State {
     pub(crate) fn same_name(&self, left: &str, right: &str) -> bool {
         self.core.names_equal(left, right)
     }
-    /// Returns the connection epoch represented by this snapshot.
-    #[must_use]
-    pub fn connection_epoch(&self) -> crate::ConnectionEpoch {
-        self.core.connection_epoch()
-    }
 
     pub(crate) fn reply_token(
         &self,

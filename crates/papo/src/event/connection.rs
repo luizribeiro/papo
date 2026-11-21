@@ -53,8 +53,6 @@ pub struct Connected {
     pub caps: Capabilities,
     /// Whether this connection replaced a previous connection.
     pub reconnected: bool,
-    /// The epoch of the connection that became ready.
-    pub epoch: crate::ConnectionEpoch,
 }
 
 /// A warning that events were discarded because the event buffer was full.

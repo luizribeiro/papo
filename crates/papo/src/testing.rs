@@ -312,13 +312,11 @@ pub fn set_message_actor(message: &mut Message, actor: &crate::UserHandle) {
 #[must_use]
 pub fn connected(nick: impl Into<Nick>) -> Connected {
     let nick = nick.into();
-    let epoch = state(nick.to_string(), true).connection_epoch();
     Connected {
         nick,
         welcome: String::new(),
         caps: Capabilities::default(),
         reconnected: false,
-        epoch,
     }
 }
 

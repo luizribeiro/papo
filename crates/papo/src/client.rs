@@ -840,13 +840,6 @@ impl Client {
         self.snapshot()
     }
 
-    /// Reports whether `state` belongs to this client's current connection epoch.
-    #[must_use]
-    pub fn is_current(&self, state: &State) -> bool {
-        self.origin == state.nick().origin()
-            && self.snapshot().connection_epoch() == state.connection_epoch()
-    }
-
     pub(crate) fn require_feature(state: &State, feature: Feature) -> Result<(), Error> {
         match state.unsupported_reason(feature) {
             Some(reason) => Err(Error::Unsupported(Unsupported::new(feature, reason))),

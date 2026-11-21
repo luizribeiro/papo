@@ -378,8 +378,7 @@ immediately after the event was applied, so later server lines cannot change the
 handler observes.
 
 `Client::snapshot` replaces `Client::state` for reading the latest state outside an event handler.
-`State::connection_epoch` exposes an opaque comparable connection epoch, `Connected::epoch`
-identifies the new epoch, and `Client::is_current` reports whether a snapshot belongs to it.
+The connection epoch API is removed. `Connected::reconnected` reports reconnections.
 
 `papo-bot` command parsing now takes the event snapshot, preventing bot filtering and mention
 matching from observing a later event.
