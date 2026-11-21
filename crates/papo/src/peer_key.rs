@@ -64,15 +64,7 @@ enum PeerProof {
 ///
 /// Native and WASI `ircs://` and `wss://` connections, and browser `wss://` connections, can
 /// produce durable Account proofs. Plaintext, browser `ws://`, and caller-supplied streams produce
-/// only Continuity proofs. The authenticated scope is the normalized hostname, without its port:
-/// changing hostnames makes an old key [`PeerKeyMismatch::DifferentAccount`], or
-/// [`PeerKeyMismatch::CannotVerify`] when the new connection has only Continuity. Applications
-/// should migrate stored keys to a new hostname only as an explicit trust decision.
-///
-/// Equality and hashing use only the scope and folded [`crate::Nick::key`]. They deliberately
-/// ignore proof, so upgrading proof does not move an application thread. Use [`Self::check`]
-/// before trusting the current holder, and treat an [`InvalidPeerKey`] while loading storage as an
-/// identity that cannot be verified.
+/// only Continuity proofs. The authenticated scope is the normalized hostname.
 ///
 /// Proof fields are private and cannot be constructed by applications:
 ///
@@ -86,26 +78,6 @@ pub struct PeerKey {
     encoded: String,
 }
 
-#[derive(Clone, Debug)]
-/// Result of checking a stored peer key against the current key.
-pub enum PeerKeyCheck {
-    /// The keys identify the same account or observed user continuity.
-    Match,
-    /// The current key adds durable account proof or an immutable account ID.
-    Upgrade(PeerKey),
-    /// The keys cannot be accepted without user confirmation.
-    Mismatch(PeerKeyMismatch),
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-/// Exhaustive reason that a stored peer key does not match the current key.
-pub enum PeerKeyMismatch {
-    /// Both keys are durable but identify different accounts or authenticated scopes.
-    DifferentAccount,
-    /// At least one side lacks enough durable proof to verify the identity.
-    CannotVerify,
-}
-
 /// An error returned when a persisted peer key is malformed or unsupported.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct InvalidPeerKey;
@@ -117,34 +89,6 @@ impl PeerKey {
             thread,
             proof,
             encoded,
-        }
-    }
-
-    /// Checks this stored key against the current key for the same nickname thread.
-    #[must_use]
-    pub fn check(&self, current_key: &Self) -> PeerKeyCheck {
-        if self.thread != current_key.thread {
-            return if self.is_verified() && current_key.is_verified() {
-                PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
-            } else {
-                PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
-            };
-        }
-        match (&self.proof, &current_key.proof) {
-            (PeerProof::Unverified(Some(stored)), PeerProof::Unverified(Some(current)))
-                if stored == current =>
-            {
-                PeerKeyCheck::Match
-            }
-            (PeerProof::Account(stored, _), PeerProof::Account(current, _)) => {
-                check_accounts(stored, current, current_key)
-            }
-            (PeerProof::Unverified(Some(stored)), PeerProof::Account(_, Some(current)))
-                if stored == current =>
-            {
-                PeerKeyCheck::Upgrade(current_key.clone())
-            }
-            _ => PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify),
         }
     }
 
@@ -172,30 +116,6 @@ impl Eq for PeerThread {}
 impl Hash for PeerThread {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (&self.scope, &self.nick).hash(state);
-    }
-}
-
-fn check_accounts(
-    stored: &AccountProof,
-    current: &AccountProof,
-    current_key: &PeerKey,
-) -> PeerKeyCheck {
-    match (&stored.id, &current.id) {
-        (Some(stored), Some(current)) if stored == current => PeerKeyCheck::Match,
-        (None, Some(_))
-            if stored.casemapping == current.casemapping && stored.account == current.account =>
-        {
-            PeerKeyCheck::Upgrade(current_key.clone())
-        }
-        (Some(_), None) => PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify),
-        (None, None)
-            if stored.casemapping == current.casemapping && stored.account == current.account =>
-        {
-            PeerKeyCheck::Match
-        }
-        (Some(_), Some(_)) | (None, Some(_) | None) => {
-            PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
-        }
     }
 }
 
