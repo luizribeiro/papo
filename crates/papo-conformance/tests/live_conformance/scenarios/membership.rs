@@ -1549,6 +1549,12 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
             .await?
             .is_empty()
     );
+    assert!(
+        alice
+            .list_modes(&channel, papo::ListMode::Invex)
+            .await?
+            .is_empty()
+    );
     Ok(())
 }
 
