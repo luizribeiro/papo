@@ -1,18 +1,14 @@
-//! Highest-layer coverage for archived private-event peer pins.
+//! Identity and routing coverage for archived messages.
 
 mod support {
     pub mod direct;
-    pub mod peer_pin;
 }
 
 use std::{future::IntoFuture as _, time::Duration};
 
 use papo::{Error, Event, Reconnect};
 use papo_testing::wire;
-use support::{
-    direct::{connected, next_active_event},
-    peer_pin::{assert_match, join},
-};
+use support::direct::{connected, join, next_active_event};
 
 async fn history_page(
     client: &papo::Client,
@@ -50,7 +46,7 @@ async fn history_page(
 }
 
 #[tokio::test]
-async fn history_uses_account_pins_without_reusing_live_session_pins() {
+async fn archived_private_events_preserve_accounts_and_reject_stale_actors() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://verified.example", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -74,16 +70,16 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
     ] {
         join(&mut events, &mut wire, line).await;
     }
-    let alice = client.query("alice").unwrap().key();
-
     let archived_alice =
         history_page(&client, &mut wire, 0, "alice", ";account=alice-account").await;
     let archived_bob = history_page(&client, &mut wire, 1, "bob", "").await;
     let alice_message = archived_alice.chat_messages().next().unwrap();
     let bob_message = archived_bob.chat_messages().next().unwrap();
-    assert_match(&alice, &alice_message.actor.key());
-    assert!(alice_message.actor.key().is_verified());
-    assert!(!bob_message.actor.key().is_verified());
+    assert!(matches!(
+        alice_message.actor_account(),
+        papo::Account::LoggedIn(account) if account == "alice-account"
+    ));
+    assert_eq!(bob_message.actor_account(), &papo::Account::Unknown);
     let alice_tag = archived_alice
         .items
         .iter()
@@ -100,8 +96,8 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
             _ => None,
         })
         .unwrap();
-    assert_match(&alice, &alice_tag.actor.key());
-    assert!(!bob_tag.actor.key().is_verified());
+    assert_eq!(alice_tag.actor_account(), alice_message.actor_account());
+    assert_eq!(bob_tag.actor_account(), &papo::Account::Unknown);
 
     for message in [alice_message, bob_message] {
         assert!(matches!(
@@ -221,13 +217,12 @@ async fn untagged_history_line_is_not_the_current_nick_holder() {
     let [untagged, tagged] = [0, 1].map(|index| page.chat_messages().nth(index).unwrap().clone());
 
     assert_ne!(untagged.actor, live);
-    assert!(!untagged.actor.key().is_verified());
-    assert!(!matches!(
-        live.key().check(&untagged.actor.key()),
-        papo::PeerKeyCheck::Match
-    ));
+    assert_eq!(untagged.actor_account(), &papo::Account::Unknown);
     assert_eq!(tagged.actor, live);
-    assert_match(&live.key(), &tagged.actor.key());
+    assert!(matches!(
+        tagged.actor_account(),
+        papo::Account::LoggedIn(account) if account == "writer"
+    ));
 
     let sending =
         tokio::spawn(async move { client.privmsg(tagged.actor, "thanks, shipping it").await });

@@ -26,3 +26,12 @@ pub async fn enable_monitor(events: &mut Events, wire: &mut Wire, limit: usize) 
         papo::Event::FeaturesChanged { .. }
     ) {}
 }
+
+#[allow(dead_code)]
+pub async fn join(events: &mut Events, wire: &mut Wire, line: &str) {
+    wire.server(line).await;
+    assert!(matches!(
+        next_active_event(events).await,
+        papo::Event::Joined(_)
+    ));
+}

@@ -2,15 +2,11 @@
 
 mod support {
     pub mod direct;
-    pub mod peer_pin;
 }
 
 use papo::{Error, Event, Reconnect};
 use papo_testing::wire;
-use support::{
-    direct::{connected, next_active_event},
-    peer_pin::join,
-};
+use support::direct::{connected, join, next_active_event};
 
 #[tokio::test]
 async fn bouncer_upstream_drop_rejects_the_old_target() {
