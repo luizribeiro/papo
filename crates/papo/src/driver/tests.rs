@@ -7607,6 +7607,70 @@ async fn rejected_monitor_entry_does_not_fail_a_watched_send() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn generic_modes_round_trip_explicit_prefix_letters() {
+    for (support, letter, symbol) in [
+        (
+            ":ergo.test 005 papo-driver PREFIX=(qaohv)~&@%+ CHANMODES=Ibe,k,fl,CEMRUimnstu",
+            'a',
+            '&',
+        ),
+        (
+            ":solanum.example 005 papo-driver PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz",
+            'o',
+            '@',
+        ),
+        (
+            ":irc.papo.test 005 papo-driver MAXLIST=b:100 MAXTARGETS=5 MODES=20 NAMELEN=130 NETWORK=papo NICKLEN=30 PREFIX=(ovq)@+! SAFELIST SAFERATE STATUSMSG=@+! TOPICLEN=330 USERLEN=10",
+            'q',
+            '!',
+        ),
+        (
+            ":irc.unreal.example 005 papo-driver PREFIX=(qaohv)~&@%+ CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ",
+            'h',
+            '%',
+        ),
+    ] {
+        let (mut server, client, mut events, driver) =
+            scripted(config().wanted_caps(["labeled-response"]));
+        let task = tokio::spawn(driver);
+        complete_connect_labelled(&mut server, &mut events).await;
+        let setup = format!(
+            "{support} :are supported by this server\r\n:papo-driver!papo@localhost JOIN #review\r\n:alice!alice@users.example JOIN #review\r\n"
+        );
+        server_line(&mut server, setup.as_bytes()).await;
+        let actor = loop {
+            if let Event::Joined(joined) = within(next_active_event(&mut events)).await
+                && joined.actor.nick() == "alice"
+            {
+                break joined.actor;
+            }
+        };
+        let grant = client.mode("#review").add_with(letter, test_nick("alice"));
+        let revoke = client.mode("#review").remove_with(letter, &actor);
+        for (label, sign, action, request) in [
+            (0, '+', crate::ModeAction::Add, grant),
+            (1, '-', crate::ModeAction::Remove, revoke),
+        ] {
+            let modes = tokio::spawn(async move { request.await });
+            let command = format!("@label={label} MODE #review {sign}{letter} alice\r\n");
+            client_line(&mut server, command.as_bytes()).await;
+            let echo = format!(
+                "@label={label} :papo-driver!papo@localhost MODE #review {sign}{letter} alice\r\n"
+            );
+            server_line(&mut server, echo.as_bytes()).await;
+            let outcome = within(modes).await.unwrap().unwrap();
+            assert!(matches!(
+                outcome.applied.as_slice(),
+                [change] if change.mode == letter && change.action == action
+                    && matches!(&change.arg, Some(crate::ModeArg::Member { user, prefix, .. })
+                        if user.nick() == "alice" && prefix.symbol() == symbol)
+            ));
+        }
+        task.abort();
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn invite_and_privilege_grants_accept_nicknames() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));

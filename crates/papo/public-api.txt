@@ -3522,7 +3522,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ServerError
 pub struct papo::SetModes
 impl papo::SetModes
 pub fn papo::SetModes::add(self, char) -> Self
-pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::SetModes::add_with(self, char, impl papo::AsNick) -> Self
 pub fn papo::SetModes::ban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::dehalfop(self, impl papo::AsNick) -> Self
@@ -3538,7 +3538,7 @@ pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_key(self, papo::Secret) -> Self
-pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::SetModes::remove_with(self, char, impl papo::AsNick) -> Self
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::unquiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::voice(self, impl papo::AsNick) -> Self

@@ -237,18 +237,20 @@ impl SetModes {
 
     /// Adds a mode with its required argument.
     ///
-    /// Prefix modes advertised by `PREFIX` require [`Self::prefix`] or a named privilege helper.
+    /// For a membership mode advertised in `PREFIX`, pass a nickname or a
+    /// [`crate::UserHandle`]. Text supplies the parameter for other modes.
     /// Channel key mode `k` requires [`Self::key`].
-    pub fn add_with(self, mode: char, argument: impl Into<String>) -> Self {
-        self.raw_change(true, mode, argument.into())
+    pub fn add_with(self, mode: char, argument: impl crate::AsNick) -> Self {
+        self.change_with(true, mode, argument)
     }
 
     /// Removes a mode with its required argument.
     ///
-    /// Prefix modes advertised by `PREFIX` require a named privilege-removal helper.
+    /// For a membership mode advertised in `PREFIX`, pass a nickname or a
+    /// [`crate::UserHandle`]. Text supplies the parameter for other modes.
     /// Channel key mode `k` requires [`Self::remove_key`].
-    pub fn remove_with(self, mode: char, argument: impl Into<String>) -> Self {
-        self.raw_change(false, mode, argument.into())
+    pub fn remove_with(self, mode: char, argument: impl crate::AsNick) -> Self {
+        self.change_with(false, mode, argument)
     }
 
     /// Sets the channel key without exposing it through debug output or errors.
@@ -400,7 +402,7 @@ impl SetModes {
         )
     }
 
-    fn raw_change(mut self, set: bool, mode: char, argument: String) -> Self {
+    fn change_with(mut self, set: bool, mode: char, argument: impl crate::AsNick) -> Self {
         if mode == 'k' {
             self.invalid_input.get_or_insert_with(|| {
                 InvalidInput::InvalidMode(
@@ -409,7 +411,13 @@ impl SetModes {
             });
             return self;
         }
-        self.change(set, Selector::Letter(mode), Some(Argument::Raw(argument)))
+        self.change(
+            set,
+            Selector::WithArg(mode),
+            Some(Argument::PendingNick(
+                crate::AsNick::__parts(&argument).into_owned(),
+            )),
+        )
     }
 
     fn change(mut self, set: bool, mode: Selector, arg: Option<Argument>) -> Self {
@@ -585,6 +593,18 @@ impl Change {
     async fn resolve_nick(mut self, client: &Client) -> Result<Self, Error> {
         self.arg = match self.arg {
             Some(Argument::PendingNick(parts)) => {
+                if let Selector::WithArg(mode) = self.mode
+                    && advertised_prefix(client.state().isupport().inner(), mode).is_none()
+                {
+                    if parts.send_name != Some(crate::target::sealed::SendName::Text) {
+                        return Err(invalid(
+                            "a nickname argument requires an advertised membership mode",
+                        ));
+                    }
+                    self.mode = Selector::Letter(mode);
+                    self.arg = Some(Argument::Raw(parts.text.into_owned()));
+                    return Ok(self);
+                }
                 let proven = crate::identity::prove_parts(client, parts, "mode: nick").await?;
                 Some(Argument::ProvenNick(proven.nick, proven.core))
             }
@@ -628,7 +648,7 @@ impl Change {
     }
 
     fn typed(&self, client: &Client, state: &crate::State) -> Result<ModeChange, Error> {
-        let mode = validate(state.isupport().inner(), self)?;
+        let (mode, kind) = validate(state.isupport().inner(), self)?;
         state
             .known_name_rules()
             .ok_or(crate::InvalidInput::NameRulesUnknown)?;
@@ -640,7 +660,7 @@ impl Change {
             },
             mode,
             self.arg.as_ref().map(Argument::text),
-            mode_kind(state.isupport().inner(), mode),
+            kind,
             state.working_casemapping(),
             state.nick().origin(),
             |nick| {
@@ -663,6 +683,7 @@ impl Change {
 enum Selector {
     Letter(char),
     Prefix(char),
+    WithArg(char),
     Optional(crate::Feature),
 }
 
@@ -721,7 +742,7 @@ pub(crate) fn encode(
     }
     let modes = changes
         .iter()
-        .map(|change| validate(isupport, change))
+        .map(|change| validate(isupport, change).map(|(mode, _)| mode))
         .collect::<Result<Vec<_>, _>>()?;
     let chunk = mode_chunk_size(isupport, changes);
     changes
@@ -760,8 +781,15 @@ fn mode_guards(changes: &[Change], chunk: usize) -> Vec<Option<papo_core::Target
         .collect()
 }
 
-fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
-    let mode = match change.mode {
+fn advertised_prefix(isupport: &Isupport, mode: char) -> Option<crate::Prefix> {
+    isupport
+        .__advertised_prefix()?
+        .into_iter()
+        .find(|prefix| prefix.mode() == mode)
+}
+
+fn validate(isupport: &Isupport, change: &Change) -> Result<(char, ModeKind), Error> {
+    let (mode, kind) = match change.mode {
         Selector::Letter(mode)
             if isupport
                 .prefix()
@@ -770,19 +798,23 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
         {
             return Err(invalid("prefix modes require a nickname helper"));
         }
-        Selector::Letter(mode) => mode,
-        Selector::Prefix(mode) => isupport
-            .prefix()
-            .into_iter()
-            .find(|prefix| prefix.mode() == mode)
-            .map(crate::Prefix::mode)
-            .ok_or_else(|| invalid(format!("prefix mode {mode} was not advertised")))?,
+        Selector::Letter(mode) => (mode, mode_kind(isupport, mode)),
+        Selector::Prefix(mode) => {
+            if !isupport.prefix().iter().any(|prefix| prefix.mode() == mode) {
+                return Err(invalid(format!("prefix mode {mode} was not advertised")));
+            }
+            (mode, mode_kind(isupport, mode))
+        }
+        Selector::WithArg(mode) => {
+            let prefix = advertised_prefix(isupport, mode)
+                .ok_or_else(|| invalid(format!("prefix mode {mode} was not advertised")))?;
+            (mode, ModeKind::Prefix(prefix))
+        }
         Selector::Optional(_) => unreachable!("optional modes are resolved before validation"),
     };
     if let Some(argument) = &change.arg {
         argument.check(isupport)?;
     }
-    let kind = mode_kind(isupport, mode);
     if matches!(kind, ModeKind::Prefix(_))
         && let Some(argument) = &change.arg
     {
@@ -798,7 +830,7 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
     if kind == ModeKind::Unknown || accepts_arg != change.arg.is_some() {
         return Err(invalid("mode has an invalid argument"));
     }
-    Ok(mode)
+    Ok((mode, kind))
 }
 
 fn mode_kind(isupport: &Isupport, mode: char) -> ModeKind {

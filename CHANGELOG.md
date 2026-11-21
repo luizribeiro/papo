@@ -22,6 +22,8 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `SendOutcome::conversation()` and `SendOutcome::status()` replace the corresponding fields.
 
+`SetModes::add_with` and `remove_with` accept nicknames and user handles for advertised membership modes.
+
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
 and account comparison, and `unstable` exposes experimental extension APIs without semantic

@@ -37,12 +37,14 @@ const GATED_PERSON_METHODS: &[(&str, &str)] = &[
         "METADATA alice SET display-name Mallory",
     ),
     ("papo::Metadata::sync", "METADATA alice SYNC"),
+    ("papo::SetModes::add_with", "MODE #review +q alice"),
     ("papo::SetModes::dehalfop", "MODE #review -h alice"),
     ("papo::SetModes::deop", "MODE #review -o alice"),
     ("papo::SetModes::devoice", "MODE #review -v alice"),
     ("papo::SetModes::halfop", "MODE #review +h alice"),
     ("papo::SetModes::op", "MODE #review +o alice"),
     ("papo::SetModes::prefix", "MODE #review +q alice"),
+    ("papo::SetModes::remove_with", "MODE #review -a alice"),
     ("papo::SetModes::voice", "MODE #review +v alice"),
 ];
 
@@ -82,6 +84,8 @@ async fn call_person_method(
             .await
             .map(drop),
         "papo::Metadata::sync" => metadata.sync(alice).await.map(drop),
+        "papo::SetModes::add_with" => modes.add_with('q', alice).await.map(drop),
+        "papo::SetModes::remove_with" => modes.remove_with('a', alice).await.map(drop),
         "papo::SetModes::dehalfop" => modes.dehalfop(alice).await.map(drop),
         "papo::SetModes::deop" => modes.deop(alice).await.map(drop),
         "papo::SetModes::devoice" => modes.devoice(alice).await.map(drop),
