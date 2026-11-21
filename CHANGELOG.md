@@ -530,10 +530,9 @@ After:
 ```rust,ignore
 client.reply(&message, "acknowledged").await?;
 
-let alice = client.query("alice")?;
-client.privmsg(&alice, "private update").await?;
-client.invite(&alice, "#papo").await?;
-client.mode("#papo").op(&alice).await?;
+client.privmsg("alice", "private update").await?;
+client.invite("alice", "#papo").await?;
+client.mode("#papo").op("alice").await?;
 ```
 
 `UserHandle` follows nickname changes and refuses with `Error::TargetGone` when the identity leaves
