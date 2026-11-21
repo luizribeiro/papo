@@ -9,7 +9,6 @@ use std::{
 
 use super::{activity, startup::StartupBudget};
 
-#[cfg_attr(unix, path = "process/unix.rs")]
 #[cfg_attr(not(unix), path = "process/other.rs")]
 mod platform;
 
@@ -278,11 +277,11 @@ mod tests {
             ("stop", |mut child| {
                 child.check("Solanum").unwrap();
                 child.stop().unwrap();
+                assert!(child.reader.is_none());
             }),
             ("check", |mut child| {
-                while child.check("Solanum").is_ok() {
-                    thread::yield_now();
-                }
+                assert!(platform::exited(&mut child.child, true).unwrap());
+                child.check("Solanum").unwrap_err();
             }),
             ("finish", |child| child.finish("ergo initdb").unwrap()),
         ];

@@ -36,3 +36,28 @@ pub(super) fn kill(child: &mut Child) -> io::Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::process::Command;
+
+    use super::{exited, kill};
+
+    #[test]
+    fn observing_a_reaped_child_reports_the_wait_error() {
+        let mut child = Command::new("true").spawn().unwrap();
+        child.wait().unwrap();
+
+        let error = exited(&mut child, false).unwrap_err();
+        assert_eq!(error.raw_os_error(), Some(libc::ECHILD));
+    }
+
+    #[test]
+    fn signaling_a_missing_group_succeeds() {
+        // The unreaped child reserves its PID and inherits the test's group.
+        let mut child = Command::new("true").spawn().unwrap();
+
+        kill(&mut child).unwrap();
+        assert!(child.wait().unwrap().success());
+    }
+}
