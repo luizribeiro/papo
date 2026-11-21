@@ -134,7 +134,7 @@ async fn grant_rank(
     } else {
         alice
             .mode(channel)
-            .prefix(prefix.mode(), bob_nick.as_str())
+            .add_with(prefix.mode(), bob_nick.as_str())
             .await?;
     }
     wait_channel_mode(alice, channel, prefix.mode()).await?;

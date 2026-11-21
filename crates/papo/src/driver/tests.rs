@@ -7671,6 +7671,37 @@ async fn generic_modes_round_trip_explicit_prefix_letters() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn generic_modes_require_an_explicit_prefix_for_nickname_arguments() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    for prefix in ["", "PREFIX", "PREFIX=", "PREFIX=(o)@+", "PREFIX=(v)+"] {
+        let rules = format!(
+            ":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu {prefix} :are supported\r\nPING :prefix-fence\r\n"
+        );
+        server_line(&mut server, rules.as_bytes()).await;
+        client_line(&mut server, b"PONG prefix-fence\r\n").await;
+        for request in [
+            client.mode("#review").add_with('o', "alice"),
+            client.mode("#review").remove_with('o', test_nick("alice")),
+            client.mode("#review").remove_with('b', test_nick("alice")),
+        ] {
+            assert!(matches!(
+                within(request).await,
+                Err(crate::Error::InvalidInput(
+                    crate::InvalidInput::InvalidMode(_)
+                ))
+            ));
+        }
+    }
+
+    server_line(&mut server, b"PING :no-mode-writes\r\n").await;
+    client_line(&mut server, b"PONG no-mode-writes\r\n").await;
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn invite_and_privilege_grants_accept_nicknames() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
@@ -7697,7 +7728,7 @@ async fn invite_and_privilege_grants_accept_nicknames() {
         .op("Alice")
         .halfop(test_nick("bob"))
         .voice("carol")
-        .prefix('a', test_nick("dave"));
+        .add_with('a', test_nick("dave"));
     let modes = tokio::spawn(async move { request.await });
     for (label, change) in [
         (1, "+o Alice"),

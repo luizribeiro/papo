@@ -360,15 +360,6 @@ impl SetModes {
         self.prefix_change(false, 'v', nick)
     }
 
-    /// Grants an advertised membership prefix to `nick`.
-    ///
-    /// This covers server-specific owner and administrator modes such as `q` and `a`; prefer the
-    /// named helpers for operator, half-operator, and voice privileges. Accepts the same
-    /// nickname and identity arguments as [`Self::op`].
-    pub fn prefix(self, mode: char, nick: impl crate::AsNick) -> Self {
-        self.prefix_change(true, mode, nick)
-    }
-
     fn prefix_change(self, set: bool, mode: char, nick: impl crate::AsNick) -> Self {
         self.change(
             set,

@@ -43,7 +43,6 @@ const GATED_PERSON_METHODS: &[(&str, &str)] = &[
     ("papo::SetModes::devoice", "MODE #review -v alice"),
     ("papo::SetModes::halfop", "MODE #review +h alice"),
     ("papo::SetModes::op", "MODE #review +o alice"),
-    ("papo::SetModes::prefix", "MODE #review +q alice"),
     ("papo::SetModes::remove_with", "MODE #review -a alice"),
     ("papo::SetModes::voice", "MODE #review +v alice"),
 ];
@@ -91,18 +90,6 @@ async fn call_person_method(
         "papo::SetModes::devoice" => modes.devoice(alice).await.map(drop),
         "papo::SetModes::halfop" => modes.halfop(alice).await.map(drop),
         "papo::SetModes::op" => modes.op(alice).await.map(drop),
-        "papo::SetModes::prefix" => {
-            if matches!(modes.prefix('q', alice).await, Err(papo::Error::TargetGone))
-                && matches!(
-                    client.mode("#review").prefix('a', alice).await,
-                    Err(papo::Error::TargetGone)
-                )
-            {
-                Err(papo::Error::TargetGone)
-            } else {
-                Ok(())
-            }
-        }
         "papo::SetModes::voice" => modes.voice(alice).await.map(drop),
         other => panic!("{other} has no nickname-handoff check"),
     }

@@ -554,7 +554,7 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 | `Conversation: Target` allowed `@#ops` replies to widen to `#ops` | Use `reply`, `react`, `redact`, or the event's `return_address()` so the original audience is retained |
 | `return_address() -> String` | Message-like events return guarded `MessageRef`; notices return `NoticeRef`; server notice addresses are `Option<NoticeRef>` |
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
-| `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&UserHandle`; `SetModes::prefix(mode, &user)` handles advertised custom prefix modes |
+| `SetModes::prefix` granted an advertised custom membership mode | Use `add_with` and `remove_with` with a nickname or user handle |
 | `kickban(channel, nick, reason, ban)` | `kickban(channel).nick(nick).ban(ban).reason(reason)` names the nickname and ban roles; `ban` is typed as `BanTarget` |
 | `Client::nick()` | `client.snapshot().nick()`; the state snapshot is the one place the current nickname lives |
 | `quit(reason)` | `quit()` disconnects without a reason; add one with `.reason(reason)` |

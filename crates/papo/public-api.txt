@@ -3532,7 +3532,6 @@ pub fn papo::SetModes::halfop(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::key(self, papo::Secret) -> Self
 pub fn papo::SetModes::op(self, impl papo::AsNick) -> Self
-pub fn papo::SetModes::prefix(self, char, impl papo::AsNick) -> Self
 pub fn papo::SetModes::quiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self

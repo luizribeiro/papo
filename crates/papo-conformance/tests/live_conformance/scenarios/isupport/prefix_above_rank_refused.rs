@@ -33,7 +33,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     for prefix in &above {
         let error = alice
             .mode(&channel)
-            .prefix(prefix.mode(), bob_nick.as_str())
+            .add_with(prefix.mode(), bob_nick.as_str())
             .await
             .unwrap_err();
         assert_above_rank_refusal(error);
