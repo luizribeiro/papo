@@ -18,8 +18,6 @@ pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
 pub use papo::InvalidServerTime
 pub use papo::InvalidUrl
-pub use papo::Line
-pub use papo::LineRef
 pub use papo::LineSource
 pub use papo::ListMode
 pub use papo::Mask
@@ -3019,6 +3017,47 @@ impl core::marker::Unpin for papo::KickbanRequest
 impl core::marker::UnsafeUnpin for papo::KickbanRequest
 impl core::panic::unwind_safe::RefUnwindSafe for papo::KickbanRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::KickbanRequest
+pub struct papo::Line(_)
+impl papo::Line
+pub fn papo::Line::command(&self) -> &str
+pub fn papo::Line::encode(&self) -> core::result::Result<papo::WireLine, papo::BuildError>
+pub fn papo::Line::get(&self, usize) -> core::option::Option<&str>
+pub fn papo::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::new(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::numeric(&self) -> core::option::Option<u16>
+pub fn papo::Line::param(self, impl core::convert::Into<papo::Param>) -> Self
+pub fn papo::Line::params(&self) -> &[papo::Param]
+pub fn papo::Line::part(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::part_with_reason(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::privmsg(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::source(&self) -> core::option::Option<papo_proto::source::Source<'_>>
+pub fn papo::Line::tag(&self, &str) -> core::option::Option<&str>
+pub fn papo::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::tags(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
+pub fn papo::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<papo::Param>>) -> Self
+pub fn papo::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for papo::Line
+pub fn papo::Line::clone(&self) -> Self
+impl core::cmp::Eq for papo::Line
+impl core::cmp::PartialEq for papo::Line
+pub fn papo::Line::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Line
+pub fn papo::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Line
+pub fn papo::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Line
+impl core::str::traits::FromStr for papo::Line
+pub type papo::Line::Err = <papo::Line as core::str::traits::FromStr>::Err
+pub fn papo::Line::from_str(&str) -> core::result::Result<Self, Self::Err>
+impl core::marker::Freeze for papo::Line
+impl core::marker::Send for papo::Line
+impl core::marker::Sync for papo::Line
+impl core::marker::Unpin for papo::Line
+impl core::marker::UnsafeUnpin for papo::Line
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Line
+impl core::panic::unwind_safe::UnwindSafe for papo::Line
 #[non_exhaustive] pub struct papo::ListEntry
 pub papo::ListEntry::members_count: usize
 pub papo::ListEntry::name: papo::ChannelName
@@ -4698,54 +4737,6 @@ pub papo::InvalidUrl::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidUrl::Userinfo
 pub papo::InvalidUrl::Whitespace
 pub papo::InvalidUrl::ZoneIdentifier(alloc::string::String)
-pub struct papo::Line
-impl papo::Line
-pub fn papo::Line::as_ref(&self) -> papo::LineRef<'_>
-pub fn papo::Line::command(&self) -> &str
-pub fn papo::Line::encode(&self) -> core::result::Result<papo::WireLine, papo::BuildError>
-pub fn papo::Line::get(&self, usize) -> core::option::Option<&str>
-pub fn papo::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::new(impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::numeric(&self) -> core::option::Option<u16>
-pub fn papo::Line::param(self, impl core::convert::Into<papo::Param>) -> Self
-pub fn papo::Line::params(&self) -> &[papo::Param]
-pub fn papo::Line::part(impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::part_with_reason(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::privmsg(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::source(&self) -> core::option::Option<papo_proto::Source<'_>>
-pub fn papo::Line::tag(&self, &str) -> core::option::Option<&str>
-pub fn papo::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::tags(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
-pub fn papo::Line::to_line(&self) -> core::result::Result<alloc::string::String, papo::BuildError>
-pub fn papo::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<papo::Param>>) -> Self
-pub fn papo::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
-impl core::clone::Clone for papo::Line
-pub fn papo::Line::clone(&self) -> Self
-impl core::cmp::Eq for papo::Line
-impl core::cmp::PartialEq for papo::Line
-pub fn papo::Line::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Line
-pub fn papo::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Line
-pub fn papo::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Line
-impl core::str::traits::FromStr for papo::Line
-pub struct papo::LineRef<'a>
-impl<'a> core::clone::Clone for papo::LineRef<'a>
-impl<'a> core::cmp::Eq for papo::LineRef<'a>
-impl<'a> core::cmp::PartialEq for papo::LineRef<'a>
-impl<'a> core::fmt::Debug for papo::LineRef<'a>
-impl<'a> core::marker::Copy for papo::LineRef<'a>
-impl<'a> core::marker::StructuralPartialEq for papo::LineRef<'a>
-impl<'a> core::marker::Freeze for papo::LineRef<'a>
-impl<'a> core::marker::Send for papo::LineRef<'a>
-impl<'a> core::marker::Sync for papo::LineRef<'a>
-impl<'a> core::marker::Unpin for papo::LineRef<'a>
-impl<'a> core::marker::UnsafeUnpin for papo::LineRef<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::LineRef<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo::LineRef<'a>
 #[non_exhaustive] pub enum papo::ListMode
 pub papo::ListMode::Ban
 pub papo::ListMode::Except

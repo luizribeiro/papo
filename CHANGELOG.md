@@ -28,6 +28,8 @@ and its three configuration errors have been removed.
 
 The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
 
+`Line` keeps byte encoding. The public `LineRef`, `Line::as_ref`, and `Line::to_line` are removed.
+
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
 

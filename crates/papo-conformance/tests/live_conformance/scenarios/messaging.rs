@@ -343,7 +343,7 @@ async fn by_name_direct_message(s: Scenario) -> papo_testing::Result<()> {
             .lines()
             .filter_map(|line| line.split_once(" -> "))
             .any(|(_, line)| {
-                papo::LineRef::parse(line).is_ok_and(|line| {
+                papo_proto::LineRef::parse(line).is_ok_and(|line| {
                     line.command_is("WHO") || line.command_is("WHOIS") || line.command_is("MONITOR")
                 })
             }),

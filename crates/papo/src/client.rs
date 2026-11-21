@@ -908,7 +908,7 @@ impl Client {
     /// [`InvalidInput::WiderThanReferenced`].
     pub fn send_raw(&self, line: crate::Line) -> crate::RequestFuture<()> {
         let client = self.clone();
-        crate::RequestFuture::new(async move { client.send_message(line).await })
+        crate::RequestFuture::new(async move { client.send_message(line.0).await })
     }
 
     /// Sends a CTCP reply privately to the user who sent `query`.
@@ -998,8 +998,8 @@ impl Client {
     pub fn request_raw(&self, line: crate::Line) -> crate::RequestFuture<Vec<crate::Line>> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            let response = client.correlated(line, None).await?;
-            Ok(response.lines)
+            let response = client.correlated(line.0, None).await?;
+            Ok(response.lines.into_iter().map(crate::Line).collect())
         })
     }
 

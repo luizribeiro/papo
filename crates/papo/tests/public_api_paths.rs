@@ -193,10 +193,9 @@ fn internal_type_paths(snapshot: &str) -> Vec<&str> {
 
 const INTERNAL_REEXPORTS: &[(&str, &str)] = &[
     ("papo_core::cap::Cap", "papo::Cap"),
-    ("papo_proto::LineRef", "papo::LineRef"),
     ("papo_proto::modes::ModeAction", "papo::ModeAction"),
     ("papo_proto::Param", "papo::Param"),
-    ("papo_proto::Source", "papo::LineSource"),
+    ("papo_proto::source::Source", "papo::LineSource"),
     ("papo_proto::time::ServerTime", "papo::ServerTime"),
     ("papo_proto::WireLine", "papo::WireLine"),
 ];
@@ -324,7 +323,6 @@ fn address_check_matches_types_not_names() {
 fn raw_line_reexports_are_nameable() {
     let line =
         papo::Line::notice("papo", "maintenance in ten minutes").with_source("irc.example.net");
-    let _: papo::LineRef<'_> = line.as_ref();
     let _: &papo::Param = &line.params()[1];
     let _: papo::LineSource<'_> = line.source().unwrap();
     let _: papo::WireLine = line.encode().unwrap();

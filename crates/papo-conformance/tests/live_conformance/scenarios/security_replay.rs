@@ -163,7 +163,7 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
     let refusal = bob
         .wait_for(|event| event.as_other().filter(|line| line.numeric() == Some(404)))
         .await?;
-    assert_eq!(refusal.as_ref().param(1), Some(channel.as_str()));
+    assert_eq!(refusal.get(1), Some(channel.as_str()));
     assert!(bob.snapshot().__channel_local(&channel).is_none());
     Ok(())
 }

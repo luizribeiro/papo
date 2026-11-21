@@ -318,6 +318,7 @@ mod identity;
 mod io_compat;
 #[path = "isupport.rs"]
 mod isupport_impl;
+mod line;
 mod message_ref;
 pub mod metadata;
 mod mode;
@@ -384,6 +385,7 @@ pub use ext::{
 };
 pub use handle::{ChannelHandle, UserHandle, Watch};
 pub use isupport_impl::Isupport;
+pub use line::Line;
 pub use message_ref::{MessageRef, NoticeRef};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesOutcome, SetModes};
 pub use mode_change::{ModeArg, ModeChange};
@@ -417,8 +419,8 @@ pub use papo_proto::Source as LineSource;
 #[doc(inline)]
 pub use papo_proto::{
     AccountName, AsAccount, BatchId, BatchType, BuildError, Casemapping, ChannelName,
-    InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick, Origin, Param,
-    ServerName, Typing, UnknownCasemapping, WireLine,
+    InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Origin, Param, ServerName, Typing,
+    UnknownCasemapping, WireLine,
 };
 pub use peer_key::{InvalidPeerKey, NotSamePerson, PeerKey, PeerKeyCheck, PeerKeyMismatch};
 pub use reconnect::Reconnect;

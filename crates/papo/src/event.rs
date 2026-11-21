@@ -512,7 +512,7 @@ pub struct ServerNotice {
 #[non_exhaustive]
 pub struct Other {
     /// The original parsed line.
-    pub line: ProtoLine,
+    pub line: crate::Line,
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -525,7 +525,7 @@ pub struct Other {
 }
 
 impl std::ops::Deref for Other {
-    type Target = ProtoLine;
+    type Target = crate::Line;
 
     fn deref(&self) -> &Self::Target {
         &self.line
@@ -1663,7 +1663,7 @@ pub(crate) fn other_from_line(line: ProtoLine, received_at: SystemTime) -> Event
     let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
         .and_then(|value| ServerTime::from_stored(&value).ok());
     Event::Other(Other {
-        line,
+        line: crate::Line(line),
         msgid,
         server_time,
         received_at,
