@@ -1075,7 +1075,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
 pub papo::event::ServerNotice::actor: papo::Source
 pub papo::event::ServerNotice::actor_party: papo::Party
 pub papo::event::ServerNotice::kind: papo::event::ServerNoticeKind
-pub papo::event::ServerNotice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ServerNotice::raw_text: alloc::string::String
 pub papo::event::ServerNotice::received_at: std::time::SystemTime
 pub papo::event::ServerNotice::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -1084,6 +1083,7 @@ pub papo::event::ServerNotice::text: alloc::string::String
 pub papo::event::ServerNotice::to: papo::event::Audience
 impl papo::event::ServerNotice
 pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::Account
+pub const fn papo::event::ServerNotice::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::ServerNotice::return_address(&self) -> core::option::Option<papo::NoticeRef>
 impl core::clone::Clone for papo::event::ServerNotice
 pub fn papo::event::ServerNotice::clone(&self) -> Self

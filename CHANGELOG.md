@@ -16,6 +16,8 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `TypingChanged::conversation()` replaces the corresponding field.
 
+`ServerNotice::msgid()` replaces the corresponding field.
+
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
 and account comparison, and `unstable` exposes experimental extension APIs without semantic
