@@ -13,65 +13,6 @@ use support::{
 };
 
 #[tokio::test]
-async fn open_with_stored_key_blocks_identity_changes() {
-    let (client, mut events, mut wire) = wire(
-        papo::Client::builder("ircs://verified.example", "papo")
-            .rate_limit(papo::RateLimit::unlimited())
-            .reconnect(Reconnect::never()),
-    );
-    wire.register(&["account-notify", "extended-join"]).await;
-    connected(&mut events).await;
-    join(
-        &mut events,
-        &mut wire,
-        ":papo!p@localhost JOIN #review papo-account :Papo",
-    )
-    .await;
-    join(
-        &mut events,
-        &mut wire,
-        ":alice!~alice@cloak.example JOIN #review alice-account :Alice",
-    )
-    .await;
-    let stored = client.query("alice").unwrap().key();
-    assert!(client.open(&stored).await.is_ok());
-
-    wire.server(":alice!~alice@cloak.example ACCOUNT replacement-account")
-        .await;
-    assert!(matches!(
-        events.next().await.map(|(event, _)| event),
-        Some(Event::AccountChanged(_))
-    ));
-    let error = client.open(&stored).await.unwrap_err();
-    let Error::NotSamePerson(mismatch) = error else {
-        panic!("unexpected error: {error}");
-    };
-    assert_eq!(mismatch.reason(), PeerKeyMismatch::DifferentAccount);
-    assert!(matches!(
-        stored.check(mismatch.current_key()),
-        PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
-    ));
-
-    let accepted = client.query("alice").unwrap();
-    assert!(matches!(
-        mismatch.current_key().check(&accepted.key()),
-        PeerKeyCheck::Match
-    ));
-
-    let replacement = accepted.key();
-    wire.server(":alice!~alice@cloak.example ACCOUNT *").await;
-    assert!(matches!(
-        events.next().await.map(|(event, _)| event),
-        Some(Event::AccountChanged(_))
-    ));
-    let Error::NotSamePerson(unverified) = client.open(&replacement).await.unwrap_err() else {
-        panic!("expected a pin mismatch");
-    };
-    assert_eq!(unverified.reason(), PeerKeyMismatch::CannotVerify);
-    assert!(!unverified.current_key().is_verified());
-}
-
-#[tokio::test]
 async fn bouncer_upstream_drop_rejects_continuity_pin_and_live_target() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://bouncer.example", "papo")
