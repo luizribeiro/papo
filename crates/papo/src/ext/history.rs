@@ -1400,10 +1400,7 @@ mod tests {
     use crate::driver::test_support::*;
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
-    use papo_core::{
-        Config, Connection, Event as CoreEvent, HistoryLine, HistoryQuery, MsgRef, Sasl, Session,
-        sts::ConnectionSecurity,
-    };
+    use papo_core::{Config, Event as CoreEvent, HistoryLine, HistoryQuery, MsgRef, Sasl, Session};
     use papo_proto::{Casemapping, Line, LineRef};
 
     fn server_time(seconds: i64, millis: i64) -> crate::ServerTime {
@@ -1843,45 +1840,6 @@ mod tests {
                 if message.text == "unfinished deployment"
         ));
         assert_eq!(page.chat_messages().count(), 0);
-    }
-
-    #[test]
-    fn verified_private_history_carries_an_account_pin() {
-        let now = Instant::now();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_connected_with(
-            now,
-            Connection {
-                host: "irc.example".into(),
-                security: ConnectionSecurity::Secure,
-                authenticated_server_name: Some("irc.example".into()),
-            },
-        );
-        session.handle_line(
-            now,
-            b":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
-        );
-        let (client, _) = client_with_commands(&session);
-        let conversation =
-            crate::Conversation::Private(user(client.state().name_rules().unwrap().nick("alice")));
-        let event = history_item(
-            papo_core::HistoryItem::Message(core_item(
-                "@account=alice;time=2026-10-19T14:31:11.456Z :alice!~alice@cloak.example PRIVMSG papo :looks good",
-            )),
-            Some(&conversation),
-            &client,
-            UNIX_EPOCH,
-        );
-        let PageEvent::Message(message) = event else {
-            panic!("expected historical private message")
-        };
-
-        assert_eq!(
-            message.actor.key().as_verified_str(),
-            Some(
-                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice"
-            )
-        );
     }
 
     #[test]

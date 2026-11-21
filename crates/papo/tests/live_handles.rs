@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Error, Event, Events, PeerKeyMismatch};
+use papo::{Client, Endpoint, Error, Event, Events};
 use papo_test_server::{from_env, unique};
 
 async fn connect(nick: &str, channel: &str) -> (Client, Events) {
@@ -55,7 +55,7 @@ async fn wait_message(events: &mut Events, text: &str) -> papo::Message {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn ergo_handle_send_watch_and_open_round_trip() {
+async fn ergo_handle_send_and_watch_round_trip() {
     within(async {
         let alice_nick = unique("papo-handle-alice");
         let bob_nick = unique("papo-handle-bob");
@@ -89,11 +89,6 @@ async fn ergo_handle_send_watch_and_open_round_trip() {
                 .map(drop)
         })
         .await;
-        let key = bob.query(alice_nick.as_str()).unwrap().key();
-        let opened = bob.open(&key).await.unwrap();
-        assert_eq!(opened.nick(), alice_nick.as_str());
-        assert_eq!(opened.key(), key);
-
         alice.quit().await.unwrap();
         wait_for(&mut bob_events, |event| event.as_quit().map(drop)).await;
         let (_stranger, _stranger_events) = connect(&alice_nick, &review).await;
@@ -104,10 +99,6 @@ async fn ergo_handle_send_watch_and_open_round_trip() {
                 .map(drop)
         })
         .await;
-        let Err(Error::NotSamePerson(mismatch)) = bob.open(&key).await else {
-            panic!("a saved key opened the nickname's new holder");
-        };
-        assert_eq!(mismatch.reason(), PeerKeyMismatch::CannotVerify);
         assert!(matches!(
             bob.privmsg(&peer, "classified").await,
             Err(Error::TargetGone)

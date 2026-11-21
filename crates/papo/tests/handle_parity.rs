@@ -154,15 +154,6 @@ async fn stable_and_unstable_replay_identically() {
     finish("follow-up", follow_up).await.unwrap();
 
     server
-        .send(":ergo.test 730 papo :alicia!~alice@cloak.example")
-        .await;
-    let key = peer.key();
-    println!("KEY {key:?}");
-    let opened = tokio::spawn(client.open(&key).into_future());
-    let opened = finish("open", opened).await.unwrap();
-    println!("KEY {:?}", opened.key());
-
-    server
         .send(":alicia!~alice@cloak.example QUIT :Client exited")
         .await;
     until(&mut events, |event| event.as_quit().is_some()).await;

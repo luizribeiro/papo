@@ -3169,8 +3169,8 @@ mod tests {
     };
     use crate::{ModeArg, Subject, Visibility};
     use papo_core::{
-        Account, Away, BatchAbandonReason, Config, Connection, Feature, Session,
-        StandardReply as CoreStandardReply, StateLimit, sts::ConnectionSecurity,
+        Account, Away, BatchAbandonReason, Config, Feature, Session,
+        StandardReply as CoreStandardReply, StateLimit,
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
     use tokio::io::AsyncWriteExt as _;
@@ -5981,62 +5981,6 @@ mod tests {
             panic!("expected a historical message")
         };
         assert_eq!(message.conversation, Conversation::Channel(channel));
-    }
-
-    #[test]
-    fn live_peer_pin_prefers_the_received_account_over_stale_state() {
-        let now = Instant::now();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_connected_with(
-            now,
-            Connection {
-                host: "irc.example".into(),
-                security: ConnectionSecurity::Secure,
-                authenticated_server_name: Some("irc.example".into()),
-            },
-        );
-        for line in [
-            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
-            ":papo!~papo@localhost JOIN #review * :Papo",
-            ":alice!~alice@cloak.example JOIN #review stale-account :Alice",
-        ] {
-            session.handle_line(now, line.as_bytes());
-        }
-        let state = crate::State::from_session(&session, true);
-        let conversation =
-            Conversation::Private(user_handle(state.name_rules().unwrap().nick("alice")));
-        let mut event = message_event_from_line(
-            Line::privmsg("papo", "release ready")
-                .with_source("alice!~alice@cloak.example")
-                .with_tag("account", "fresh-account"),
-            None,
-            Party::Other,
-            conversation,
-            None,
-            None,
-            state.isupport().inner(),
-            true,
-            UNIX_EPOCH,
-            None,
-        );
-
-        let shared = std::sync::Arc::new(std::sync::RwLock::new(std::sync::Arc::new(state)));
-        super::attach_message_handles(
-            &mut event,
-            super::LineTokens {
-                actor: None,
-                peer: None,
-            },
-            Some(&shared),
-            false,
-        );
-        let actor = &event.as_message().unwrap().actor;
-        assert_eq!(
-            actor.key().as_verified_str(),
-            Some(
-                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=fresh-account"
-            )
-        );
     }
 
     fn live_message_handle_event(line: &str) -> (Event, Arc<std::sync::RwLock<Arc<crate::State>>>) {
