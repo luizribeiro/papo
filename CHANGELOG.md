@@ -5,9 +5,9 @@
 The first release of papo provides an asynchronous IRC client for applications and bots, broad
 IRCv3 support, deterministic protocol state, and native, WASI, and browser transports. `papo` is
 the supported application API; see the [IRCv3 support table](docs/ircv3-support.md) for the full
-protocol surface. `papo-testing` is published and version-locked to `papo`, with no stability
-promise even between patch releases. `papo-core` and `papo-proto` are internal lockstep
-implementation crates without independent stability guarantees.
+protocol surface. The 0.1 release includes `papo-testing`, version-locked to `papo` with no
+stability promise even between patch releases. `papo-bot` stays unpublished. `papo-core` and
+`papo-proto` are internal lockstep implementation crates without independent stability guarantees.
 
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
@@ -287,6 +287,8 @@ papo's test-construction hooks require the internal `__testing` feature, which `
 
 Use `papo_testing::unsupported` to build unavailable-feature diagnostics in tests. The `papo` crate
 now defines `Unsupported` with its existing `feature` and `reason` fields.
+
+Use `papo_testing::ErrorBuilder` to build disconnect and server-refusal fixtures in tests.
 
 The hidden `Source::from_proto` constructor is removed; sources come only from received lines.
 

@@ -3,8 +3,8 @@
 Test helpers for apps built with `papo`: an in-memory server to run your client against, and
 builders for representative `papo` values.
 
-`papo-testing` has no API stability promise, not even between patch releases. Its version always
-matches `papo`'s, so pin both crates to the same exact version:
+`papo-testing` is published alongside `papo` and has no stability promise, even between patch
+releases. Pin both crates to the same exact version.
 
 ```toml
 [dev-dependencies]
@@ -12,7 +12,8 @@ papo = "=0.1.0"
 papo-testing = "=0.1.0"
 ```
 
-The supported surface is `wire()` plus the value builders. Live-server fixtures stay in papo's
+Use `wire()` for scripted connections, `ErrorBuilder` for disconnects and server refusals, and
+`unsupported()` for unavailable-feature diagnostics. Live-server fixtures stay in papo's
 own conformance suite.
 
 ## Test a bot without a server
