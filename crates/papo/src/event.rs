@@ -3816,20 +3816,19 @@ mod tests {
 
     type ActorAccount = fn(&Event) -> Option<&Account>;
 
-    fn assert_tagged_actor_accounts(cases: &[(&str, ActorAccount)]) {
+    fn tagged_actor_accounts<const N: usize>(cases: [(&str, ActorAccount); N]) -> [Account; N] {
         let now = Instant::now();
-        for &(kind, account) in cases {
+        cases.map(|(kind, account)| {
             let (_, _, line) = MESSAGE_EVENT_METADATA_CASES
                 .iter()
                 .find(|(name, _, _)| *name == kind)
                 .unwrap();
             let line = line.replacen('@', "@account=reviewer;", 1);
             let event = mapped_live_event(&line, now);
-            assert!(
-                matches!(account(&event), Some(Account::LoggedIn(name)) if name == "reviewer"),
-                "{kind}: {event:?}"
-            );
-        }
+            account(&event)
+                .unwrap_or_else(|| panic!("expected {kind}, got {event:?}"))
+                .clone()
+        })
     }
 
     #[test]
@@ -3854,7 +3853,7 @@ mod tests {
 
     #[test]
     fn channel_events_report_the_tagged_actor_account() {
-        assert_tagged_actor_accounts(&[
+        let accounts = tagged_actor_accounts([
             ("TopicChanged", |event| {
                 event
                     .as_topic_changed()
@@ -3871,11 +3870,16 @@ mod tests {
                     .map(super::ChannelRenamed::actor_account)
             }),
         ]);
+        let expected = Casemapping::default().account("reviewer");
+        assert_eq!(
+            accounts,
+            [(); 3].map(|()| Account::LoggedIn(expected.clone()))
+        );
     }
 
     #[test]
     fn user_events_report_the_tagged_actor_account() {
-        assert_tagged_actor_accounts(&[
+        let accounts = tagged_actor_accounts([
             ("Quit", |event| {
                 event.as_quit().map(super::Quit::actor_account)
             }),
@@ -3885,6 +3889,11 @@ mod tests {
                     .map(super::NickChanged::actor_account)
             }),
         ]);
+        let expected = Casemapping::default().account("reviewer");
+        assert_eq!(
+            accounts,
+            [(); 2].map(|()| Account::LoggedIn(expected.clone()))
+        );
     }
 
     #[test]
@@ -3949,7 +3958,7 @@ mod tests {
 
     #[test]
     fn broadcasts_events_report_the_tagged_actor_account() {
-        assert_tagged_actor_accounts(&[
+        let accounts = tagged_actor_accounts([
             ("CtcpQuery", |event| {
                 event.as_ctcp_query().map(super::CtcpQuery::actor_account)
             }),
@@ -3967,11 +3976,16 @@ mod tests {
                     .map(super::BroadcastTagMsg::actor_account)
             }),
         ]);
+        let expected = Casemapping::default().account("reviewer");
+        assert_eq!(
+            accounts,
+            [(); 4].map(|()| Account::LoggedIn(expected.clone()))
+        );
     }
 
     #[test]
     fn tagged_events_report_the_tagged_actor_account() {
-        assert_tagged_actor_accounts(&[
+        let accounts = tagged_actor_accounts([
             ("TagMsg", |event| {
                 event.as_tag_msg().map(super::TagMsg::actor_account)
             }),
@@ -3982,6 +3996,11 @@ mod tests {
                 event.as_redacted().map(super::Redacted::actor_account)
             }),
         ]);
+        let expected = Casemapping::default().account("reviewer");
+        assert_eq!(
+            accounts,
+            [(); 3].map(|()| Account::LoggedIn(expected.clone()))
+        );
     }
 
     #[test]
