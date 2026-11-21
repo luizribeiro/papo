@@ -10,5 +10,8 @@ publish = false
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 serde_json = "1.0.149"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [lints]
 workspace = true

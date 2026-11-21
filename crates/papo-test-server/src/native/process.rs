@@ -9,6 +9,10 @@ use std::{
 
 use super::{activity, startup::StartupBudget};
 
+#[cfg_attr(unix, path = "process/unix.rs")]
+#[cfg_attr(not(unix), path = "process/other.rs")]
+mod platform;
+
 const STDERR_LIMIT: usize = 4096;
 const START_ATTEMPTS: usize = 3;
 pub(crate) struct ServerChild {
@@ -19,6 +23,7 @@ pub(crate) struct ServerChild {
 
 impl ServerChild {
     pub(crate) fn spawn(command: &mut Command) -> io::Result<Self> {
+        platform::prepare(command);
         let mut child = command
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -52,8 +57,8 @@ impl ServerChild {
     }
 
     pub(crate) fn try_wait(&mut self, name: &str) -> io::Result<Option<ExitStatus>> {
-        if let Some(status) = self.child.try_wait()? {
-            self.finish_reader();
+        if self.reader.is_none() || platform::exited(&mut self.child, false)? {
+            let status = self.stop_and_wait()?;
             return Err(self.failure(io::ErrorKind::Other, format!("{name} exited with {status}")));
         }
         Ok(None)
@@ -61,8 +66,11 @@ impl ServerChild {
 
     /// Waits for a one-shot child, failing with its stderr tail unless it succeeds.
     pub(crate) fn finish(mut self, name: &str) -> io::Result<()> {
-        let status = self.child.wait()?;
-        self.finish_reader();
+        drop(self.child.stdin.take());
+        if self.reader.is_some() {
+            platform::exited(&mut self.child, true)?;
+        }
+        let status = self.stop_and_wait()?;
         if status.success() {
             return Ok(());
         }
@@ -105,18 +113,18 @@ impl ServerChild {
     }
 
     pub(crate) fn stop(&mut self) -> io::Result<()> {
-        if self.child.try_wait()?.is_none() {
-            self.child.kill()?;
-            self.child.wait()?;
-        }
-        self.finish_reader();
-        Ok(())
+        self.stop_and_wait().map(|_| ())
     }
 
-    fn finish_reader(&mut self) {
+    fn stop_and_wait(&mut self) -> io::Result<ExitStatus> {
+        if self.reader.is_some() {
+            platform::kill(&mut self.child)?;
+        }
+        let status = self.child.wait()?;
         if let Some(reader) = self.reader.take() {
             let _ = reader.join();
         }
+        Ok(status)
     }
 
     fn failure(&self, kind: io::ErrorKind, summary: String) -> io::Error {
@@ -209,7 +217,7 @@ impl Tail {
 mod tests {
     use std::{io, process::Command};
 
-    use super::{Failure, STDERR_LIMIT, ServerChild, Tail, retry_start};
+    use super::{Failure, STDERR_LIMIT, ServerChild, Tail, platform, retry_start};
     use crate::native::startup::tests::settled_budget;
 
     #[test]
@@ -257,12 +265,62 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn teardown_stops_helpers_that_keep_stderr_open() {
+        use std::process::Stdio;
+        use std::sync::mpsc;
+        use std::thread;
+        use std::time::{Duration, Instant};
+
+        type Teardown = fn(ServerChild);
+        let cases: [(&str, Teardown); 3] = [
+            ("stop", |mut child| {
+                child.check("Solanum").unwrap();
+                child.stop().unwrap();
+            }),
+            ("check", |mut child| {
+                while child.check("Solanum").is_ok() {
+                    thread::yield_now();
+                }
+            }),
+            ("finish", |child| child.finish("ergo initdb").unwrap()),
+        ];
+        for (mode, teardown) in cases {
+            let script = "exec 3<&0
+                          sh -c 'echo helper ready >&2; read -r _ <&3' &
+                          case $mode in stop) wait ;; check) exit 1 ;; esac";
+            let mut child = ServerChild::spawn(
+                Command::new("sh")
+                    .args(["-c", script])
+                    .env("mode", mode)
+                    .stdin(Stdio::piped()),
+            )
+            .unwrap();
+            let release = child.child.stdin.take().unwrap();
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while !child.stderr.lock().unwrap().text().contains("helper ready") {
+                assert!(Instant::now() < deadline, "helper did not start");
+                thread::yield_now();
+            }
+            thread::scope(|scope| {
+                let (send, recv) = mpsc::channel();
+                scope.spawn(move || {
+                    teardown(child);
+                    let _ = send.send(());
+                });
+                let result = recv.recv_timeout(Duration::from_secs(10));
+                drop(release);
+                result.expect(mode);
+            });
+        }
+    }
+
     #[test]
     fn child_id_matches_the_spawned_process() {
-        let mut child = ServerChild::spawn(Command::new("sh").args(["-c", "exit 0"])).unwrap();
+        let child = ServerChild::spawn(Command::new("sh").args(["-c", "exit 0"])).unwrap();
 
         assert_eq!(child.id(), child.child.id());
-        child.child.wait().unwrap();
     }
 
     #[test]
@@ -272,7 +330,7 @@ mod tests {
             "printf 'loading ircd.yaml\\nlisten: address already in use\\n' >&2",
         ]))
         .unwrap();
-        child.child.wait().unwrap();
+        assert!(platform::exited(&mut child.child, true).unwrap());
 
         let error = child.try_wait("Ergo").unwrap_err();
 
