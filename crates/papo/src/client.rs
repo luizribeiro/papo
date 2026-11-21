@@ -56,14 +56,8 @@ pub struct Client {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct SendOutcome {
-    /// IRC conversation to which the message was sent.
-    ///
-    /// See [`crate::Conversation`] for status-prefixed line guidance.
-    pub conversation: crate::Conversation,
-    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
-    ///
-    /// See [`crate::Conversation`] for status-prefixed line guidance.
-    pub status: Option<crate::Prefix>,
+    conversation: crate::Conversation,
+    status: Option<crate::Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Each logical line papo sent, in send order, with the server's confirmation of it.
     ///
@@ -573,6 +567,22 @@ impl IntoFuture for SendMessage {
 }
 
 impl SendOutcome {
+    /// Returns the sent message's conversation, kept read-only to match its return address.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub const fn conversation(&self) -> &crate::Conversation {
+        &self.conversation
+    }
+
+    /// Returns the lowest-ranked `STATUSMSG` prefix, kept read-only to preserve the sent audience.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub const fn status(&self) -> Option<crate::Prefix> {
+        self.status
+    }
+
     /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {

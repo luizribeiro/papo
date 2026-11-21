@@ -293,7 +293,7 @@ async fn a_ctcp_reply_resolves_to_its_labelled_echo() {
     )
     .await;
     let outcome = within(reply).await.unwrap().unwrap();
-    assert_eq!(outcome.conversation.to_string(), "emily");
+    assert_eq!(outcome.conversation().to_string(), "emily");
     assert_eq!(
         outcome.lines,
         [crate::SentLine {

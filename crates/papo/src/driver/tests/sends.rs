@@ -31,7 +31,7 @@ async fn a_send_through_a_handle_reports_the_membership_it_was_sent_through() {
     });
     client_line(&mut server, b"PRIVMSG #papo :deploy finished\r\n").await;
     let sent = within(sent).await.unwrap().unwrap();
-    assert_eq!(sent.conversation, crate::Conversation::Channel(handle));
+    assert_eq!(sent.conversation(), &crate::Conversation::Channel(handle));
     task.abort();
 }
 

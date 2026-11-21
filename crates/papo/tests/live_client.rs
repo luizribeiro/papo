@@ -47,8 +47,8 @@ async fn registers_messages_itself_and_quits() {
             .await
             .unwrap();
         assert!(matches!(
-            sent.conversation,
-            papo::Conversation::Private(ref other) if other == nick.as_str()
+            sent.conversation(),
+            papo::Conversation::Private(other) if other == nick.as_str()
         ));
         assert!(matches!(
             sent.lines.as_slice(),

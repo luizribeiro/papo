@@ -18,6 +18,8 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `ServerNotice::msgid()` replaces the corresponding field.
 
+`SendOutcome::conversation()` and `SendOutcome::status()` replace the corresponding fields.
+
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
 and account comparison, and `unstable` exposes experimental extension APIs without semantic
@@ -724,7 +726,7 @@ for line in &sent.lines {
 }
 ```
 
-`SendOutcome` has no `msgid`, `line_msgids` or `server_time`. `SendOutcome::status` is
+`SendOutcome` has no `msgid`, `line_msgids` or `server_time`. `SendOutcome::status()` returns
 `Option<Prefix>`, and
 `return_address()` returns a guarded `MessageRef`. Reacting or redacting an unconfirmed send fails
 because it has no server message ID. Redacting a confirmed split send processes every line in send
