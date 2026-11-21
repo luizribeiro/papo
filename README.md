@@ -96,6 +96,7 @@ So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out an
 
 - [docs.rs/papo](https://docs.rs/papo): the API guide, including platforms and Cargo features
 - [papo-testing](crates/papo-testing): testing your app against a scripted in-memory server, plus a guide to end-to-end tests against a local Ergo
+- [papo-format](crates/papo-format): send IRC-formatted text and read styled runs from incoming messages
 - [CHANGELOG.md](CHANGELOG.md)
 - [docs/](docs): IRCv3 support, conformance results and server notes
 - [CONTRIBUTING.md](CONTRIBUTING.md)
