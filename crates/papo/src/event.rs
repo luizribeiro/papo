@@ -2080,7 +2080,11 @@ fn attach_user_message_handle(
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
 ) {
-    *actor = event_handle(actor, tokens.actor, state, historical);
+    *actor = if historical && matches!(conversation, Conversation::Private(_)) {
+        crate::UserHandle::from_private_history(actor.nick(), actor.account().clone(), state)
+    } else {
+        event_handle(actor, tokens.actor, state, historical)
+    };
     if let Conversation::Private(peer) = conversation {
         *peer = private_peer_handle(actor, actor_party, peer, tokens, state, historical);
     }
@@ -2138,20 +2142,15 @@ pub(crate) fn attach_message_handles(
         Event::TypingChanged(event) => user_event!(event),
         Event::Redacted(event) => {
             if let Source::User(actor) = &mut event.actor {
-                *actor = event_handle(actor, tokens.actor, state, historical);
-                if let Conversation::Private(peer) = &mut event.conversation {
-                    *peer = private_peer_handle(
-                        actor,
-                        event.actor_party,
-                        peer,
-                        tokens,
-                        state,
-                        historical,
-                    );
-                }
-                event
-                    .receipt
-                    .update_event_actor(Source::User(actor.clone()), &event.conversation);
+                attach_user_message_handle(
+                    actor,
+                    event.actor_party,
+                    &mut event.conversation,
+                    &mut event.receipt,
+                    tokens,
+                    state,
+                    historical,
+                );
             }
         }
         Event::ServerNotice(event) => {

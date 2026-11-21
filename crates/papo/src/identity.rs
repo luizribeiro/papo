@@ -10,6 +10,9 @@ pub(crate) async fn prove(
     if handle.nick().origin() != client.origin() {
         return Err(crate::ForeignReference.into());
     }
+    if handle.is_private_history() {
+        return Err(crate::Error::TargetGone);
+    }
     if let Some(proof) = handle.proof() {
         let nick = client
             .state()

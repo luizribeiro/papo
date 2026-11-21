@@ -32,16 +32,16 @@ async fn setup() -> (papo::Client, papo::Events, Wire) {
 async fn history_actor(client: &papo::Client, wire: &mut Wire) -> papo::UserHandle {
     let request = tokio::spawn({
         let client = client.clone();
-        async move { client.history("alice").latest().limit(10).await }
+        async move { client.history("#release").latest().limit(10).await }
     });
     assert_eq!(
         wire.next_sent().await,
-        "@label=0 CHATHISTORY LATEST alice * 10"
+        "@label=0 CHATHISTORY LATEST #release * 10"
     );
     for line in [
         "@label=0 :offline.test BATCH +reply labeled-response",
-        "@batch=reply :offline.test BATCH +history chathistory alice",
-        "@batch=history;time=2026-11-15T10:00:00.000Z;msgid=hist-alice-1;account=alice-account :alice!~alice@cloak.example PRIVMSG papo :please send me the deploy token",
+        "@batch=reply :offline.test BATCH +history chathistory #release",
+        "@batch=history;time=2026-11-15T10:00:00.000Z;msgid=hist-alice-1;account=alice-account :alice!~alice@cloak.example PRIVMSG #release :I can review the deploy notes",
         "@batch=reply :offline.test BATCH -history",
         ":offline.test BATCH -reply",
     ] {

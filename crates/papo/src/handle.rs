@@ -197,7 +197,8 @@ impl Drop for WatchLease {
 /// A live identity for one IRC user.
 ///
 /// For a handle carried by an event, read mutable user facts from that event's paired
-/// [`crate::State`] with [`crate::State::user`].
+/// [`crate::State`] with [`crate::State::user`]. To answer a private history item, pass
+/// the item to [`crate::Client::reply`]. Sending to its actor returns [`crate::Error::TargetGone`].
 #[derive(Clone)]
 pub struct UserHandle(Arc<UserInner>);
 
@@ -208,7 +209,14 @@ struct UserInner {
     account: crate::Account,
     proof: OnceLock<papo_core::Proven>,
     state: Option<Arc<RwLock<Arc<crate::State>>>>,
-    historical: bool,
+    history: History,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum History {
+    Live,
+    Archived,
+    Private,
 }
 
 #[allow(dead_code)]
@@ -235,14 +243,14 @@ impl UserHandle {
         proof: Option<papo_core::Proven>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
-        Self::from_parts_kind(nick, account, proof, state, false)
+        Self::from_parts_kind(nick, account, proof, state, History::Live)
     }
 
     /// Builds the handle for a person a line names in the past: an archived line, a topic
     /// setter, or the setter of a list-mode entry. papo never saw that line's sender live, so a
     /// send through it is refused unless the line named an account the current holder proves.
     pub(crate) fn from_past_line(nick: crate::Nick, account: crate::Account) -> Self {
-        Self::from_parts_kind(nick, account, None, None, true)
+        Self::from_parts_kind(nick, account, None, None, History::Archived)
     }
 
     fn from_parts_kind(
@@ -250,7 +258,7 @@ impl UserHandle {
         account: crate::Account,
         proof: Option<papo_core::Proven>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
-        historical: bool,
+        history: History,
     ) -> Self {
         let identity = proof
             .as_ref()
@@ -269,7 +277,7 @@ impl UserHandle {
             account,
             proof: stored,
             state: state.map(Arc::clone),
-            historical,
+            history,
         }))
     }
 
@@ -312,7 +320,7 @@ impl UserHandle {
         token: Option<papo_core::ReplyToken>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
-        Self::from_line(nick, account, state, false, |snapshot, nick, _| {
+        Self::from_line(nick, account, state, History::Live, |snapshot, nick, _| {
             token.or_else(|| Some(snapshot.core.__reply_token_for(nick.as_str())))
         })
     }
@@ -322,14 +330,27 @@ impl UserHandle {
         account: crate::Account,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
-        Self::from_line(nick, account, state, true, historical_token)
+        Self::from_line(nick, account, state, History::Archived, historical_token)
+    }
+
+    // A private history actor still carries the account evidence available to peer keys.
+    pub(crate) fn from_private_history(
+        nick: crate::Nick,
+        account: crate::Account,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
+        Self::from_line(nick, account, state, History::Private, historical_token)
+    }
+
+    pub(crate) fn is_private_history(&self) -> bool {
+        self.0.history == History::Private
     }
 
     fn from_line(
         nick: crate::Nick,
         account: crate::Account,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
-        historical: bool,
+        history: History,
         token: impl FnOnce(
             &crate::State,
             &crate::Nick,
@@ -346,12 +367,12 @@ impl UserHandle {
                 .__prove_event_user(token, nick.clone(), account.clone())
                 .ok()
                 .or_else(|| {
-                    (!historical && nick == *snapshot.nick())
+                    (history == History::Live && nick == *snapshot.nick())
                         .then(|| capture_proof(&snapshot, &nick, &account))
                         .flatten()
                 })
         });
-        Self::from_parts_kind(nick, account, proof, state, historical)
+        Self::from_parts_kind(nick, account, proof, state, history)
     }
 
     pub(crate) fn proof(&self) -> Option<&papo_core::Proven> {
@@ -377,13 +398,13 @@ impl UserHandle {
     }
 
     pub(crate) fn is_unproven_history(&self) -> bool {
-        self.0.historical && self.proof().is_none()
+        self.__names_a_past_line() && self.proof().is_none()
     }
 
     #[doc(hidden)]
     #[must_use]
     pub fn __names_a_past_line(&self) -> bool {
-        self.0.historical
+        self.0.history != History::Live
     }
 
     /// Returns the current nickname, or the last known nickname after departure.
