@@ -96,6 +96,37 @@ fn classifies_server_broadcast_and_private_conversations() {
 }
 
 #[test]
+fn preserves_server_mask_ctcp_and_tagmsg_without_a_conversation() {
+    let mut transcript = Transcript::new(Config::default().nick("papolistener"));
+    for (wire, command, mask, body, tag) in [
+        (
+            ":paposender!~papo@127.0.0.1 PRIVMSG $$*.papo.test :\x01PING 77831\x01",
+            "PRIVMSG",
+            "$$*.papo.test",
+            Some("\x01PING 77831\x01"),
+            None,
+        ),
+        (
+            "@+typing=active;msgid=eYnzo2YpwKbTst806zPvU8;time=2026-11-21T04:12:52.640Z :paposender!papo@localhost TAGMSG $irc.papo.test :",
+            "TAGMSG",
+            "$irc.papo.test",
+            Some(""),
+            Some("active"),
+        ),
+    ] {
+        transcript = transcript.server(wire).event(|event| {
+            matches!(event, Event::Line(line)
+                if line.conversation().is_none()
+                    && line.as_ref().command_is(command)
+                    && line.as_ref().param(0) == Some(mask)
+                    && line.as_ref().param(1) == body
+                    && line.as_ref().tag("+typing").as_deref() == tag)
+        });
+    }
+    transcript.no_event().no_client();
+}
+
+#[test]
 fn classifies_numerics_as_server_lines_without_a_source() {
     Transcript::new(Config::default().nick("papo"))
         .server("404 papo #papo :Cannot send to channel")

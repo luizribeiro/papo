@@ -752,6 +752,74 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+fn broadcast_mask() -> Option<&'static str> {
+    match std::env::var("PAPO_TEST_PROFILE").as_deref() {
+        Ok("solanum") => Some("$$*.papo.test"),
+        Ok("unrealircd") => Some("$*.papo.test"),
+        _ => None,
+    }
+}
+
+async fn broadcast_operator(s: &Scenario) -> papo_testing::Result<Peer> {
+    let operator = s.connect("oper").await?;
+    operator
+        .oper(
+            papo_test_server::OPER_NAME,
+            papo::Secret::new(papo_test_server::OPER_PASSWORD),
+        )
+        .await?;
+    Ok(operator)
+}
+
+/// delivers a server-mask CTCP query with its original audience
+#[scenario(covers = ["base.ctcp.server-mask"])]
+async fn broadcast_ctcp_server_mask(s: Scenario) -> papo_testing::Result<()> {
+    let Some(mask) = broadcast_mask() else {
+        return s.skip("the selected profile does not preserve CTCP server masks");
+    };
+    let operator = broadcast_operator(&s).await?;
+    let mut recipient = s.connect("recipient").await?;
+    let nick = operator.snapshot().nick().clone();
+    operator
+        .send_raw(papo::Line::privmsg(mask, "\u{1}PING 1735689600\u{1}"))
+        .await?;
+    let broadcast = recipient
+        .wait_for(|event| {
+            event
+                .as_broadcast_ctcp()
+                .filter(|ctcp| ctcp.actor.nick() == nick.as_str())
+        })
+        .await?;
+    assert_eq!(broadcast.command, "PING");
+    assert_eq!(broadcast.params.as_deref(), Some("1735689600"));
+    assert!(matches!(broadcast.to, papo::event::Broadcast::Mask(to) if to.as_str() == mask));
+    Ok(())
+}
+
+/// delivers a server-mask TAGMSG with its tags and original audience
+#[scenario(requires(caps = ["message-tags"]), covers = ["ircv3.message-tags.server-mask"])]
+async fn broadcast_tagmsg_server_mask(s: Scenario) -> papo_testing::Result<()> {
+    let Some(mask) = broadcast_mask() else {
+        return s.skip("the selected profile does not preserve TAGMSG server masks");
+    };
+    let operator = broadcast_operator(&s).await?;
+    let mut recipient = s.connect("recipient").await?;
+    let nick = operator.snapshot().nick().clone();
+    operator
+        .send_raw(papo::Line::tagmsg(mask).with_tag(papo::tags::keys::TYPING, "active"))
+        .await?;
+    let broadcast = recipient
+        .wait_for(|event| {
+            event
+                .as_broadcast_tag_msg()
+                .filter(|tagmsg| tagmsg.actor.nick() == nick.as_str())
+        })
+        .await?;
+    assert_eq!(broadcast.tags.get(papo::tags::keys::TYPING), Some("active"));
+    assert!(matches!(broadcast.to, papo::event::Broadcast::Mask(to) if to.as_str() == mask));
+    Ok(())
+}
+
 /// leaves channel CTCP queries to the application, which can reply privately
 #[scenario(covers = [
     "base.ctcp.channel-query-private-reply",
