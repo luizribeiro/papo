@@ -3873,7 +3873,7 @@ pub fn papo::State::monitored(&self) -> impl core::iter::traits::exact_size::Exa
 pub const fn papo::State::name_rules(&self) -> core::option::Option<papo::NameRules<'_>>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>
-pub fn papo::State::presence(&self, &papo::UserHandle) -> core::result::Result<papo::Presence, papo::ForeignReference>
+pub fn papo::State::presence(&self, impl papo::AsNick) -> core::result::Result<papo::Presence, papo::ForeignReference>
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool

@@ -10,6 +10,7 @@ fn resolve_user_parts(
     state: &papo_core::State,
     parts: &crate::target::sealed::Parts<'_>,
 ) -> Result<Option<String>, crate::ForeignReference> {
+    crate::ForeignReference::require_local(parts.origin, state.nick().origin())?;
     let Some(proof) = parts.user.as_ref().and_then(crate::UserHandle::proof) else {
         return Ok(Some(parts.text().to_owned()));
     };
@@ -659,7 +660,6 @@ impl State {
         nick: impl crate::AsNick,
     ) -> Result<Option<&User>, crate::ForeignReference> {
         let nick = crate::AsNick::__parts(&nick);
-        crate::ForeignReference::require_local(nick.origin, self.nick().origin())?;
         let Some(nick) = resolve_user_parts(&self.core, &nick)? else {
             return Ok(None);
         };
@@ -673,14 +673,20 @@ impl State {
 
     /// Returns presence known through a shared channel or explicit monitoring.
     ///
+    /// Plain text and [`Nick`] check whoever holds that nickname. A [`crate::UserHandle`]
+    /// follows observed nickname changes.
+    ///
     /// # Errors
     ///
     /// Returns [`crate::ForeignReference`] when `user` belongs to another client.
-    pub fn presence(&self, user: &crate::UserHandle) -> Result<Presence, crate::ForeignReference> {
-        if self.user_checked(user)?.is_some() {
+    pub fn presence(&self, user: impl crate::AsNick) -> Result<Presence, crate::ForeignReference> {
+        let parts = crate::AsNick::__parts(&user);
+        if resolve_user_parts(&self.core, &parts)?
+            .is_some_and(|nick| self.core.user(nick).is_some())
+        {
             return Ok(Presence::Online);
         }
-        Ok(match self.core.__monitor_presence(user.nick().as_str()) {
+        Ok(match self.core.__monitor_presence(parts.text()) {
             Some(true) => Presence::Online,
             Some(false) => Presence::Offline,
             None => Presence::Unknown,

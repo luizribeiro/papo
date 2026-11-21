@@ -43,6 +43,8 @@ output tests. Their example binaries require TLS when sending credentials.
 
 `Client::watch` acquires a presence watch on a fixed nickname. `UserHandle::watch` follows observed renames.
 
+`State::presence` accepts plain text and `Nick` to check presence by nickname.
+
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 

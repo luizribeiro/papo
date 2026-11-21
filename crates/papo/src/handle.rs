@@ -829,14 +829,23 @@ mod tests {
 
         for (nick, expected) in [
             ("papo", crate::Presence::Online),
-            ("Alice", crate::Presence::Online),
+            ("ALICE", crate::Presence::Online),
             ("bob", crate::Presence::Online),
             ("carol", crate::Presence::Offline),
             ("dave", crate::Presence::Unknown),
         ] {
-            let user = client.query(nick).unwrap();
-            assert_eq!(client.state().presence(&user), Ok(expected), "{nick}");
+            let state = client.state();
+            let name = state.name_rules().unwrap().nick(nick);
+            assert_eq!(state.presence(nick), Ok(expected), "{nick}");
+            assert_eq!(state.presence(&name), Ok(expected), "{nick}");
+            let user = crate::UserHandle::from_current_state(name, Some(&client.state));
+            assert_eq!(state.presence(&user), Ok(expected), "{nick}");
         }
+        let foreign = crate::Origin::__new(73).__nick(client.state().casemapping(), "alice");
+        assert_eq!(
+            client.state().presence(foreign),
+            Err(crate::ForeignReference)
+        );
     }
 
     use papo_core::{Config, Session};
