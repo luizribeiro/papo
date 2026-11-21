@@ -9,10 +9,6 @@ use support::within;
 use papo::{AccountOutcome, Client, Endpoint, Event, NewAccount, Sasl};
 use papo_test_server::{from_env, unique};
 
-#[cfg(tls)]
-#[path = "live_accounts/tls.rs"]
-mod tls;
-
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 #[tokio::test(flavor = "current_thread")]
