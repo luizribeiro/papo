@@ -39,9 +39,9 @@ async fn fetch(server: &mut DuplexStream, client: &Client, transcript: &[u8]) ->
     within(request).await.unwrap().unwrap()
 }
 
-async fn fence(server: &mut DuplexStream) {
+async fn fence(server: &mut DuplexStream) -> Vec<u8> {
     server_line(server, b"PING :history-fence\r\n").await;
-    client_line(server, b"PONG history-fence\r\n").await;
+    next_client_line(server).await
 }
 
 async fn expect_send(server: &mut DuplexStream, expected: &str) {
@@ -114,7 +114,10 @@ async fn private_history_references_address_the_thread_peer_without_who() {
             within(client.reply(message, "status update")).await,
             Err(Error::TargetGone)
         ));
-        fence(&mut server).await;
+        assert_eq!(
+            fence(&mut server).await.as_slice(),
+            b"PONG history-fence\r\n"
+        );
         abort_task(task).await;
     }
 }
@@ -128,7 +131,10 @@ async fn private_history_actor_refuses_a_direct_send_even_with_a_matching_live_a
 :writer!~u@writer.irc JOIN #release writer :Release Writer\r\n",
     )
     .await;
-    fence(&mut server).await;
+    assert_eq!(
+        fence(&mut server).await.as_slice(),
+        b"PONG history-fence\r\n"
+    );
 
     let page = fetch(&mut server, &client, ERGO_PAGE).await;
     let archived = page.chat_messages().last().unwrap();
@@ -137,6 +143,9 @@ async fn private_history_actor_refuses_a_direct_send_even_with_a_matching_live_a
         within(client.privmsg(&archived.actor, "the next release is scheduled")).await,
         Err(Error::TargetGone)
     ));
-    fence(&mut server).await;
+    assert_eq!(
+        fence(&mut server).await.as_slice(),
+        b"PONG history-fence\r\n"
+    );
     abort_task(task).await;
 }
