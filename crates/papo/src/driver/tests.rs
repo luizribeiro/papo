@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 mod confirmations;
 mod history_message;
 mod ops_only;
+mod private_history;
 mod reactions;
 mod reasons;
 mod redactions;
