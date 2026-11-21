@@ -77,7 +77,7 @@ async fn assert_unverified_context(
     context: &str,
     text: &'static str,
 ) -> papo_testing::Result<()> {
-    let direct = sender.query(recipient.snapshot().nick().as_str())?;
+    let direct = recipient.snapshot().nick().to_string();
     let context_tag_allowed = context_tag_allowed(sender);
     let sent = sender
         .privmsg(&direct, text)
@@ -145,7 +145,7 @@ async fn part_for_unverified_context(
 async fn assert_shared_context(
     sender: &Peer,
     recipient: &mut Peer,
-    direct: &papo::UserHandle,
+    direct: &str,
     channel: &papo::ChannelName,
 ) -> papo_testing::Result<()> {
     let context_tag_allowed = context_tag_allowed(sender);
@@ -369,7 +369,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
 
-    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
+    let bob_direct = bob.snapshot().nick().to_string();
     let sent = alice.privmsg(&bob_direct, "private hello").await?;
     let received = bob
         .wait_for(|event| message_text(event, "private hello"))
@@ -391,8 +391,9 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
 
-    let alice_direct = bob.query(alice.snapshot().nick().as_str())?;
-    let sent = bob.notice(&alice_direct, "private notice").await?;
+    let sent = bob
+        .notice(alice.snapshot().nick().as_str(), "private notice")
+        .await?;
     let received = alice
         .wait_for(|event| notice_text(event, "private notice"))
         .await?;
@@ -411,7 +412,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
 
-    let own = alice.query(alice.snapshot().nick().clone())?;
+    let own = alice.snapshot().nick().clone();
     let sent = alice.privmsg(own, "note to self").await?;
     assert_eq!(
         conversation_name(&sent.conversation),
@@ -569,8 +570,10 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
 
-    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
-    alice.mode(&channel).voice(&bob_direct).await?;
+    alice
+        .mode(&channel)
+        .voice(bob.snapshot().nick().as_str())
+        .await?;
     let sent = alice
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
@@ -620,10 +623,14 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
 
-    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
-    let carol_direct = alice.query(carol.snapshot().nick().as_str())?;
-    alice.mode(&channel).op(&bob_direct).await?;
-    alice.mode(&channel).voice(&carol_direct).await?;
+    alice
+        .mode(&channel)
+        .op(bob.snapshot().nick().as_str())
+        .await?;
+    alice
+        .mode(&channel)
+        .voice(carol.snapshot().nick().as_str())
+        .await?;
     let sent = carol
         .privmsg(format!("+{channel}"), "voiced members only")
         .await?;
@@ -1086,8 +1093,7 @@ async fn private_reaction_to_away_user(s: Scenario) -> papo_testing::Result<()> 
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let bob_nick = bob.snapshot().nick().to_string();
-    let alice_direct = bob.query(alice.snapshot().nick().as_str())?;
-    bob.privmsg(&alice_direct, "the build is green again")
+    bob.privmsg(alice.snapshot().nick().as_str(), "the build is green again")
         .await?;
     let original = alice
         .wait_for(|event| message_text(event, "the build is green again"))
@@ -1119,9 +1125,8 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let alice_nick = alice.snapshot().nick().clone();
     let bob_nick = bob.snapshot().nick().clone();
-    let bob_direct = alice.query(bob_nick.as_str())?;
 
-    alice.typing(&bob_direct, Typing::Active).await?;
+    alice.typing(bob_nick.as_str(), Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
 
     assert_eq!(crate::source_nick(&typing.actor), Some(alice_nick.as_str()));
@@ -1131,14 +1136,14 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(typing.state, Typing::Active);
 
-    alice.typing(&bob_direct, Typing::Active).await?;
+    alice.typing(bob_nick.as_str(), Typing::Active).await?;
     bob.expect_none(Event::as_typing_changed).await?;
-    alice.typing(&bob_direct, Typing::Paused).await?;
+    alice.typing(bob_nick.as_str(), Typing::Paused).await?;
     assert_eq!(
         bob.wait_for(Event::as_typing_changed).await?.state,
         Typing::Paused
     );
-    alice.typing(&bob_direct, Typing::Done).await?;
+    alice.typing(bob_nick.as_str(), Typing::Done).await?;
     assert_eq!(
         bob.wait_for(Event::as_typing_changed).await?.state,
         Typing::Done
@@ -1162,8 +1167,10 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     bob.join(channel.as_str()).await?;
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
-    let bob_direct = alice.query(bob.snapshot().nick().as_str())?;
-    alice.mode(&channel).op(&bob_direct).await?;
+    alice
+        .mode(&channel)
+        .op(bob.snapshot().nick().as_str())
+        .await?;
 
     let target = format!("@{channel}");
     alice.typing(&target, Typing::Active).await?;
@@ -1343,8 +1350,7 @@ async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()
         return s.skip("the server denies the channel-context client tag");
     }
     let text = "can you check the release notes before the vote?";
-    let alice_direct = bob.query(alice.snapshot().nick().as_str())?;
-    bob.privmsg(&alice_direct, text)
+    bob.privmsg(alice.snapshot().nick().as_str(), text)
         .channel_context(channel.as_str())
         .await?;
     let live = alice.wait_for(|event| message_text(event, text)).await?;
@@ -1390,8 +1396,7 @@ async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()
 #[scenario(covers = ["regression.labeled-response.service-reply-in-send-batch"])]
 async fn service_reply_to_a_labelled_message(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let nickserv = alice.query("NickServ")?;
-    alice.privmsg(&nickserv, "HELP").await?;
+    alice.privmsg("NickServ", "HELP").await?;
     let reply = alice
         .wait_for(|event| {
             event.as_notice().filter(|notice| {

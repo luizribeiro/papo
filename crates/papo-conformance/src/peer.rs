@@ -198,10 +198,9 @@ impl Peer {
         nick: impl AsRef<str>,
         channel: impl AsRef<str>,
     ) -> std::result::Result<(), papo::Error> {
-        let user = self.client.query(nick.as_ref())?;
         self.client
             .invite(
-                &user,
+                nick.as_ref(),
                 self.with_name_rules(|names| names.channel(channel.as_ref())),
             )
             .await?;

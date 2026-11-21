@@ -26,8 +26,7 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    let bob_direct = alice.query(old_nick.as_str())?;
-    alice.privmsg(&bob_direct, text).await?;
+    alice.privmsg(old_nick.as_str(), text).await?;
     bob.set_nick(&new_nick).await?;
     let message = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(
@@ -48,8 +47,7 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     Ok(())
 }
 
-/// files a direct message replayed to an earlier nick under the other participant; the writer is
-/// logged in because only a history line's account tag identifies who to reply to
+/// replies to the peer of a direct message replayed to an earlier nickname
 #[scenario(
     requires(caps = ["account-tag", "batch", "draft/chathistory"]),
     covers = ["security.history.stale-dm-target"]
@@ -68,8 +66,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     writer.join(&channel).await?;
     join_seen_by(&reader, &mut writer, &channel).await?;
 
-    let reader_direct = writer.query(old_nick.as_str())?;
-    writer.privmsg(&reader_direct, text).await?;
+    writer.privmsg(old_nick.as_str(), text).await?;
     reader.set_nick(&new_nick).await?;
     let page = latest_history_with(&reader, writer.snapshot().nick().as_str(), text).await?;
     let message = page

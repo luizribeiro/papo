@@ -129,13 +129,12 @@ async fn grant_rank(
     bob_nick: &Nick,
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
-    let bob_direct = alice.query(bob_nick.as_str())?;
     if prefix.mode() == 'h' {
-        alice.mode(channel).halfop(&bob_direct).await?;
+        alice.mode(channel).halfop(bob_nick.as_str()).await?;
     } else {
         alice
             .mode(channel)
-            .prefix(prefix.mode(), &bob_direct)
+            .prefix(prefix.mode(), bob_nick.as_str())
             .await?;
     }
     wait_channel_mode(alice, channel, prefix.mode()).await?;

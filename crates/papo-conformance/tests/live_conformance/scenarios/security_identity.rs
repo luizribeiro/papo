@@ -23,7 +23,7 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    let bot_direct = alice.query(bot.snapshot().nick().as_str())?;
+    let bot_direct = bot.snapshot().nick().to_string();
     alice.privmsg(&bot_direct, "control request").await?;
     let control = bot
         .wait_for(|event| message_text(event, "control request"))
@@ -90,9 +90,7 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
     alice.set_nick(&handoff).await?;
     let bot_nick = bot.snapshot().nick().clone();
 
-    alice
-        .privmsg(&alice.query(bot_nick.as_str())?, "!ping")
-        .await?;
+    alice.privmsg(bot_nick.as_str(), "!ping").await?;
     let (admin, state) = bot
         .wait_for_with_state(|event| message_text(event, "!ping"))
         .await?;
@@ -104,9 +102,7 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
 
     alice.quit().await?;
     mallory.set_nick(&handoff).await?;
-    mallory
-        .privmsg(&mallory.query(bot_nick.as_str())?, "!op mallory")
-        .await?;
+    mallory.privmsg(bot_nick.as_str(), "!op mallory").await?;
     let (takeover, state) = bot
         .wait_for_with_state(|event| message_text(event, "!op mallory"))
         .await?;

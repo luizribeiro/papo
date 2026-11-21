@@ -356,9 +356,8 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let text = papo_test_server::unique("history-notice");
-    let bouncer = alice.query("BouncerServ")?;
     alice
-        .privmsg(&bouncer, format!("server notice {text}"))
+        .privmsg("BouncerServ", format!("server notice {text}"))
         .await?;
     let notice = alice
         .wait_for(|event| {
