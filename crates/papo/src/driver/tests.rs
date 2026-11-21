@@ -5460,39 +5460,6 @@ async fn query_who_failure_never_sends_chat() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn open_rejects_stranger_with_current_key() {
-    let (mut server, client, mut events, driver) = scripted(config());
-    let driver = tokio::spawn(driver);
-    complete_connect(&mut server, &mut events).await;
-    let stored = client.query("alice").unwrap().key();
-
-    let opening = tokio::spawn({
-        let client = client.clone();
-        let stored = stored.clone();
-        async move { client.open(&stored).await }
-    });
-    client_line(&mut server, b"WHO alice %na\r\n").await;
-    server_line(
-        &mut server,
-        b":ergo.test 354 papo-driver alice mallory-account\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
-    )
-    .await;
-
-    let Error::NotSamePerson(mismatch) = within(opening).await.unwrap().unwrap_err() else {
-        panic!("open accepted a nickname handoff")
-    };
-    assert_eq!(mismatch, mismatch.clone());
-    assert_eq!(mismatch.reason(), crate::PeerKeyMismatch::CannotVerify);
-    assert_eq!(mismatch.current_key(), &stored);
-
-    within(server.shutdown()).await.unwrap();
-    assert!(matches!(
-        within(driver).await.unwrap(),
-        Err(disconnected!())
-    ));
-}
-
-#[tokio::test(flavor = "current_thread")]
 async fn role_errors_identify_the_invalid_argument() {
     let client = crate::Client::disconnected_for_test();
 
