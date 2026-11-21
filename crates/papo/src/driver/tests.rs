@@ -3070,6 +3070,39 @@ async fn channel_handle_follows_rename() {
     within(driver).await.unwrap().unwrap();
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn a_renamed_channel_keeps_its_status_audience() {
+    let mut session = Session::new(config());
+    let now = crate::rt::now_mono();
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported",
+    );
+    session.handle_line(now, b":papo-driver!p@localhost JOIN #review");
+    let name = session.state().channel("#review").unwrap().name().clone();
+    let guard = session.state().__channel_guard(&name);
+    let channel = crate::ChannelHandle::from_parts(name, Some(guard), None);
+    session.handle_line(
+        now,
+        b":alice!~alice@cloak.example RENAME #review #release :Review completed",
+    );
+    let address = crate::MessageRef::new(
+        "@#review".into(),
+        Vec::new(),
+        crate::Origin::NONE,
+        None,
+        None,
+        Some(channel),
+    );
+    let (client, mut commands) = client_with_commands(&session);
+    let sending = tokio::spawn(async move { client.notice(address, "review complete").await });
+    let Some(super::Command::Send { message, .. }) = within(commands.recv()).await else {
+        panic!("expected a notice on the renamed channel");
+    };
+    assert_eq!(message.as_ref().param(0), Some("@#release"));
+    sending.abort();
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn quit_while_disconnected_stops_without_another_attempt() {
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
