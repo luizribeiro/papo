@@ -5,6 +5,9 @@ use std::{sync::Arc, time::SystemTime};
 use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[path = "error/test_support.rs"]
+mod error_fixtures;
+
 #[cfg(sockets)]
 #[path = "testing/wrapped.rs"]
 pub mod wrapped;
@@ -110,6 +113,16 @@ pub fn account_name(casemapping: Casemapping, text: impl Into<String>) -> Accoun
 #[must_use]
 pub fn mask(casemapping: Casemapping, text: impl Into<String>) -> Mask {
     casemapping.mask(text)
+}
+
+/// Builds details for a connection that ended before `attempt`.
+#[must_use]
+pub const fn disconnected(
+    cause: crate::DisconnectCause,
+    attempt: usize,
+    reconnect_in: Option<std::time::Duration>,
+) -> crate::Disconnected {
+    crate::Disconnected::new(cause, attempt, reconnect_in)
 }
 
 /// Builds an unavailable-feature diagnostic for test fixtures.

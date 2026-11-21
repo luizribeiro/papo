@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use papo::{
-    DisconnectCause, Disconnected, Error, Feature, ServerError, State, Unsupported,
-    UnsupportedReason,
-};
+use papo::{DisconnectCause, Error, Feature, ServerError, State, Unsupported, UnsupportedReason};
 
 /// Builds an origin-free nickname for test input.
 #[must_use]
@@ -84,7 +81,7 @@ impl ErrorBuilder {
         attempt: usize,
         reconnect_in: Option<Duration>,
     ) -> Self {
-        Self(Error::Disconnected(Disconnected::new(
+        Self(Error::Disconnected(papo::__testing::disconnected(
             cause,
             attempt,
             reconnect_in,

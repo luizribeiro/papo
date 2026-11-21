@@ -2486,7 +2486,6 @@ pub papo::Disconnected::cause: papo::DisconnectCause
 pub papo::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
 impl papo::Disconnected
 pub const fn papo::Disconnected::is_reconnecting(&self) -> bool
-pub const fn papo::Disconnected::new(papo::DisconnectCause, usize, core::option::Option<core::time::Duration>) -> Self
 impl core::clone::Clone for papo::Disconnected
 pub fn papo::Disconnected::clone(&self) -> Self
 impl core::cmp::Eq for papo::Disconnected
@@ -3540,13 +3539,10 @@ pub struct papo::ServerError
 impl papo::ServerError
 pub const fn papo::ServerError::code(&self) -> &papo::ReplyCode
 pub const fn papo::ServerError::command(&self) -> core::option::Option<&papo::Command>
-pub fn papo::ServerError::context<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::ServerError::description(&self) -> &str
-pub fn papo::ServerError::from_numeric<I, S>(u16, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub const fn papo::ServerError::numeric(&self) -> core::option::Option<u16>
 pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
 pub const fn papo::ServerError::refusal(&self) -> papo::Refusal
-pub fn papo::ServerError::standard(impl core::convert::Into<papo::Command>, impl core::convert::Into<papo::ReplyCode>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo::ServerError
 pub fn papo::ServerError::clone(&self) -> Self
 impl core::cmp::Eq for papo::ServerError

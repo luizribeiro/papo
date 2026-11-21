@@ -338,11 +338,6 @@ mod transport;
 mod typing;
 mod webirc;
 
-#[cfg(feature = "__testing")]
-#[doc(hidden)]
-#[path = "testing.rs"]
-pub mod __testing;
-
 /// Capability names understood by papo.
 pub mod cap;
 pub mod tags;
@@ -368,10 +363,7 @@ pub use client::{
 pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;
 pub use driver::{Driver, Events};
-pub use error::{
-    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ForeignReference,
-    ServerError, Unsupported,
-};
+pub use error::*;
 pub use event_impl::{
     Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Source, Tags,
     TagsIter,

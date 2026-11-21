@@ -4,6 +4,10 @@ use thiserror::Error;
 
 use crate::{Feature, InvalidInput, Refusal, UnsupportedReason};
 
+#[cfg(feature = "__testing")]
+#[doc(hidden)]
+#[path = "testing.rs"]
+pub mod __testing;
 mod connect_display;
 #[cfg(any(sockets, browser))]
 #[cfg_attr(browser, path = "error/classify_browser.rs")]
@@ -178,55 +182,6 @@ pub struct ServerError {
 }
 
 impl ServerError {
-    /// Creates a numeric refusal using the same classifier as received replies.
-    #[must_use]
-    pub fn from_numeric<I, S>(code: u16, params: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        let params = params.into_iter().map(Into::into).collect::<Vec<_>>();
-        if let Some(numeric) = papo_proto::Numeric::new(code) {
-            return Self::from_core(papo_core::ServerError::__numeric(numeric, params));
-        }
-        Self {
-            refusal: Refusal::Other,
-            numeric: Some(code),
-            command: None,
-            code: code.to_string().into(),
-            description: params.last().cloned().unwrap_or_default(),
-            params,
-        }
-    }
-
-    /// Creates a standard-reply refusal using the same classifier as received replies.
-    #[must_use]
-    pub fn standard(
-        command: impl Into<crate::Command>,
-        code: impl Into<crate::ReplyCode>,
-        description: impl Into<String>,
-    ) -> Self {
-        let command: crate::Command = command.into();
-        let code: crate::ReplyCode = code.into();
-        Self::from_core(papo_core::ServerError::__standard(
-            command.as_str().to_owned(),
-            code.as_str().to_owned(),
-            Vec::new(),
-            description.into(),
-        ))
-    }
-
-    /// Supplies the standard reply's diagnostic parameters in wire order.
-    #[must_use]
-    pub fn context<I, S>(mut self, context: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        self.params = context.into_iter().map(Into::into).collect();
-        self
-    }
-
     /// Returns the stable refusal category.
     #[must_use]
     pub const fn refusal(&self) -> Refusal {
@@ -405,9 +360,7 @@ pub struct Disconnected {
 }
 
 impl Disconnected {
-    /// Creates details for a connection that ended before `attempt`.
-    #[must_use]
-    pub const fn new(
+    pub(crate) const fn new(
         cause: DisconnectCause,
         attempt: usize,
         reconnect_in: Option<Duration>,
