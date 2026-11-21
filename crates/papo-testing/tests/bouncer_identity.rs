@@ -1,11 +1,11 @@
-//! Highest-layer coverage for blocking opens with stored peer keys.
+//! Guarded sends across a bouncer upstream session.
 
 mod support {
     pub mod direct;
     pub mod peer_pin;
 }
 
-use papo::{Error, Event, PeerKeyCheck, PeerKeyMismatch, Reconnect};
+use papo::{Error, Event, Reconnect};
 use papo_testing::wire;
 use support::{
     direct::{connected, next_active_event},
@@ -13,7 +13,7 @@ use support::{
 };
 
 #[tokio::test]
-async fn bouncer_upstream_drop_rejects_continuity_pin_and_live_target() {
+async fn bouncer_upstream_drop_rejects_the_old_target() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://bouncer.example", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -33,16 +33,13 @@ async fn bouncer_upstream_drop_rejects_continuity_pin_and_live_target() {
         ":papo!~u@client.example JOIN #review",
     )
     .await;
-    join(
-        &mut events,
-        &mut wire,
-        ":alice!alice-old@cloak.example JOIN #review",
-    )
-    .await;
-    let alice = client.query("alice").unwrap();
-    let stored = alice.key();
-    assert!(!stored.is_verified());
-
+    wire.server(":alice!alice-old@cloak.example JOIN #review")
+        .await;
+    let alice = loop {
+        if let Event::Joined(joined) = next_active_event(&mut events).await {
+            break joined.actor;
+        }
+    };
     wire.server(":BouncerServ!BouncerServ@BouncerServ NOTICE papo :disconnected from ergo")
         .await;
     while !matches!(next_active_event(&mut events).await, Event::Notice(_)) {}
@@ -69,12 +66,8 @@ async fn bouncer_upstream_drop_rejects_continuity_pin_and_live_target() {
         Event::ChannelSynced(_)
     ) {}
 
-    let Error::NotSamePerson(mismatch) = client.open(&stored).await.unwrap_err() else {
-        panic!("expected the continuity pin to be rejected");
-    };
-    assert_eq!(mismatch.reason(), PeerKeyMismatch::CannotVerify);
     assert!(matches!(
-        stored.check(mismatch.current_key()),
-        PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
+        client.privmsg(&alice, "release approved").await,
+        Err(Error::TargetGone)
     ));
 }

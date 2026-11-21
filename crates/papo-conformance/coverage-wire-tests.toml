@@ -43,10 +43,10 @@
 "direct_queue::queued_direct_line_is_rechecked_after_a_nickname_takeover" = [
   "security.dm-direct.write-time-recheck",
 ]
-"peer_pin_open::bouncer_upstream_drop_rejects_continuity_pin_and_live_target" = [
+"bouncer_identity::bouncer_upstream_drop_rejects_the_old_target" = [
   "security.bouncer.upstream-drop-identity",
 ]
-"peer_pin_bouncer_account::bouncer_drop_preserves_account_pin_proved_by_a_new_line" = [
+"bouncer_account_identity::same_account_after_bouncer_drop_does_not_revive_the_old_target" = [
   "security.bouncer.upstream-drop-identity",
 ]
 "direct_reply::concurrent_event_replies_refuse_an_impostor" = [

@@ -1,11 +1,11 @@
-//! Account-pin coverage across a bouncer upstream session.
+//! Account attribution and guarded sends across a bouncer upstream session.
 
 mod support {
     pub mod direct;
     pub mod peer_pin;
 }
 
-use papo::{Error, Event, PeerKeyCheck, Reconnect};
+use papo::{Error, Event, Reconnect};
 use papo_testing::wire;
 use support::{
     direct::{connected, next_active_event},
@@ -13,7 +13,7 @@ use support::{
 };
 
 #[tokio::test]
-async fn bouncer_drop_preserves_account_pin_proved_by_a_new_line() {
+async fn same_account_after_bouncer_drop_does_not_revive_the_old_target() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://bouncer.example", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -57,22 +57,13 @@ async fn bouncer_drop_preserves_account_pin_proved_by_a_new_line() {
         next_active_event(&mut events).await,
         Event::BouncerNetworkChanged(_)
     ) {}
-    join(
-        &mut events,
-        &mut wire,
+    for line in [
         ":papo!~u@client.example JOIN #review papo-account :Papo",
-    )
-    .await;
-    join(
-        &mut events,
-        &mut wire,
         ":alice!alice-old@cloak.example JOIN #review alice-account :Alice",
-    )
-    .await;
+    ] {
+        join(&mut events, &mut wire, line).await;
+    }
     let alice = client.query("alice").unwrap();
-    let stored = alice.key();
-    assert!(stored.is_verified());
-
     wire.server("BOUNCER NETWORK 1 state=disconnected").await;
     while !matches!(
         next_active_event(&mut events).await,
@@ -110,7 +101,12 @@ async fn bouncer_drop_preserves_account_pin_proved_by_a_new_line() {
             break message;
         }
     };
-    let current = message.actor.key();
-    assert!(current.is_verified());
-    assert!(matches!(stored.check(&current), PeerKeyCheck::Match));
+    assert!(matches!(
+        message.actor_account(),
+        papo::Account::LoggedIn(account) if account == "alice-account"
+    ));
+    assert!(matches!(
+        client.privmsg(&alice, "release approved").await,
+        Err(Error::TargetGone)
+    ));
 }
