@@ -70,6 +70,19 @@ fn parses_user_modes_without_argument_semantics() {
 }
 
 #[test]
+fn uses_advertised_prefix_arguments_without_chanmodes() {
+    let support = support(&["PREFIX=(ovq)@+!"]);
+    let kind = ModeKind::Prefix(Prefix::__new('q', '!'));
+    assert_eq!(
+        ModeChanges::parse("+q-q", ["alice", "alice"], &support).collect::<Vec<_>>(),
+        [
+            change(ModeAction::Add, 'q', Some("alice"), kind),
+            change(ModeAction::Remove, 'q', Some("alice"), kind),
+        ]
+    );
+}
+
+#[test]
 fn parses_mixed_ergo_prefix_and_list_modes() {
     let support = support(&["CHANMODES=Ibe,k,fl,CEMRUimnstu", "PREFIX=(qaohv)~&@%+"]);
     assert_eq!(
