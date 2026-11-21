@@ -2,7 +2,7 @@ use std::{fmt, sync::Arc, time::Duration};
 
 use thiserror::Error;
 
-use crate::{InvalidInput, Refusal, Unsupported};
+use crate::{Feature, InvalidInput, Refusal, UnsupportedReason};
 
 mod connect_display;
 #[cfg(any(sockets, browser))]
@@ -461,8 +461,32 @@ impl ForeignReference {
     }
 }
 
+/// A requested optional IRC behavior that is unavailable.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Unsupported {
+    /// The requested behavior.
+    pub feature: Feature,
+    /// Why the behavior is unavailable.
+    pub reason: UnsupportedReason,
+}
+
+impl Unsupported {
+    pub(crate) const fn new(feature: Feature, reason: UnsupportedReason) -> Self {
+        Self { feature, reason }
+    }
+}
+
+impl fmt::Display for Unsupported {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        papo_core::Unsupported::new(self.feature, self.reason).fmt(formatter)
+    }
+}
+
+impl std::error::Error for Unsupported {}
+
 pub(crate) const fn unsupported_from_core(unsupported: papo_core::Unsupported) -> Unsupported {
-    unsupported
+    Unsupported::new(unsupported.feature, unsupported.reason)
 }
 
 /// An error produced by the asynchronous IRC client.

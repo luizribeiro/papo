@@ -283,7 +283,10 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `papo_proto::time::parse` is removed: `ServerTime::from_stored` is the one way to read text as a server time.
 
-papo's hidden test-construction hooks are compiled only with its internal `__testing` feature, which `papo-testing` enables; a plain `papo` build no longer contains them.
+papo's test-construction hooks require the internal `__testing` feature, which `papo-testing` enables.
+
+Use `papo_testing::unsupported` to build unavailable-feature diagnostics in tests. The `papo` crate
+now defines `Unsupported` with its existing `feature` and `reason` fields.
 
 The hidden `Source::from_proto` constructor is removed; sources come only from received lines.
 

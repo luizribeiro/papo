@@ -370,7 +370,7 @@ pub use conversation::Conversation;
 pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ForeignReference,
-    ServerError,
+    ServerError, Unsupported,
 };
 pub use event_impl::{
     Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Source, Tags,
@@ -400,6 +400,8 @@ pub use name_rules::{NameCheck, NameRules};
 pub use papo_core::InvalidUrl;
 #[doc(inline)]
 pub use papo_core::Secret;
+#[doc(inline)]
+pub use papo_core::UnsupportedReason;
 #[doc(hidden)]
 pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
@@ -416,8 +418,6 @@ pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 #[doc(inline)]
 pub use papo_core::{ListMode, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
-#[doc(inline)]
-pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(hidden)]
 pub use papo_proto::MaskSource;
 #[doc(inline)]

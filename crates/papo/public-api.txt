@@ -47,7 +47,6 @@ pub use papo::StateLimit
 pub use papo::Style
 pub use papo::Typing
 pub use papo::UnknownCasemapping
-pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User
 pub use papo::Visibility
@@ -1530,10 +1529,10 @@ impl core::convert::From<papo::InvalidInput> for papo::Error
 pub fn papo::Error::from(papo::InvalidInput) -> Self
 impl core::convert::From<papo::ServerError> for papo::Error
 pub fn papo::Error::from(papo::ServerError) -> Self
-impl core::convert::From<papo::StateLimit> for papo::Error
-pub fn papo::Error::from(papo::StateLimit) -> Self
 impl core::convert::From<papo::Unsupported> for papo::Error
 pub fn papo::Error::from(papo::Unsupported) -> Self
+impl core::convert::From<papo::StateLimit> for papo::Error
+pub fn papo::Error::from(papo::StateLimit) -> Self
 impl core::error::Error for papo::Error
 pub fn papo::Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::Error
@@ -3754,6 +3753,30 @@ impl<'a> core::marker::Unpin for papo::Typers<'a>
 impl<'a> core::marker::UnsafeUnpin for papo::Typers<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Typers<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Typers<'a>
+#[non_exhaustive] pub struct papo::Unsupported
+pub papo::Unsupported::feature: papo::Feature
+pub papo::Unsupported::reason: papo::UnsupportedReason
+impl core::clone::Clone for papo::Unsupported
+pub fn papo::Unsupported::clone(&self) -> Self
+impl core::cmp::Eq for papo::Unsupported
+impl core::cmp::PartialEq for papo::Unsupported
+pub fn papo::Unsupported::eq(&self, &Self) -> bool
+impl core::convert::From<papo::Unsupported> for papo::Error
+pub fn papo::Error::from(papo::Unsupported) -> Self
+impl core::error::Error for papo::Unsupported
+impl core::fmt::Debug for papo::Unsupported
+pub fn papo::Unsupported::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Unsupported
+pub fn papo::Unsupported::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::Unsupported
+impl core::marker::StructuralPartialEq for papo::Unsupported
+impl core::marker::Freeze for papo::Unsupported
+impl core::marker::Send for papo::Unsupported
+impl core::marker::Sync for papo::Unsupported
+impl core::marker::Unpin for papo::Unsupported
+impl core::marker::UnsafeUnpin for papo::Unsupported
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Unsupported
+impl core::panic::unwind_safe::UnwindSafe for papo::Unsupported
 pub struct papo::UserHandle(_)
 impl papo::UserHandle
 pub fn papo::UserHandle::key(&self) -> papo::PeerKey
@@ -5241,30 +5264,6 @@ impl core::marker::Unpin for papo::UnknownCasemapping
 impl core::marker::UnsafeUnpin for papo::UnknownCasemapping
 impl core::panic::unwind_safe::RefUnwindSafe for papo::UnknownCasemapping
 impl core::panic::unwind_safe::UnwindSafe for papo::UnknownCasemapping
-#[non_exhaustive] pub struct papo::Unsupported
-pub papo::Unsupported::feature: papo::Feature
-pub papo::Unsupported::reason: papo::UnsupportedReason
-impl papo::Unsupported
-pub const fn papo::Unsupported::new(papo::Feature, papo::UnsupportedReason) -> Self
-impl core::clone::Clone for papo::Unsupported
-pub fn papo::Unsupported::clone(&self) -> Self
-impl core::cmp::Eq for papo::Unsupported
-impl core::cmp::PartialEq for papo::Unsupported
-pub fn papo::Unsupported::eq(&self, &Self) -> bool
-impl core::error::Error for papo::Unsupported
-impl core::fmt::Debug for papo::Unsupported
-pub fn papo::Unsupported::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Unsupported
-pub fn papo::Unsupported::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::Unsupported
-impl core::marker::StructuralPartialEq for papo::Unsupported
-impl core::marker::Freeze for papo::Unsupported
-impl core::marker::Send for papo::Unsupported
-impl core::marker::Sync for papo::Unsupported
-impl core::marker::Unpin for papo::Unsupported
-impl core::marker::UnsafeUnpin for papo::Unsupported
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Unsupported
-impl core::panic::unwind_safe::UnwindSafe for papo::Unsupported
 #[non_exhaustive] pub enum papo::UnsupportedReason
 pub papo::UnsupportedReason::DisabledByClient
 pub papo::UnsupportedReason::LimitZero
