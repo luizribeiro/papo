@@ -516,7 +516,7 @@ async fn message_fields_use_captured_session_facts() {
     let notice = notice.as_notice().unwrap();
     assert_eq!(notice.kind, crate::MessageKind::Text);
     assert!(matches!(
-        notice.conversation,
+        notice.conversation(),
         crate::Conversation::Private(_)
     ));
     let action = next_message(&mut events).await;

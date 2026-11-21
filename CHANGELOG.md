@@ -12,6 +12,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 IRC text formatting helpers now live in `papo-format`, with no stability promise. Use
 `papo_format::Formatted::new(&message.raw_text)` for styled runs from messages and notices.
 
+`Notice::conversation()` and `Notice::msgid()` replace the corresponding fields.
+
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
 and account comparison, and `unstable` exposes experimental extension APIs without semantic

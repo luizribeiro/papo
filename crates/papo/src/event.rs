@@ -362,10 +362,7 @@ pub struct Notice {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: Account,
-    /// The chat conversation to which the notice belongs.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
@@ -378,8 +375,7 @@ pub struct Notice {
     pub raw_text: String,
     /// The semantic notice kind.
     pub kind: MessageKind,
-    /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<MessageId>,
+    msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
@@ -465,7 +461,7 @@ impl Incomplete {
     pub fn conversation(&self) -> &Conversation {
         match self {
             Self::Message(message) => message.conversation(),
-            Self::Notice(notice) => &notice.conversation,
+            Self::Notice(notice) => notice.conversation(),
         }
     }
 }
@@ -1008,6 +1004,20 @@ impl Message {
 }
 
 impl Notice {
+    /// Returns the conversation, kept read-only so it stays consistent with the return address.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub const fn conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
+    /// Returns the server-assigned identifier, kept read-only to preserve the notice's identity.
+    #[must_use]
+    pub const fn msgid(&self) -> Option<&MessageId> {
+        self.msgid.as_ref()
+    }
+
     /// Returns the actor's account as reported for this line.
     ///
     /// See [`Message::actor_account`] for the meaning of each account status.
@@ -1935,7 +1945,7 @@ impl Event {
     pub(crate) fn overflow_class(&self) -> OverflowClass<'_> {
         let (priority, conversation) = match self {
             Self::Message(event) => (OverflowPriority::Message, Some(&event.conversation)),
-            Self::Notice(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::Notice(event) => (OverflowPriority::Message, Some(event.conversation())),
             Self::Incomplete(event) => (OverflowPriority::Message, Some(event.conversation())),
             Self::CtcpQuery(event) => (OverflowPriority::Message, Some(&event.conversation)),
             Self::CtcpReply(event) => (OverflowPriority::Message, Some(&event.conversation)),
@@ -4220,7 +4230,7 @@ mod tests {
         );
         assert!(matches!(user, Event::Notice(notice)
             if notice.kind == MessageKind::Text
-                && matches!(notice.conversation, Conversation::Private(_))
+                && matches!(notice.conversation(), Conversation::Private(_))
                 && matches!(notice.actor.account(), Account::LoggedIn(account) if account == "emily")));
 
         let action = parse_event(
@@ -4236,6 +4246,8 @@ mod tests {
         };
         assert_eq!(notice.kind, MessageKind::Action);
         assert_eq!(notice.text, "nods hello");
+        assert_eq!(notice.conversation().to_string(), "#ops");
+        assert_eq!(notice.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120007"));
         assert_eq!(notice.return_address(), "@#ops");
         let reference = notice.return_address();
         assert_eq!(reference, "@#ops");
@@ -6064,9 +6076,9 @@ mod tests {
             Event::Incomplete(Incomplete::Message(event)) => {
                 ("IncompleteMessage", &event.actor, Some(&event.conversation))
             }
-            Event::Notice(event) => ("Notice", &event.actor, Some(&event.conversation)),
+            Event::Notice(event) => ("Notice", &event.actor, Some(event.conversation())),
             Event::Incomplete(Incomplete::Notice(event)) => {
-                ("IncompleteNotice", &event.actor, Some(&event.conversation))
+                ("IncompleteNotice", &event.actor, Some(event.conversation()))
             }
             Event::CtcpQuery(event) => ("CtcpQuery", &event.actor, Some(&event.conversation)),
             Event::CtcpReply(event) => ("CtcpReply", &event.actor, Some(&event.conversation)),

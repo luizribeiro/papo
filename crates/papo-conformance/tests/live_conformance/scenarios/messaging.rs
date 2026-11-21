@@ -304,12 +304,12 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
         Some(alice.snapshot().nick().as_str())
     );
     assert_eq!(
-        conversation_name(&message.conversation),
+        conversation_name(message.conversation()),
         Some(channel.clone())
     );
     assert_eq!(message.raw_text, "maintenance at midnight");
     let (id, _, server_time) = confirmed_line(&sent);
-    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     assert!(message.tags.contains("time"));
     assert!(sent.fallbacks.is_empty());
@@ -399,13 +399,13 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(received.kind, papo::MessageKind::Text);
     assert!(
-        matches!(&received.conversation, papo::Conversation::Private(nick)
+        matches!(received.conversation(), papo::Conversation::Private(nick)
         if nick == bob.snapshot().nick().as_str())
     );
     assert_eq!(received.raw_text, "private notice");
     let (id, _, server_time) = confirmed_line(&sent);
     assert_delivery_tags(
-        received.msgid.as_ref(),
+        received.msgid(),
         received.server_time,
         id,
         server_time,
@@ -1408,7 +1408,7 @@ async fn service_reply_to_a_labelled_message(s: Scenario) -> papo_testing::Resul
             })
         })
         .await?;
-    assert!(conversation_is_private(&reply.conversation));
+    assert!(conversation_is_private(reply.conversation()));
     assert!(!reply.text.is_empty());
     Ok(())
 }

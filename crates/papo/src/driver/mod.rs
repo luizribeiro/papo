@@ -1849,7 +1849,9 @@ fn own_line_msgid(event: &Event) -> Option<&str> {
         Event::Message(message) if message.actor_party == crate::Party::Me => {
             message.msgid().map(AsRef::as_ref)
         }
-        Event::Notice(notice) if notice.actor_party == crate::Party::Me => notice.msgid.as_deref(),
+        Event::Notice(notice) if notice.actor_party == crate::Party::Me => {
+            notice.msgid().map(AsRef::as_ref)
+        }
         _ => None,
     }
 }
