@@ -3337,7 +3337,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::PartRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::PartRequest
 pub struct papo::PeerKey
 impl papo::PeerKey
-pub fn papo::PeerKey::as_verified_str(&self) -> core::option::Option<&str>
 pub const fn papo::PeerKey::is_verified(&self) -> bool
 impl core::clone::Clone for papo::PeerKey
 pub fn papo::PeerKey::clone(&self) -> Self
@@ -3345,8 +3344,6 @@ impl core::cmp::Eq for papo::PeerKey
 impl core::cmp::PartialEq for papo::PeerKey
 pub fn papo::PeerKey::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::PeerKey
-pub fn papo::PeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::PeerKey
 pub fn papo::PeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::PeerKey
 pub fn papo::PeerKey::hash<H: core::hash::Hasher>(&self, &mut H)
