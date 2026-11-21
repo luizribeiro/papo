@@ -17,6 +17,7 @@ pub struct Proven {
 pub(super) enum ProvenKind {
     Person(RecipientGuard),
     CurrentName(Nick),
+    HistoryPeer(Nick),
 }
 
 /// Why session state could not mint or resolve person-target proof.
@@ -41,6 +42,21 @@ impl State {
             origin: nick.origin(),
             kind: ProvenKind::CurrentName(nick),
         })
+    }
+
+    /// Mints current-holder proof for a private history peer other than our own nickname.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for our own nickname or a nickname from another client.
+    #[doc(hidden)]
+    pub fn __prove_history_peer(&self, nick: Nick) -> Result<Proven, ProofFailure> {
+        let proof = Proven {
+            origin: nick.origin(),
+            kind: ProvenKind::HistoryPeer(nick),
+        };
+        self.__resolve_proven(&proof)?;
+        Ok(proof)
     }
 
     fn prove_event_user(
@@ -98,7 +114,11 @@ impl State {
                     Err(ProofFailure::IdentityChanged)
                 }
             },
-            ProvenKind::CurrentName(nick) => Ok(nick.clone()),
+            // A queued reference can outlive our own NICK change.
+            ProvenKind::HistoryPeer(nick) if self.nick() == nick.as_str() => {
+                Err(ProofFailure::IdentityChanged)
+            }
+            ProvenKind::CurrentName(nick) | ProvenKind::HistoryPeer(nick) => Ok(nick.clone()),
         }
     }
 }

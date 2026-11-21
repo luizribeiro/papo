@@ -113,6 +113,42 @@ fn current_name_targets_current_holder() {
 }
 
 #[test]
+fn history_peer_is_rechecked_against_our_nick_at_transmit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let state = session.state();
+    let peer = state.casemapping().nick("Alice");
+    assert!(matches!(
+        state.__prove_history_peer(state.casemapping().nick("PAPO")),
+        Err(papo_core::ProofFailure::IdentityChanged)
+    ));
+    assert!(matches!(
+        state.__prove_history_peer(
+            papo_proto::Origin::__new(73).__nick(state.casemapping(), "Alice")
+        ),
+        Err(papo_core::ProofFailure::ForeignReference)
+    ));
+    let proof = state.__prove_history_peer(peer).unwrap();
+    assert!(proof.__recipient().is_none());
+    for text in ["review received", "checking the release"] {
+        session
+            .send_person_text_detailed(now, proof.clone(), TextKind::Privmsg, text, &[])
+            .unwrap();
+    }
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PRIVMSG Alice :review received\r\n"
+    );
+    session.handle_line(now, b":papo!p@localhost NICK alice");
+    discard_events(&mut session);
+    assert!(session.poll_transmit().is_none());
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::TransmitRecipientGone { .. })
+    ));
+}
+
+#[test]
 fn current_name_notice_uses_the_requested_wire_name() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));

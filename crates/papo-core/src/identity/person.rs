@@ -39,7 +39,7 @@ impl Proven {
     pub(crate) fn captured_nick(&self) -> &Nick {
         match &self.kind {
             ProvenKind::Person(recipient) => recipient.__nick(),
-            ProvenKind::CurrentName(nick) => nick,
+            ProvenKind::CurrentName(nick) | ProvenKind::HistoryPeer(nick) => nick,
         }
     }
 
@@ -49,7 +49,7 @@ impl Proven {
     pub const fn __recipient(&self) -> Option<&RecipientGuard> {
         match &self.kind {
             ProvenKind::Person(recipient) => Some(recipient),
-            ProvenKind::CurrentName(_) => None,
+            ProvenKind::CurrentName(_) | ProvenKind::HistoryPeer(_) => None,
         }
     }
 }
