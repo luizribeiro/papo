@@ -1410,7 +1410,6 @@ pub const papo::numeric::RPL_WHOISUSER: u16
 pub const papo::numeric::RPL_WHOWASUSER: u16
 pub const papo::numeric::RPL_YOURHOST: u16
 pub mod papo::sts
-pub use papo::sts::MemoryStsStore
 pub use papo::sts::StsPolicy
 pub use papo::sts::StsStore
 pub mod papo::tags
@@ -5788,26 +5787,6 @@ impl core::marker::Unpin for papo::isupport::LimitValue
 impl core::marker::UnsafeUnpin for papo::isupport::LimitValue
 impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::LimitValue
 impl core::panic::unwind_safe::UnwindSafe for papo::isupport::LimitValue
-pub struct papo::sts::MemoryStsStore
-impl papo::sts::MemoryStsStore
-pub fn papo::sts::MemoryStsStore::new() -> Self
-impl core::clone::Clone for papo::sts::MemoryStsStore
-pub fn papo::sts::MemoryStsStore::clone(&self) -> Self
-impl core::default::Default for papo::sts::MemoryStsStore
-pub fn papo::sts::MemoryStsStore::default() -> Self
-impl core::fmt::Debug for papo::sts::MemoryStsStore
-pub fn papo::sts::MemoryStsStore::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl papo::sts::StsStore for papo::sts::MemoryStsStore
-pub fn papo::sts::MemoryStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
-pub fn papo::sts::MemoryStsStore::put(&self, papo::sts::StsPolicy)
-pub fn papo::sts::MemoryStsStore::remove(&self, &str)
-impl core::marker::Freeze for papo::sts::MemoryStsStore
-impl core::marker::Send for papo::sts::MemoryStsStore
-impl core::marker::Sync for papo::sts::MemoryStsStore
-impl core::marker::Unpin for papo::sts::MemoryStsStore
-impl core::marker::UnsafeUnpin for papo::sts::MemoryStsStore
-impl core::panic::unwind_safe::RefUnwindSafe for papo::sts::MemoryStsStore
-impl core::panic::unwind_safe::UnwindSafe for papo::sts::MemoryStsStore
 #[non_exhaustive] pub struct papo::sts::StsPolicy
 pub papo::sts::StsPolicy::duration: core::time::Duration
 pub papo::sts::StsPolicy::expires_at: std::time::SystemTime

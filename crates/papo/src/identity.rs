@@ -24,7 +24,7 @@ pub(crate) async fn prove(
     let nick = handle.nick();
     let response = client
         .correlated(
-            crate::Line::new("WHO").with_params([nick.to_string(), "%na".into()]),
+            papo_proto::Line::new("WHO").with_params([nick.to_string(), "%na".into()]),
             Some(papo_core::ResponseMatcher::Who(nick.to_string())),
         )
         .await?;

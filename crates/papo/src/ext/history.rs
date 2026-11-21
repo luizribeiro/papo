@@ -1,11 +1,11 @@
 use std::{future::IntoFuture, time::SystemTime};
 
 use papo_core::{HistoryQuery, MsgRef, Response};
-use papo_proto::{ModeChanges, Reaction};
+use papo_proto::{Line, ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Event, Line, Message, ServerTime,
+    Client, Error, Event, Message, ServerTime,
     driver::Command,
     event::{
         Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TagMsg, TopicChanged,

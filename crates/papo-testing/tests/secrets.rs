@@ -61,12 +61,7 @@ fn queued_secrets_are_redacted_without_hiding_ordinary_lines() {
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :message-tags");
     session
-        .send(
-            now,
-            Line::new("PRIVMSG")
-                .param("#papo")
-                .param("ordinary debug marker"),
-        )
+        .send(now, "PRIVMSG #papo :ordinary debug marker".parse().unwrap())
         .unwrap();
 
     let debug = format!("{session:?}");

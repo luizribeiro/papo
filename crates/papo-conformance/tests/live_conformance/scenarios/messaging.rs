@@ -272,7 +272,7 @@ async fn empty_privmsg(s: Scenario) -> papo_testing::Result<()> {
 async fn display_text_controls(s: Scenario) -> papo_testing::Result<()> {
     let (alice, mut bob, channel) = fixture_pair(&s).await?;
     let raw_text = "\x1b[2Jhello";
-    let line = papo_proto::LineRef::parse(&format!("PRIVMSG {channel} :{raw_text}"))?.to_owned();
+    let line = format!("PRIVMSG {channel} :{raw_text}").parse::<papo::Line>()?;
 
     alice.send_raw(line).await?;
     let message = bob

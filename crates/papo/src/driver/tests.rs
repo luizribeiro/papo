@@ -2384,7 +2384,7 @@ async fn reconnect_on_a_live_connection_is_typed_and_keeps_the_transport() {
         let client = client.clone();
         async move {
             client
-                .send_raw(Line::new("PING").param("still-connected"))
+                .send_raw(crate::Line::new("PING").param("still-connected"))
                 .await
         }
     });

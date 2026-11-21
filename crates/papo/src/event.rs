@@ -3206,7 +3206,7 @@ mod tests {
 
         let request_error = within(
             client.request_raw(
-                Line::new("OPER")
+                crate::Line::new("OPER")
                     .param("admin")
                     .param(crate::Secret::new("request-password-3751")),
             ),
@@ -3218,9 +3218,9 @@ mod tests {
             crate::Error::InvalidInput(crate::InvalidInput::InsecureAuthentication)
         ));
 
-        let transmit_error = within(
-            client.send_raw(Line::new("PASS").param(crate::Secret::new("transmit-password-6824"))),
-        )
+        let transmit_error = within(client.send_raw(
+            crate::Line::new("PASS").param(crate::Secret::new("transmit-password-6824")),
+        ))
         .await
         .unwrap_err();
         assert!(matches!(

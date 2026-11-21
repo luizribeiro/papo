@@ -328,6 +328,10 @@ fn raw_line_reexports_are_nameable() {
     let _: &papo::Param = &line.params()[1];
     let _: papo::LineSource<'_> = line.source().unwrap();
     let _: papo::WireLine = line.encode().unwrap();
+    let text = ":irc.example.net NOTICE papo :maintenance in ten minutes";
+    assert_eq!(format!("{line:?}"), text);
+    assert_eq!(line.to_string(), text);
+    assert_eq!(text.parse::<papo::Line>().unwrap(), line);
 }
 
 #[test]

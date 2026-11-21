@@ -899,7 +899,7 @@ mod name_tests {
         session
             .request_with_matcher(
                 now,
-                crate::Line::new("MODE").with_params(["#release", "b"]),
+                papo_proto::Line::new("MODE").with_params(["#release", "b"]),
                 papo_core::ResponseMatcher::__list_mode("#release".into(), crate::ListMode::Ban),
             )
             .unwrap();

@@ -8,11 +8,11 @@ use std::{
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
-use papo_proto::{Ctcp, Typing};
+use papo_proto::{Ctcp, Line, Typing};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error, Feature, InvalidInput, Line, Unsupported, UnsupportedReason,
+    Error, Feature, InvalidInput, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
@@ -895,8 +895,8 @@ impl Client {
     ///
     /// The future resolves only after the entire line has been written.
     /// Sending is subject to the client's normal outbound rate limit.
-    /// Construct the [`Line`] with [`Line::new`] and [`Line::param`], or explicitly parse text for
-    /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
+    /// Construct the [`crate::Line`] with [`crate::Line::new`] and [`crate::Line::param`], or
+    /// explicitly parse text for a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
     /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
     /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
     ///
@@ -906,7 +906,7 @@ impl Client {
     /// the wire, or [`Error::Disconnected`] if the driver stops before writing it.
     /// A send that widens a remembered status-prefixed line's audience returns
     /// [`InvalidInput::WiderThanReferenced`].
-    pub fn send_raw(&self, line: Line) -> crate::RequestFuture<()> {
+    pub fn send_raw(&self, line: crate::Line) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move { client.send_message(line).await })
     }
@@ -982,8 +982,8 @@ impl Client {
     /// or `REDACT`) is answered only by its echo and its failure, so any other
     /// line in its reply, such as a service's answer, is also emitted as an event.
     ///
-    /// Construct the [`Line`] with [`Line::new`] and [`Line::param`], or explicitly parse text for
-    /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
+    /// Construct the [`crate::Line`] with [`crate::Line::new`] and [`crate::Line::param`], or
+    /// explicitly parse text for a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
     /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
     /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
     ///
@@ -995,7 +995,7 @@ impl Client {
     /// the response times out, or the driver stops.
     /// A send that widens a remembered status-prefixed line's audience returns
     /// [`InvalidInput::WiderThanReferenced`].
-    pub fn request_raw(&self, line: Line) -> crate::RequestFuture<Vec<Line>> {
+    pub fn request_raw(&self, line: crate::Line) -> crate::RequestFuture<Vec<crate::Line>> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let response = client.correlated(line, None).await?;

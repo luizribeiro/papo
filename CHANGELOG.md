@@ -26,6 +26,8 @@ and its three configuration errors have been removed.
 
 `Sasl::authzid` is removed. PLAIN and EXTERNAL use an empty authorization identity. `Sasl::device` applies to PLAIN and SCRAM-SHA-256.
 
+The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
+
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
 
