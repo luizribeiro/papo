@@ -1613,6 +1613,14 @@ mod tests {
             assert_eq!(Some(handle.nick().as_str()), peer, "{case}");
             assert_eq!(*handle == message.actor, sent_by_peer, "{case}");
             assert_eq!(*handle == live, sent_by_peer, "{case}");
+            let reference = message.return_address();
+            let parts = crate::Target::__parts(&reference);
+            assert_eq!(Some(parts.text()), peer, "{case}");
+            assert!(
+                parts.send_name == Some(crate::target::sealed::SendName::HistoryPeer),
+                "{case}"
+            );
+            assert!(parts.user.is_none(), "{case}");
         }
         let typing = core_item(
             "@time=2026-11-01T10:00:01.000Z;msgid=note-2;+typing=active :papo!~u@papo.irc TAGMSG papo",

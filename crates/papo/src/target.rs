@@ -9,6 +9,7 @@ pub(crate) mod sealed {
     pub(crate) enum SendName {
         Text,
         Nick,
+        HistoryPeer,
     }
 
     #[derive(Clone)]

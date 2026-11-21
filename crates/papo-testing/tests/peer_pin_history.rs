@@ -5,12 +5,12 @@ mod support {
     pub mod peer_pin;
 }
 
-use std::time::Duration;
+use std::{future::IntoFuture as _, time::Duration};
 
 use papo::{Error, Event, Reconnect};
 use papo_testing::wire;
 use support::{
-    direct::connected,
+    direct::{connected, next_active_event},
     peer_pin::{assert_match, join},
 };
 
@@ -141,7 +141,7 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
 }
 
 #[tokio::test]
-async fn soju_history_actor_without_an_account_tag_cannot_receive_a_reply() {
+async fn soju_history_reply_uses_the_peer_across_our_rename() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "reader")
             .rate_limit(papo::RateLimit::unlimited())
@@ -188,19 +188,11 @@ async fn soju_history_actor_without_an_account_tag_cannot_receive_a_reply() {
     let message = page.chat_messages().next().unwrap().clone();
 
     let reply = tokio::spawn(async move { client.reply(&message, "the report is attached").await });
-    assert_eq!(wire.next_sent().await, "@label=1 WHO writer %na");
-    wire.server("@label=1 BATCH +who labeled-response").await;
-    wire.server("@batch=who :offline.test 354 reader writer 0")
-        .await;
-    wire.server("@batch=who :offline.test 315 reader writer :End of WHO list")
-        .await;
-    wire.server("BATCH -who").await;
-    assert!(matches!(reply.await.unwrap(), Err(Error::TargetGone)));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
-            .await
-            .is_err()
+    assert_eq!(
+        wire.next_sent().await,
+        "@+reply=rtaqwb2dxm8u85ap38mvhqxy62 PRIVMSG writer :the report is attached"
     );
+    assert!(reply.await.unwrap().is_ok());
 }
 
 #[tokio::test]
@@ -279,6 +271,7 @@ async fn logged_out_reply_to_our_archived_direct_message_never_reaches_us() {
         "account-tag",
         "batch",
         "draft/chathistory",
+        "draft/message-redaction",
         "extended-join",
         "labeled-response",
         "message-tags",
@@ -320,29 +313,50 @@ async fn logged_out_reply_to_our_archived_direct_message_never_reaches_us() {
         assert_eq!(peer.nick(), "alice");
     }
 
-    let reply = tokio::spawn({
-        let client = client.clone();
-        async move { client.reply(&ours, "confirmed? here it is").await }
-    });
-    assert_eq!(wire.next_sent().await, "@label=1 WHO alice %na");
-    wire.server("@label=1 :ergo.test BATCH +who labeled-response")
-        .await;
-    wire.server("@batch=who :ergo.test 354 papo alice alice")
-        .await;
-    wire.server("@batch=who :ergo.test 315 papo alice :End of WHO list")
-        .await;
-    wire.server(":ergo.test BATCH -who").await;
-    assert!(matches!(reply.await.unwrap(), Err(Error::TargetGone)));
+    for (message, msgid) in [
+        (ours, "6e7q9yyfrx3nwsw2i6yjzmzxyc"),
+        (theirs.clone(), "pwcbkkexfp2uqmk5ri5x5b5bya"),
+    ] {
+        let reply = tokio::spawn(client.reply(&message, "the release is ready").into_future());
+        assert_eq!(
+            wire.next_sent().await,
+            format!("@+reply={msgid} PRIVMSG alice :the release is ready")
+        );
+        assert!(reply.await.unwrap().is_ok());
+    }
+
+    let msgid = "pwcbkkexfp2uqmk5ri5x5b5bya";
+    for (label, request, tag) in [
+        (3, client.react(&theirs, "✅"), "+draft/react"),
+        (4, client.unreact(&theirs, "✅"), "+draft/unreact"),
+    ] {
+        let result = tokio::spawn(request);
+        assert_eq!(
+            wire.next_sent().await,
+            format!("@+reply={msgid};{tag}=✅;label={label} TAGMSG alice")
+        );
+        wire.server(format!("@label={label} :ergo.test ACK")).await;
+        assert!(result.await.unwrap().is_ok());
+    }
+    let redaction = tokio::spawn(client.redact(&theirs, "superseded"));
+    assert_eq!(
+        wire.next_sent().await,
+        format!("@label=5 REDACT alice {msgid} superseded")
+    );
+    wire.server("@label=5 :ergo.test ACK").await;
+    assert!(redaction.await.unwrap().is_ok());
+
+    wire.server(":papo!~u@papo.irc NICK ALICE").await;
+    while !matches!(next_active_event(&mut events).await, Event::NickChanged(change) if change.new == "ALICE")
+    {
+    }
+    assert!(matches!(
+        client.reply(&theirs, "the release is ready").await,
+        Err(Error::TargetGone)
+    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
             .await
             .is_err()
     );
-
-    let reply = tokio::spawn(async move { client.reply(&theirs, "here it is").await });
-    assert_eq!(
-        wire.next_sent().await,
-        "@+reply=pwcbkkexfp2uqmk5ri5x5b5bya PRIVMSG alice :here it is"
-    );
-    assert!(reply.await.unwrap().is_ok());
 }

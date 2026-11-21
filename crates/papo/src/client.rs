@@ -16,6 +16,7 @@ use crate::{
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
+    target::sealed::SendName,
 };
 
 static NEXT_PING: AtomicU64 = AtomicU64::new(0);
@@ -690,7 +691,10 @@ impl Client {
             .ok_or(InvalidInput::NameRulesUnknown)?;
         let text = current_channel_text(&state, parts.text.into_owned(), parts.channel.as_deref())?;
         let checked = || {
-            if parts.send_name == Some(crate::target::sealed::SendName::Nick) {
+            if matches!(
+                parts.send_name,
+                Some(SendName::Nick | SendName::HistoryPeer)
+            ) {
                 let nick = names.nick(&text);
                 nick.check(state.isupport().inner())?;
                 return Ok(papo_core::Conversation::Private(nick));
@@ -704,6 +708,16 @@ impl Client {
         let target =
             checked().map_err(|reason| InvalidInput::invalid_argument(argument, &text, reason))?;
         let person = match target {
+            papo_core::Conversation::Private(nick)
+                if parts.send_name == Some(SendName::HistoryPeer) =>
+            {
+                Some(
+                    state
+                        .core
+                        .__prove_history_peer(nick)
+                        .map_err(crate::identity::map_failure)?,
+                )
+            }
             papo_core::Conversation::Private(nick) if parts.send_name.is_some() => {
                 Some(crate::identity::prove_current_name(&state, nick)?.core)
             }
@@ -1250,7 +1264,8 @@ impl Client {
     ///
     /// A private return address follows a tracked sender's nickname changes. If the sender is not
     /// tracked, papo verifies its captured account with `WHO`; a mismatch or identity that cannot
-    /// be verified is refused rather than sent to a bare nickname.
+    /// be verified is refused rather than sent to a bare nickname. A [`crate::MessageRef`] from
+    /// private history addresses the thread's peer by nickname and refuses your own nickname.
     ///
     /// # Errors
     ///
