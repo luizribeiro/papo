@@ -691,7 +691,7 @@ impl ForeignValues {
         Self {
             message: message.return_address(),
             channel: first.0.channel("#papo").unwrap(),
-            alice: first.0.query("alice").unwrap(),
+            alice: message.actor,
             nick: names.nick("alice"),
             account: names.account("alice"),
             first,
@@ -762,7 +762,6 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         &foreign.alice,
         &foreign.nick,
     );
-    let own_alice = second.query("alice").unwrap();
     let avatar = || papo::MetadataKey::new("avatar");
     let metadata = second.metadata();
     let results = [
@@ -782,7 +781,7 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         ("invite a foreign user", second.invite(alice, "#papo").await),
         (
             "invite to a foreign channel",
-            second.invite(&own_alice, channel).await,
+            second.invite("alice", channel).await,
         ),
         (
             "kickban",
@@ -1110,8 +1109,7 @@ async fn every_line_reference_refuses_a_stale_target() {
         tokio::task::yield_now().await;
     }
 
-    let alice = client.query("alice").unwrap();
-    let sent = client.privmsg(&alice, "review requested").await.unwrap();
+    let sent = client.privmsg("alice", "review requested").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :review requested");
     let mut references = vec![("sent message", true, sent.return_address())];
     let mut sender_events = Vec::new();
@@ -1181,6 +1179,11 @@ async fn every_line_reference_refuses_a_stale_target() {
         wire.server(line).await;
         sender_events.push(next_active_event(&mut events).await);
     }
+    let alice = &sender_events
+        .iter()
+        .find_map(papo::Event::as_message)
+        .expect("a private message from alice")
+        .actor;
     let index = references
         .iter()
         .position(|(name, ..)| *name == "channel message")
@@ -1209,10 +1212,10 @@ async fn every_line_reference_refuses_a_stale_target() {
     ) {}
 
     for result in [
-        client.privmsg(&alice, "classified").await.map(|_| ()),
-        client.notice(&alice, "classified").await.map(|_| ()),
-        client.action(&alice, "waves").await.map(|_| ()),
-        client.typing(&alice, papo::Typing::Active).await,
+        client.privmsg(alice, "classified").await.map(|_| ()),
+        client.notice(alice, "classified").await.map(|_| ()),
+        client.action(alice, "waves").await.map(|_| ()),
+        client.typing(alice, papo::Typing::Active).await,
     ] {
         assert!(matches!(result, Err(papo::Error::TargetGone)));
     }
@@ -2029,7 +2032,8 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
         tokio::task::yield_now().await;
     }
 
-    assert!(client.query("bad\rnick").is_err());
+    let rejected = client.watch("bad\rnick");
+    assert!(!rejected.is_live());
     let _watch = client.watch("bob");
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 }

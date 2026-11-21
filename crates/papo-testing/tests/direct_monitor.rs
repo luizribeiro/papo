@@ -4,7 +4,7 @@ mod support {
     pub mod direct;
 }
 
-use std::time::Duration;
+use std::{future::IntoFuture as _, time::Duration};
 
 use papo::Reconnect;
 use papo_testing::{Wire, wire};
@@ -39,23 +39,12 @@ async fn watch_monitors_an_unshared_user_and_releases_the_entry() {
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 100).await;
 
-    let alice = client.query("alice").unwrap();
-    assert_silent(&mut wire, "a query handle spends no MONITOR slot").await;
-    let first = alice.watch();
+    let first = client.watch("alice");
     assert_eq!(wire.next_sent().await, "MONITOR + alice");
-    let second = client.query("alice").unwrap().watch();
+    let second = client.watch("alice");
     assert_silent(&mut wire, "a second watch shares the entry").await;
 
-    let action = tokio::spawn({
-        let client = client.clone();
-        let alice = alice.clone();
-        async move { client.action(&alice, "waves").await }
-    });
-    answer_who(
-        &mut wire,
-        Some(":offline.test 354 papo alice alice-account"),
-    )
-    .await;
+    let action = tokio::spawn(client.action("alice", "waves").into_future());
     assert_eq!(
         wire.next_sent().await,
         "PRIVMSG alice :\u{1}ACTION waves\u{1}"
