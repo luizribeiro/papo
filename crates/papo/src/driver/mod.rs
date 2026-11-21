@@ -1820,7 +1820,9 @@ fn request_end_error(end: event::RequestEnd) -> Option<Error> {
         event::RequestEnd::CredentialsRefused => {
             Error::InvalidInput(InvalidInput::InsecureAuthentication)
         }
-        event::RequestEnd::Unsupported(unsupported) => Error::Unsupported(unsupported),
+        event::RequestEnd::Unsupported(unsupported) => {
+            Error::Unsupported(crate::error::unsupported_from_core(unsupported))
+        }
     })
 }
 

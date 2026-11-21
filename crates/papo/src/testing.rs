@@ -112,6 +112,15 @@ pub fn mask(casemapping: Casemapping, text: impl Into<String>) -> Mask {
     casemapping.mask(text)
 }
 
+/// Builds an unavailable-feature diagnostic for test fixtures.
+#[must_use]
+pub const fn unsupported(
+    feature: crate::Feature,
+    reason: crate::UnsupportedReason,
+) -> crate::Unsupported {
+    crate::Unsupported::new(feature, reason)
+}
+
 /// Builds a client whose connection attempts use in-memory byte streams.
 pub fn wire_client(
     builder: crate::Builder,

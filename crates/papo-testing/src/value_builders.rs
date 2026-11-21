@@ -32,7 +32,7 @@ pub fn mask(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::Mask
 /// Builds a diagnostic for an unavailable IRC feature.
 #[must_use]
 pub const fn unsupported(feature: Feature, reason: UnsupportedReason) -> Unsupported {
-    Unsupported::new(feature, reason)
+    papo::__testing::unsupported(feature, reason)
 }
 
 /// Builds a minimal immutable client-state snapshot.

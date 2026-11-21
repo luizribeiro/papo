@@ -2959,9 +2959,9 @@ pub(crate) fn from_core_with_receipt(
                 nicks,
             })
         }
-        papo_core::Event::Unsupported(unsupported) => {
-            Event::Warning(Warning::Unsupported(unsupported))
-        }
+        papo_core::Event::Unsupported(unsupported) => Event::Warning(Warning::Unsupported(
+            crate::error::unsupported_from_core(unsupported),
+        )),
         _ => return CoreEvent::Unknown,
     };
     attach_message_handles(
@@ -6712,7 +6712,8 @@ mod tests {
             papo_core::Unsupported::new(Feature::Monitor, papo_core::UnsupportedReason::LimitZero);
         assert!(matches!(
             forwarded(papo_core::Event::Unsupported(unsupported)),
-            Event::Warning(Warning::Unsupported(mapped)) if mapped == unsupported
+            Event::Warning(Warning::Unsupported(mapped))
+                if mapped.feature == unsupported.feature && mapped.reason == unsupported.reason
         ));
     }
 

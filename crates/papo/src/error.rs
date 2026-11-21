@@ -461,6 +461,10 @@ impl ForeignReference {
     }
 }
 
+pub(crate) const fn unsupported_from_core(unsupported: papo_core::Unsupported) -> Unsupported {
+    unsupported
+}
+
 /// An error produced by the asynchronous IRC client.
 #[derive(Clone, Debug, Error)]
 #[non_exhaustive]
@@ -644,7 +648,9 @@ impl Error {
                 Self::InvalidInput(InvalidInput::InsecureAuthentication)
             }
             Request::PendingLimit => Self::TooManyPendingRequests,
-            Request::Unsupported(unsupported) => Self::Unsupported(unsupported),
+            Request::Unsupported(unsupported) => {
+                Self::Unsupported(unsupported_from_core(unsupported))
+            }
             Request::InvalidMessageReference => {
                 Self::InvalidInput(InvalidInput::UnusableMessageReference)
             }
@@ -1083,7 +1089,8 @@ mod tests {
         use papo_core::RequestError as Request;
 
         let now = web_time::Instant::now();
-        let no_read_markers = Unsupported::new(Feature::ReadMarkers, UnsupportedReason::NotOffered);
+        let no_read_markers =
+            papo_core::Unsupported::new(Feature::ReadMarkers, UnsupportedReason::NotOffered);
         let metadata_key = crate::InvalidIdentifier::InvalidCharacter('/');
         vec![
             invalid_input_case(
@@ -1098,10 +1105,14 @@ mod tests {
                 Request::InsecureAuthentication,
                 InvalidInput::InsecureAuthentication,
             ),
-            case(
-                Request::Unsupported(no_read_markers),
-                move |error| matches!(error, Error::Unsupported(actual) if *actual == no_read_markers),
-            ),
+            case(Request::Unsupported(no_read_markers), move |error| {
+                matches!(
+                    error,
+                    Error::Unsupported(actual)
+                        if actual.feature == no_read_markers.feature
+                            && actual.reason == no_read_markers.reason
+                )
+            }),
             invalid_input_case(
                 Request::InvalidMessageReference,
                 InvalidInput::UnusableMessageReference,
