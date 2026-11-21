@@ -137,7 +137,7 @@ async fn stable_and_unstable_replay_identically() {
     server.expect("PRIVMSG alice :approved for release").await;
     finish("reply", reply).await.unwrap();
 
-    let peer = client.query("alice").unwrap();
+    let peer = request.actor.clone();
     let watch = peer.watch();
     server.expect("MONITOR + alice").await;
     server

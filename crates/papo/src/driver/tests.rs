@@ -5600,7 +5600,7 @@ async fn every_name_taking_method_returns_invalid_name() {
     ];
 
     let state = client.state();
-    let user = client.query(state.nick().clone()).unwrap();
+    let user = state.nick();
     for (method, argument, bad) in cases {
         let result = match method {
             Method::Typing => client.typing(bad, crate::Typing::Active).await,
@@ -5623,7 +5623,7 @@ async fn every_name_taking_method_returns_invalid_name() {
             Method::KickbanNick => kickban(&client, "#staff", bad, "*!*@host", "spam")
                 .await
                 .map(drop),
-            Method::InviteChannel => client.invite(&user, bad).await,
+            Method::InviteChannel => client.invite(user, bad).await,
             Method::SetNick => client.set_nick(bad).await.map(drop),
             Method::Topic => client.set_topic(bad, "Release planning").await.map(drop),
             Method::Metadata => client
@@ -6054,12 +6054,10 @@ async fn membership_actions_confirm_success_and_refusal() {
         }
     })
     .await;
-    let carol = client.query("carol").unwrap();
 
     let invite = tokio::spawn({
         let client = client.clone();
-        let carol = carol.clone();
-        async move { client.invite(&carol, test_channel("#papo")).await }
+        async move { client.invite("carol", test_channel("#papo")).await }
     });
     client_line(&mut server, b"@label=0 INVITE carol #papo\r\n").await;
     server_line(
@@ -6089,13 +6087,11 @@ async fn membership_actions_confirm_success_and_refusal() {
     ));
 
     assert!(matches!(
-        client.invite(&carol, test_channel("not-a-channel")).await,
+        client.invite("carol", test_channel("not-a-channel")).await,
         Err(Error::InvalidInput(_))
     ));
     assert!(matches!(
-        client
-            .invite(client.query("dave").unwrap(), "not-a-channel")
-            .await,
+        client.invite("dave", "not-a-channel").await,
         Err(Error::InvalidInput(_))
     ));
     assert!(
@@ -6666,16 +6662,14 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         }
     })
     .await;
-    let alice = client.query("alice").unwrap();
-    let carol = client.query("carol").unwrap();
 
     let modes = tokio::spawn({
         let client = client.clone();
         async move {
             client
                 .mode("#papo")
-                .op(&alice)
-                .voice(&carol)
+                .op("alice")
+                .voice("carol")
                 .ban("*!*@spam.example")
                 .await
         }
@@ -8025,12 +8019,11 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     let _ = (next_event(&mut events).await, next_event(&mut events).await);
-    let helper = client.query("helper").unwrap();
 
     let sender = client.clone();
     let sent = tokio::spawn(async move {
         sender
-            .privmsg(helper, "fixed in 69876ec")
+            .privmsg("helper", "fixed in 69876ec")
             .reply_to("abc123")
             .channel_context(crate::Casemapping::default().channel("#papo"))
             .tag("+example.org/trace", "98")
@@ -9279,9 +9272,8 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
         "second notice delivery"
     );
 
-    let own = client.query("papo-driver").unwrap();
     let sender = client.clone();
-    let sent = tokio::spawn(async move { sender.privmsg(own, "remember this").await });
+    let sent = tokio::spawn(async move { sender.privmsg("papo-driver", "remember this").await });
     client_line(
         &mut server,
         b"@label=2 PRIVMSG papo-driver :remember this\r\n",

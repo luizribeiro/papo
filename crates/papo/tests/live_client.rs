@@ -42,9 +42,8 @@ async fn registers_messages_itself_and_quits() {
             }
         }
 
-        let direct = client.query(&nick).unwrap();
         let sent = client
-            .privmsg(&direct, "hello from papo's live client")
+            .privmsg(&nick, "hello from papo's live client")
             .await
             .unwrap();
         assert!(matches!(

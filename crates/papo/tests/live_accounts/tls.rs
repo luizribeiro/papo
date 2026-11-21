@@ -34,9 +34,8 @@ async fn tls_account_proof_produces_the_same_pin_on_refs_and_messages() {
         wait_joined(&mut bob_events, &bob, &channel).await;
         wait_joined(&mut alice_events, &bob, &channel).await;
 
-        let bob_ref = alice_client.query(&bob).unwrap();
         alice_client
-            .privmsg(&bob_ref, "peer key live proof")
+            .privmsg(&bob, "peer key live proof")
             .await
             .unwrap();
         let message =

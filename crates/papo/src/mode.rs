@@ -982,10 +982,9 @@ mod tests {
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         let state = first.state();
-        let user = first.query(state.nick()).unwrap();
 
         assert!(matches!(
-            second.mode(channel).op(&user).await,
+            second.mode(channel).op(state.nick()).await,
             Err(crate::Error::ForeignReference(_))
         ));
         assert!(matches!(

@@ -64,13 +64,12 @@ async fn ergo_handle_send_watch_and_open_round_trip() {
         let (alice, mut alice_events) = connect(&alice_nick, &lobby).await;
         let (bob, mut bob_events) = connect(&bob_nick, &review).await;
 
-        let peer = bob.query(alice_nick.as_str()).unwrap();
-        let watch = peer.watch();
-        wait_for(&mut bob_events, |event| {
+        let watch = bob.watch(alice_nick.as_str());
+        let peer = wait_for(&mut bob_events, |event| {
             event
                 .as_monitor_online()
                 .filter(|online| online.subject.nick() == alice_nick.as_str())
-                .map(drop)
+                .map(|online| online.subject.clone())
         })
         .await;
         assert!(watch.is_live());

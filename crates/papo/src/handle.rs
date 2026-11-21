@@ -895,9 +895,8 @@ mod tests {
     #[test]
     fn watch_debug_is_opaque_and_equality_is_per_lease() {
         let client = client_with_joined_users();
-        let alice = client.query("Alice").unwrap();
-        let first = alice.watch();
-        let second = alice.watch();
+        let first = client.watch("Alice");
+        let second = client.watch("Alice");
 
         assert_eq!(first, first.clone());
         assert_ne!(first, second);
@@ -911,11 +910,10 @@ mod tests {
     #[test]
     fn watch_leases_share_one_desired_identity() {
         let client = client_with_joined_users();
-        let user = client.query("Alice").unwrap();
         let registry = client.state().watch_registry();
-        let first = user.watch();
+        let first = client.watch("Alice");
         let cloned = first.clone();
-        let second = user.watch();
+        let second = client.watch("Alice");
 
         assert_eq!(registry.desired(), ["Alice"]);
         drop(first);
@@ -933,13 +931,12 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
         crate::driver::test_support::complete_connect_monitor(&mut server, &mut events, 100).await;
-        let alice = client.query("alice").unwrap();
-        let first = alice.watch();
+        let first = client.watch("alice");
         client_line(&mut server, b"MONITOR + alice\r\n").await;
         server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
         assert!(first.is_live());
 
-        let second = alice.watch();
+        let second = client.watch("alice");
         drop(first);
         assert!(
             tokio::time::timeout(std::time::Duration::from_millis(1), server.read_u8())
@@ -960,12 +957,12 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
         crate::driver::test_support::complete_connect_monitor(&mut server, &mut events, 1).await;
-        let alice = client.query("alice").unwrap().watch();
+        let alice = client.watch("alice");
         client_line(&mut server, b"MONITOR + alice\r\n").await;
         server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
         assert!(alice.is_live());
 
-        let bob = client.query("bob").unwrap().watch();
+        let bob = client.watch("bob");
         assert!(!bob.is_live());
         drop(alice);
         client_line(&mut server, b"MONITOR - alice\r\n").await;
@@ -987,7 +984,7 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
         crate::driver::test_support::complete_connect_monitor(&mut server, &mut events, 100).await;
-        let watch = client.query("alice").unwrap().watch();
+        let watch = client.watch("alice");
         client_line(&mut server, b"MONITOR + alice\r\n").await;
         server_line(
             &mut server,
