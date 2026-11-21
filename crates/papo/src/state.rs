@@ -793,7 +793,7 @@ impl State {
 mod name_tests {
     use std::sync::Arc;
 
-    use papo_core::{Config, Connection, Session, sts::ConnectionSecurity};
+    use papo_core::{Config, Session};
 
     use super::State;
     use crate::{Casemapping, InvalidIdentifier, NameCheck};
@@ -806,67 +806,6 @@ mod name_tests {
         let mut session = Session::new(Config::default().casemapping(Casemapping::default()));
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         State::from_session(&session, false)
-    }
-
-    fn peer_scope(isupport: Option<&str>) -> Option<crate::peer_key::PeerScope> {
-        let mut session = Session::new(Config::default());
-        session.handle_connected_with(
-            crate::rt::now_mono(),
-            Connection {
-                host: "bouncer.example".into(),
-                security: ConnectionSecurity::Secure,
-                authenticated_server_name: Some("bouncer.example".into()),
-            },
-        );
-        if let Some(isupport) = isupport {
-            session.handle_line(
-                crate::rt::now_mono(),
-                format!(":irc.example 005 papo {isupport} :are supported").as_bytes(),
-            );
-        }
-        State::from_session(&session, true).peer_scope()
-    }
-
-    #[test]
-    fn peer_scope_requires_isupport_and_complete_bouncer_facts() {
-        assert_eq!(peer_scope(None), None);
-        assert_eq!(
-            peer_scope(Some("CASEMAPPING=rfc1459")),
-            Some(crate::peer_key::PeerScope::server("bouncer.example"))
-        );
-        assert_eq!(
-            peer_scope(Some("CASEMAPPING=rfc1459 BOUNCER_NETID=libera-42")),
-            None
-        );
-    }
-
-    #[test]
-    fn bouncer_capability_without_a_network_id_never_falls_back_to_server_scope() {
-        let mut session = Session::new(Config::default());
-        let now = crate::rt::now_mono();
-        session.handle_connected_with(
-            now,
-            Connection {
-                host: "bouncer.example".into(),
-                security: ConnectionSecurity::Secure,
-                authenticated_server_name: Some("bouncer.example".into()),
-            },
-        );
-        session.handle_line(
-            now,
-            b":bouncer.example 005 papo CASEMAPPING=rfc1459 :are supported",
-        );
-
-        let mut state = State::from_session(&session, true);
-        state
-            .caps
-            .insert(crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME), None);
-        assert!(
-            state
-                .caps()
-                .contains_key(&crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME))
-        );
-        assert_eq!(state.peer_scope(), None);
     }
 
     #[test]

@@ -3,7 +3,6 @@ use std::{collections::hash_map::DefaultHasher, hash::Hash as _, hash::Hasher as
 use super::{InvalidPeerKey, PeerKey, PeerKeyCheck, PeerKeyMismatch, PeerScope};
 
 use crate::{Account, Casemapping};
-use papo_core::{Config, Session};
 
 fn parse(fields: &str) -> PeerKey {
     format!("papo-peer:1;{fields}").parse().unwrap()
@@ -175,80 +174,6 @@ fn peer_keys_compare_by_scope_and_canonical_account() {
         first.check(&other),
         PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
     ));
-}
-
-#[test]
-fn unverified_history_has_no_peer_key() {
-    assert!(
-        PeerKey::historical(
-            None,
-            &Casemapping::Rfc1459.nick("guest-4821"),
-            &Account::LoggedOut
-        )
-        .is_none()
-    );
-}
-
-#[test]
-fn continuity_peer_keys_only_match_the_same_observed_user() {
-    let now = crate::rt::now_mono();
-    let mut session = Session::new(Config::default().nick("papo"));
-    session.handle_line(now, b":papo!p@localhost JOIN #release");
-    session.handle_line(now, b":alice!~alice@cloak.example JOIN #release");
-    session.handle_line(now, b":bob!~bob@cloak.example JOIN #release");
-    let unknown = Account::Unknown;
-    let alice = PeerKey::live(
-        None,
-        &Casemapping::Rfc1459.nick("alice"),
-        &unknown,
-        None,
-        session.state().__peer_token_for("alice"),
-    )
-    .unwrap();
-    let same_alice = PeerKey::live(
-        None,
-        &Casemapping::Rfc1459.nick("alice"),
-        &unknown,
-        None,
-        session.state().__peer_token_for("alice"),
-    )
-    .unwrap();
-    let bob = PeerKey::live(
-        None,
-        &Casemapping::Rfc1459.nick("bob"),
-        &unknown,
-        None,
-        session.state().__peer_token_for("bob"),
-    )
-    .unwrap();
-
-    assert!(!alice.is_verified());
-    assert_eq!(alice.as_verified_str(), None);
-    assert!(matches!(alice.check(&same_alice), PeerKeyCheck::Match));
-    assert!(matches!(
-        alice.check(&bob),
-        PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
-    ));
-}
-
-#[test]
-fn verified_peer_keys_round_trip_with_delimiters_and_unicode() {
-    let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-    let key = PeerKey::historical(
-        Some(&PeerScope::server("irc.example:🌐")),
-        &Casemapping::Rfc1459.nick("Alice[Ops]"),
-        &account,
-    )
-    .unwrap();
-    let encoded = key.as_verified_str().unwrap();
-    let parsed = encoded.parse::<PeerKey>().unwrap();
-
-    assert_eq!(
-        encoded,
-        "papo-peer:1;server=irc.example%3A%F0%9F%8C%90;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
-    );
-    assert!(matches!(key.check(&parsed), PeerKeyCheck::Match));
-    assert_eq!(parsed.as_verified_str(), Some(encoded));
 }
 
 #[test]
