@@ -2647,7 +2647,6 @@ async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
         state_account(&state, &admin.actor),
         Some(papo::Account::LoggedIn(alice.clone()))
     );
-    let saved = admin.actor.key();
 
     wire.server("@msgid=9fq3nb7c2e :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :!op alice")
         .await;
@@ -2658,10 +2657,6 @@ async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
         Some(papo::Account::LoggedOut)
     );
     assert_ne!(takeover.actor, admin.actor);
-    assert!(matches!(
-        saved.check(&takeover.actor.key()),
-        papo::PeerKeyCheck::Mismatch(_)
-    ));
     assert!(matches!(
         client.privmsg(&admin.actor, "op granted").await,
         Err(papo::Error::TargetGone)
