@@ -4006,7 +4006,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Unsupported
 impl core::panic::unwind_safe::UnwindSafe for papo::Unsupported
 pub struct papo::UserHandle(_)
 impl papo::UserHandle
-pub fn papo::UserHandle::key(&self) -> papo::PeerKey
 pub fn papo::UserHandle::nick(&self) -> papo::Nick
 pub fn papo::UserHandle::watch(&self) -> papo::Watch
 impl core::clone::Clone for papo::UserHandle

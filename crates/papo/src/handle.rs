@@ -333,7 +333,6 @@ impl UserHandle {
         Self::from_line(nick, account, state, History::Archived, historical_token)
     }
 
-    // A private history actor still carries the account evidence available to peer keys.
     pub(crate) fn from_private_history(
         nick: crate::Nick,
         account: crate::Account,
@@ -425,45 +424,6 @@ impl UserHandle {
                 })
             })
             .unwrap_or_else(|| self.0.nick.clone())
-    }
-
-    /// Captures the current saved key for this direct conversation.
-    ///
-    /// While the person is present, the key carries the proof papo currently holds for them. After
-    /// they leave, it keeps only the account this handle observed, never facts about the
-    /// nickname's next holder.
-    #[must_use]
-    pub fn key(&self) -> crate::PeerKey {
-        let Some(state) = self.0.state.as_ref() else {
-            return crate::PeerKey::unverified(None, &self.0.nick);
-        };
-        let state = state
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let scope = state.peer_scope();
-        let current = self
-            .proof()
-            .and_then(|proof| state.core.__resolve_proven(proof).ok());
-        let key = match &current {
-            Some(nick) => {
-                let account = state
-                    .user_local(nick)
-                    .map(crate::User::account)
-                    .filter(|account| **account != crate::Account::Unknown)
-                    .unwrap_or(&self.0.account);
-                crate::PeerKey::live(
-                    scope.as_ref(),
-                    nick,
-                    account,
-                    state.peer_account_id(nick, account),
-                    state.peer_token(nick),
-                )
-            }
-            None => crate::PeerKey::historical(scope.as_ref(), &self.0.nick, &self.0.account),
-        };
-        key.unwrap_or_else(|| {
-            crate::PeerKey::unverified(scope.as_ref(), current.as_ref().unwrap_or(&self.0.nick))
-        })
     }
 
     /// Acquires a server-side presence watch for the user this handle represents.

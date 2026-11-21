@@ -19,15 +19,6 @@ pub(super) struct BouncerScope {
     pub(super) upstream: String,
 }
 
-impl PeerScope {
-    pub(crate) fn server(server: &str) -> Self {
-        Self {
-            server: server.to_owned(),
-            bouncer: None,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(super) enum KeyScope {
     Network(PeerScope),
@@ -121,54 +112,6 @@ pub enum PeerKeyMismatch {
 pub struct InvalidPeerKey;
 
 impl PeerKey {
-    pub(crate) fn unverified(scope: Option<&PeerScope>, nick: &crate::Nick) -> Self {
-        Self::new(PeerThread::new(scope, nick), PeerProof::Unverified(None))
-    }
-
-    pub(crate) fn live(
-        scope: Option<&PeerScope>,
-        nick: &crate::Nick,
-        account: &crate::Account,
-        account_id: Option<&str>,
-        token: papo_core::PeerToken,
-    ) -> Option<Self> {
-        let thread = PeerThread::new(scope, nick);
-        let proof = match (scope, account) {
-            (Some(_), crate::Account::LoggedIn(account)) => PeerProof::Account(
-                Box::new(AccountProof {
-                    casemapping: account.casemapping(),
-                    account: account.key().to_owned(),
-                    id: account_id.map(str::to_owned),
-                }),
-                token.__is_known().then_some(token),
-            ),
-            _ if token.__is_known() => PeerProof::Unverified(Some(token)),
-            _ => return None,
-        };
-        Some(Self::new(thread, proof))
-    }
-
-    pub(crate) fn historical(
-        scope: Option<&PeerScope>,
-        nick: &crate::Nick,
-        account: &crate::Account,
-    ) -> Option<Self> {
-        let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) else {
-            return None;
-        };
-        Some(Self::new(
-            PeerThread::new(Some(scope), nick),
-            PeerProof::Account(
-                Box::new(AccountProof {
-                    casemapping: account.casemapping(),
-                    account: account.key().to_owned(),
-                    id: None,
-                }),
-                None,
-            ),
-        ))
-    }
-
     fn new(thread: PeerThread, proof: PeerProof) -> Self {
         let encoded = encoding::render(&thread, &proof);
         Self {
@@ -216,20 +159,6 @@ impl PeerKey {
     #[must_use]
     pub fn as_verified_str(&self) -> Option<&str> {
         self.is_verified().then_some(&self.encoded)
-    }
-}
-
-impl PeerThread {
-    fn new(scope: Option<&PeerScope>, nick: &crate::Nick) -> Self {
-        let scope = scope.map_or_else(
-            || KeyScope::Connection(format!("{:?}", nick.origin())),
-            |scope| KeyScope::Network(scope.clone()),
-        );
-        Self {
-            scope,
-            casemapping: nick.casemapping(),
-            nick: nick.key().to_owned(),
-        }
     }
 }
 

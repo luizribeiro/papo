@@ -237,8 +237,6 @@ pub struct State {
     typing: Arc<crate::typing::TypingTable>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
-    authenticated_server_name: Option<String>,
-    peer_pin_bouncer: crate::peer_bouncer::PeerState,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
@@ -335,36 +333,6 @@ impl State {
         self.core.__capture_recipient(nick.clone(), account)
     }
 
-    pub(crate) fn peer_token(&self, nick: &Nick) -> papo_core::PeerToken {
-        self.core.__peer_token_for(nick.as_str())
-    }
-
-    pub(crate) fn peer_account_id<'a>(&'a self, nick: &Nick, account: &Account) -> Option<&'a str> {
-        let user = self.core.user(nick)?;
-        (user.account() == account)
-            .then(|| user.__account_id())
-            .flatten()
-    }
-
-    pub(crate) fn peer_scope(&self) -> Option<crate::peer_key::PeerScope> {
-        self.isupport.casemapping()?;
-        let server = self.authenticated_server_name.as_deref()?;
-        match self.isupport.get("BOUNCER_NETID") {
-            papo_proto::Advertised::Value(network) => {
-                self.peer_pin_bouncer.scope(&self.core, server, network)
-            }
-            papo_proto::Advertised::Bare => None,
-            papo_proto::Advertised::Absent
-                if self
-                    .caps
-                    .contains_key(&crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME)) =>
-            {
-                None
-            }
-            papo_proto::Advertised::Absent => Some(crate::peer_key::PeerScope::server(server)),
-        }
-    }
-
     pub(crate) fn parse_target_inner(
         &self,
         target: impl AsRef<str>,
@@ -444,8 +412,6 @@ impl State {
             typing,
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
-            authenticated_server_name: session.__authenticated_server_name().map(str::to_owned),
-            peer_pin_bouncer: crate::peer_bouncer::PeerState::from_session(session),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::from(id)),
