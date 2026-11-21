@@ -44,13 +44,10 @@ fn oauth_bearer_after_initial_response() -> Transcript {
 
 #[test]
 fn configures_mechanisms_policy_and_entropy() {
-    let config = Config::default().sasl(
-        Sasl::any(
-            "alice",
-            papo_core::Secret::new("correct horse battery staple"),
-        )
-        .device("phone"),
-    );
+    let config = Config::default().sasl(Sasl::any(
+        "alice",
+        papo_core::Secret::new("correct horse battery staple"),
+    ));
     assert!(config.sasl.is_some());
 
     let session = Session::with_entropy(config, Box::new(FixedEntropy));
@@ -568,15 +565,10 @@ fn inactive_authenticate_messages_are_surfaced_unchanged() {
 
 #[test]
 fn authenticates_with_plain_and_records_the_account() {
-    Transcript::new(
-        Config::default().sasl(
-            Sasl::plain(
-                "alice",
-                papo_core::Secret::new("correct horse battery staple"),
-            )
-            .device("phone"),
-        ),
-    )
+    Transcript::new(Config::default().sasl(Sasl::plain(
+        "alice@phone",
+        papo_core::Secret::new("correct horse battery staple"),
+    )))
     .connect_default()
     .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
     .client("CAP REQ :sasl")

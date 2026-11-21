@@ -19,7 +19,6 @@ const SASL_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct Sasl {
     pub(crate) mechanisms: Vec<Mechanism>,
     pub(crate) required: bool,
-    device: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -46,7 +45,6 @@ impl Sasl {
                 password,
             }],
             required: true,
-            device: None,
         }
     }
 
@@ -56,7 +54,6 @@ impl Sasl {
         Self {
             mechanisms: vec![Mechanism::OAuthBearer { token }],
             required: true,
-            device: None,
         }
     }
 
@@ -66,17 +63,7 @@ impl Sasl {
         Self {
             mechanisms: vec![Mechanism::External],
             required: true,
-            device: None,
         }
-    }
-
-    /// Appends `@<device>` to the PLAIN or SCRAM-SHA-256 authentication identity.
-    ///
-    /// Bouncers and servers can use the suffix to distinguish a user's clients.
-    #[must_use]
-    pub fn device(mut self, device: impl Into<String>) -> Self {
-        self.device = Some(device.into());
-        self
     }
 
     /// Uses the SASL SCRAM-SHA-256 mechanism.
@@ -88,7 +75,6 @@ impl Sasl {
                 password,
             }],
             required: true,
-            device: None,
         }
     }
 
@@ -108,7 +94,6 @@ impl Sasl {
                 Mechanism::Plain { username, password },
             ],
             required: true,
-            device: None,
         }
     }
 
@@ -143,7 +128,6 @@ pub(super) struct SaslSession {
     account: Option<String>,
     pending_account: Option<String>,
     account_update: AccountUpdate,
-    device: Option<String>,
     challenge: String,
     entropy: Option<Box<dyn Entropy + Send>>,
     require: bool,
@@ -246,7 +230,6 @@ impl std::fmt::Debug for SaslSession {
             .field("account", &self.account)
             .field("pending_account", &self.pending_account)
             .field("account_update", &self.account_update)
-            .field("device", &self.device)
             .field("challenge_len", &self.challenge.len())
             .field("has_entropy", &self.entropy.is_some())
             .field("require", &self.require)
@@ -286,7 +269,6 @@ impl SaslSession {
             account: None,
             pending_account: None,
             account_update: AccountUpdate::Unchanged,
-            device: config.sasl.as_ref().and_then(|sasl| sasl.device.clone()),
             challenge: String::new(),
             entropy,
             require: config.sasl.as_ref().is_some_and(|sasl| sasl.required),
@@ -494,10 +476,9 @@ impl SaslSession {
         let is_oauth_bearer = matches!(mechanism, Mechanism::OAuthBearer { .. });
         let response = match mechanism {
             Mechanism::Plain { username, password } => {
-                let authcid = with_device(username, self.device.as_deref());
                 let fields: [&[u8]; 4] = [
                     b"\0",
-                    authcid.as_bytes(),
+                    username.as_bytes(),
                     b"\0",
                     password.expose().as_bytes(),
                 ];
@@ -692,8 +673,7 @@ impl SaslSession {
                     continue;
                 };
                 entropy.fill(&mut nonce);
-                let authcid = with_device(username, self.device.as_deref());
-                match ScramClient::new(&authcid, password, &STANDARD.encode(nonce)) {
+                match ScramClient::new(username, password, &STANDARD.encode(nonce)) {
                     Ok(scram) => {
                         self.scram = Some(scram);
                         self.scram_step = ScramStep::Initial;
@@ -821,13 +801,6 @@ impl SaslSession {
             PlainFallback::Forbidden
         }
     }
-}
-
-fn with_device(username: &str, device: Option<&str>) -> String {
-    device.map_or_else(
-        || username.to_owned(),
-        |device| format!("{username}@{device}"),
-    )
 }
 
 fn receive_challenge(buffer: &mut String, chunk: &str) -> Result<Option<Vec<u8>>, ()> {

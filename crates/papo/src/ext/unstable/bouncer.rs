@@ -190,10 +190,9 @@ impl IntoFuture for ChangeNetwork {
 
 /// Handle for upstream bouncer network management.
 ///
-/// A control connection can discover networks and create separate device connections to one of
-/// them. Configure [`crate::Sasl::device`] on each network-bound builder returned by
-/// [`Self::network`]. Network names need not be unique, so applications that select by name must
-/// define how to resolve multiple matches.
+/// A control connection can discover networks and open a connection to the selected network.
+/// Network names need not be unique, so applications that select by name must define how to
+/// resolve multiple matches.
 ///
 /// ```no_run
 /// use papo::{Client, Feature, Sasl, Secret};
@@ -217,17 +216,10 @@ impl IntoFuture for ChangeNetwork {
 ///     })
 ///     .expect("the requested network is configured");
 ///
-/// let (_phone, _phone_events) = control
+/// let (_upstream, _upstream_events) = control
 ///     .bouncer()
 ///     .network(&network.id)
-///     .sasl(Sasl::plain("alice", Secret::new(password)).device("phone"))
-///     .autojoin(["#papo"])
-///     .connect()
-///     .await?;
-/// let (_laptop, _laptop_events) = control
-///     .bouncer()
-///     .network(&network.id)
-///     .sasl(Sasl::plain("alice", Secret::new(password)).device("laptop"))
+///     .sasl(Sasl::plain("alice", Secret::new(password)))
 ///     .autojoin(["#papo"])
 ///     .connect()
 ///     .await?;
