@@ -188,10 +188,7 @@ pub struct TypingChanged {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::Account,
-    /// The IRC conversation where typing is occurring.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(super) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`super::Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
@@ -276,6 +273,14 @@ impl Redacted {
 }
 
 impl TypingChanged {
+    /// Returns the conversation, kept read-only so it stays consistent with the return address.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub const fn conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
     /// Returns the address that reaches the recipients of this line.
     ///
     /// A typing notification has no message identifier, so reactions and redactions using this

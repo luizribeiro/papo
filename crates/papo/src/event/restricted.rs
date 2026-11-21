@@ -172,7 +172,7 @@ impl<'a> LineView<'a> {
             Self::TagMsg(line) => Some(line.conversation.clone()),
             Self::Reacted(line) => Some(line.conversation.clone()),
             Self::Redacted(line) => Some(line.conversation.clone()),
-            Self::TypingChanged(line) => Some(line.conversation.clone()),
+            Self::TypingChanged(line) => Some(line.conversation().clone()),
             Self::Other(_) => None,
         }
     }
