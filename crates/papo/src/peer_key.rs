@@ -1,7 +1,6 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    str::FromStr,
 };
 
 mod encoding;
@@ -211,15 +210,6 @@ impl Eq for PeerKey {}
 impl Hash for PeerKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.thread.hash(state);
-    }
-}
-
-impl FromStr for PeerKey {
-    type Err = InvalidPeerKey;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (thread, proof) = encoding::parse(value)?;
-        Ok(Self::new(thread, proof))
     }
 }
 
