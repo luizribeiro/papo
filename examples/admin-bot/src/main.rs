@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Account, Client, Event, User};
+use papo::{Account, Client, Event};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([&channel])
         .connect()
         .await?;
-    while let Some((event, state)) = events.next().await {
+    while let Some((event, _)) = events.next().await {
         let Event::Message(message) = event else {
             continue;
         };
@@ -23,8 +23,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             continue;
         };
         let is_admin = matches!(
-            state.user(&message.actor)?.map(User::account),
-            Some(Account::LoggedIn(account)) if account == admin.as_str()
+            message.actor_account(),
+            Account::LoggedIn(account) if account == admin.as_str()
         );
         let reason = if !is_admin {
             "permission denied".to_owned()

@@ -1,7 +1,8 @@
 # Admin bot
 
 This bot demonstrates account-based permissions. It gives channel operator status with
-`!op <nick>`, but only when the sender is logged in to the account in `IRC_ADMIN`. Anyone else
+`!op <nick>`, when the server reports the account in `IRC_ADMIN` on that command via
+`Message::actor_account()`. Anyone else
 gets `cannot op <nick>: permission denied`, and a failed `MODE` is reported the same way with its
 reason. `IRC_ADMIN` is required, and `IRC_CHANNEL` defaults to `#papo-admin`.
 
