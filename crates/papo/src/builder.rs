@@ -1009,13 +1009,10 @@ mod tests {
         .username("ping")
         .realname("papo ping bot")
         .password(crate::Secret::new("network password"))
-        .sasl(
-            Sasl::plain(
-                "ping-bot",
-                crate::Secret::new("correct horse battery staple"),
-            )
-            .device("phone"),
-        );
+        .sasl(Sasl::plain(
+            "ping-bot",
+            crate::Secret::new("correct horse battery staple"),
+        ));
         let config = &builder.config;
         assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");

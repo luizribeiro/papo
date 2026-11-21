@@ -24,7 +24,8 @@ The capability-name conversion trait `AsCap` has been removed.
 Configure capability-dependent behavior through typed features. `Builder::request_caps`,
 and its three configuration errors have been removed.
 
-`Sasl::authzid` is removed. PLAIN and EXTERNAL use an empty authorization identity. `Sasl::device` applies to PLAIN and SCRAM-SHA-256.
+`Sasl::authzid` is removed. PLAIN and EXTERNAL use an empty authorization identity.
+`Sasl::device` is removed.
 
 The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
 
@@ -467,7 +468,7 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | Missing TLS or WebSocket support failed during connection as `ConnectErrorKind::Unavailable` | Transport-specific setters and credential types are absent when their target or Cargo feature cannot use them; unsupported URL schemes are `InvalidUrl::UnsupportedScheme` |
 | Many URL-shaped `InvalidInput` variants and an unexported network URL error | `InvalidInput::Url(InvalidUrl)` and `Endpoint::Err = InvalidUrl` |
 | `InvalidInput::UnknownCapability(name)` for a `without_caps` name papo did not request | Removed with `without_caps`; `request_caps` refuses a known name as `InvalidInput::KnownCapability { capability, feature }`, one set by a typed builder method as `ManagedCapability(Cap)`, and an unstable one in a stable build as `UnstableCapability(Cap)` |
-| `Builder::device` | `Sasl::plain(...).device(...)` or another SASL mechanism builder |
+| `Builder::device` | Removed |
 | No SASL authorization identity | `Sasl::authzid(...)`; PLAIN transmits it too |
 | Empty `away_on_connect("")` silently meant no away | Empty initial away text is `Error::InvalidInput`; omit the setting to stay present |
 | `Builder::stream(stream)` inferred security from the URL | `stream` is explicitly plaintext; use `stream_with_security(stream, StreamSecurity::Encrypted)` for an encrypted custom transport |

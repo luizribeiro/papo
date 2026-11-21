@@ -5325,7 +5325,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Refusal
 pub struct papo::Sasl
 impl papo::Sasl
 pub fn papo::Sasl::any(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
-pub fn papo::Sasl::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Sasl::external() -> Self
 pub fn papo::Sasl::oauth_bearer(papo::Secret) -> Self
 pub const fn papo::Sasl::optional(self) -> Self
