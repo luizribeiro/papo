@@ -448,3 +448,71 @@ fn conversation_check_ignores_role_inputs_and_the_reexport() {
         ["pub example::Event::conversation: papo::Conversation"]
     );
 }
+
+fn writable_return_address_facts(snapshot: &str) -> Vec<&str> {
+    let answerable: BTreeSet<_> = snapshot
+        .lines()
+        .filter_map(|line| {
+            let (_, item) = line.split_once("pub ")?;
+            let signature = item
+                .strip_prefix("fn ")
+                .or_else(|| item.strip_prefix("const fn "))?;
+            let (ty, _) = signature.split_once("::return_address(")?;
+            Some(ty)
+        })
+        .collect();
+
+    snapshot
+        .lines()
+        .filter(|line| {
+            line.split_once("pub ")
+                .and_then(|(_, item)| item.split_once(": "))
+                .and_then(|(path, _)| path.rsplit_once("::"))
+                .is_some_and(|(ty, field)| {
+                    answerable.contains(ty)
+                        && matches!(
+                            field,
+                            "conversation"
+                                | "msgid"
+                                | "msgids"
+                                | "line_msgids"
+                                | "message_id"
+                                | "message_ids"
+                                | "status"
+                                | "audience"
+                        )
+                })
+        })
+        .collect()
+}
+
+#[test]
+fn return_address_facts_are_read_only() {
+    let fixture = "\
+pub fn papo::event::Notice::return_address(&self) -> papo::NoticeRef
+pub const fn papo::SendOutcome::return_address(&self) -> papo::MessageRef
+pub papo::event::Notice::conversation: papo::Conversation
+pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Notice::in_reply_to: core::option::Option<papo::MessageId>
+pub papo::event::Notice::channel_context: core::option::Option<papo::Conversation>
+pub papo::SendOutcome::status: core::option::Option<papo::Prefix>
+pub papo::SendOutcome::audience: core::option::Option<papo::Prefix>
+pub papo::ReactOutcome::conversation: papo::Conversation";
+    let exposed = [
+        "pub papo::event::Notice::conversation: papo::Conversation",
+        "pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>",
+        "pub papo::SendOutcome::status: core::option::Option<papo::Prefix>",
+        "pub papo::SendOutcome::audience: core::option::Option<papo::Prefix>",
+    ];
+    for (name, snapshot, expected) in [
+        ("papo", STABLE, &[][..]),
+        ("papo unstable", UNSTABLE, &[][..]),
+        ("public field examples", fixture, &exposed[..]),
+    ] {
+        assert_eq!(
+            writable_return_address_facts(snapshot),
+            expected,
+            "{name} exposes return-address facts as public fields"
+        );
+    }
+}
