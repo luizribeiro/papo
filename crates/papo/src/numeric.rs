@@ -1,4 +1,6 @@
-//! Common IRC numeric replies and errors.
+//! IRC numeric replies and errors.
+//!
+//! This module lists only the numerics papo itself uses.
 
 macro_rules! numerics {
     ($($name:ident = $value:literal),+ $(,)?) => {

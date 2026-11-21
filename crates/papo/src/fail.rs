@@ -1,4 +1,13 @@
 //! Standard-reply `FAIL` code constants.
+//!
+//! Some codes have multiple wire spellings. Ergo uses `ACCOUNT_NAME_MUST_BE_NICK`
+//! for account registration, `UNKNOWN_MSGID` for redaction, and `INVALID_PARAMS`
+//! for history and read-marker parameters. `UnrealIRCd` also uses `INVALID_PARAMS`
+//! for `CHATHISTORY`.
+//!
+//! papo also recognizes `ACCOUNT_NAME_MUST_MATCH_NICK`, `UNKNOWN_MESSAGE_ID`,
+//! and `INVALID_PARAMETERS` for those respective refusals. Match
+//! [`crate::Refusal`] to handle their shared meanings across spellings.
 
 macro_rules! typed_codes {
     ($($name:ident),+ $(,)?) => {

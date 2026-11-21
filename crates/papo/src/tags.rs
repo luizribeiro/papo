@@ -1,6 +1,9 @@
 //! Well-known IRC message-tag names.
 
-/// Well-known client-only tag keys.
+/// String keys for well-known client-only message tags, including the leading `+`.
+///
+/// Use them with [`crate::Tags::get`] to read a tag or [`crate::Line::with_tag`] to
+/// add one to a raw line.
 pub mod keys {
     /// Reply reference tag.
     pub const REPLY: &str = "+reply";
