@@ -489,8 +489,7 @@ pub struct ServerNotice {
     /// Use [`papo_format::Formatted`](https://docs.rs/papo-format/latest/papo_format/struct.Formatted.html)
     /// to read styled runs.
     pub raw_text: String,
-    /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<MessageId>,
+    msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
@@ -1128,6 +1127,12 @@ impl Notice {
 }
 
 impl ServerNotice {
+    /// Returns the server-assigned identifier, kept read-only to preserve the notice's identity.
+    #[must_use]
+    pub const fn msgid(&self) -> Option<&MessageId> {
+        self.msgid.as_ref()
+    }
+
     /// Returns the actor's account as reported for this line.
     ///
     /// See [`Message::actor_account`] for the meaning of each account status.
@@ -4263,6 +4268,7 @@ mod tests {
         };
         assert_eq!(server.kind, ServerNoticeKind::Notice);
         assert_eq!(server.to, Audience::Me);
+        assert!(server.msgid().is_none());
         assert_eq!(server.actor_party, Party::Other);
         assert!(server.status.is_none());
         assert!(server.return_address().is_none());
@@ -4322,7 +4328,9 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
         let event = parse_event(
-            Line::notice("@#ops", "Network maintenance begins soon").with_source("irc.example"),
+            Line::notice("@#ops", "Network maintenance begins soon")
+                .with_source("irc.example")
+                .with_tag("msgid", "RfcBTzyxY120008"),
             &isupport,
             "papo",
             UNIX_EPOCH,
@@ -4331,6 +4339,7 @@ mod tests {
             panic!("expected channel server notice")
         };
         assert!(matches!(notice.to, Audience::Channel(_)));
+        assert_eq!(notice.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120008"));
         assert_eq!(notice.return_address().as_ref().unwrap(), "@#ops");
     }
 

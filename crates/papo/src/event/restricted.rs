@@ -183,7 +183,7 @@ impl<'a> LineView<'a> {
                 line.msgid.as_ref()
             }
             Self::Notice(line) | Self::Incomplete(Incomplete::Notice(line)) => line.msgid(),
-            Self::ServerNotice(line) => line.msgid.as_ref(),
+            Self::ServerNotice(line) => line.msgid(),
             Self::CtcpQuery(line) => line.msgid.as_ref(),
             Self::CtcpReply(line) => line.msgid.as_ref(),
             Self::TagMsg(line) => line.msgid.as_ref(),
