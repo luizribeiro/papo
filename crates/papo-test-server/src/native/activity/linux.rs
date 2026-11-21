@@ -43,7 +43,7 @@ fn parse(stat: &str) -> Option<Activity> {
 #[cfg(test)]
 mod tests {
     use std::{
-        process::Command,
+        process::{Child, Command, Stdio},
         time::{Duration, Instant},
     };
 
@@ -99,27 +99,40 @@ mod tests {
 
     #[test]
     fn a_waiting_parent_is_busy_while_its_child_works() {
-        let mut parent = Command::new("sh")
-            .args(["-c", "sh -c 'while :; do :; done' & wait"])
-            .spawn()
-            .unwrap();
+        let parent = WaitingParent(
+            Command::new("sh")
+                .args([
+                    "-c",
+                    "sh -c 'while :; do :; done' & worker=$!
+                     read -r _
+                     kill -KILL \"$worker\"
+                     wait \"$worker\" 2>/dev/null || :",
+                ])
+                .stdin(Stdio::piped())
+                .spawn()
+                .unwrap(),
+        );
+        let pid = parent.0.id();
+        let stat = format!("/proc/{pid}/task/{pid}/stat");
         let deadline = Instant::now() + Duration::from_secs(10);
-        let busy = loop {
-            let tree = of(parent.id());
-            if tree.busy && tree.cpu > Duration::ZERO || Instant::now() > deadline {
-                break tree.busy;
+        loop {
+            let own = parse(&std::fs::read_to_string(&stat).unwrap()).unwrap();
+            let tree = of(pid);
+            if !own.busy && tree.busy && tree.cpu > own.cpu {
+                break;
             }
+            assert!(Instant::now() < deadline, "no CPU activity from the worker");
             std::thread::yield_now();
-        };
-        let children = format!("/proc/{0}/task/{0}/children", parent.id());
-        for child in std::fs::read_to_string(children)
-            .unwrap()
-            .split_whitespace()
-        {
-            Command::new("kill").arg(child).status().unwrap();
         }
-        parent.wait().unwrap();
-        assert!(busy);
+    }
+
+    struct WaitingParent(Child);
+
+    impl Drop for WaitingParent {
+        fn drop(&mut self) {
+            // Waiting closes stdin so the shell can kill and reap the worker it started.
+            let _ = self.0.wait();
+        }
     }
 
     #[test]
