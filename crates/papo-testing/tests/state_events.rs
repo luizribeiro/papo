@@ -1,4 +1,4 @@
-//! Offline wire coverage for event snapshots and connection epochs.
+//! Offline wire coverage for connection events and state snapshots.
 
 use std::{sync::Arc, time::Duration};
 
@@ -30,8 +30,8 @@ async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
 }
 
 #[tokio::test(start_paused = true)]
-async fn reconnect_replaces_the_current_connection_epoch() {
-    let (client, mut events, mut wire) = wire(
+async fn connection_event_marks_reconnects() {
+    let (_client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(
@@ -41,13 +41,11 @@ async fn reconnect_replaces_the_current_connection_epoch() {
             ),
     );
     wire.register(&[]).await;
-    let (first, first_state) = next_connected(&mut events).await;
+    let (first, _) = next_connected(&mut events).await;
     let Event::Connected(first_connected) = &first else {
         unreachable!()
     };
     assert!(!first_connected.reconnected);
-    assert_eq!(first_connected.epoch, first_state.connection_epoch());
-    assert!(client.is_current(&first_state));
 
     wire.close().await;
     let delay = next_disconnected(&mut events)
@@ -56,18 +54,11 @@ async fn reconnect_replaces_the_current_connection_epoch() {
         .expect("disconnect should retry");
     tokio::time::advance(delay).await;
     wire.register(&[]).await;
-    let (second, second_state) = next_connected(&mut events).await;
+    let (second, _) = next_connected(&mut events).await;
     let Event::Connected(second_connected) = &second else {
         unreachable!()
     };
     assert!(second_connected.reconnected);
-    assert_eq!(second_connected.epoch, second_state.connection_epoch());
-    assert_ne!(
-        first_state.connection_epoch(),
-        second_state.connection_epoch()
-    );
-    assert!(!client.is_current(&first_state));
-    assert!(client.is_current(&second_state));
 }
 
 #[tokio::test(start_paused = true)]

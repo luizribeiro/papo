@@ -1617,7 +1617,6 @@ where
                     welcome: welcome.text,
                     caps: welcome.caps,
                     reconnected,
-                    epoch: session.state().connection_epoch(),
                 });
                 enqueue_event(events, pending_events, event);
                 events.receiver.finish_connecting();
