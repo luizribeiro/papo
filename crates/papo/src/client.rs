@@ -898,7 +898,7 @@ impl Client {
     /// Construct the [`crate::Line`] with [`crate::Line::new`] and [`crate::Line::param`], or
     /// explicitly parse text for a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
     /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
-    /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
+    /// Prefer a typed client method or pass [`crate::Secret`] to [`crate::Line::param`] for credentials.
     ///
     /// # Errors
     ///
@@ -985,7 +985,7 @@ impl Client {
     /// Construct the [`crate::Line`] with [`crate::Line::new`] and [`crate::Line::param`], or
     /// explicitly parse text for a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
     /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
-    /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
+    /// Prefer a typed client method or pass [`crate::Secret`] to [`crate::Line::param`] for credentials.
     ///
     /// # Errors
     ///
