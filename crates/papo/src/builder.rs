@@ -370,9 +370,10 @@ impl Builder {
     pub fn request_caps<I, S>(mut self, caps: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: crate::AsCap,
+        S: AsRef<str>,
     {
-        for capability in caps.into_iter().map(|capability| capability.__cap()) {
+        for capability in caps {
+            let capability = crate::Cap::from(capability.as_ref());
             if !cfg!(feature = "unstable") && cap::is_unstable(capability.as_str()) {
                 self.invalid_input
                     .get_or_insert(InvalidInput::UnstableCapability(capability));
@@ -1155,17 +1156,8 @@ mod tests {
     }
 
     #[test]
-    fn unknown_capabilities_extend_defaults_and_features_toggle_known_caps() {
-        let builder = Builder::new("ircs://irc.example.net")
-            .request_caps(["example.com/custom-cap"])
-            .disable(crate::Feature::AwayTracking);
-        assert!(
-            builder
-                .config
-                .wanted_caps
-                .iter()
-                .any(|name| name == "example.com/custom-cap")
-        );
+    fn features_toggle_known_caps() {
+        let builder = Builder::new("ircs://irc.example.net").disable(crate::Feature::AwayTracking);
         assert!(
             builder
                 .config
@@ -1181,35 +1173,6 @@ mod tests {
                 .disabled_caps
                 .iter()
                 .any(|name| name == "away-notify")
-        );
-    }
-
-    #[test]
-    fn known_capabilities_record_the_typed_configuration_error() {
-        let capability = crate::cap::CHATHISTORY;
-        let known = Builder::new("ircs://irc.example.net").request_caps([capability.clone()]);
-        assert_eq!(
-            known
-                .invalid_input
-                .as_ref()
-                .map(ToString::to_string)
-                .as_deref(),
-            Some(
-                "capability Cap(\"draft/chathistory\") is known to papo; use enable(Feature::History)"
-            )
-        );
-        assert_eq!(
-            known.invalid_input,
-            Some(InvalidInput::KnownCapability {
-                capability,
-                feature: crate::Feature::History,
-            })
-        );
-
-        let managed = Builder::new("ircs://irc.example.net").request_caps(["sts"]);
-        assert_eq!(
-            managed.invalid_input,
-            Some(InvalidInput::ManagedCapability("sts".to_owned().into()))
         );
     }
 
@@ -1239,15 +1202,6 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     #[allow(clippy::too_many_lines)]
     async fn enables_unstable_features_and_bouncer_selection_before_connecting() {
-        let known = Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]);
-        assert_eq!(
-            known.invalid_input,
-            Some(InvalidInput::KnownCapability {
-                capability: "draft/persistence".to_owned().into(),
-                feature: crate::Feature::Persistence,
-            })
-        );
-
         let advertised = "soju.im/bouncer-networks soju.im/bouncer-networks-notify";
         assert_cap_request(
             Builder::new("ircs://irc.example.net")

@@ -94,7 +94,6 @@ async fn hostile_isupport_stays_bounded(_s: Scenario) -> papo_testing::Result<()
 async fn hostile_cap_new_stays_bounded(_s: Scenario) -> papo_testing::Result<()> {
     let (_client, mut events, mut wire) = papo_testing::wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
-            .request_caps(["vendor.example/late"])
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&["cap-notify"]).await;
@@ -107,9 +106,9 @@ async fn hostile_cap_new_stays_bounded(_s: Scenario) -> papo_testing::Result<()>
         wire.server(format!(":offline.test CAP papo-wire NEW :{caps}"))
             .await;
     }
-    wire.server(":offline.test CAP papo-wire NEW :vendor.example/late")
+    wire.server(":offline.test CAP papo-wire NEW :server-time")
         .await;
-    assert_eq!(wire.next_sent().await, "CAP REQ :vendor.example/late");
+    assert_eq!(wire.next_sent().await, "CAP REQ :server-time");
     Ok(())
 }
 

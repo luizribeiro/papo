@@ -394,8 +394,6 @@ pub use papo_core::InvalidUrl;
 pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::UnsupportedReason;
-#[doc(hidden)]
-pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, ConnectionEpoch, Feature, InvalidServerTime, Member,
@@ -429,7 +427,7 @@ pub use requests::{
     WhoEntry, Whois, WhoisChannel,
 };
 pub use state::{Channel, ModeListEntry, Presence, ReadMarker, State};
-pub use target::{AsCap, AsChannel, AsConversation, AsMask, AsNick, Target};
+pub use target::{AsChannel, AsConversation, AsMask, AsNick, Target};
 pub use token::{Command, ReplyCode};
 #[doc(inline)]
 #[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]

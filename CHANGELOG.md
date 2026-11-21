@@ -19,6 +19,8 @@ versioning guarantees.
 
 Read events with `Events::next()`. The `futures_core::Stream` implementation has been removed.
 
+The capability-name conversion trait `AsCap` has been removed.
+
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
 
