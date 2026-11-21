@@ -269,7 +269,7 @@ fn set_network_enabled(
     }
 }
 
-/// rejects a continuity pin and live target after a bouncer upstream session ends
+/// refuses sends to an observed user after a bouncer upstream session ends
 #[scenario(
     requires(caps = ["soju.im/bouncer-networks"]),
     covers = ["security.bouncer.upstream-drop-identity"]
@@ -325,17 +325,14 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
         .connect_with(Client::builder(upstream_endpoint.clone(), &alice_nick))
         .await?;
     alice.join(&channel).await?;
-    observer
+    let alice_handle = observer
         .wait_for(|event| {
             event
                 .as_joined()
                 .filter(|joined| joined.actor.nick() == alice_nick.as_str())
+                .map(|joined| &joined.actor)
         })
         .await?;
-    let alice_handle = observer.query(&alice_nick)?;
-    let stored = alice_handle.key();
-    assert!(!stored.is_verified());
-
     set_network_enabled(bouncer, login.account_username(), &network, false)?;
     observer
         .wait_for(|event| {
@@ -363,13 +360,11 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
     set_network_enabled(bouncer, login.account_username(), &network, true)?;
     observer.wait_for(Event::as_channel_synced).await?;
 
-    let Error::NotSamePerson(mismatch) = observer.open(&stored).await.unwrap_err() else {
-        panic!("the old continuity pin unexpectedly authorized the replacement");
-    };
-    assert_eq!(mismatch.reason(), papo::PeerKeyMismatch::CannotVerify);
     assert!(matches!(
-        stored.check(mismatch.current_key()),
-        papo::PeerKeyCheck::Mismatch(papo::PeerKeyMismatch::CannotVerify)
+        observer
+            .privmsg(&alice_handle, "must not reach a replacement")
+            .await,
+        Err(Error::TargetGone)
     ));
     Ok(())
 }

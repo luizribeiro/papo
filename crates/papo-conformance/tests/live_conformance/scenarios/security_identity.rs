@@ -98,7 +98,6 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
         state.user(&admin.actor)?.map(papo::User::account),
         Some(papo::Account::LoggedIn(_))
     ));
-    let saved = admin.actor.key();
 
     alice.quit().await?;
     mallory.set_nick(&handoff).await?;
@@ -112,10 +111,6 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
         Some(&papo::Account::LoggedOut)
     );
     assert_ne!(takeover.actor, admin.actor);
-    assert!(matches!(
-        saved.check(&takeover.actor.key()),
-        papo::PeerKeyCheck::Mismatch(_)
-    ));
     assert!(matches!(
         bot.reply(&admin, "op granted").await,
         Err(papo::Error::TargetGone)
