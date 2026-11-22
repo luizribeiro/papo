@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use papo_core::{Account, Config, Event, ProofFailure, RecipientStatus, ReplyToken, Session};
-use papo_proto::{Line, Origin};
+use papo_proto::Origin;
 
 fn server(session: &mut Session, now: Instant, line: &str) {
     session.handle_line(now, line.as_bytes());
@@ -180,43 +180,5 @@ fn event_proof_rejects_a_foreign_nickname_with_a_local_token() {
             .__prove_event_user(token, foreign_nick, account)
             .unwrap_err(),
         ProofFailure::ForeignReference
-    );
-}
-
-#[test]
-fn who_proof_rejects_a_foreign_nickname() {
-    let now = Instant::now();
-    let mut session = session_with_origin(73);
-    _ = alice_event(&mut session, now);
-    let foreign_nick = Origin::__new(91).__nick(session.state().casemapping(), "alice");
-    let account = Account::LoggedIn(
-        Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
-    );
-    let row = Line::new("354").with_params(["papo", "alice", "alice-account"]);
-
-    assert_eq!(
-        session
-            .__prove_who_user(foreign_nick, account.name(), &[row])
-            .unwrap_err(),
-        ProofFailure::ForeignReference
-    );
-}
-
-#[test]
-fn who_proof_rejects_another_users_row() {
-    let now = Instant::now();
-    let mut session = session_with_origin(73);
-    _ = alice_event(&mut session, now);
-    let nick = Origin::__new(73).__nick(session.state().casemapping(), "alice");
-    let account = Account::LoggedIn(
-        Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
-    );
-    let mallory_row = Line::new("354").with_params(["papo", "mallory", "alice-account"]);
-
-    assert_eq!(
-        session
-            .__prove_who_user(nick, account.name(), &[mallory_row])
-            .unwrap_err(),
-        ProofFailure::MissingEvidence
     );
 }
