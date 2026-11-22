@@ -4731,7 +4731,9 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(private.conversation, Conversation::Private(_)));
-        assert!(matches!(&private.conversation, Conversation::Private(nick) if nick == "emily"));
+        assert!(
+            matches!(&private.conversation, Conversation::Private(user) if user.nick() == "emily")
+        );
         assert_eq!(private.return_address(), "emily");
 
         let server = parse_event(

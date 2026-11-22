@@ -788,7 +788,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
     let private = next_message(&mut events).await;
     assert!(matches!(
         private.conversation,
-        crate::Conversation::Private(ref nick) if nick == "bob"
+        crate::Conversation::Private(ref user) if user.nick() == "bob"
     ));
     assert_eq!(private.return_address(), "bob");
     within(client.reply(&private, "sent securely"))

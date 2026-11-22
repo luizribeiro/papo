@@ -88,7 +88,7 @@ async fn subscriber_receives_another_clients_metadata() {
         loop {
             match reader_events.next().await.map(|(event, _)| event) {
                 Some(Event::MetadataChanged(changed))
-                    if matches!(&changed.subject, papo::Subject::User(nick) if nick == writer_nick.as_str())
+                    if matches!(&changed.subject, papo::Subject::User(user) if user.nick() == writer_nick.as_str())
                         && changed.key == "status" =>
                 {
                     assert_eq!(

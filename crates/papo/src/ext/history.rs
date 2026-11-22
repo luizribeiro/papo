@@ -2730,7 +2730,7 @@ mod tests {
         let message = page.chat_messages().next().unwrap();
         assert!(matches!(
             message.conversation,
-            crate::Conversation::Private(ref nick) if nick == "alice"
+            crate::Conversation::Private(ref user) if user.nick() == "alice"
         ));
         assert_eq!(message.return_address(), "alice");
         let reaction = tokio::spawn({

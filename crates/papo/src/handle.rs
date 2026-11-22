@@ -199,6 +199,14 @@ impl Drop for WatchLease {
 /// For a handle carried by an event, read mutable user facts from that event's paired
 /// [`crate::State`] with [`crate::State::user`]. To answer a private history item, pass
 /// the item to [`crate::Client::reply`]. Sending to its actor returns [`crate::Error::TargetGone`].
+///
+/// Compare nickname text through [`Self::nick`].
+///
+/// ```compile_fail,E0308
+/// fn is_luiz(handle: papo::UserHandle) -> bool {
+///     handle == "luiz"
+/// }
+/// ```
 #[derive(Clone)]
 pub struct UserHandle(Arc<UserInner>);
 
@@ -466,18 +474,6 @@ impl Eq for UserHandle {}
 impl std::fmt::Display for UserHandle {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.nick().fmt(formatter)
-    }
-}
-
-impl PartialEq<str> for UserHandle {
-    fn eq(&self, other: &str) -> bool {
-        self.nick() == other
-    }
-}
-
-impl PartialEq<&str> for UserHandle {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
     }
 }
 
@@ -1106,24 +1102,6 @@ mod tests {
         assert_eq!(handle_hash(&release), handle_hash(&same_release));
         assert_ne!(handle_hash(&release), handle_hash(&operations));
         assert_eq!(HashSet::from([release, same_release, operations]).len(), 2);
-    }
-
-    #[test]
-    fn user_handles_compare_with_folded_nick_text() {
-        let client = client_with_joined_users();
-        let alice = observed_user(&client, "Alice");
-        let folded = observed_user(&client, "Alice[ops]");
-
-        assert!(<crate::UserHandle as PartialEq<str>>::eq(&alice, "alice"));
-        assert!(!<crate::UserHandle as PartialEq<str>>::eq(&alice, "bob"));
-        assert!(<crate::UserHandle as PartialEq<&str>>::eq(
-            &folded,
-            &"alice{ops}"
-        ));
-        assert!(!<crate::UserHandle as PartialEq<&str>>::eq(
-            &folded,
-            &"alice[dev]"
-        ));
     }
 
     #[test]

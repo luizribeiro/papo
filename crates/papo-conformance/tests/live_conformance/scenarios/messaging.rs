@@ -329,7 +329,9 @@ async fn by_name_direct_message(s: Scenario) -> papo_testing::Result<()> {
     let bob_state = bob.snapshot();
     let bob_nick = bob_state.nick().as_str();
     let sent = alice.privmsg(bob_nick, "review is ready").await?;
-    assert!(matches!(sent.conversation(), papo::Conversation::Private(nick) if nick == bob_nick));
+    assert!(
+        matches!(sent.conversation(), papo::Conversation::Private(user) if user.nick() == bob_nick)
+    );
 
     let received = bob
         .wait_for(|event| message_text(event, "review is ready"))
@@ -399,8 +401,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(received.kind, papo::MessageKind::Text);
     assert!(
-        matches!(received.conversation(), papo::Conversation::Private(nick)
-        if nick == bob.snapshot().nick().as_str())
+        matches!(received.conversation(), papo::Conversation::Private(user)
+        if user.nick() == bob.snapshot().nick().as_str())
     );
     assert_eq!(received.raw_text, "private notice");
     let (id, _, server_time) = confirmed_line(&sent);
