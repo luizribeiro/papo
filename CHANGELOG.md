@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Read the changed address from `HostChanged::host` and `HostChanged::username`.
+
 Read the away change from `AwayChanged::away`.
 
 Read the account change from `AccountChanged::account`.
@@ -710,7 +712,7 @@ User lifecycle payloads were normalized as follows:
 | `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
 | `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `away: AwayStatus`, `actor_party`, and timestamps |
 | `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `account: AccountStatus`, `actor_party`, and timestamps |
-| `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `new_username`, `new_host`, `actor_party`, and timestamps |
+| `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `username`, `host`, `actor_party`, and timestamps |
 | `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `actor_party`, and timestamps |
 | `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserHandle`; offline facts are retained when removed from state |
 | A single subject flag on `ModeChanged` | `ModeChanged::subject_party(&change)` gives the `Party` of each member mode change |

@@ -576,10 +576,10 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::actor: papo::UserHandle
 pub papo::event::HostChanged::actor_party: papo::Party
-pub papo::event::HostChanged::new_host: alloc::string::String
-pub papo::event::HostChanged::new_username: alloc::string::String
+pub papo::event::HostChanged::host: alloc::string::String
 pub papo::event::HostChanged::received_at: std::time::SystemTime
 pub papo::event::HostChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
+pub papo::event::HostChanged::username: alloc::string::String
 impl papo::event::HostChanged
 pub const fn papo::event::HostChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::HostChanged

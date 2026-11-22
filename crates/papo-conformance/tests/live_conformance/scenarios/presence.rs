@@ -306,30 +306,28 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let own = bob
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.actor.nick() == bob_nick.as_str()
-                    && changed.new_host == "conformance.example"
+                changed.actor.nick() == bob_nick.as_str() && changed.host == "conformance.example"
             })
         })
         .await?;
     let observed = alice
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.actor.nick() == bob_nick.as_str()
-                    && changed.new_host == "conformance.example"
+                changed.actor.nick() == bob_nick.as_str() && changed.host == "conformance.example"
             })
         })
         .await?;
 
     assert_eq!(own.actor.nick(), observed.actor.nick().as_str());
-    assert_eq!(own.new_username, observed.new_username);
-    assert_eq!(own.new_host, observed.new_host);
+    assert_eq!(own.username, observed.username);
+    assert_eq!(own.host, observed.host);
     assert_eq!(own.actor.nick(), bob_nick);
-    assert!(!own.new_username.is_empty());
-    assert_eq!(own.new_host, "conformance.example");
+    assert!(!own.username.is_empty());
+    assert_eq!(own.host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
         let user = super::user(&state, bob_nick.as_str()).unwrap();
-        assert_eq!(user.username(), Some(own.new_username.as_str()));
+        assert_eq!(user.username(), Some(own.username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
     Ok(())

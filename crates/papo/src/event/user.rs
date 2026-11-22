@@ -119,9 +119,9 @@ pub struct HostChanged {
     /// The affected user.
     pub actor: crate::UserHandle,
     /// The new username from `nick!user@host`; it may start with `~`.
-    pub new_username: String,
+    pub username: String,
     /// The user's new hostname.
-    pub new_host: String,
+    pub host: String,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

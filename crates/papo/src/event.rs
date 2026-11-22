@@ -2982,8 +2982,8 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                new_username: username,
-                new_host: host,
+                username,
+                host,
                 actor_party: Party::from_core(actor_party),
             })
         }
@@ -6513,7 +6513,7 @@ mod tests {
                 papo_core::Party::Other,
             )),
             Event::HostChanged(changed)
-                if changed.actor.nick() == "emily" && changed.new_username == "~em" && changed.new_host == "users/emily"
+                if changed.actor.nick() == "emily" && changed.username == "~em" && changed.host == "users/emily"
         ));
     }
 

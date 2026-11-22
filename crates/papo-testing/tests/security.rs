@@ -147,7 +147,7 @@ async fn foreign_rename_into_own_nick_keeps_own_identity() {
         }
     }
     let changed = host_change.expect("expected own host change");
-    assert_eq!(changed.new_username, "papo");
+    assert_eq!(changed.username, "papo");
     assert_eq!(client.snapshot().username(), "papo");
 }
 
