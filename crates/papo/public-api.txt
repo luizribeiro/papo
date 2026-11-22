@@ -2680,28 +2680,6 @@ impl core::marker::Unpin for papo::HistoryRequest
 impl core::marker::UnsafeUnpin for papo::HistoryRequest
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryRequest
 impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryRequest
-pub struct papo::InvalidPeerKey
-impl core::clone::Clone for papo::InvalidPeerKey
-pub fn papo::InvalidPeerKey::clone(&self) -> Self
-impl core::cmp::Eq for papo::InvalidPeerKey
-impl core::cmp::PartialEq for papo::InvalidPeerKey
-pub fn papo::InvalidPeerKey::eq(&self, &Self) -> bool
-impl core::error::Error for papo::InvalidPeerKey
-impl core::fmt::Debug for papo::InvalidPeerKey
-pub fn papo::InvalidPeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::InvalidPeerKey
-pub fn papo::InvalidPeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::InvalidPeerKey
-pub fn papo::InvalidPeerKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for papo::InvalidPeerKey
-impl core::marker::StructuralPartialEq for papo::InvalidPeerKey
-impl core::marker::Freeze for papo::InvalidPeerKey
-impl core::marker::Send for papo::InvalidPeerKey
-impl core::marker::Sync for papo::InvalidPeerKey
-impl core::marker::Unpin for papo::InvalidPeerKey
-impl core::marker::UnsafeUnpin for papo::InvalidPeerKey
-impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidPeerKey
-impl core::panic::unwind_safe::UnwindSafe for papo::InvalidPeerKey
 pub struct papo::Isupport
 impl papo::Isupport
 pub fn papo::Isupport::account_required(&self) -> bool
@@ -3217,25 +3195,6 @@ impl core::marker::Unpin for papo::PartRequest
 impl core::marker::UnsafeUnpin for papo::PartRequest
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PartRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::PartRequest
-pub struct papo::PeerKey
-impl papo::PeerKey
-pub const fn papo::PeerKey::is_verified(&self) -> bool
-impl core::clone::Clone for papo::PeerKey
-pub fn papo::PeerKey::clone(&self) -> Self
-impl core::cmp::Eq for papo::PeerKey
-impl core::cmp::PartialEq for papo::PeerKey
-pub fn papo::PeerKey::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::PeerKey
-pub fn papo::PeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::PeerKey
-pub fn papo::PeerKey::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::marker::Freeze for papo::PeerKey
-impl core::marker::Send for papo::PeerKey
-impl core::marker::Sync for papo::PeerKey
-impl core::marker::Unpin for papo::PeerKey
-impl core::marker::UnsafeUnpin for papo::PeerKey
-impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKey
-impl core::panic::unwind_safe::UnwindSafe for papo::PeerKey
 pub struct papo::PrivateKey(_)
 impl papo::PrivateKey
 pub fn papo::PrivateKey::new(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self

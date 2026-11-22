@@ -424,7 +424,6 @@ pub use papo_proto::{
     InvalidIdentifier, Mask, MessageId, MetadataKey, Nick, Origin, Param, ServerName, Typing,
     UnknownCasemapping, WireLine,
 };
-pub use peer_key::{InvalidPeerKey, PeerKey};
 pub use reconnect::Reconnect;
 pub use requests::{
     KickOutcome, ListEntry, ListRequest, NickOutcome, PartOutcome, RealnameOutcome, TopicOutcome,
