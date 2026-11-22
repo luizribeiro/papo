@@ -12,7 +12,7 @@ use std::fmt;
 /// `audience` names it. Answer it with [`crate::Client::reply`], [`crate::Client::react`],
 /// [`crate::Client::redact`] or the line's `return_address()`, which keep `@#ops`.
 ///
-/// Match [`crate::Event::Restricted`] and its [`crate::RestrictedLine`] to display or act on
+/// Match [`crate::Event::Restricted`] and its [`crate::event::RestrictedLine`] to display or act on
 /// ops-only lines. The typing list still files them under the plain channel. Read the prefix with
 /// [`crate::Typer::audience`] or use [`crate::Typer::return_address`] to keep the audience.
 /// [`crate::Client::mark_read`] without an explicit boundary marks through the newest line,

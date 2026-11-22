@@ -1172,7 +1172,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let target = format!("@{channel}");
     alice.set_typing(&target, Typing::Active).await?;
     let restricted = bob
-        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
+        .wait_for(|event| restricted_line(event, papo::event::RestrictedLine::as_typing_changed))
         .await?;
     assert_eq!(restricted.audience.symbol(), '@');
     let typing = restricted.line.as_typing_changed().expect("typing line");
@@ -1187,7 +1187,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(typing.state, Typing::Active);
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| {
-            restricted_line(event, papo::RestrictedLine::as_typing_changed)
+            restricted_line(event, papo::event::RestrictedLine::as_typing_changed)
                 .map(|_| event)
                 .or_else(|| event.as_typing_changed().map(|_| event))
         })

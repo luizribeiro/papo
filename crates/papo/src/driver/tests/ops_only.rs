@@ -369,19 +369,19 @@ async fn a_loop_matching_only_messages_never_sees_an_ops_only_line() {
     ops.finish().await;
 }
 
-fn restricted_variant(line: &crate::RestrictedLine) -> &'static str {
+fn restricted_variant(line: &crate::event::RestrictedLine) -> &'static str {
     match line {
-        crate::RestrictedLine::Message(_) => "Message",
-        crate::RestrictedLine::Notice(_) => "Notice",
-        crate::RestrictedLine::ServerNotice(_) => "ServerNotice",
-        crate::RestrictedLine::CtcpQuery(_) => "CtcpQuery",
-        crate::RestrictedLine::CtcpReply(_) => "CtcpReply",
-        crate::RestrictedLine::TagMsg(_) => "TagMsg",
-        crate::RestrictedLine::Reacted(_) => "Reacted",
-        crate::RestrictedLine::Redacted(_) => "Redacted",
-        crate::RestrictedLine::TypingChanged(_) => "TypingChanged",
-        crate::RestrictedLine::Incomplete(_) => "Incomplete",
-        crate::RestrictedLine::Other(_) => "Other",
+        crate::event::RestrictedLine::Message(_) => "Message",
+        crate::event::RestrictedLine::Notice(_) => "Notice",
+        crate::event::RestrictedLine::ServerNotice(_) => "ServerNotice",
+        crate::event::RestrictedLine::CtcpQuery(_) => "CtcpQuery",
+        crate::event::RestrictedLine::CtcpReply(_) => "CtcpReply",
+        crate::event::RestrictedLine::TagMsg(_) => "TagMsg",
+        crate::event::RestrictedLine::Reacted(_) => "Reacted",
+        crate::event::RestrictedLine::Redacted(_) => "Redacted",
+        crate::event::RestrictedLine::TypingChanged(_) => "TypingChanged",
+        crate::event::RestrictedLine::Incomplete(_) => "Incomplete",
+        crate::event::RestrictedLine::Other(_) => "Other",
     }
 }
 

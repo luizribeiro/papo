@@ -58,9 +58,10 @@ use std::{
 use web_time::Instant;
 
 use papo::event::Message as ChatMessage;
+use papo::event::{Restricted, RestrictedLine};
 use papo::{
-    AccountName, AccountStatus, Client, Conversation, InvalidRateLimit, MessageKind, Prefix,
-    Restricted, RestrictedLine, State, UserRef,
+    AccountName, AccountStatus, Client, Conversation, InvalidRateLimit, MessageKind, Prefix, State,
+    UserRef,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -701,7 +702,9 @@ mod tests {
         }
     }
 
-    async fn next_restricted(events: &mut papo::Events) -> (papo::Restricted, Arc<papo::State>) {
+    async fn next_restricted(
+        events: &mut papo::Events,
+    ) -> (papo::event::Restricted, Arc<papo::State>) {
         loop {
             let Some((event, state)) = events.next().await else {
                 panic!("driver stopped while waiting for a restricted line")
@@ -1255,7 +1258,7 @@ mod tests {
         let _notice = next_restricted(&mut events).await;
         for sign in ['@', '+'] {
             let (restricted, state) = next_restricted(&mut events).await;
-            let papo::RestrictedLine::Message(message) = &restricted.line else {
+            let papo::event::RestrictedLine::Message(message) = &restricted.line else {
                 panic!("{restricted:?}")
             };
             assert_eq!(message.return_address().as_ref().chars().next(), Some(sign));
@@ -1289,7 +1292,7 @@ mod tests {
         let driver = tokio::spawn(driver);
         let config = BotConfig::new("!");
         let (restricted, state) = next_restricted(&mut events).await;
-        let papo::RestrictedLine::Message(message) = &restricted.line else {
+        let papo::event::RestrictedLine::Message(message) = &restricted.line else {
             panic!("{restricted:?}")
         };
         assert!(config.command(&client, &state, message).is_none());

@@ -118,7 +118,7 @@ pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&
 pub(super) fn restricted_text<'event>(
     event: &'event Event,
     text: &str,
-) -> Option<&'event papo::Restricted> {
+) -> Option<&'event papo::event::Restricted> {
     event.as_restricted().filter(|restricted| {
         restricted
             .line
@@ -128,8 +128,8 @@ pub(super) fn restricted_text<'event>(
 }
 
 /// Splits a restricted message into its audience sign and the message.
-pub(super) fn restricted_message(restricted: papo::Restricted) -> (char, Message) {
-    let papo::RestrictedLine::Message(message) = restricted.line else {
+pub(super) fn restricted_message(restricted: papo::event::Restricted) -> (char, Message) {
+    let papo::event::RestrictedLine::Message(message) = restricted.line else {
         panic!("restricted line is not a message: {restricted:?}")
     };
     (restricted.audience.symbol(), message)
@@ -143,8 +143,8 @@ pub(super) fn any_message_text<'event>(event: &'event Event, text: &str) -> Opti
 /// Accepts a restricted line whose payload `line` selects.
 pub(super) fn restricted_line<'event, T: 'event>(
     event: &'event Event,
-    line: impl FnOnce(&'event papo::RestrictedLine) -> Option<&'event T>,
-) -> Option<&'event papo::Restricted> {
+    line: impl FnOnce(&'event papo::event::RestrictedLine) -> Option<&'event T>,
+) -> Option<&'event papo::event::Restricted> {
     event
         .as_restricted()
         .filter(|restricted| line(&restricted.line).is_some())

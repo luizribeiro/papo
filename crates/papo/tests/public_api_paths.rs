@@ -20,6 +20,10 @@ enum ConversationClass {
 
 const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
+        "pub fn papo::event::Incomplete::conversation(&self) -> &papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
         "pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
@@ -73,10 +77,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     ),
     (
         "pub fn papo::Event::conversation(&self) -> core::option::Option<papo::Conversation>",
-        ConversationClass::Event,
-    ),
-    (
-        "pub fn papo::Incomplete::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
     (

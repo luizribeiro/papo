@@ -421,7 +421,7 @@ mod tests {
         let mut text = None;
 
         exercise_session_mapping(input.as_bytes(), |event| {
-            if let crate::Event::Incomplete(crate::Incomplete::Message(message)) = event {
+            if let crate::Event::Incomplete(crate::event::Incomplete::Message(message)) = event {
                 text = Some(message.text);
             }
         });

@@ -52,7 +52,7 @@ pub const fn papo_bot::BotConfig::ignore_bots(self, bool) -> Self
 pub const fn papo_bot::BotConfig::mention(self, bool) -> Self
 pub fn papo_bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_bot::BotConfig::reply_limiter(self, papo_bot::ReplyRateLimiter) -> Self
-pub fn papo_bot::BotConfig::restricted_command(&self, &papo::Client, &papo::state::State, &papo::Restricted) -> core::option::Option<papo_bot::BotCommand>
+pub fn papo_bot::BotConfig::restricted_command(&self, &papo::Client, &papo::state::State, &papo::event::Restricted) -> core::option::Option<papo_bot::BotCommand>
 impl core::clone::Clone for papo_bot::BotConfig
 pub fn papo_bot::BotConfig::clone(&self) -> Self
 impl core::fmt::Debug for papo_bot::BotConfig

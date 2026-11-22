@@ -1,6 +1,7 @@
 //! Offline wire coverage for cut-off multiline delivery.
 
-use papo::{Event, Incomplete, Reconnect};
+use papo::event::Incomplete;
+use papo::{Event, Reconnect};
 use papo_testing::wire;
 
 #[tokio::test(start_paused = true)]

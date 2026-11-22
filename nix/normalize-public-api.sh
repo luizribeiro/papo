@@ -10,8 +10,8 @@ expressions=(
   -e 's#papo_core::Conversation#papo::Conversation#g'
   -e 's#papo_core::Capabilities#papo::Capabilities#g'
   -e 's#papo::client::Client#papo::Client#g'
-  -e 's#papo::event_impl::Message#papo::event::Message#g'
-  -e 's#papo::event_impl::restricted::Restricted#papo::Restricted#g'
+  -e 's#papo::event_impl::Message\b#papo::event::Message#g'
+  -e 's#papo::event_impl::restricted::(Restricted(Line)?)\b#papo::event::\1#g'
   -e 's#papo::error::Error#papo::Error#g'
 )
 if [[ ${PAPO_PUBLIC_API_FACADE:-} == 1 ]]; then

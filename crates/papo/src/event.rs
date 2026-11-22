@@ -414,7 +414,7 @@ pub struct Notice {
 /// conversation boundary used by [`crate::Client::mark_read`] without `up_to`.
 ///
 /// ```compile_fail
-/// # fn reply(incomplete: &papo::Incomplete) {
+/// # fn reply(incomplete: &papo::event::Incomplete) {
 /// let _ = incomplete.return_address();
 /// # }
 /// ```
@@ -3426,9 +3426,9 @@ mod tests {
     fn a_restricted_line_files_under_its_plain_channel() {
         let actor = crate::__testing::user_handle(Casemapping::default().nick("oppy"));
         let message = crate::__testing::message(Some(actor), "#ops", "deploy key rotated?", false);
-        let event = Event::Restricted(crate::Restricted {
+        let event = Event::Restricted(crate::event::Restricted {
             audience: crate::Prefix::__new('o', '@'),
-            line: crate::RestrictedLine::Message(message.clone()),
+            line: crate::event::RestrictedLine::Message(message.clone()),
         });
 
         assert_eq!(event.conversation().as_ref(), Some(message.conversation()));

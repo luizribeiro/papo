@@ -244,7 +244,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
 
     reaction_or_skip(desktop.react(&sent, "🛡️").await)?;
     let added = phone
-        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_reacted))
+        .wait_for(|event| restricted_line(event, papo::event::RestrictedLine::as_reacted))
         .await?;
     assert_eq!(added.audience.symbol(), '@');
     let added = added.line.as_reacted().expect("reaction line");
@@ -253,7 +253,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     assert_eq!(added.return_address(), target.as_str());
     observer
         .expect_none(|event| {
-            restricted_line(event, papo::RestrictedLine::as_reacted)
+            restricted_line(event, papo::event::RestrictedLine::as_reacted)
                 .map(|_| event)
                 .or_else(|| event.as_reacted().map(|_| event))
         })

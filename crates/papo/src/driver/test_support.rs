@@ -695,9 +695,9 @@ pub(crate) async fn next_restricted_message(
     events: &mut super::Events,
 ) -> (crate::Prefix, ChatMessage) {
     match events.next().await.map(|(event, _)| event) {
-        Some(Event::Restricted(crate::Restricted {
+        Some(Event::Restricted(crate::event::Restricted {
             audience,
-            line: crate::RestrictedLine::Message(message),
+            line: crate::event::RestrictedLine::Message(message),
         })) => (audience, message),
         other => panic!("expected a restricted message, got {other:?}"),
     }
@@ -807,8 +807,8 @@ pub(crate) async fn assert_reply_wire(
     let message = match events.next().await.map(|(event, _)| event) {
         Some(
             Event::Message(message)
-            | Event::Restricted(crate::Restricted {
-                line: crate::RestrictedLine::Message(message),
+            | Event::Restricted(crate::event::Restricted {
+                line: crate::event::RestrictedLine::Message(message),
                 ..
             }),
         ) => message,

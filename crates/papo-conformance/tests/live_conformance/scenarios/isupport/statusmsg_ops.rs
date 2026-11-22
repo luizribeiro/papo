@@ -192,7 +192,7 @@ async fn ops_question(peers: &mut StatusmsgPeers) -> papo_testing::Result<papo::
 /// Asserts that neither non-operator receives the line, as an operators-only or a plain line.
 async fn unseen_by_non_operators<T>(
     peers: &mut StatusmsgPeers,
-    restricted: fn(&papo::RestrictedLine) -> Option<&T>,
+    restricted: fn(&papo::event::RestrictedLine) -> Option<&T>,
     plain: fn(&Event) -> Option<&T>,
 ) -> papo_testing::Result<()> {
     for peer in [&mut peers.carol, &mut peers.dave] {
@@ -287,7 +287,12 @@ async fn expect_ops_reaction(
         })
         .await?;
     assert_eq!(reaction.audience.symbol(), '@');
-    unseen_by_non_operators(peers, papo::RestrictedLine::as_reacted, Event::as_reacted).await
+    unseen_by_non_operators(
+        peers,
+        papo::event::RestrictedLine::as_reacted,
+        Event::as_reacted,
+    )
+    .await
 }
 
 /// preserves an operators-only audience when typing in answer to a status message
@@ -313,7 +318,7 @@ async fn statusmsg_typing_ops(s: Scenario) -> papo_testing::Result<()> {
     typed?;
     let typing = peers
         .alice
-        .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
+        .wait_for(|event| restricted_line(event, papo::event::RestrictedLine::as_typing_changed))
         .await?;
     assert_eq!(typing.audience.symbol(), '@');
     assert_eq!(
@@ -322,7 +327,7 @@ async fn statusmsg_typing_ops(s: Scenario) -> papo_testing::Result<()> {
     );
     unseen_by_non_operators(
         &mut peers,
-        papo::RestrictedLine::as_typing_changed,
+        papo::event::RestrictedLine::as_typing_changed,
         Event::as_typing_changed,
     )
     .await

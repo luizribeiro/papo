@@ -3586,7 +3586,7 @@ async fn eof_delivers_a_cut_off_multiline_before_disconnect() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Incomplete(crate::Incomplete::Message(message)))
+        Some(Event::Incomplete(crate::event::Incomplete::Message(message)))
             if message.text == "deploying release\nwaiting for health checks"
                 && message.conversation() == "#papo"
     ));

@@ -118,7 +118,8 @@ Channel events carry `ChannelRef`, which follows a joined channel across `RENAME
 A line sent to `@#ops` (or `+#ops`) arrives only as `Event::Restricted`, never as `Event::Message`, so a bot whose handler announces to `#ops` cannot repeat an ops-only command to the whole channel just because it never thought about them. Handle the arm when you want those lines:
 
 ```rust
-use papo::{Client, Error, Event, RestrictedLine};
+use papo::event::RestrictedLine;
+use papo::{Client, Error, Event};
 
 async fn answer(client: &Client, event: &Event) -> Result<(), Error> {
     if let Event::Restricted(restricted) = event

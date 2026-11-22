@@ -16,7 +16,7 @@ use crate::{Conversation, Prefix};
 /// ```
 /// # async fn handle(client: &papo::Client, event: papo::Event) -> Result<(), papo::Error> {
 /// if let papo::Event::Restricted(restricted) = event
-///     && let papo::RestrictedLine::Message(message) = &restricted.line
+///     && let papo::event::RestrictedLine::Message(message) = &restricted.line
 /// {
 ///     client.reply(message, "on it").await?;
 /// }

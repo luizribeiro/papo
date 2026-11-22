@@ -137,6 +137,27 @@ impl core::marker::Unpin for papo::event::ConnectPhase
 impl core::marker::UnsafeUnpin for papo::event::ConnectPhase
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
+#[non_exhaustive] pub enum papo::event::Incomplete
+pub papo::event::Incomplete::Message(papo::event::Message)
+pub papo::event::Incomplete::Notice(papo::event::Notice)
+impl papo::event::Incomplete
+pub const fn papo::event::Incomplete::actor_account(&self) -> &papo::AccountStatus
+pub fn papo::event::Incomplete::conversation(&self) -> &papo::Conversation
+impl core::clone::Clone for papo::event::Incomplete
+pub fn papo::event::Incomplete::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Incomplete
+impl core::cmp::PartialEq for papo::event::Incomplete
+pub fn papo::event::Incomplete::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Incomplete
+pub fn papo::event::Incomplete::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Incomplete
+impl core::marker::Freeze for papo::event::Incomplete
+impl core::marker::Send for papo::event::Incomplete
+impl core::marker::Sync for papo::event::Incomplete
+impl core::marker::Unpin for papo::event::Incomplete
+impl core::marker::UnsafeUnpin for papo::event::Incomplete
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Incomplete
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Incomplete
 #[non_exhaustive] pub enum papo::event::NoticeTarget
 pub papo::event::NoticeTarget::Broadcast(papo::event::Broadcast)
 pub papo::event::NoticeTarget::Channel(papo::ChannelRef)
@@ -179,6 +200,33 @@ impl core::marker::Unpin for papo::event::ReactionAction
 impl core::marker::UnsafeUnpin for papo::event::ReactionAction
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReactionAction
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ReactionAction
+#[non_exhaustive] pub enum papo::event::RestrictedLine
+pub papo::event::RestrictedLine::CtcpQuery(papo::event::CtcpQuery)
+pub papo::event::RestrictedLine::CtcpReply(papo::event::CtcpReply)
+pub papo::event::RestrictedLine::Incomplete(papo::event::Incomplete)
+pub papo::event::RestrictedLine::Message(papo::event::Message)
+pub papo::event::RestrictedLine::Notice(papo::event::Notice)
+pub papo::event::RestrictedLine::Other(papo::event::Other)
+pub papo::event::RestrictedLine::Reacted(papo::event::Reacted)
+pub papo::event::RestrictedLine::Redacted(papo::event::Redacted)
+pub papo::event::RestrictedLine::ServerNotice(papo::event::ServerNotice)
+pub papo::event::RestrictedLine::TagMsg(papo::event::TagMsg)
+pub papo::event::RestrictedLine::TypingChanged(papo::event::TypingChanged)
+impl core::clone::Clone for papo::event::RestrictedLine
+pub fn papo::event::RestrictedLine::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::RestrictedLine
+impl core::cmp::PartialEq for papo::event::RestrictedLine
+pub fn papo::event::RestrictedLine::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::RestrictedLine
+pub fn papo::event::RestrictedLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::RestrictedLine
+impl core::marker::Freeze for papo::event::RestrictedLine
+impl core::marker::Send for papo::event::RestrictedLine
+impl core::marker::Sync for papo::event::RestrictedLine
+impl core::marker::Unpin for papo::event::RestrictedLine
+impl core::marker::UnsafeUnpin for papo::event::RestrictedLine
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::RestrictedLine
+impl core::panic::unwind_safe::UnwindSafe for papo::event::RestrictedLine
 #[non_exhaustive] pub enum papo::event::ServerNoticeKind
 pub papo::event::ServerNoticeKind::Notice
 pub papo::event::ServerNoticeKind::Privmsg
@@ -1133,6 +1181,24 @@ impl core::marker::Unpin for papo::event::Redacted
 impl core::marker::UnsafeUnpin for papo::event::Redacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Redacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
+#[non_exhaustive] pub struct papo::event::Restricted
+pub papo::event::Restricted::audience: papo::Prefix
+pub papo::event::Restricted::line: papo::event::RestrictedLine
+impl core::clone::Clone for papo::event::Restricted
+pub fn papo::event::Restricted::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Restricted
+impl core::cmp::PartialEq for papo::event::Restricted
+pub fn papo::event::Restricted::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Restricted
+pub fn papo::event::Restricted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Restricted
+impl core::marker::Freeze for papo::event::Restricted
+impl core::marker::Send for papo::event::Restricted
+impl core::marker::Sync for papo::event::Restricted
+impl core::marker::Unpin for papo::event::Restricted
+impl core::marker::UnsafeUnpin for papo::event::Restricted
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Restricted
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Restricted
 #[non_exhaustive] pub struct papo::event::ServerNotice
 pub papo::event::ServerNotice::actor: papo::Actor
 pub papo::event::ServerNotice::actor_party: papo::Party
@@ -1696,7 +1762,7 @@ pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
 pub papo::Event::History(papo::HistoryPage)
 pub papo::Event::HostChanged(papo::event::HostChanged)
-pub papo::Event::Incomplete(papo::Incomplete)
+pub papo::Event::Incomplete(papo::event::Incomplete)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
@@ -1718,7 +1784,7 @@ pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarkerChanged(papo::event::ReadMarkerChanged)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
-pub papo::Event::Restricted(papo::Restricted)
+pub papo::Event::Restricted(papo::event::Restricted)
 pub papo::Event::ServerNotice(papo::event::ServerNotice)
 pub papo::Event::StandardReply(papo::event::StandardReply)
 pub papo::Event::TagMsg(papo::event::TagMsg)
@@ -1789,27 +1855,6 @@ impl core::marker::Unpin for papo::HistoryReason
 impl core::marker::UnsafeUnpin for papo::HistoryReason
 impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryReason
 impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
-#[non_exhaustive] pub enum papo::Incomplete
-pub papo::Incomplete::Message(papo::event::Message)
-pub papo::Incomplete::Notice(papo::event::Notice)
-impl papo::Incomplete
-pub const fn papo::Incomplete::actor_account(&self) -> &papo::AccountStatus
-pub fn papo::Incomplete::conversation(&self) -> &papo::Conversation
-impl core::clone::Clone for papo::Incomplete
-pub fn papo::Incomplete::clone(&self) -> Self
-impl core::cmp::Eq for papo::Incomplete
-impl core::cmp::PartialEq for papo::Incomplete
-pub fn papo::Incomplete::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Incomplete
-pub fn papo::Incomplete::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Incomplete
-impl core::marker::Freeze for papo::Incomplete
-impl core::marker::Send for papo::Incomplete
-impl core::marker::Sync for papo::Incomplete
-impl core::marker::Unpin for papo::Incomplete
-impl core::marker::UnsafeUnpin for papo::Incomplete
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Incomplete
-impl core::panic::unwind_safe::UnwindSafe for papo::Incomplete
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::CustomStreamNotReusable
@@ -2038,33 +2083,6 @@ impl core::marker::Unpin for papo::ReadMarker
 impl core::marker::UnsafeUnpin for papo::ReadMarker
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ReadMarker
 impl core::panic::unwind_safe::UnwindSafe for papo::ReadMarker
-#[non_exhaustive] pub enum papo::RestrictedLine
-pub papo::RestrictedLine::CtcpQuery(papo::event::CtcpQuery)
-pub papo::RestrictedLine::CtcpReply(papo::event::CtcpReply)
-pub papo::RestrictedLine::Incomplete(papo::Incomplete)
-pub papo::RestrictedLine::Message(papo::event::Message)
-pub papo::RestrictedLine::Notice(papo::event::Notice)
-pub papo::RestrictedLine::Other(papo::event::Other)
-pub papo::RestrictedLine::Reacted(papo::event::Reacted)
-pub papo::RestrictedLine::Redacted(papo::event::Redacted)
-pub papo::RestrictedLine::ServerNotice(papo::event::ServerNotice)
-pub papo::RestrictedLine::TagMsg(papo::event::TagMsg)
-pub papo::RestrictedLine::TypingChanged(papo::event::TypingChanged)
-impl core::clone::Clone for papo::RestrictedLine
-pub fn papo::RestrictedLine::clone(&self) -> Self
-impl core::cmp::Eq for papo::RestrictedLine
-impl core::cmp::PartialEq for papo::RestrictedLine
-pub fn papo::RestrictedLine::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::RestrictedLine
-pub fn papo::RestrictedLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::RestrictedLine
-impl core::marker::Freeze for papo::RestrictedLine
-impl core::marker::Send for papo::RestrictedLine
-impl core::marker::Sync for papo::RestrictedLine
-impl core::marker::Unpin for papo::RestrictedLine
-impl core::marker::UnsafeUnpin for papo::RestrictedLine
-impl core::panic::unwind_safe::RefUnwindSafe for papo::RestrictedLine
-impl core::panic::unwind_safe::UnwindSafe for papo::RestrictedLine
 #[non_exhaustive] pub enum papo::StreamSecurity
 pub papo::StreamSecurity::Encrypted
 pub papo::StreamSecurity::Plaintext
@@ -3504,24 +3522,6 @@ impl<T> core::marker::Unpin for papo::RequestFuture<T> where core::pin::Pin<allo
 impl<T> core::marker::UnsafeUnpin for papo::RequestFuture<T> where core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<T, papo::Error>> + core::marker::Send)>>: core::marker::UnsafeUnpin
 impl<T> !core::panic::unwind_safe::RefUnwindSafe for papo::RequestFuture<T>
 impl<T> !core::panic::unwind_safe::UnwindSafe for papo::RequestFuture<T>
-#[non_exhaustive] pub struct papo::Restricted
-pub papo::Restricted::audience: papo::Prefix
-pub papo::Restricted::line: papo::RestrictedLine
-impl core::clone::Clone for papo::Restricted
-pub fn papo::Restricted::clone(&self) -> Self
-impl core::cmp::Eq for papo::Restricted
-impl core::cmp::PartialEq for papo::Restricted
-pub fn papo::Restricted::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Restricted
-pub fn papo::Restricted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Restricted
-impl core::marker::Freeze for papo::Restricted
-impl core::marker::Send for papo::Restricted
-impl core::marker::Sync for papo::Restricted
-impl core::marker::Unpin for papo::Restricted
-impl core::marker::UnsafeUnpin for papo::Restricted
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Restricted
-impl core::panic::unwind_safe::UnwindSafe for papo::Restricted
 pub struct papo::SendMessage
 impl papo::SendMessage
 pub fn papo::SendMessage::channel_context(self, impl papo::AsChannel) -> Self

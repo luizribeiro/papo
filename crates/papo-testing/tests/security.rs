@@ -1428,8 +1428,8 @@ async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
     }
     wire.server(":alice!~a@cloak.example NOTICE @#ops :release status")
         .await;
-    let papo::Event::Restricted(papo::Restricted {
-        line: papo::RestrictedLine::Notice(notice),
+    let papo::Event::Restricted(papo::event::Restricted {
+        line: papo::event::RestrictedLine::Notice(notice),
         ..
     }) = next_active_event(&mut events).await
     else {
@@ -1437,8 +1437,8 @@ async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
     };
     wire.server("@+typing=paused :alice!~a@cloak.example TAGMSG @#ops")
         .await;
-    let papo::Event::Restricted(papo::Restricted {
-        line: papo::RestrictedLine::TypingChanged(typing),
+    let papo::Event::Restricted(papo::event::Restricted {
+        line: papo::event::RestrictedLine::TypingChanged(typing),
         ..
     }) = next_active_event(&mut events).await
     else {
@@ -1480,8 +1480,8 @@ async fn ops_only_messages_can_only_answer_their_exact_audience() {
     }
     wire.server("@msgid=Rfc1 :alice!~a@cloak.example PRIVMSG @#ops :release status")
         .await;
-    let papo::Event::Restricted(papo::Restricted {
-        line: papo::RestrictedLine::Message(message),
+    let papo::Event::Restricted(papo::event::Restricted {
+        line: papo::event::RestrictedLine::Message(message),
         ..
     }) = next_active_event(&mut events).await
     else {
@@ -2492,7 +2492,7 @@ async fn oversized_multiline_is_delivered_as_incomplete() {
     let expected = format!("{first}\n{second}");
     assert!(matches!(
         events.next().await.map(|(event, _)| event),
-        Some(papo::Event::Incomplete(papo::Incomplete::Message(message)))
+        Some(papo::Event::Incomplete(papo::event::Incomplete::Message(message)))
             if message.text == expected
     ));
     assert!(matches!(

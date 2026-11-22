@@ -1859,7 +1859,7 @@ mod tests {
 
         assert!(matches!(
             page.items.as_slice(),
-            [PageEvent::Incomplete(crate::Incomplete::Message(message))]
+            [PageEvent::Incomplete(crate::event::Incomplete::Message(message))]
                 if message.text == "unfinished deployment"
         ));
         assert_eq!(page.chat_messages().count(), 0);
@@ -2940,7 +2940,7 @@ mod tests {
     #[allow(clippy::too_many_lines)]
     async fn every_history_item_with_a_status_sign_is_restricted() {
         type Item = fn(HistoryLine) -> papo_core::HistoryItem;
-        type IsLine = fn(&crate::RestrictedLine) -> bool;
+        type IsLine = fn(&crate::event::RestrictedLine) -> bool;
         type IsEvent = fn(&Event) -> bool;
         let cases: [(&str, Item, IsLine, IsEvent); 10] = [
             (

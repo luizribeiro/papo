@@ -334,9 +334,7 @@ pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;
 pub use driver::{Driver, Events};
 pub use error::*;
-pub use event_impl::{
-    Actor, Event, Incomplete, MessageKind, Party, Restricted, RestrictedLine, Tags, TagsIter,
-};
+pub use event_impl::{Actor, Event, MessageKind, Party, Tags, TagsIter};
 pub use ext::accounts::{AccountOutcome, NewAccount};
 pub use ext::extras::{RenameChannel, RenameChannelRequest};
 pub use ext::history::{
@@ -463,12 +461,12 @@ pub mod event {
     pub use crate::event_impl::{
         AccountChanged, AutoJoinFailed, AwayChanged, BatchAbandonReason, Broadcast, BroadcastCtcp,
         BroadcastTagMsg, CapsChanged, CasemappingChanged, ChannelRenamed, ChannelSynced, Connected,
-        CtcpQuery, CtcpReply, FeaturesChanged, HostChanged, Invited, Joined, Kicked, Lagged,
-        MembersRefreshed, Message, MessageGap, MetadataChanged, ModeChanged, MonitorOffline,
-        MonitorOnline, Motd, NickChanged, Notice, NoticeTarget, Other, Parted, Quit, Reacted,
-        ReactionAction, ReadMarkerChanged, RealnameChanged, Redacted, ServerNotice,
-        ServerNoticeKind, SplitServers, StandardReply, StandardReplyKind, TagMsg, TopicChanged,
-        TypingChanged, TypingReason, Warning,
+        CtcpQuery, CtcpReply, FeaturesChanged, HostChanged, Incomplete, Invited, Joined, Kicked,
+        Lagged, MembersRefreshed, Message, MessageGap, MetadataChanged, ModeChanged,
+        MonitorOffline, MonitorOnline, Motd, NickChanged, Notice, NoticeTarget, Other, Parted,
+        Quit, Reacted, ReactionAction, ReadMarkerChanged, RealnameChanged, Redacted, Restricted,
+        RestrictedLine, ServerNotice, ServerNoticeKind, SplitServers, StandardReply,
+        StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
 }

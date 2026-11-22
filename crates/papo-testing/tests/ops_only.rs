@@ -10,9 +10,9 @@ async fn next_restricted_message(
 ) -> (papo::Prefix, papo::event::Message) {
     loop {
         match events.next().await.map(|(event, _)| event) {
-            Some(papo::Event::Restricted(papo::Restricted {
+            Some(papo::Event::Restricted(papo::event::Restricted {
                 audience,
-                line: papo::RestrictedLine::Message(message),
+                line: papo::event::RestrictedLine::Message(message),
                 ..
             })) => return (audience, message),
             Some(papo::Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
