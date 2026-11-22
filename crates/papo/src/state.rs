@@ -1,12 +1,10 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use papo_core::{
-    AccountStatus, AwayStatus, Capabilities, Feature, Session, UnsupportedReason, User,
-};
+use papo_core::{AccountStatus, AwayStatus, Feature, Session, UnsupportedReason, User};
 use papo_proto::{Casemapping, Mask, Nick};
 
-use crate::Isupport;
+use crate::{Capabilities, Isupport};
 
 fn resolve_user_parts(
     state: &papo_core::State,
@@ -408,7 +406,7 @@ impl State {
             core,
             channels,
             typing,
-            caps: session.caps().clone(),
+            caps: Capabilities(session.caps().clone()),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
@@ -690,9 +688,7 @@ impl State {
 
     /// Returns the capabilities enabled on the current connection.
     ///
-    /// Look up a capability with [`&Cap`](crate::Cap), using either its draft or final
-    /// spelling, to treat aliases as the same capability. A plain `&str` lookup only matches the
-    /// spelling the server used.
+    /// Look up a capability with [`Capabilities::get`], using either its draft or final spelling.
     #[must_use]
     pub const fn caps(&self) -> &Capabilities {
         &self.caps

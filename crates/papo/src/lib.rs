@@ -270,6 +270,7 @@ pub(crate) fn opaque_debug(
 mod action;
 mod address;
 mod builder;
+mod capabilities;
 mod client;
 mod confirmation;
 mod conversation;
@@ -322,6 +323,7 @@ pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 #[cfg(not(browser))]
 pub use builder::StreamSecurity;
+pub use capabilities::Capabilities;
 pub use client::{
     Client, Fallback, JoinChannel, KickRequest, Kickban, KickbanNick, KickbanRequest, PartRequest,
     QuitRequest, ReactOutcome, RedactOutcome, RedactedLine, SendMessage, SendOutcome, SentLine,
@@ -362,8 +364,8 @@ pub use papo_core::Secret;
 pub use papo_core::UnsupportedReason;
 #[doc(inline)]
 pub use papo_core::{
-    AccountStatus, AwayStatus, Cap, Capabilities, Feature, InvalidServerTime, Member, MetadataView,
-    ModeAction, ModeValue, Rank, ServerTime, User,
+    AccountStatus, AwayStatus, Cap, Feature, InvalidServerTime, Member, MetadataView, ModeAction,
+    ModeValue, Rank, ServerTime, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

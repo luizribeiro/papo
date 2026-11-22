@@ -16,8 +16,8 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
-use papo_core::{Cap, Capabilities, Sasl};
+use papo::{Cap, Capabilities, Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
+use papo_core::Sasl;
 use papo_test_server::ServerInfo;
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
@@ -284,7 +284,7 @@ impl Requirements {
                 return Some(format!("server does not advertise {}", requirement.name));
             };
             if let Some(required) = requirement.value
-                && !value.as_deref().is_some_and(|advertised| {
+                && !value.is_some_and(|advertised| {
                     advertised
                         .split(',')
                         .any(|value| value.eq_ignore_ascii_case(required))

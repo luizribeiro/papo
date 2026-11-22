@@ -122,7 +122,7 @@ async fn multiline_limit_refusal(s: Scenario) -> papo_testing::Result<()> {
     let value = state
         .caps()
         .get(&papo::cap::MULTILINE)
-        .and_then(Option::as_deref)
+        .flatten()
         .ok_or_else(|| std::io::Error::other("draft/multiline omitted its limits"))?;
     let max_bytes = value
         .split(',')

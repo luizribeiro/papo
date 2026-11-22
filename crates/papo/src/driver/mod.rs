@@ -1602,7 +1602,7 @@ where
                 let event = Event::Connected(event::Connected {
                     nick: welcome.nick,
                     welcome: welcome.text,
-                    caps: welcome.caps,
+                    caps: crate::Capabilities(welcome.caps),
                     reconnected,
                 });
                 enqueue_event(events, pending_events, event);

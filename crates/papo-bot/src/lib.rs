@@ -244,9 +244,8 @@ fn arrived_live(state: &State, message: &ChatMessage) -> bool {
     match state.welcome_time() {
         Some(welcome) => message.server_time.is_some_and(|sent| sent >= welcome),
         None => {
-            state.caps().contains_key(&papo::cap::BATCH)
-                || message.server_time.is_none()
-                    && !state.caps().contains_key(&papo::cap::SERVER_TIME)
+            state.caps().contains(&papo::cap::BATCH)
+                || message.server_time.is_none() && !state.caps().contains(&papo::cap::SERVER_TIME)
         }
     }
 }

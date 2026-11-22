@@ -8,7 +8,6 @@ pub use papo::BatchType
 pub use papo::BouncerNetwork
 pub use papo::BuildError
 pub use papo::Cap
-pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::ChannelName
 pub use papo::CtcpReplies
@@ -2242,6 +2241,30 @@ impl core::marker::Unpin for papo::Builder
 impl core::marker::UnsafeUnpin for papo::Builder
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Builder
 impl !core::panic::unwind_safe::UnwindSafe for papo::Builder
+pub struct papo::Capabilities(_)
+impl papo::Capabilities
+pub fn papo::Capabilities::contains(&self, &papo_core::cap::Cap) -> bool
+pub fn papo::Capabilities::get(&self, &papo_core::cap::Cap) -> core::option::Option<core::option::Option<&str>>
+pub fn papo::Capabilities::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&papo_core::cap::Cap, core::option::Option<&str>)> + core::iter::traits::double_ended::DoubleEndedIterator
+impl core::clone::Clone for papo::Capabilities
+pub fn papo::Capabilities::clone(&self) -> Self
+impl core::cmp::Eq for papo::Capabilities
+impl core::cmp::PartialEq for papo::Capabilities
+pub fn papo::Capabilities::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Capabilities
+pub fn papo::Capabilities::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Capabilities
+impl<'a> core::iter::traits::collect::IntoIterator for &'a papo::Capabilities
+pub type &'a papo::Capabilities::IntoIter = core::iter::adapters::map::Map<alloc::collections::btree::map::Iter<'a, papo_core::cap::Cap, core::option::Option<alloc::string::String>>, fn((&'a papo_core::cap::Cap, &'a core::option::Option<alloc::string::String>)) -> <&'a papo::Capabilities as core::iter::traits::collect::IntoIterator>::Item>
+pub type &'a papo::Capabilities::Item = (&'a papo_core::cap::Cap, core::option::Option<&'a str>)
+pub fn &'a papo::Capabilities::into_iter(self) -> Self::IntoIter
+impl core::marker::Freeze for papo::Capabilities
+impl core::marker::Send for papo::Capabilities
+impl core::marker::Sync for papo::Capabilities
+impl core::marker::Unpin for papo::Capabilities
+impl core::marker::UnsafeUnpin for papo::Capabilities
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Capabilities
+impl core::panic::unwind_safe::UnwindSafe for papo::Capabilities
 pub struct papo::CertificateChain(_)
 impl papo::CertificateChain
 pub fn papo::CertificateChain::new(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
@@ -4221,7 +4244,6 @@ impl core::marker::UnsafeUnpin for papo::BuildError
 impl core::panic::unwind_safe::RefUnwindSafe for papo::BuildError
 impl core::panic::unwind_safe::UnwindSafe for papo::BuildError
 pub struct papo::Cap(_)
-pub type papo::Capabilities = alloc::collections::btree::map::BTreeMap<papo::Cap, core::option::Option<alloc::string::String>>
 #[non_exhaustive] pub enum papo::Casemapping
 pub papo::Casemapping::Ascii
 pub papo::Casemapping::Rfc1459

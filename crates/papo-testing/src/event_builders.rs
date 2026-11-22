@@ -131,8 +131,8 @@ mod tests {
             ("server-time", None),
         ] {
             let name = papo::Cap::from(name);
-            assert_eq!(caps.get(&name).map(Option::as_deref), value);
-            assert_eq!(caps.contains_key(&name), value.is_some());
+            assert_eq!(caps.get(&name), value);
+            assert_eq!(caps.contains(&name), value.is_some());
         }
         let expected = [
             ("batch", Some("")),
@@ -141,12 +141,12 @@ mod tests {
         ];
         assert!(
             caps.iter()
-                .map(|(name, value)| (name.as_str(), value.as_deref()))
+                .map(|(name, value)| (name.as_str(), value))
                 .eq(expected)
         );
         let mut borrowed = Vec::new();
         for (name, value) in caps {
-            borrowed.push((name.as_str(), value.as_deref()));
+            borrowed.push((name.as_str(), value));
         }
         assert_eq!(borrowed, expected);
         let empty = ConnectedBuilder::new(alice).build();

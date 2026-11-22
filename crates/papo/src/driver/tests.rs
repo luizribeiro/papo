@@ -4704,7 +4704,7 @@ async fn cap_new_and_del_forward_capability_changes() {
     .await;
     assert!(
         matches!(next_event(&mut events).await, Some(Event::CapsChanged(changed))
-        if changed.added.get(&crate::cap::SERVER_TIME) == Some(&Some("2027".to_owned())))
+        if changed.added.get(&crate::cap::SERVER_TIME) == Some(Some("2027")))
     );
     assert!(matches!(
         next_event(&mut events).await,
@@ -4718,7 +4718,7 @@ async fn cap_new_and_del_forward_capability_changes() {
     .await;
     assert!(
         matches!(next_event(&mut events).await, Some(Event::CapsChanged(changed))
-        if changed.removed.contains_key(&crate::cap::SERVER_TIME))
+        if changed.removed.contains(&crate::cap::SERVER_TIME))
     );
     assert!(matches!(
         next_event(&mut events).await,
@@ -8953,7 +8953,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     while client
         .state()
         .caps()
-        .contains_key(&crate::cap::MESSAGE_REDACTION)
+        .contains(&crate::cap::MESSAGE_REDACTION)
     {
         tokio::task::yield_now().await;
     }
@@ -10688,13 +10688,13 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert_connected(&mut events).await;
 
     let state = client.state();
-    assert!(state.caps().contains_key(&crate::cap::NO_IMPLICIT_NAMES));
+    assert!(state.caps().contains(&crate::cap::NO_IMPLICIT_NAMES));
     assert!(
         state
             .caps()
-            .contains_key(&crate::Cap::from("no-implicit-names"))
+            .contains(&crate::Cap::from("no-implicit-names"))
     );
-    assert!(!state.caps().contains_key(&crate::cap::MESSAGE_TAGS));
+    assert!(!state.caps().contains(&crate::cap::MESSAGE_TAGS));
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(state.is_connected());
     assert_eq!(state.nick(), "PAPO-DRIVER");

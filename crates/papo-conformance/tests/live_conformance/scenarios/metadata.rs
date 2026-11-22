@@ -12,7 +12,7 @@ fn require_metadata_capacity(
     let limits = state
         .caps()
         .get(&papo::cap::METADATA)
-        .and_then(Option::as_deref)
+        .flatten()
         .expect("draft/metadata-2 advertises metadata limits");
     let limit = |name: &str| {
         limits.split(',').find_map(|item| {

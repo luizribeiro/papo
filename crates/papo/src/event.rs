@@ -1372,7 +1372,7 @@ pub(crate) fn historical_message_event(
         status,
         channel_context,
         snapshot.isupport().inner(),
-        snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        snapshot.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
         reply_token,
     )
@@ -2585,9 +2585,10 @@ pub(crate) fn from_core_with_receipt(
                 reason: papo_format::display_text(&reason).into_owned(),
             })
         }
-        papo_core::Event::CapsChanged { added, removed, .. } => {
-            Event::CapsChanged(CapsChanged { added, removed })
-        }
+        papo_core::Event::CapsChanged { added, removed, .. } => Event::CapsChanged(CapsChanged {
+            added: crate::Capabilities(added),
+            removed: crate::Capabilities(removed),
+        }),
         papo_core::Event::FeaturesChanged { added, removed, .. } => {
             Event::FeaturesChanged(FeaturesChanged { added, removed })
         }

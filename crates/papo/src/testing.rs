@@ -328,7 +328,7 @@ pub fn set_message_actor(message: &mut Message, actor: &crate::UserRef) {
 pub fn capabilities(
     entries: impl IntoIterator<Item = (crate::Cap, Option<String>)>,
 ) -> Capabilities {
-    entries.into_iter().collect()
+    Capabilities(entries.into_iter().collect())
 }
 
 /// Constructs a connected event payload.

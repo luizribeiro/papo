@@ -161,7 +161,7 @@ pub(crate) fn history_item(
     let state = client.state();
     let mapping = state.working_casemapping();
     let origin = client.origin();
-    let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
+    let account_tag_enabled = state.caps().contains(&crate::cap::ACCOUNT_TAG);
     let mut event = match item {
         papo_core::HistoryItem::Message(item) => {
             let actor_party = crate::Party::from_core(item.actor_party);
@@ -338,7 +338,7 @@ fn historical_tagmsg(
         message,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
     let actor = user_from_line(message, &envelope, mapping, client.origin())?;
@@ -537,7 +537,7 @@ fn joined(
         actor_party,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     )
     .map(Event::Joined)
@@ -555,7 +555,7 @@ fn parted(
         message,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
     let actor = user_from_line(message, &envelope, mapping, client.origin())?;
@@ -591,7 +591,7 @@ fn quit(
         message,
         mapping,
         origin,
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
     let actor = user_from_line(message, &envelope, mapping, origin)?;
@@ -629,7 +629,7 @@ fn kicked(
         message,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
@@ -676,7 +676,7 @@ fn nick_changed(
         message,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
     let old = state.known_name_rules()?.nick(source_nick(message)?);
@@ -748,7 +748,7 @@ fn mode_changed(
         message,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
     let changes = ModeChanges::parse(
