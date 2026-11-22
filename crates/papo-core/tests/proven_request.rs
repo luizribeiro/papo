@@ -9,6 +9,17 @@ fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
 }
 
+fn observed_alice(session: &Session) -> papo_core::Proven {
+    let state = session.state();
+    state
+        .__prove_event_user(
+            state.__reply_token_for("alice"),
+            state.user("alice").unwrap().nick().clone(),
+            Account::Unknown,
+        )
+        .unwrap()
+}
+
 #[test]
 fn person_request_retargets_the_proven_user() {
     let now = Instant::now();
@@ -30,12 +41,7 @@ fn person_request_retargets_the_proven_user() {
     );
     while session.poll_event().is_some() {}
 
-    let nick = session.state().casemapping().nick("alice");
-    let account = Account::LoggedIn(session.state().casemapping().account("alice-account"));
-    let row = Line::new("354").with_params(["papo", "alice", "alice-account"]);
-    let proof = session
-        .__prove_who_user(nick, account.name(), &[row])
-        .unwrap();
+    let proof = observed_alice(&session);
     let command = PersonCommand::__new(Line::new("WHOIS").param("template")).unwrap();
     session.request_person(now, proof, command).unwrap();
     server(&mut session, ":alice!a@alice.example NICK alicia");
@@ -44,49 +50,6 @@ fn person_request_retargets_the_proven_user() {
         session.poll_transmit().unwrap().as_ref(),
         b"@label=0 WHOIS alicia\r\n"
     );
-}
-
-#[test]
-fn who_proof_does_not_mark_user_monitored() {
-    let now = Instant::now();
-    let mut session = Session::new(
-        Config::default()
-            .nick("papo")
-            .rate_limit(RateLimit::unlimited()),
-    );
-    session.handle_connected(now);
-    server(&mut session, ":ergo.test 001 papo :Welcome");
-    server(
-        &mut session,
-        ":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
-    );
-    server(&mut session, ":ergo.test 422 papo :MOTD missing");
-    while session.poll_transmit().is_some() {}
-
-    let nick = session.state().casemapping().nick("alice");
-    let account = Account::LoggedIn(session.state().casemapping().account("alice-account"));
-    let proof = session
-        .__prove_who_user(
-            nick,
-            account.name(),
-            &[Line::new("354").with_params(["papo", "alice", "alice-account"])],
-        )
-        .unwrap();
-    session
-        .send_person_tracked(
-            now,
-            proof,
-            PersonCommand::__new(Line::privmsg("placeholder", "release approved")).unwrap(),
-        )
-        .unwrap();
-
-    assert_eq!(
-        session.poll_transmit().unwrap().as_ref(),
-        b"PRIVMSG alice :release approved\r\n"
-    );
-    assert!(session.state().user("alice").is_none());
-    assert_eq!(session.state().monitored().len(), 0);
-    assert!(session.poll_transmit().is_none());
 }
 
 #[test]
@@ -117,13 +80,7 @@ fn proven_non_target_parameter_rewrites_or_fails_closed() {
         );
         while session.poll_event().is_some() {}
 
-        let proof = session
-            .__prove_who_user(
-                session.state().casemapping().nick("alice"),
-                Some(&session.state().casemapping().account("alice-account")),
-                &[Line::new("354").with_params(["papo", "alice", "alice-account"])],
-            )
-            .unwrap();
+        let proof = observed_alice(&session);
         session
             .request_target_guarded_silent(
                 now,

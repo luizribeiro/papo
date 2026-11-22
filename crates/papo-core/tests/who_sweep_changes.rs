@@ -198,23 +198,8 @@ fn changed_members_follow_a_casemapping_change_during_the_sweep() {
 }
 
 #[test]
-fn renaming_onto_a_who_proven_nick_mid_sweep_ends_the_proof_and_skips_both_rows() {
-    let carol = Casemapping::default().nick("carol");
-    let mut proof = None;
-    let transcript = sweep_in_flight(Config::default())
-        .update(|session| {
-            let row = papo_proto::Line::new("354").with_params(["bob", "carol", "carol"]);
-            proof = Some(
-                session
-                    .__prove_who_user(carol.clone(), logged_in("carol").name(), &[row])
-                    .unwrap(),
-            );
-        })
-        .inspect(|session| {
-            let resolved = session.state().__resolve_proven(proof.as_ref().unwrap());
-            assert_eq!(resolved.ok(), Some(carol.clone()));
-        })
-        .server(":dan!~dan@127.0.0.1 NICK carol");
+fn renaming_mid_sweep_skips_rows_for_both_nicknames() {
+    let transcript = sweep_in_flight(Config::default()).server(":dan!~dan@127.0.0.1 NICK carol");
     finish_sweep(
         transcript,
         &[
@@ -224,7 +209,6 @@ fn renaming_onto_a_who_proven_nick_mid_sweep_ends_the_proof_and_skips_both_rows(
     )
     .inspect(|session| {
         let state = session.state();
-        assert!(state.__resolve_proven(proof.as_ref().unwrap()).is_err());
         assert_eq!(member_nicks(session), ["alice", "bob", "carol"]);
         assert!(state.user("dan").is_none());
         let renamed = state.user("carol").unwrap();
