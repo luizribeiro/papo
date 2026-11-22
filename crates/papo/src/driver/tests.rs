@@ -8685,7 +8685,7 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     let typer = state.typing(&conversation).next().unwrap();
     assert_eq!(typer.nick(), "alice");
     assert!(!typer.is_paused());
-    assert_eq!(typer.status(), None);
+    assert_eq!(typer.audience(), None);
     let address: crate::MessageRef = typer.return_address();
     assert_eq!(address, "#papo");
 

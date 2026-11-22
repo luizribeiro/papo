@@ -94,7 +94,7 @@ fn status_target_updates_typing_state_and_deadline() {
             let typers: Vec<_> = session.state().typing(&conversation).collect();
             assert_eq!(typers.len(), 1);
             assert!(typers[0].is_paused());
-            assert_eq!(typers[0].status().map(papo_core::Prefix::symbol), Some('@'));
+            assert_eq!(typers[0].audience().map(papo_core::Prefix::symbol), Some('@'));
             assert_eq!(typers[0].return_address(), "@#papo");
         })
         .deadline(Some(Duration::from_secs(30)))
@@ -181,7 +181,7 @@ fn changed_status_updates_typing_with_the_same_return_address() {
         .inspect(|session| {
             let conversation = conversation(session, "#papo");
             let typer = session.state().typing(&conversation).next().unwrap();
-            assert_eq!(typer.status().map(papo_core::Prefix::mode), Some('v'));
+            assert_eq!(typer.audience().map(papo_core::Prefix::mode), Some('v'));
             assert_eq!(typer.return_address(), "@#papo");
         })
         .no_event();
@@ -199,7 +199,7 @@ fn changed_return_address_updates_typing_with_the_same_status() {
         .inspect(|session| {
             let conversation = conversation(session, "#papo");
             let typer = session.state().typing(&conversation).next().unwrap();
-            assert_eq!(typer.status().map(papo_core::Prefix::mode), Some('o'));
+            assert_eq!(typer.audience().map(papo_core::Prefix::mode), Some('o'));
             assert_eq!(typer.return_address(), "!@#papo");
         })
         .no_event();

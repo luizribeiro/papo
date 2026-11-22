@@ -27,8 +27,8 @@ impl Typer {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub const fn status(&self) -> Option<Prefix> {
-        self.core.status()
+    pub const fn audience(&self) -> Option<Prefix> {
+        self.core.audience()
     }
 
     /// Returns the address that reaches the recipients of the typing notification.

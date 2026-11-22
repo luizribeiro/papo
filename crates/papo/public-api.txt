@@ -3669,10 +3669,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::TopicOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::TopicOutcome
 #[non_exhaustive] pub struct papo::Typer
 impl papo::Typer
+pub const fn papo::Typer::audience(&self) -> core::option::Option<papo::Prefix>
 pub const fn papo::Typer::is_paused(&self) -> bool
 pub const fn papo::Typer::nick(&self) -> &papo::Nick
 pub fn papo::Typer::return_address(&self) -> papo::MessageRef
-pub const fn papo::Typer::status(&self) -> core::option::Option<papo::Prefix>
 impl core::clone::Clone for papo::Typer
 pub fn papo::Typer::clone(&self) -> Self
 impl core::cmp::Eq for papo::Typer

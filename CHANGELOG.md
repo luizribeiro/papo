@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Read the typing notification prefix from `Typer::audience()`.
+
 Read the sent message prefix from `SendOutcome::audience()`.
 
 Choose password-based SASL mechanisms with `Sasl::password`.

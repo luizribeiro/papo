@@ -93,7 +93,7 @@ pub struct Typer {
     nick: Nick,
     conversation: Conversation,
     state: Typing,
-    status: Option<Prefix>,
+    audience: Option<Prefix>,
     return_address: String,
 }
 
@@ -114,8 +114,8 @@ impl Typer {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub const fn status(&self) -> Option<Prefix> {
-        self.status
+    pub const fn audience(&self) -> Option<Prefix> {
+        self.audience
     }
 
     /// Returns the address that reaches the recipients of the typing notification.
@@ -243,12 +243,12 @@ impl TypingTable {
                 nick: nick.clone(),
                 conversation: conversation.clone(),
                 state,
-                status,
+                audience: status,
                 return_address: return_address.clone(),
             };
             if let Some(position) = entry {
                 if table.entries[position].1.state != state
-                    || table.entries[position].1.status != status
+                    || table.entries[position].1.audience != status
                     || table.entries[position].1.return_address != return_address
                 {
                     table.entries[position].1 = typer;
@@ -702,7 +702,7 @@ mod tests {
                     nick: mapping.nick("Alice"),
                     conversation: conversation.clone(),
                     state: Typing::Active,
-                    status: None,
+                    audience: None,
                     return_address: "#papo".into(),
                 },
             ),
@@ -712,7 +712,7 @@ mod tests {
                     nick: mapping.nick("bob"),
                     conversation: other.clone(),
                     state: Typing::Paused,
-                    status: None,
+                    audience: None,
                     return_address: "#rust".into(),
                 },
             ),
@@ -722,7 +722,7 @@ mod tests {
                     nick: mapping.nick("carol"),
                     conversation: conversation.clone(),
                     state: Typing::Paused,
-                    status: Some(papo_proto::Prefix::__new('o', '@')),
+                    audience: Some(papo_proto::Prefix::__new('o', '@')),
                     return_address: "@#papo".into(),
                 },
             ),
@@ -751,7 +751,7 @@ mod tests {
                     nick: mapping.nick(nick),
                     conversation,
                     state: Typing::Active,
-                    status: None,
+                    audience: None,
                     return_address: address.into(),
                 },
             ));
