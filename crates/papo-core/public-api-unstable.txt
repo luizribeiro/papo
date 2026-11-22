@@ -715,7 +715,6 @@ pub papo_core::Feature::Excepts
 pub papo_core::Feature::ExtendedIsupport
 pub papo_core::Feature::ExtendedJoin
 pub papo_core::Feature::ExtendedMonitor
-pub papo_core::Feature::Halfop
 pub papo_core::Feature::History
 pub papo_core::Feature::HostTracking
 pub papo_core::Feature::Invex

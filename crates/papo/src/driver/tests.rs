@@ -7688,7 +7688,7 @@ async fn invite_and_privilege_grants_accept_nicknames() {
     let request = client
         .mode("#review")
         .op("Alice")
-        .halfop(test_nick("bob"))
+        .add_with('h', test_nick("bob"))
         .voice("carol")
         .add_with('a', test_nick("dave"));
     let modes = tokio::spawn(async move { request.await });

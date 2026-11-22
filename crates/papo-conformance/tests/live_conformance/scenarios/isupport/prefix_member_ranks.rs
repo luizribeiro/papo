@@ -68,7 +68,10 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     assert_dave_view(&s, &channel, &bob_nick, &allowed_symbols, has_halfop).await?;
 
     if has_halfop {
-        alice.mode(&channel).dehalfop(bob_nick.as_str()).await?;
+        alice
+            .mode(&channel)
+            .remove_with('h', bob_nick.as_str())
+            .await?;
         let changed = wait_channel_mode(&mut bob, &channel, 'h').await?;
         assert!(
             matches!(changed.changes.as_slice(), [change] if change.action == ModeAction::Remove)
@@ -129,14 +132,10 @@ async fn grant_rank(
     bob_nick: &Nick,
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
-    if prefix.mode() == 'h' {
-        alice.mode(channel).halfop(bob_nick.as_str()).await?;
-    } else {
-        alice
-            .mode(channel)
-            .add_with(prefix.mode(), bob_nick.as_str())
-            .await?;
-    }
+    alice
+        .mode(channel)
+        .add_with(prefix.mode(), bob_nick.as_str())
+        .await?;
     wait_channel_mode(alice, channel, prefix.mode()).await?;
     let changed = wait_channel_mode(bob, channel, prefix.mode()).await?;
     assert_eq!(

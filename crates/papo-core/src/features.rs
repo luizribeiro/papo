@@ -96,7 +96,6 @@ macro_rules! feature_table {
             /// `IRCv3` draft extended ISUPPORT discovery, requiring `draft/extended-isupport`.
             [] ExtendedIsupport => "extended ISUPPORT discovery", [Some(cap::EXTENDED_ISUPPORT), None];
             /// Published IRC half-operator channel membership, advertised through `PREFIX`.
-            [] Halfop => "half-operator privileges", [None, None];
             /// Published IRC channel ban exceptions, advertised through `EXCEPTS`.
             [] Excepts => "ban exceptions", [None, None];
             /// Published IRC channel invite exceptions, advertised through `INVEX`.
@@ -261,14 +260,6 @@ impl Session {
                 return support
                     .bot_mode()
                     .map(|_| ())
-                    .ok_or(UnsupportedReason::NotOffered);
-            }
-            Feature::Halfop => {
-                return support
-                    .prefix()
-                    .iter()
-                    .any(|prefix| prefix.mode() == 'h')
-                    .then_some(())
                     .ok_or(UnsupportedReason::NotOffered);
             }
             Feature::Excepts => {

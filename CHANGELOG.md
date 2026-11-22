@@ -24,6 +24,8 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `SetModes::add_with` and `remove_with` accept nicknames and user handles for advertised membership modes.
 
+`SetModes::halfop`, `SetModes::dehalfop`, and `Feature::Halfop` have been removed. Use `add_with('h', nick)` and `remove_with('h', nick)` when the server advertises that rank.
+
 `SetModes::quiet`, `SetModes::unquiet`, and `Feature::Quiet` have been removed. Use the list mode or extended ban supported by the server.
 
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC

@@ -237,18 +237,38 @@ impl SetModes {
 
     /// Adds a mode with its required argument.
     ///
-    /// For a membership mode advertised in `PREFIX`, pass a nickname or a
-    /// [`crate::UserHandle`]. Text supplies the parameter for other modes.
+    /// To grant a server-specific rank, pass its mode letter from the server's
+    /// `PREFIX` advertisement and a nickname or [`crate::UserHandle`].
+    /// papo makes no claim about what the letter means.
+    /// Text supplies the parameter for other modes.
     /// Channel key mode `k` requires [`Self::key`].
+    ///
+    /// ```no_run
+    /// # async fn change_rank(client: &papo::Client) -> Result<(), papo::Error> {
+    /// // The server advertised h as a membership mode in PREFIX.
+    /// client.mode("#review").add_with('h', "alice").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn add_with(self, mode: char, argument: impl crate::AsNick) -> Self {
         self.change_with(true, mode, argument)
     }
 
     /// Removes a mode with its required argument.
     ///
-    /// For a membership mode advertised in `PREFIX`, pass a nickname or a
-    /// [`crate::UserHandle`]. Text supplies the parameter for other modes.
+    /// To remove a server-specific rank, pass its mode letter from the server's
+    /// `PREFIX` advertisement and a nickname or [`crate::UserHandle`].
+    /// papo makes no claim about what the letter means.
+    /// Text supplies the parameter for other modes.
     /// Channel key mode `k` requires [`Self::remove_key`].
+    ///
+    /// ```no_run
+    /// # async fn change_rank(client: &papo::Client) -> Result<(), papo::Error> {
+    /// // The server advertised h as a membership mode in PREFIX.
+    /// client.mode("#review").remove_with('h', "alice").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn remove_with(self, mode: char, argument: impl crate::AsNick) -> Self {
         self.change_with(false, mode, argument)
     }
@@ -316,20 +336,6 @@ impl SetModes {
         self.prefix_change(false, 'o', nick)
     }
 
-    /// Grants half-operator privileges to `nick`.
-    ///
-    /// Accepts the same nickname and identity arguments as [`Self::op`].
-    pub fn halfop(self, nick: impl crate::AsNick) -> Self {
-        self.optional_prefix(true, crate::Feature::Halfop, nick)
-    }
-
-    /// Removes half-operator privileges from `nick`.
-    ///
-    /// A [`crate::UserHandle`] follows its proven identity; text addresses the current holder.
-    pub fn dehalfop(self, nick: impl crate::AsNick) -> Self {
-        self.optional_prefix(false, crate::Feature::Halfop, nick)
-    }
-
     /// Grants voice privileges to `nick`.
     ///
     /// Accepts the same nickname and identity arguments as [`Self::op`].
@@ -348,16 +354,6 @@ impl SetModes {
         self.change(
             set,
             Selector::Prefix(mode),
-            Some(Argument::PendingNick(
-                crate::AsNick::__parts(&nick).into_owned(),
-            )),
-        )
-    }
-
-    fn optional_prefix(self, set: bool, feature: crate::Feature, nick: impl crate::AsNick) -> Self {
-        self.change(
-            set,
-            Selector::Optional(feature),
             Some(Argument::PendingNick(
                 crate::AsNick::__parts(&nick).into_owned(),
             )),
@@ -604,7 +600,6 @@ impl Change {
                     return Err(Error::Unsupported(crate::Unsupported::new(feature, reason)));
                 }
                 match feature {
-                    crate::Feature::Halfop => Selector::Prefix('h'),
                     crate::Feature::Excepts => {
                         Selector::Letter(state.isupport().excepts().unwrap())
                     }
@@ -1411,38 +1406,6 @@ mod tests {
                 reason: UnsupportedReason::NotOffered,
                 ..
             })
-        ));
-    }
-
-    #[test]
-    fn resolves_halfop_only_when_prefix_advertises_it() {
-        let supported =
-            state(":ergo.test 005 papo PREFIX=(ohv)@%+ CHANMODES=beI,k,l,imnst :are supported");
-        let change = Change {
-            set: true,
-            mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Raw("alice".into())),
-        };
-        assert!(matches!(
-            change.resolve(&supported).unwrap().mode,
-            Selector::Prefix('h')
-        ));
-
-        let unsupported = state(
-            ":solanum.example 005 papo PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :are supported",
-        );
-        let change = Change {
-            set: true,
-            mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Raw("alice".into())),
-        };
-        assert!(matches!(
-            change.resolve(&unsupported),
-            Err(crate::Error::Unsupported(crate::Unsupported {
-                feature: Feature::Halfop,
-                reason: UnsupportedReason::NotOffered,
-                ..
-            }))
         ));
     }
 
