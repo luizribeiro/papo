@@ -1,7 +1,8 @@
 # Create account
 
-This example creates an account during connection setup. If the server requires verification,
-it prints the instructions and reads the verification code from standard input. After success it
+This example uses `Builder::create_account_on_connect` to create an account during connection
+setup. If the server requires verification, it prints the instructions and reads the
+verification code from standard input. After success it
 awaits `Client::quit` before exiting. A rejected code is reported on standard error; the example
 does not prompt again.
 

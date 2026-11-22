@@ -4,9 +4,9 @@ Build, parse, and strip IRC text formatting. This crate has no stability promise
 
 ## Send bold and colored text
 
-Build the text and pass it to your connected `papo::Client`.
+Build the text and pass the result to `client.privmsg("#deployments", message)`.
 
-```rust,ignore
+```rust
 use papo_format::FormatBuilder;
 
 let mut text = FormatBuilder::new();
@@ -17,7 +17,8 @@ text.bold()
     .color(12, None)
     .text("Ergo")
     .reset();
-client.privmsg("#deployments", text.finish()).await?;
+let message = text.finish();
+assert_eq!(papo_format::strip_formatting(&message), "Deployment complete on Ergo");
 ```
 
 ## Read styled runs

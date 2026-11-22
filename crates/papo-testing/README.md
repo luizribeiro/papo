@@ -57,9 +57,10 @@ fn main() {
             .await;
 
         while let Some((event, _)) = events.next().await {
-            let Some(message) = event.as_message() else { continue };
-            if message.text == "!ping" {
-                client.reply(message, "pong").await.unwrap();
+            if let papo::Event::Message(message) = event
+                && message.text == "!ping"
+            {
+                client.reply(&message, "pong").await.unwrap();
                 break;
             }
         }

@@ -2,9 +2,9 @@
 
 This is the smallest complete bot: it connects, joins `#papo`, and answers each live `!ping`
 with a threaded `pong` reply. A failed reply is logged and the bot keeps running.
-Private replies follow the sender's nick changes. If papo can't confirm the recipient is still the
-same user, it refuses to send. A `!ping` sent only to the channel's operators (`@#papo`) arrives as
-`Event::Restricted`, which this bot does not match, so it goes unanswered.
+Private replies follow nickname changes papo sees. If papo sees the recipient leave or their
+nickname change hands, the reply fails. A `!ping` sent only to the channel's operators
+(`@#papo`) arrives as `Event::Restricted` and goes unanswered.
 
 Pass an `irc://` or `ircs://` server URL as the first argument. The nickname comes from
 `IRC_NICK` and defaults to `papo-ping`.

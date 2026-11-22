@@ -8,7 +8,8 @@ command flow and reply handling.
 
 Commands remember which client received them. A message received by one client is rejected by
 another client's `BotConfig::command`, and same-named conversations on different clients get
-separate reply-rate budgets.
+separate reply-rate budgets. Use `BotCommand::account_in` to check the account on a received
+command.
 
 A command sent to a status-prefixed address such as `@#ops` arrives as `papo::Event::Restricted`
 and is ignored unless the bot passes that line to `BotConfig::restricted_command`. The command's
