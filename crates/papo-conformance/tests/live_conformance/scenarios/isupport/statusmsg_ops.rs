@@ -301,7 +301,7 @@ async fn statusmsg_typing_ops(s: Scenario) -> papo_testing::Result<()> {
 
     let typed = peers
         .bob
-        .typing(question.return_address(), Typing::Active)
+        .set_typing(question.return_address(), Typing::Active)
         .await;
     if matches!(
         &typed,

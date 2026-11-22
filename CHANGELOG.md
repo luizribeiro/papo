@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Send typing notifications with `Client::set_typing`.
+
 Use `HistoryPage::exhausted` for the history end marker.
 
 Read the changed address from `HostChanged::host` and `HostChanged::username`.
@@ -79,7 +81,7 @@ output tests. Their example binaries require TLS when sending credentials.
 
 `Nick` implements `Target` for `Client::privmsg`, `Client::notice`, and `Client::action`.
 
-`Client::typing` accepts plain text and `Nick` targets for the nickname's current holder.
+`Client::set_typing` accepts plain text and `Nick` targets for the nickname's current holder.
 
 `Client::invite` and the `SetModes` privilege grants accept plain text and `Nick` in addition to `UserHandle`.
 

@@ -1123,7 +1123,7 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = alice.snapshot().nick().clone();
     let bob_nick = bob.snapshot().nick().clone();
 
-    alice.typing(bob_nick.as_str(), Typing::Active).await?;
+    alice.set_typing(bob_nick.as_str(), Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
 
     assert_eq!(crate::source_nick(&typing.actor), Some(alice_nick.as_str()));
@@ -1133,14 +1133,14 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(typing.state, Typing::Active);
 
-    alice.typing(bob_nick.as_str(), Typing::Active).await?;
+    alice.set_typing(bob_nick.as_str(), Typing::Active).await?;
     bob.expect_none(Event::as_typing_changed).await?;
-    alice.typing(bob_nick.as_str(), Typing::Paused).await?;
+    alice.set_typing(bob_nick.as_str(), Typing::Paused).await?;
     assert_eq!(
         bob.wait_for(Event::as_typing_changed).await?.state,
         Typing::Paused
     );
-    alice.typing(bob_nick.as_str(), Typing::Done).await?;
+    alice.set_typing(bob_nick.as_str(), Typing::Done).await?;
     assert_eq!(
         bob.wait_for(Event::as_typing_changed).await?.state,
         Typing::Done
@@ -1170,7 +1170,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     let target = format!("@{channel}");
-    alice.typing(&target, Typing::Active).await?;
+    alice.set_typing(&target, Typing::Active).await?;
     let restricted = bob
         .wait_for(|event| restricted_line(event, papo::RestrictedLine::as_typing_changed))
         .await?;

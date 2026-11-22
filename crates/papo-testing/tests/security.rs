@@ -738,7 +738,10 @@ async fn every_send_reports_a_foreign_value_as_foreign_reference() {
             done(second.notice(nick, "release ready").await),
         ),
         ("action", done(second.action(channel, "waves").await)),
-        ("typing", second.typing(channel, papo::Typing::Active).await),
+        (
+            "typing",
+            second.set_typing(channel, papo::Typing::Active).await,
+        ),
         ("reply", done(second.reply(message(), "acknowledged").await)),
         ("react", done(second.react(message(), "+1").await)),
         ("unreact", done(second.unreact(message(), "+1").await)),
@@ -919,7 +922,9 @@ async fn foreign_return_addresses_cannot_send_typing_or_notices() {
     let address = message.return_address();
 
     assert!(is_foreign(
-        &first.typing(address.clone(), papo::Typing::Active).await
+        &first
+            .set_typing(address.clone(), papo::Typing::Active)
+            .await
     ));
     assert!(is_foreign(&first.notice(address, "acknowledged").await));
     assert!(
@@ -1056,7 +1061,9 @@ async fn assert_line_recipient_guard(
             .reply(reference.clone(), "payroll attached")
             .await
             .map(|_| ()),
-        client.typing(reference.clone(), papo::Typing::Active).await,
+        client
+            .set_typing(reference.clone(), papo::Typing::Active)
+            .await,
         client.action(reference.clone(), "waves").await.map(|_| ()),
         client.notice(reference, "classified").await.map(|_| ()),
     ]) {
@@ -1212,7 +1219,7 @@ async fn every_line_reference_refuses_a_stale_target() {
         client.privmsg(alice, "classified").await.map(|_| ()),
         client.notice(alice, "classified").await.map(|_| ()),
         client.action(alice, "waves").await.map(|_| ()),
-        client.typing(alice, papo::Typing::Active).await,
+        client.set_typing(alice, papo::Typing::Active).await,
     ] {
         assert!(matches!(result, Err(papo::Error::TargetGone)));
     }
@@ -1444,7 +1451,7 @@ async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
         .unwrap();
     assert_eq!(wire.next_sent().await, "NOTICE @#ops acknowledged");
     client
-        .typing(typing.return_address(), papo::Typing::Active)
+        .set_typing(typing.return_address(), papo::Typing::Active)
         .await
         .unwrap();
     assert_eq!(wire.next_sent().await, "@+typing=active TAGMSG @#ops");

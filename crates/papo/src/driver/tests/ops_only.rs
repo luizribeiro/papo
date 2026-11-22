@@ -134,7 +134,7 @@ async fn stacked_status_signs_are_refused_before_the_wire() {
         assert_eq!(refused_sign(sent), ("target", target.to_owned(), second));
         let notice = within(ops.client.notice(target, "who sees this?")).await;
         assert_eq!(refused_sign(notice), ("target", target.to_owned(), second));
-        let typing = within(ops.client.typing(target, Typing::Active)).await;
+        let typing = within(ops.client.set_typing(target, Typing::Active)).await;
         assert_eq!(
             refused_sign(typing),
             ("typing: target", target.to_owned(), second)

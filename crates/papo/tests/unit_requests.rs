@@ -39,7 +39,7 @@ const UNIT_REQUESTS: &[(&str, Reason)] = &[
     ("papo::Client::resume_reconnect", Reason::LocalOnly),
     ("papo::Client::send_raw", Reason::UnlabelledByDesign),
     ("papo::Client::set_away", Reason::FixedTextNumeric),
-    ("papo::Client::typing", Reason::Ephemeral),
+    ("papo::Client::set_typing", Reason::Ephemeral),
     ("papo::Metadata::remove", Reason::EchoesInputOnly),
     ("papo::Metadata::remove_on", Reason::EchoesInputOnly),
     ("papo::Metadata::unsubscribe", Reason::EchoesInputOnly),

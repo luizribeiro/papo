@@ -61,7 +61,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | [Channel context](https://ircv3.net/specs/client-tags/channel-context) | `+channel-context` | Yes | [`SendMessage::channel_context`](https://docs.rs/papo/latest/papo/struct.SendMessage.html#method.channel_context) | [Yes](conformance-matrix.md) |
 | [Reply](https://ircv3.net/specs/client-tags/reply) | `+reply` | Yes | [`Client::reply`](https://docs.rs/papo/latest/papo/struct.Client.html#method.reply) | [Yes](conformance-matrix.md) |
 | [React](https://ircv3.net/specs/client-tags/react) | `+draft/react, +draft/unreact` | Yes | [`Client::react`](https://docs.rs/papo/latest/papo/struct.Client.html#method.react) | [Yes](conformance-matrix.md) |
-| [Typing](https://ircv3.net/specs/client-tags/typing) | `+typing` | Yes | [`Client::typing`](https://docs.rs/papo/latest/papo/struct.Client.html#method.typing) | [Yes](conformance-matrix.md) |
+| [Typing](https://ircv3.net/specs/client-tags/typing) | `+typing` | Yes | [`Client::set_typing`](https://docs.rs/papo/latest/papo/struct.Client.html#method.set_typing) | [Yes](conformance-matrix.md) |
 | [Operator tag](https://ircv3.net/specs/extensions/oper-tag) | `draft/oper-tag, draft/oper` | Yes | — | No |
 
 ## Batch types

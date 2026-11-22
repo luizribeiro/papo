@@ -1447,7 +1447,11 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub fn typing(&self, target: impl crate::Target, state: Typing) -> crate::RequestFuture<()> {
+    pub fn set_typing(
+        &self,
+        target: impl crate::Target,
+        state: Typing,
+    ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let target = crate::Target::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {

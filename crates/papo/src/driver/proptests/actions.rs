@@ -34,7 +34,7 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         });
         check!({
             let first = first.clone();
-            move |client: &crate::Client| client.typing(first, Typing::Active)
+            move |client: &crate::Client| client.set_typing(first, Typing::Active)
         });
         check!({
             let (first, second, third) = (first.clone(), second.clone(), third.clone());

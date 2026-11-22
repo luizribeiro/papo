@@ -946,7 +946,7 @@ async fn chat_person_method_identity_matrix() {
                     Method::Privmsg => client.privmsg(user, "release approved").await.map(drop),
                     Method::Notice => client.notice(user, "release approved").await.map(drop),
                     Method::Action => client.action(user, "reviews the release").await.map(drop),
-                    Method::Typing => client.typing(user, Typing::Active).await,
+                    Method::Typing => client.set_typing(user, Typing::Active).await,
                     Method::Reply => client.reply(&message, "release approved").await.map(drop),
                     Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await.map(drop),
                     Method::React => client.react(&message, "✅").await.map(drop),
@@ -995,7 +995,7 @@ async fn chat_person_method_identity_matrix() {
                 .action(alice.clone(), "shares payroll")
                 .await
                 .map(drop),
-            Method::Typing => client.typing(alice.clone(), Typing::Done).await,
+            Method::Typing => client.set_typing(alice.clone(), Typing::Done).await,
             Method::Reply => client.reply(&message, "payroll attached").await.map(drop),
             Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await.map(drop),
             Method::React => client.react(&message, "✅").await.map(drop),
@@ -5380,7 +5380,7 @@ async fn every_name_taking_method_returns_invalid_name() {
     let user = state.nick();
     for (method, argument, bad) in cases {
         let result = match method {
-            Method::Typing => client.typing(bad, crate::Typing::Active).await,
+            Method::Typing => client.set_typing(bad, crate::Typing::Active).await,
             Method::React => client
                 .react(line_reference(bad, "RfcBTzyxY120004"), "eyes")
                 .await
@@ -8521,11 +8521,11 @@ async fn typing_to_text_and_typed_nicknames_needs_no_lookup() {
     client_line(&mut server, b"CAP END\r\n").await;
     finish_registration(&mut server).await;
 
-    within(client.typing("alice", Typing::Active))
+    within(client.set_typing("alice", Typing::Active))
         .await
         .unwrap();
     client_line(&mut server, b"@+typing=active TAGMSG alice\r\n").await;
-    within(client.typing(test_nick("bob"), Typing::Done))
+    within(client.set_typing(test_nick("bob"), Typing::Done))
         .await
         .unwrap();
     client_line(&mut server, b"@+typing=done TAGMSG bob\r\n").await;
@@ -8539,8 +8539,8 @@ async fn typing_without_name_rules_writes_nothing() {
     let session = Session::new(Config::default().nick("papo"));
     let (client, mut commands) = client_with_commands(&session);
     for result in [
-        client.typing("alice", Typing::Active).await,
-        client.typing(test_nick("alice"), Typing::Active).await,
+        client.set_typing("alice", Typing::Active).await,
+        client.set_typing(test_nick("alice"), Typing::Active).await,
     ] {
         assert!(matches!(
             result,
@@ -8566,16 +8566,16 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
 
     for target in ["*", "$*.example.org"] {
         assert!(matches!(
-            within(client.typing(target, Typing::Active)).await,
+            within(client.set_typing(target, Typing::Active)).await,
             Err(Error::InvalidInput(_))
         ));
     }
 
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
-    within(client.typing("#PAPO", Typing::Active))
+    within(client.set_typing("#PAPO", Typing::Active))
         .await
         .unwrap();
     assert!(
@@ -8584,13 +8584,13 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
             .is_err()
     );
     tokio::time::advance(Duration::from_secs(2)).await;
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
-    within(client.typing("#papo", Typing::Paused))
+    within(client.set_typing("#papo", Typing::Paused))
         .await
         .unwrap();
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     client_line(
@@ -8598,8 +8598,10 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
         b"@+typing=paused TAGMSG #papo\r\n@+typing=active TAGMSG #papo\r\n",
     )
     .await;
-    within(client.typing("#papo", Typing::Done)).await.unwrap();
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Done))
+        .await
+        .unwrap();
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     client_line(
@@ -8610,7 +8612,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     within(client.privmsg("#papo", "release is ready"))
         .await
         .unwrap();
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     client_line(
@@ -8621,7 +8623,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     within(client.notice("#papo", "release paused"))
         .await
         .unwrap();
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     client_line(
@@ -8639,7 +8641,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
-        within(client.typing("#emily", Typing::Done)).await,
+        within(client.set_typing("#emily", Typing::Done)).await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::Typing,
             reason: crate::UnsupportedReason::TagDenied,
@@ -9254,7 +9256,7 @@ async fn raw_text_lines_reset_typing_only_for_their_target() {
     let task = tokio::spawn(driver);
     complete_connect_caps(&mut server, &mut events, "message-tags", "message-tags").await;
 
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
@@ -9262,7 +9264,7 @@ async fn raw_text_lines_reset_typing_only_for_their_target() {
         .await
         .unwrap();
     client_line(&mut server, b"WHOIS emily\r\n").await;
-    within(client.typing("#papo", Typing::Active))
+    within(client.set_typing("#papo", Typing::Active))
         .await
         .unwrap();
     assert!(
@@ -9283,7 +9285,7 @@ async fn raw_text_lines_reset_typing_only_for_their_target() {
     ] {
         within(client.send_raw(line)).await.unwrap();
         client_line(&mut server, expected).await;
-        within(client.typing("#papo", Typing::Active))
+        within(client.set_typing("#papo", Typing::Active))
             .await
             .unwrap();
         client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;

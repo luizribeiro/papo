@@ -82,7 +82,7 @@ fn request_futures_are_send() {
     );
     assert_send_static(client.notice("#helpers", "maintenance soon").into_future());
     assert_send_static(client.action("#papo", "waves").into_future());
-    assert_send_static(client.typing("#papo", Typing::Active));
+    assert_send_static(client.set_typing("#papo", Typing::Active));
     assert_send_static(client.whois("emily"));
     assert_send_static(client.who(mapping.mask("#papo").to_string()));
     assert_send_static(client.join("#papo").into_future());

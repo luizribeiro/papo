@@ -22,7 +22,7 @@ const GATED_PERSON_METHODS: &[(&str, &str)] = &[
     ),
     ("papo::Client::notice", "NOTICE alice classified"),
     ("papo::Client::privmsg", "PRIVMSG alice classified"),
-    ("papo::Client::typing", "@+typing=active TAGMSG alice"),
+    ("papo::Client::set_typing", "@+typing=active TAGMSG alice"),
     ("papo::Client::whois", "WHOIS alice"),
     ("papo::Kickban::nick", "KICK #review alice :ban evasion"),
     ("papo::Metadata::clear_on", "METADATA alice CLEAR"),
@@ -63,7 +63,7 @@ async fn call_person_method(
             .map(drop),
         "papo::Client::notice" => client.notice(alice, "classified").await.map(drop),
         "papo::Client::privmsg" => client.privmsg(alice, "classified").await.map(drop),
-        "papo::Client::typing" => client.typing(alice, papo::Typing::Active).await,
+        "papo::Client::set_typing" => client.set_typing(alice, papo::Typing::Active).await,
         "papo::Client::whois" => client.whois(alice).await.map(drop),
         "papo::Kickban::nick" => client
             .kickban("#review")

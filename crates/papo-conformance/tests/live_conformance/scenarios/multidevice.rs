@@ -456,7 +456,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
     let mut phone = s.connect_account_session("alice-phone", account).await?;
     wait_for_channel(&mut phone, &channel).await?;
 
-    desktop.typing(&channel, papo::Typing::Active).await?;
+    desktop.set_typing(&channel, papo::Typing::Active).await?;
     let typing = phone.wait_for(Event::as_typing_changed).await?;
     assert_eq!(typing.actor_party, papo::Party::Me);
     assert_eq!(
