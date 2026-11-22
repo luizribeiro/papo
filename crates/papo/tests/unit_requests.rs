@@ -87,7 +87,7 @@ const PLAIN_RESULTS: &[(&str, Plain)] = &[
     ("papo::event::HistoryPage", Plain::Page),
     ("papo::MetadataValue", Plain::Value),
     ("papo::NetworkId", Plain::Value),
-    ("papo::PersistenceStatus", Plain::Value),
+    ("papo::event::PersistenceStatus", Plain::Value),
     ("papo::ReadMarker", Plain::Value),
     (
         "std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>",

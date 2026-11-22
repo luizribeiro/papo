@@ -922,14 +922,14 @@ struct PendingWrite {
 impl ConnectionEnd {
     fn login_error(&self, awaiting_registration: bool) -> Error {
         match &self.error {
-            Error::Disconnected(crate::Disconnected {
+            Error::Disconnected(crate::event::Disconnected {
                 cause: crate::DisconnectCause::Server { .. },
                 ..
             }) => Error::Connect(crate::ConnectError::login(
                 crate::ConnectErrorKind::Server,
                 self.reason.clone(),
             )),
-            Error::Disconnected(crate::Disconnected {
+            Error::Disconnected(crate::event::Disconnected {
                 cause: crate::DisconnectCause::ConnectionLost { message },
                 ..
             }) if message == "server closed the connection" => Error::Connect(
@@ -1781,7 +1781,7 @@ fn request_end_error(end: event::RequestEnd) -> Option<Error> {
         event::RequestEnd::TimedOut => Error::Timeout,
         event::RequestEnd::Failed(error) => Error::request(error),
         event::RequestEnd::Aborted { transmitted } => {
-            let disconnected = crate::Disconnected::new(
+            let disconnected = crate::event::Disconnected::new(
                 crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
                 1,
                 None,
@@ -2249,7 +2249,7 @@ fn after_connect(
 fn finish(events: EventSink, end: ConnectionEnd, attempt: usize) -> Result<(), Error> {
     let mut pending = end.pending_events;
     let disconnected = if end.quit.is_some() {
-        crate::Disconnected::new(
+        crate::event::Disconnected::new(
             crate::DisconnectCause::Requested {
                 quit_unacknowledged: end.quit_timed_out,
             },
@@ -2275,13 +2275,13 @@ fn disconnected_event(
     error: &Error,
     attempt: usize,
     reconnect_in: Option<Duration>,
-) -> crate::Disconnected {
+) -> crate::event::Disconnected {
     let cause = match error {
         Error::Disconnected(disconnected) => disconnected.cause.clone(),
         Error::Connect(error) => crate::DisconnectCause::Connect(error.clone()),
         _ => crate::DisconnectCause::connection_lost("transport ended unexpectedly"),
     };
-    crate::Disconnected::new(cause, attempt, reconnect_in)
+    crate::event::Disconnected::new(cause, attempt, reconnect_in)
 }
 
 fn now() -> Instant {

@@ -240,7 +240,7 @@ pub(super) async fn run_plan(
 fn finish_requested(events: EventSink, mut pending_events: PendingEvents, attempt: usize) {
     pending_events.push_back(super::event_item(
         &events,
-        Event::Disconnected(crate::Disconnected::new(
+        Event::Disconnected(crate::event::Disconnected::new(
             crate::DisconnectCause::Requested {
                 quit_unacknowledged: false,
             },
@@ -254,7 +254,7 @@ fn finish_requested(events: EventSink, mut pending_events: PendingEvents, attemp
 fn enqueue_retry_event(
     events: &EventSink,
     mut end: ConnectionEnd,
-    disconnected: crate::Disconnected,
+    disconnected: crate::event::Disconnected,
 ) -> PendingEvents {
     enqueue_event(
         events,
@@ -597,7 +597,7 @@ async fn connect_while_disconnected(
     timeout: Duration,
     attempt: usize,
 ) -> DisconnectedWait {
-    let disconnected = crate::Disconnected::new(
+    let disconnected = crate::event::Disconnected::new(
         last_cause.cloned().unwrap_or_else(|| {
             crate::DisconnectCause::connection_lost("transport ended unexpectedly")
         }),
@@ -655,7 +655,7 @@ async fn wait_before_retry(
     commands: &mut mpsc::Receiver<Command>,
     defaults: &mut PostConnect,
     reconnect_control: &mut ReconnectControl,
-    disconnected: crate::Disconnected,
+    disconnected: crate::event::Disconnected,
 ) -> bool {
     let deadline = papo_core::deadline(now(), disconnected.reconnect_in.unwrap_or_default());
     let sleep = super::wait_until(deadline);
@@ -664,7 +664,7 @@ async fn wait_before_retry(
         tokio::select! {
             biased;
             command = commands.recv() => {
-                let current = crate::Disconnected::new(
+                let current = crate::event::Disconnected::new(
                     disconnected.cause.clone(),
                     disconnected.attempt,
                     Some(deadline.map_or(Duration::MAX, |deadline| {
@@ -717,7 +717,7 @@ fn retry_was_refused(end: &ConnectionEnd) -> bool {
 
 fn handle_disconnected_command(
     command: Option<Command>,
-    disconnected: &crate::Disconnected,
+    disconnected: &crate::event::Disconnected,
     defaults: &mut PostConnect,
     reconnect_control: &mut ReconnectControl,
 ) -> DisconnectedAction {

@@ -585,7 +585,7 @@ impl State {
     /// Returns the most recently reported account persistence status.
     #[must_use]
     #[cfg(feature = "unstable")]
-    pub fn persistence(&self) -> Option<crate::PersistenceStatus> {
+    pub fn persistence(&self) -> Option<crate::event::PersistenceStatus> {
         self.core.persistence()
     }
 

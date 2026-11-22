@@ -1,7 +1,7 @@
 use super::{
     AccountChanged, AutoJoinFailed, AwayChanged, BroadcastCtcp, BroadcastTagMsg, CapsChanged,
     CasemappingChanged, ChannelRenamed, ChannelSynced, Connected, Connecting, CtcpQuery, CtcpReply,
-    Disconnected, Event, FeaturesChanged, HostChanged, Incomplete, Invited, Joined, Kicked, Lagged,
+    Event, FeaturesChanged, HostChanged, Incomplete, Invited, Joined, Kicked, Lagged,
     MembersRefreshed, Message, MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline, Motd,
     NickChanged, Notice, Other, Parted, Quit, Reacted, ReadMarkerChanged, RealnameChanged,
     Redacted, Restricted, RestrictedLine, ServerNotice, StandardReply, TagMsg, TopicChanged,
@@ -41,7 +41,7 @@ variant_accessors! { Event;
     (Lagged, as_lagged, Lagged),
     (Connecting, as_connecting, Connecting),
     (Motd, as_motd, Motd),
-    (Disconnected, as_disconnected, Disconnected),
+    (Disconnected, as_disconnected, crate::event::Disconnected),
     (CapsChanged, as_caps_changed, CapsChanged),
     (FeaturesChanged, as_features_changed, FeaturesChanged),
     (CasemappingChanged, as_casemapping_changed, CasemappingChanged),
@@ -77,7 +77,7 @@ variant_accessors! { Event;
 
 #[cfg(feature = "unstable")]
 variant_accessors! { Event;
-    (PersistenceChanged, as_persistence_changed, crate::PersistenceStatus),
+    (PersistenceChanged, as_persistence_changed, crate::event::PersistenceStatus),
     (BouncerNetworkChanged, as_bouncer_network_changed, super::BouncerNetworkChanged),
 }
 

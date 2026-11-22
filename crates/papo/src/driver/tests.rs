@@ -1628,7 +1628,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
         ..
@@ -1637,7 +1637,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     ));
     assert!(matches!(
         client.privmsg("#papo", "first retry probe").await,
-        Err(Error::Disconnected(crate::Disconnected {
+        Err(Error::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
         ..
@@ -1647,7 +1647,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     tokio::time::advance(Duration::from_millis(300)).await;
     assert!(matches!(
         client.privmsg("#papo", "second retry probe").await,
-        Err(Error::Disconnected(crate::Disconnected {
+        Err(Error::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
         ..
@@ -1657,7 +1657,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     tokio::time::advance(Duration::from_millis(500)).await;
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
         ..
@@ -1815,7 +1815,7 @@ async fn registration_connection_loss_is_a_connect_error() {
     ));
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
         ..
@@ -3092,7 +3092,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Requested {
                 quit_unacknowledged: false,
             },
@@ -3294,7 +3294,7 @@ async fn failed_connects_report_a_doubling_backoff_until_the_cap() {
     {
         assert!(matches!(
             next_event(&mut events).await,
-            Some(Event::Disconnected(crate::Disconnected {
+            Some(Event::Disconnected(crate::event::Disconnected {
                 reconnect_in: Some(actual),
                 ..
             })) if actual == delay
@@ -3527,7 +3527,7 @@ async fn transport_failure_under_stored_sts_retries() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
         ..
@@ -3554,7 +3554,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
             ..
@@ -3605,7 +3605,7 @@ async fn shutdown_error_does_not_replace_eof() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
             ..
@@ -3613,7 +3613,7 @@ async fn shutdown_error_does_not_replace_eof() {
     ));
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected(crate::Disconnected {
+        Err(Error::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             ..
         }))
@@ -3636,7 +3636,7 @@ async fn read_error_is_connection_loss() {
     assert_eq!(disconnected.reconnect_in, None);
     assert!(matches!(
         within(driver).await.unwrap(),
-        Err(Error::Disconnected(crate::Disconnected {
+        Err(Error::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             ..
         }))
@@ -3651,7 +3651,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
     within(server.write_all(&vec![b'x'; 8704])).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             reconnect_in: None,
         ..
@@ -3928,7 +3928,7 @@ async fn live_ban_after_welcome_does_not_reconnect() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
         ..
@@ -4084,7 +4084,7 @@ async fn assert_pre_welcome_refusal_backoff(line: Option<&'static [u8]>, expecte
         }
         assert!(matches!(
             next_event(&mut events).await,
-            Some(Event::Disconnected(crate::Disconnected {
+            Some(Event::Disconnected(crate::event::Disconnected {
                 cause: crate::DisconnectCause::Connect(ref error),
                 reconnect_in: Some(actual),
             ..
@@ -4271,7 +4271,7 @@ async fn nick_candidates_exhaustion_retries_at_the_refusal_minimum() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
         ..
@@ -4299,7 +4299,7 @@ async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
         ..
@@ -4337,7 +4337,7 @@ async fn timed_out_required_sasl_retries_at_the_refusal_minimum() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
         ..
@@ -4406,7 +4406,7 @@ async fn required_sasl_failure_does_not_reconnect() {
     };
     assert!(matches!(
         &disconnected,
-        crate::Disconnected {
+        crate::event::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
         ..
@@ -4741,7 +4741,7 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             reconnect_in: None,
         ..
@@ -5130,7 +5130,7 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
 
     assert!(matches!(
         within(queued).await.unwrap(),
-        Err(Error::Disconnected(crate::Disconnected {
+        Err(Error::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,
         ..
@@ -5591,7 +5591,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(aborted).await.unwrap(),
-        Err(Error::Interrupted(crate::Disconnected {
+        Err(Error::Interrupted(crate::event::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
             ..
@@ -8207,7 +8207,7 @@ async fn written_labelled_privmsg_is_interrupted_by_the_server_disconnect() {
     .await;
     assert!(matches!(
         within(sent).await.unwrap(),
-        Err(Error::Interrupted(crate::Disconnected {
+        Err(Error::Interrupted(crate::event::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,
         ..
@@ -9486,7 +9486,7 @@ async fn quit_resolves_when_the_server_closed_first() {
     ));
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
             ..
@@ -9517,7 +9517,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Requested {
                 quit_unacknowledged: false,
             },
@@ -9543,7 +9543,7 @@ async fn quit_times_out_after_ten_seconds() {
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Requested {
                 quit_unacknowledged: true,
             },
@@ -9907,7 +9907,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
 
     assert!(matches!(
         within(whois).await.unwrap(),
-        Err(Error::Interrupted(crate::Disconnected {
+        Err(Error::Interrupted(crate::event::Disconnected {
             cause: crate::DisconnectCause::Server { .. },
             reconnect_in: None,
             ..
@@ -9934,7 +9934,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
     );
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,
         ..
@@ -10237,7 +10237,7 @@ async fn session_deadline_sends_keepalive_ping() {
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::PingTimeout,
             reconnect_in: None,
             ..
@@ -10260,7 +10260,7 @@ async fn ping_timeout_after_welcome_retries_normally() {
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             cause: crate::DisconnectCause::PingTimeout,
             reconnect_in: Some(delay),
         ..

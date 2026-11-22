@@ -17,7 +17,7 @@ async fn next_connected(events: &mut papo::Events) -> (Event, Arc<State>) {
     }
 }
 
-async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
+async fn next_disconnected(events: &mut papo::Events) -> papo::event::Disconnected {
     loop {
         let item = events
             .next()

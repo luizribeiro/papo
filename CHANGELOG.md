@@ -36,6 +36,8 @@ other events caused by a user.
 
 ### Changed
 
+Import `Disconnected` and `PersistenceStatus` (with `unstable`) from `papo::event`.
+
 Import `AccountOutcome` and `HistoryPage` from `papo::event`.
 
 Import `Incomplete`, `Restricted`, and `RestrictedLine` from `papo::event`.

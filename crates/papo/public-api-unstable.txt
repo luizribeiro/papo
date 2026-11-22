@@ -32,7 +32,6 @@ pub use papo::Nick
 pub use papo::Origin
 pub use papo::Param
 pub use papo::PersistenceSetting
-pub use papo::PersistenceStatus
 pub use papo::Prefix
 pub use papo::Rank
 pub use papo::RateLimit
@@ -92,6 +91,7 @@ pub use papo::cap::WEBPUSH
 pub use papo::cap::WHOAMI
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
+pub use papo::event::PersistenceStatus
 pub use papo::event::TypingReason
 #[non_exhaustive] pub enum papo::event::AccountOutcome
 #[non_exhaustive] pub papo::event::AccountOutcome::Created
@@ -651,6 +651,31 @@ impl core::marker::Unpin for papo::event::CtcpReply
 impl core::marker::UnsafeUnpin for papo::event::CtcpReply
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CtcpReply
 impl core::panic::unwind_safe::UnwindSafe for papo::event::CtcpReply
+#[non_exhaustive] pub struct papo::event::Disconnected
+pub papo::event::Disconnected::attempt: usize
+pub papo::event::Disconnected::cause: papo::DisconnectCause
+pub papo::event::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
+impl papo::event::Disconnected
+pub const fn papo::event::Disconnected::is_reconnecting(&self) -> bool
+impl core::clone::Clone for papo::event::Disconnected
+pub fn papo::event::Disconnected::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Disconnected
+impl core::cmp::PartialEq for papo::event::Disconnected
+pub fn papo::event::Disconnected::eq(&self, &Self) -> bool
+impl core::error::Error for papo::event::Disconnected
+pub fn papo::event::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for papo::event::Disconnected
+pub fn papo::event::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::event::Disconnected
+pub fn papo::event::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Disconnected
+impl core::marker::Freeze for papo::event::Disconnected
+impl core::marker::Send for papo::event::Disconnected
+impl core::marker::Sync for papo::event::Disconnected
+impl core::marker::Unpin for papo::event::Disconnected
+impl core::marker::UnsafeUnpin for papo::event::Disconnected
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::event::Disconnected
+impl !core::panic::unwind_safe::UnwindSafe for papo::event::Disconnected
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
 pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
 pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>
@@ -1726,9 +1751,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::EndpointKind
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::AlreadyConnected
 pub papo::Error::Connect(papo::ConnectError)
-pub papo::Error::Disconnected(papo::Disconnected)
+pub papo::Error::Disconnected(papo::event::Disconnected)
 pub papo::Error::ForeignReference(papo::ForeignReference)
-pub papo::Error::Interrupted(papo::Disconnected)
+pub papo::Error::Interrupted(papo::event::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::NotVerified
 pub papo::Error::Server(papo::ServerError)
@@ -1782,7 +1807,7 @@ pub papo::Event::Connected(papo::event::Connected)
 pub papo::Event::Connecting(papo::event::Connecting)
 pub papo::Event::CtcpQuery(papo::event::CtcpQuery)
 pub papo::Event::CtcpReply(papo::event::CtcpReply)
-pub papo::Event::Disconnected(papo::Disconnected)
+pub papo::Event::Disconnected(papo::event::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
 pub papo::Event::History(papo::event::HistoryPage)
 pub papo::Event::HostChanged(papo::event::HostChanged)
@@ -1802,7 +1827,7 @@ pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Notice(papo::event::Notice)
 pub papo::Event::Other(papo::event::Other)
 pub papo::Event::Parted(papo::event::Parted)
-pub papo::Event::PersistenceChanged(papo::PersistenceStatus)
+pub papo::Event::PersistenceChanged(papo::event::PersistenceStatus)
 pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarkerChanged(papo::event::ReadMarkerChanged)
@@ -2564,31 +2589,6 @@ impl core::marker::Unpin for papo::ConnectError
 impl core::marker::UnsafeUnpin for papo::ConnectError
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
 impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
-#[non_exhaustive] pub struct papo::Disconnected
-pub papo::Disconnected::attempt: usize
-pub papo::Disconnected::cause: papo::DisconnectCause
-pub papo::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
-impl papo::Disconnected
-pub const fn papo::Disconnected::is_reconnecting(&self) -> bool
-impl core::clone::Clone for papo::Disconnected
-pub fn papo::Disconnected::clone(&self) -> Self
-impl core::cmp::Eq for papo::Disconnected
-impl core::cmp::PartialEq for papo::Disconnected
-pub fn papo::Disconnected::eq(&self, &Self) -> bool
-impl core::error::Error for papo::Disconnected
-pub fn papo::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
-impl core::fmt::Debug for papo::Disconnected
-pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Disconnected
-pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Disconnected
-impl core::marker::Freeze for papo::Disconnected
-impl core::marker::Send for papo::Disconnected
-impl core::marker::Sync for papo::Disconnected
-impl core::marker::Unpin for papo::Disconnected
-impl core::marker::UnsafeUnpin for papo::Disconnected
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
-impl !core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 pub struct papo::Driver
 impl core::fmt::Debug for papo::Driver
 pub fn papo::Driver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -3235,8 +3235,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::PartRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::PartRequest
 pub struct papo::Persistence
 impl papo::Persistence
-pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo::PersistenceStatus>
-pub fn papo::Persistence::set(&self, papo::PersistenceSetting) -> papo::RequestFuture<papo::PersistenceStatus>
+pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo::event::PersistenceStatus>
+pub fn papo::Persistence::set(&self, papo::PersistenceSetting) -> papo::RequestFuture<papo::event::PersistenceStatus>
 impl core::fmt::Debug for papo::Persistence
 pub fn papo::Persistence::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Persistence
@@ -3659,7 +3659,7 @@ pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Nick>
 pub const fn papo::State::name_rules(&self) -> core::option::Option<papo::NameRules<'_>>
 pub fn papo::State::nick(&self) -> &papo::Nick
-pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>
+pub fn papo::State::persistence(&self) -> core::option::Option<papo::event::PersistenceStatus>
 pub fn papo::State::presence(&self, impl papo::AsNick) -> core::result::Result<papo::Presence, papo::ForeignReference>
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
@@ -4881,25 +4881,6 @@ impl core::marker::Unpin for papo::PersistenceSetting
 impl core::marker::UnsafeUnpin for papo::PersistenceSetting
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PersistenceSetting
 impl core::panic::unwind_safe::UnwindSafe for papo::PersistenceSetting
-#[non_exhaustive] pub struct papo::PersistenceStatus
-pub papo::PersistenceStatus::effective: bool
-pub papo::PersistenceStatus::setting: papo::PersistenceSetting
-impl core::clone::Clone for papo::PersistenceStatus
-pub fn papo::PersistenceStatus::clone(&self) -> Self
-impl core::cmp::Eq for papo::PersistenceStatus
-impl core::cmp::PartialEq for papo::PersistenceStatus
-pub fn papo::PersistenceStatus::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::PersistenceStatus
-pub fn papo::PersistenceStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::PersistenceStatus
-impl core::marker::StructuralPartialEq for papo::PersistenceStatus
-impl core::marker::Freeze for papo::PersistenceStatus
-impl core::marker::Send for papo::PersistenceStatus
-impl core::marker::Sync for papo::PersistenceStatus
-impl core::marker::Unpin for papo::PersistenceStatus
-impl core::marker::UnsafeUnpin for papo::PersistenceStatus
-impl core::panic::unwind_safe::RefUnwindSafe for papo::PersistenceStatus
-impl core::panic::unwind_safe::UnwindSafe for papo::PersistenceStatus
 pub struct papo::Prefix
 impl papo::Prefix
 pub const fn papo::Prefix::mode(self) -> char
@@ -5407,6 +5388,25 @@ impl core::marker::Unpin for papo::event::BatchAbandonReason
 impl core::marker::UnsafeUnpin for papo::event::BatchAbandonReason
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BatchAbandonReason
 impl core::panic::unwind_safe::UnwindSafe for papo::event::BatchAbandonReason
+#[non_exhaustive] pub struct papo::event::PersistenceStatus
+pub papo::event::PersistenceStatus::effective: bool
+pub papo::event::PersistenceStatus::setting: papo::PersistenceSetting
+impl core::clone::Clone for papo::event::PersistenceStatus
+pub fn papo::event::PersistenceStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::PersistenceStatus
+impl core::cmp::PartialEq for papo::event::PersistenceStatus
+pub fn papo::event::PersistenceStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::PersistenceStatus
+pub fn papo::event::PersistenceStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::event::PersistenceStatus
+impl core::marker::StructuralPartialEq for papo::event::PersistenceStatus
+impl core::marker::Freeze for papo::event::PersistenceStatus
+impl core::marker::Send for papo::event::PersistenceStatus
+impl core::marker::Sync for papo::event::PersistenceStatus
+impl core::marker::Unpin for papo::event::PersistenceStatus
+impl core::marker::UnsafeUnpin for papo::event::PersistenceStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::PersistenceStatus
+impl core::panic::unwind_safe::UnwindSafe for papo::event::PersistenceStatus
 #[non_exhaustive] pub enum papo::event::TypingReason
 pub papo::event::TypingReason::Departed
 pub papo::event::TypingReason::Messaged

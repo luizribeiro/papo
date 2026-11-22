@@ -18,7 +18,8 @@ if [[ ${PAPO_PUBLIC_API_FACADE:-} == 1 ]]; then
   expressions+=(
     -e 's#papo::isupport::Prefix#papo::Prefix#g'
     -e 's#papo_core::server_url::InvalidUrl#papo::InvalidUrl#g'
-    -e 's#papo_core::(BatchAbandonReason|CtcpReplies|ListMode|ModeAction|ModeArg|ModeChange|ModeListEntry|ModeValue|PersistenceSetting|PersistenceStatus|StateLimit|WhoOnJoin)#papo::\1#g'
+    -e 's#papo_core::PersistenceStatus\b#papo::event::PersistenceStatus#g'
+    -e 's#papo_core::(BatchAbandonReason|CtcpReplies|ListMode|ModeAction|ModeArg|ModeChange|ModeListEntry|ModeValue|PersistenceSetting|StateLimit|WhoOnJoin)#papo::\1#g'
   )
 fi
 sed -E "${expressions[@]}"

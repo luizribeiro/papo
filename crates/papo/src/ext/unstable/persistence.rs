@@ -1,4 +1,5 @@
-use crate::{Client, Error, PersistenceStatus, driver::unstable::UnstableRequest};
+use crate::event::PersistenceStatus;
+use crate::{Client, Error, driver::unstable::UnstableRequest};
 
 /// Handle for account persistence requests.
 pub struct Persistence {

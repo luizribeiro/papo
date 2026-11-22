@@ -623,6 +623,31 @@ impl core::marker::Unpin for papo::event::CtcpReply
 impl core::marker::UnsafeUnpin for papo::event::CtcpReply
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CtcpReply
 impl core::panic::unwind_safe::UnwindSafe for papo::event::CtcpReply
+#[non_exhaustive] pub struct papo::event::Disconnected
+pub papo::event::Disconnected::attempt: usize
+pub papo::event::Disconnected::cause: papo::DisconnectCause
+pub papo::event::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
+impl papo::event::Disconnected
+pub const fn papo::event::Disconnected::is_reconnecting(&self) -> bool
+impl core::clone::Clone for papo::event::Disconnected
+pub fn papo::event::Disconnected::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Disconnected
+impl core::cmp::PartialEq for papo::event::Disconnected
+pub fn papo::event::Disconnected::eq(&self, &Self) -> bool
+impl core::error::Error for papo::event::Disconnected
+pub fn papo::event::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for papo::event::Disconnected
+pub fn papo::event::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::event::Disconnected
+pub fn papo::event::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Disconnected
+impl core::marker::Freeze for papo::event::Disconnected
+impl core::marker::Send for papo::event::Disconnected
+impl core::marker::Sync for papo::event::Disconnected
+impl core::marker::Unpin for papo::event::Disconnected
+impl core::marker::UnsafeUnpin for papo::event::Disconnected
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::event::Disconnected
+impl !core::panic::unwind_safe::UnwindSafe for papo::event::Disconnected
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
 pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
 pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>
@@ -1682,9 +1707,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::EndpointKind
 #[non_exhaustive] pub enum papo::Error
 pub papo::Error::AlreadyConnected
 pub papo::Error::Connect(papo::ConnectError)
-pub papo::Error::Disconnected(papo::Disconnected)
+pub papo::Error::Disconnected(papo::event::Disconnected)
 pub papo::Error::ForeignReference(papo::ForeignReference)
-pub papo::Error::Interrupted(papo::Disconnected)
+pub papo::Error::Interrupted(papo::event::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 pub papo::Error::NotVerified
 pub papo::Error::Server(papo::ServerError)
@@ -1737,7 +1762,7 @@ pub papo::Event::Connected(papo::event::Connected)
 pub papo::Event::Connecting(papo::event::Connecting)
 pub papo::Event::CtcpQuery(papo::event::CtcpQuery)
 pub papo::Event::CtcpReply(papo::event::CtcpReply)
-pub papo::Event::Disconnected(papo::Disconnected)
+pub papo::Event::Disconnected(papo::event::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
 pub papo::Event::History(papo::event::HistoryPage)
 pub papo::Event::HostChanged(papo::event::HostChanged)
@@ -2450,31 +2475,6 @@ impl core::marker::Unpin for papo::ConnectError
 impl core::marker::UnsafeUnpin for papo::ConnectError
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
 impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
-#[non_exhaustive] pub struct papo::Disconnected
-pub papo::Disconnected::attempt: usize
-pub papo::Disconnected::cause: papo::DisconnectCause
-pub papo::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
-impl papo::Disconnected
-pub const fn papo::Disconnected::is_reconnecting(&self) -> bool
-impl core::clone::Clone for papo::Disconnected
-pub fn papo::Disconnected::clone(&self) -> Self
-impl core::cmp::Eq for papo::Disconnected
-impl core::cmp::PartialEq for papo::Disconnected
-pub fn papo::Disconnected::eq(&self, &Self) -> bool
-impl core::error::Error for papo::Disconnected
-pub fn papo::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
-impl core::fmt::Debug for papo::Disconnected
-pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Disconnected
-pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Disconnected
-impl core::marker::Freeze for papo::Disconnected
-impl core::marker::Send for papo::Disconnected
-impl core::marker::Sync for papo::Disconnected
-impl core::marker::Unpin for papo::Disconnected
-impl core::marker::UnsafeUnpin for papo::Disconnected
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
-impl !core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 pub struct papo::Driver
 impl core::fmt::Debug for papo::Driver
 pub fn papo::Driver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

@@ -36,7 +36,7 @@ async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder)
             matches!(
                 &result,
                 Err(Error::InvalidInput(_)
-                    | Error::Disconnected(crate::Disconnected {
+                    | Error::Disconnected(crate::event::Disconnected {
                         cause: crate::DisconnectCause::PingTimeout,
                         ..
                     }))

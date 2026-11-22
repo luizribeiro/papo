@@ -7,7 +7,8 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo::{ConnectErrorKind, DisconnectCause, Disconnected, Events, Reconnect, Sasl};
+use papo::event::Disconnected;
+use papo::{ConnectErrorKind, DisconnectCause, Events, Reconnect, Sasl};
 use papo_testing::{Wire, wire};
 
 const PASSWORD: &str = "correct horse battery staple";

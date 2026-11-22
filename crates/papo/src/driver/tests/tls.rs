@@ -118,7 +118,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
+        Some(Event::Disconnected(crate::event::Disconnected {
             reconnect_in: Some(Duration::ZERO),
             ..
         }))

@@ -333,7 +333,13 @@ pub use client::{
 pub use confirmation::{Confirmation, UnconfirmedReason};
 pub use conversation::Conversation;
 pub use driver::{Driver, Events};
-pub use error::*;
+#[cfg(feature = "__testing")]
+#[doc(hidden)]
+pub use error::__testing;
+pub use error::{
+    ConnectError, ConnectErrorKind, DisconnectCause, Error, ForeignReference, ServerError,
+    Unsupported,
+};
 pub use event_impl::{Actor, Event, MessageKind, Party, Tags, TagsIter};
 pub use ext::accounts::NewAccount;
 pub use ext::extras::{RenameChannel, RenameChannelRequest};
@@ -367,9 +373,7 @@ pub use papo_core::{
     ModeValue, Rank, ServerTime, User,
 };
 #[cfg(feature = "unstable")]
-pub use papo_core::{
-    BouncerNetwork, NetworkId, NetworkState, PersistenceSetting, PersistenceStatus,
-};
+pub use papo_core::{BouncerNetwork, NetworkId, NetworkState, PersistenceSetting};
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 #[doc(inline)]
@@ -456,6 +460,7 @@ impl PartialEq<&str> for Subject {
 
 /// Payloads carried by [`Event`].
 pub mod event {
+    pub use crate::error::Disconnected;
     #[cfg(feature = "unstable")]
     pub use crate::event_impl::BouncerNetworkChanged;
     pub use crate::event_impl::{
@@ -470,6 +475,8 @@ pub mod event {
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
     pub use crate::ext::{accounts::AccountOutcome, history::HistoryPage};
+    #[cfg(feature = "unstable")]
+    pub use papo_core::PersistenceStatus;
 }
 
 pub(crate) use event_impl::ConnectPhase;

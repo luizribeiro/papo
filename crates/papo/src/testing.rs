@@ -138,8 +138,8 @@ pub const fn disconnected(
     cause: crate::DisconnectCause,
     attempt: usize,
     reconnect_in: Option<std::time::Duration>,
-) -> crate::Disconnected {
-    crate::Disconnected::new(cause, attempt, reconnect_in)
+) -> crate::event::Disconnected {
+    crate::event::Disconnected::new(cause, attempt, reconnect_in)
 }
 
 /// Builds an unavailable-feature diagnostic for test fixtures.

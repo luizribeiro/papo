@@ -230,7 +230,7 @@ mod tests {
         }
     }
 
-    async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
+    async fn next_disconnected(events: &mut papo::Events) -> papo::event::Disconnected {
         loop {
             match events.next().await {
                 Some((papo::Event::Disconnected(disconnected), _)) => return disconnected,

@@ -17,7 +17,7 @@ async fn next_active_event(events: &mut papo::Events) -> Event {
     }
 }
 
-async fn next_disconnect(events: &mut papo::Events) -> papo::Disconnected {
+async fn next_disconnect(events: &mut papo::Events) -> papo::event::Disconnected {
     loop {
         match events.next().await.map(|(event, _)| event) {
             Some(Event::Disconnected(disconnected)) => return disconnected,

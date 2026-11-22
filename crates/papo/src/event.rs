@@ -12,7 +12,7 @@ use papo_proto::{
     Prefix,
 };
 
-use crate::{Client, Conversation, Disconnected, ModeAction, ModeChange, ServerTime};
+use crate::{Client, Conversation, ModeAction, ModeChange, ServerTime};
 
 #[path = "event/actor.rs"]
 #[allow(
@@ -1741,7 +1741,7 @@ pub enum Event {
     AccountCreation(crate::event::AccountOutcome),
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
-    PersistenceChanged(crate::PersistenceStatus),
+    PersistenceChanged(crate::event::PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
     BouncerNetworkChanged(BouncerNetworkChanged),
@@ -1801,7 +1801,7 @@ pub enum Event {
     /// A monitored nickname went offline.
     MonitorOffline(MonitorOffline),
     /// The connection ended.
-    Disconnected(Disconnected),
+    Disconnected(crate::event::Disconnected),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
