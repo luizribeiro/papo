@@ -219,7 +219,7 @@ struct UserInner {
     identity: UserIdentity,
     arrival_identity: Option<papo_core::ReplyToken>,
     nick: crate::Nick,
-    account: crate::Account,
+    account: crate::AccountStatus,
     proof: Option<papo_core::Proven>,
     state: Option<Arc<RwLock<Arc<crate::State>>>>,
     history: History,
@@ -253,7 +253,7 @@ impl UserHandle {
     }
 
     pub(crate) fn from_nick(nick: crate::Nick) -> Self {
-        Self::current_name(nick, crate::Account::Unknown, None, None)
+        Self::current_name(nick, crate::AccountStatus::Unknown, None, None)
     }
 
     /// Builds the handle for a name that stands for its holder now: one the application named,
@@ -261,7 +261,7 @@ impl UserHandle {
     /// the past goes through [`Self::from_past_line`].
     pub(crate) fn current_name(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         proof: Option<papo_core::Proven>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
@@ -271,13 +271,13 @@ impl UserHandle {
     /// Builds the handle for a person a line names in the past: an archived line, a topic
     /// setter, or the setter of a list-mode entry. A send through this handle returns
     /// [`crate::Error::TargetGone`].
-    pub(crate) fn from_past_line(nick: crate::Nick, account: crate::Account) -> Self {
+    pub(crate) fn from_past_line(nick: crate::Nick, account: crate::AccountStatus) -> Self {
         Self::from_parts_kind(nick, account, None, None, History::Archived, None)
     }
 
     fn from_parts_kind(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         proof: Option<papo_core::Proven>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
         history: History,
@@ -306,14 +306,14 @@ impl UserHandle {
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
         let Some(shared) = state else {
-            return Self::current_name(nick, crate::Account::Unknown, None, None);
+            return Self::current_name(nick, crate::AccountStatus::Unknown, None, None);
         };
         let snapshot = shared
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let account = snapshot
             .user_local(&nick)
-            .map_or(crate::Account::Unknown, |user| user.account().clone());
+            .map_or(crate::AccountStatus::Unknown, |user| user.account().clone());
         let token = snapshot.core.__reply_token_for(nick.as_str());
         let proof = snapshot
             .core
@@ -327,7 +327,7 @@ impl UserHandle {
     /// when the event's line arrived, so a later holder of the nickname is never adopted.
     pub(crate) fn at_arrival(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         token: papo_core::ReplyToken,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
@@ -336,7 +336,7 @@ impl UserHandle {
 
     pub(crate) fn from_event(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         token: Option<papo_core::ReplyToken>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
@@ -347,7 +347,7 @@ impl UserHandle {
 
     pub(crate) fn from_history(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
         Self::from_line(nick, account, state, History::Archived, historical_token)
@@ -355,7 +355,7 @@ impl UserHandle {
 
     pub(crate) fn from_private_history(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
         Self::from_line(nick, account, state, History::Private, historical_token)
@@ -367,13 +367,13 @@ impl UserHandle {
 
     fn from_line(
         nick: crate::Nick,
-        account: crate::Account,
+        account: crate::AccountStatus,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
         history: History,
         token: impl FnOnce(
             &crate::State,
             &crate::Nick,
-            &crate::Account,
+            &crate::AccountStatus,
         ) -> Option<papo_core::ReplyToken>,
     ) -> Self {
         let mut arrival_identity = None;
@@ -401,7 +401,7 @@ impl UserHandle {
         self.0.proof.as_ref()
     }
 
-    pub(crate) fn account(&self) -> &crate::Account {
+    pub(crate) fn account(&self) -> &crate::AccountStatus {
         &self.0.account
     }
 
@@ -472,9 +472,9 @@ impl UserHandle {
 fn historical_token(
     snapshot: &crate::State,
     nick: &crate::Nick,
-    account: &crate::Account,
+    account: &crate::AccountStatus,
 ) -> Option<papo_core::ReplyToken> {
-    let crate::Account::LoggedIn(expected) = account else {
+    let crate::AccountStatus::LoggedIn(expected) = account else {
         return None;
     };
     let user = snapshot.user_local(nick)?;
@@ -618,7 +618,7 @@ impl Hash for ChannelHandle {
 fn capture_proof(
     state: &crate::State,
     nick: &crate::Nick,
-    account: &crate::Account,
+    account: &crate::AccountStatus,
 ) -> Option<papo_core::Proven> {
     let recipient = state.capture_recipient(nick, account.clone())?;
     state
@@ -1047,15 +1047,15 @@ mod tests {
         let mapping = client.state().working_casemapping();
         for (account, linked) in [
             (
-                crate::Account::LoggedIn(mapping.account("alice-account")),
+                crate::AccountStatus::LoggedIn(mapping.account("alice-account")),
                 true,
             ),
             (
-                crate::Account::LoggedIn(mapping.account("replacement-account")),
+                crate::AccountStatus::LoggedIn(mapping.account("replacement-account")),
                 false,
             ),
-            (crate::Account::LoggedOut, false),
-            (crate::Account::Unknown, false),
+            (crate::AccountStatus::LoggedOut, false),
+            (crate::AccountStatus::Unknown, false),
         ] {
             let historical = crate::UserHandle::from_history(
                 alice.0.nick.clone(),
@@ -1084,11 +1084,15 @@ mod tests {
         let event = |nick: &str, historical| {
             let nick = client.state().working_casemapping().nick(nick);
             if historical {
-                crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state))
+                crate::UserHandle::from_history(
+                    nick,
+                    crate::AccountStatus::Unknown,
+                    Some(&client.state),
+                )
             } else {
                 crate::UserHandle::from_event(
                     nick,
-                    crate::Account::Unknown,
+                    crate::AccountStatus::Unknown,
                     Some(evidence_free_token),
                     Some(&client.state),
                 )

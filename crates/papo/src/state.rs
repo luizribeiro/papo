@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use papo_core::{Account, Away, Capabilities, Feature, Session, UnsupportedReason, User};
+use papo_core::{
+    AccountStatus, AwayStatus, Capabilities, Feature, Session, UnsupportedReason, User,
+};
 use papo_proto::{Casemapping, Mask, Nick};
 
 use crate::Isupport;
@@ -324,7 +326,7 @@ impl State {
     pub(crate) fn capture_recipient(
         &self,
         nick: &Nick,
-        account: Account,
+        account: AccountStatus,
     ) -> Option<papo_core::RecipientGuard> {
         self.core.__capture_recipient(nick.clone(), account)
     }
@@ -477,16 +479,16 @@ impl State {
 
     /// Returns the client's account state.
     ///
-    /// This is always [`Account::LoggedIn`] or [`Account::LoggedOut`]. Logged out also covers
+    /// This is always [`AccountStatus::LoggedIn`] or [`AccountStatus::LoggedOut`]. Logged out also covers
     /// servers without account support.
     #[must_use]
-    pub fn account(&self) -> &Account {
+    pub fn account(&self) -> &AccountStatus {
         self.core.account()
     }
 
     /// Returns the client's presence state.
     #[must_use]
-    pub fn away(&self) -> &Away {
+    pub fn away(&self) -> &AwayStatus {
         self.core.away()
     }
 

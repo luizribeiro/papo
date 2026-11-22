@@ -6,7 +6,8 @@
 use std::time::Instant;
 
 use papo_core::{
-    Account, Config, Event, ProofFailure, RateLimit, ReplyToken, Response, ResponseMatcher, Session,
+    AccountStatus, Config, Event, ProofFailure, RateLimit, ReplyToken, Response, ResponseMatcher,
+    Session,
 };
 use papo_proto::Line;
 
@@ -109,7 +110,7 @@ fn resolve(session: &Session, token: ReplyToken) -> Result<String, ProofFailure>
     let nick = session.state().casemapping().nick("alice");
     let proof = session
         .state()
-        .__prove_event_user(token, nick, Account::Unknown)?;
+        .__prove_event_user(token, nick, AccountStatus::Unknown)?;
     session
         .state()
         .__resolve_proven(&proof)

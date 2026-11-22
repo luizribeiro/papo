@@ -61,7 +61,7 @@ impl Conversation {
         match value {
             papo_core::Conversation::Private(nick) => Self::Private(crate::UserHandle::at_arrival(
                 origin.__nick(nick.casemapping(), nick.into_string()),
-                crate::Account::Unknown,
+                crate::AccountStatus::Unknown,
                 peer_token,
                 state,
             )),

@@ -278,49 +278,27 @@ pub fn alloc::rcs::arc::Arc<T>::put(&self, papo::sts::StsPolicy)
 pub fn alloc::rcs::arc::Arc<T>::remove(&self, &str)
 pub fn papo::sts::decide(papo::sts::StsDirective, papo::sts::ConnectionSecurity, &str) -> papo::sts::StsAction
 pub fn papo::sts::reschedule_on_disconnect(papo::sts::StsPolicy, std::time::SystemTime) -> papo::sts::StsPolicy
-#[non_exhaustive] pub enum papo_core::Account
-pub papo_core::Account::LoggedIn(papo::AccountName)
-pub papo_core::Account::LoggedOut
-pub papo_core::Account::Unknown
-impl papo_core::Account
-pub const fn papo_core::Account::name(&self) -> core::option::Option<&papo::AccountName>
-impl core::clone::Clone for papo_core::Account
-pub fn papo_core::Account::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::Account
-impl core::cmp::PartialEq for papo_core::Account
-pub fn papo_core::Account::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo_core::Account
-pub fn papo_core::Account::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_core::Account
-impl core::marker::Freeze for papo_core::Account
-impl core::marker::Send for papo_core::Account
-impl core::marker::Sync for papo_core::Account
-impl core::marker::Unpin for papo_core::Account
-impl core::marker::UnsafeUnpin for papo_core::Account
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Account
-impl core::panic::unwind_safe::UnwindSafe for papo_core::Account
-#[non_exhaustive] pub enum papo_core::Away
-#[non_exhaustive] pub papo_core::Away::Away
-pub papo_core::Away::Away::message: core::option::Option<alloc::string::String>
-pub papo_core::Away::Present
-pub papo_core::Away::Unknown
-impl papo_core::Away
-pub fn papo_core::Away::message(&self) -> core::option::Option<&str>
-impl core::clone::Clone for papo_core::Away
-pub fn papo_core::Away::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::Away
-impl core::cmp::PartialEq for papo_core::Away
-pub fn papo_core::Away::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo_core::Away
-pub fn papo_core::Away::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_core::Away
-impl core::marker::Freeze for papo_core::Away
-impl core::marker::Send for papo_core::Away
-impl core::marker::Sync for papo_core::Away
-impl core::marker::Unpin for papo_core::Away
-impl core::marker::UnsafeUnpin for papo_core::Away
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Away
-impl core::panic::unwind_safe::UnwindSafe for papo_core::Away
+#[non_exhaustive] pub enum papo_core::AccountStatus
+pub papo_core::AccountStatus::LoggedIn(papo::AccountName)
+pub papo_core::AccountStatus::LoggedOut
+pub papo_core::AccountStatus::Unknown
+impl papo_core::AccountStatus
+pub const fn papo_core::AccountStatus::name(&self) -> core::option::Option<&papo::AccountName>
+impl core::clone::Clone for papo_core::AccountStatus
+pub fn papo_core::AccountStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::AccountStatus
+impl core::cmp::PartialEq for papo_core::AccountStatus
+pub fn papo_core::AccountStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::AccountStatus
+pub fn papo_core::AccountStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::AccountStatus
+impl core::marker::Freeze for papo_core::AccountStatus
+impl core::marker::Send for papo_core::AccountStatus
+impl core::marker::Sync for papo_core::AccountStatus
+impl core::marker::Unpin for papo_core::AccountStatus
+impl core::marker::UnsafeUnpin for papo_core::AccountStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::AccountStatus
+impl core::panic::unwind_safe::UnwindSafe for papo_core::AccountStatus
 #[non_exhaustive] pub enum papo_core::AwayOnConnect
 pub papo_core::AwayOnConnect::Hidden
 pub papo_core::AwayOnConnect::Message(alloc::string::String)
@@ -339,6 +317,28 @@ impl core::marker::Unpin for papo_core::AwayOnConnect
 impl core::marker::UnsafeUnpin for papo_core::AwayOnConnect
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::AwayOnConnect
 impl core::panic::unwind_safe::UnwindSafe for papo_core::AwayOnConnect
+#[non_exhaustive] pub enum papo_core::AwayStatus
+#[non_exhaustive] pub papo_core::AwayStatus::Away
+pub papo_core::AwayStatus::Away::message: core::option::Option<alloc::string::String>
+pub papo_core::AwayStatus::Present
+pub papo_core::AwayStatus::Unknown
+impl papo_core::AwayStatus
+pub fn papo_core::AwayStatus::message(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo_core::AwayStatus
+pub fn papo_core::AwayStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::AwayStatus
+impl core::cmp::PartialEq for papo_core::AwayStatus
+pub fn papo_core::AwayStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::AwayStatus
+pub fn papo_core::AwayStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::AwayStatus
+impl core::marker::Freeze for papo_core::AwayStatus
+impl core::marker::Send for papo_core::AwayStatus
+impl core::marker::Sync for papo_core::AwayStatus
+impl core::marker::Unpin for papo_core::AwayStatus
+impl core::marker::UnsafeUnpin for papo_core::AwayStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::AwayStatus
+impl core::panic::unwind_safe::UnwindSafe for papo_core::AwayStatus
 #[non_exhaustive] pub enum papo_core::BatchAbandonReason
 pub papo_core::BatchAbandonReason::ByteLimit
 pub papo_core::BatchAbandonReason::LineLimit
@@ -476,7 +476,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Decoding
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Decoding
 #[non_exhaustive] pub enum papo_core::Event
 #[non_exhaustive] pub papo_core::Event::AccountChanged
-pub papo_core::Event::AccountChanged::account: papo_core::Account
+pub papo_core::Event::AccountChanged::account: papo_core::AccountStatus
 pub papo_core::Event::AccountChanged::actor: alloc::string::String
 pub papo_core::Event::AccountChanged::actor_party: papo_core::Party
 pub papo_core::Event::AccountChanged::envelope: papo_core::LineEnvelope
@@ -490,7 +490,7 @@ pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::AwayChanged
 pub papo_core::Event::AwayChanged::actor: alloc::string::String
 pub papo_core::Event::AwayChanged::actor_party: papo_core::Party
-pub papo_core::Event::AwayChanged::away: papo_core::Away
+pub papo_core::Event::AwayChanged::away: papo_core::AwayStatus
 pub papo_core::Event::AwayChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::AwayChanged::nick: papo::Nick
 pub papo_core::Event::AwayChanged::token: ReplyToken
@@ -2139,8 +2139,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::StandardReply
 impl core::panic::unwind_safe::UnwindSafe for papo_core::StandardReply
 pub struct papo_core::State
 impl papo_core::State
-pub fn papo_core::State::account(&self) -> &papo_core::Account
-pub fn papo_core::State::away(&self) -> &papo_core::Away
+pub fn papo_core::State::account(&self) -> &papo_core::AccountStatus
+pub fn papo_core::State::away(&self) -> &papo_core::AwayStatus
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo_core::Channel>
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo_core::Channel>
@@ -2282,8 +2282,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Unsupported
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Unsupported
 pub struct papo_core::User
 impl papo_core::User
-pub const fn papo_core::User::account(&self) -> &papo_core::Account
-pub const fn papo_core::User::away(&self) -> &papo_core::Away
+pub const fn papo_core::User::account(&self) -> &papo_core::AccountStatus
+pub const fn papo_core::User::away(&self) -> &papo_core::AwayStatus
 pub fn papo_core::User::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::ChannelName>
 pub fn papo_core::User::host(&self) -> core::option::Option<&str>
 pub const fn papo_core::User::is_bot(&self) -> core::option::Option<bool>

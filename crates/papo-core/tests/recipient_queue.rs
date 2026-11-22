@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, RateLimit, Session};
+use papo_core::{AccountStatus, Config, Event, RateLimit, Session};
 use papo_proto::Line;
 
 fn server(session: &mut Session, line: &str) {
@@ -28,7 +28,7 @@ fn queued_direct_message_follows_the_same_users_nick_change() {
         .state()
         .__capture_recipient(
             session.state().casemapping().nick("alice"),
-            Account::Unknown,
+            AccountStatus::Unknown,
         )
         .unwrap();
 
@@ -67,7 +67,7 @@ fn queued_direct_message_is_dropped_after_a_nickname_takeover() {
         .state()
         .__capture_recipient(
             session.state().casemapping().nick("alice"),
-            Account::Unknown,
+            AccountStatus::Unknown,
         )
         .unwrap();
 

@@ -4,7 +4,7 @@ mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_core::{
-    Account, CloseKind, Config, Entropy, Event, Sasl, Session, cap, sts::ConnectionSecurity,
+    AccountStatus, CloseKind, Config, Entropy, Event, Sasl, Session, cap, sts::ConnectionSecurity,
 };
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
@@ -133,7 +133,7 @@ fn oauth_bearer_publishes_the_pending_account_only_after_success() {
         assert_eq!(session.account(), None);
         assert!(matches!(
             session.state().account(),
-            Account::Unknown | Account::LoggedOut
+            AccountStatus::Unknown | AccountStatus::LoggedOut
         ));
     })
     .server(":ergo.test 903 papo :SASL authentication successful")
@@ -141,7 +141,9 @@ fn oauth_bearer_publishes_the_pending_account_only_after_success() {
     .no_event()
     .inspect(|session| {
         assert_eq!(session.account(), Some("alice"));
-        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "alice"));
+        assert!(
+            matches!(session.state().account(), AccountStatus::LoggedIn(name) if name == "alice")
+        );
     });
 }
 
@@ -165,7 +167,7 @@ fn oauth_bearer_failure_discards_the_pending_account() {
         assert_eq!(session.account(), None);
         assert!(matches!(
             session.state().account(),
-            Account::Unknown | Account::LoggedOut
+            AccountStatus::Unknown | AccountStatus::LoggedOut
         ));
     })
     .server(OAUTH_BEARER_INVALID_TOKEN)
@@ -182,7 +184,7 @@ fn oauth_bearer_failure_discards_the_pending_account() {
         assert_eq!(session.account(), None);
         assert!(matches!(
             session.state().account(),
-            Account::Unknown | Account::LoggedOut
+            AccountStatus::Unknown | AccountStatus::LoggedOut
         ));
     });
 }
@@ -277,7 +279,7 @@ fn oauth_bearer_never_accepts_success_after_an_error_challenge() {
             assert_eq!(session.account(), None);
             assert!(matches!(
                 session.state().account(),
-                Account::Unknown | Account::LoggedOut
+                AccountStatus::Unknown | AccountStatus::LoggedOut
             ));
         });
 }
@@ -581,7 +583,7 @@ fn authenticates_with_plain_and_records_the_account() {
         assert_eq!(session.account(), None);
         assert!(matches!(
             session.state().account(),
-            Account::Unknown | Account::LoggedOut
+            AccountStatus::Unknown | AccountStatus::LoggedOut
         ));
     })
     .no_client()
@@ -589,7 +591,9 @@ fn authenticates_with_plain_and_records_the_account() {
     .client("CAP END")
     .inspect(|session| {
         assert_eq!(session.account(), Some("alice"));
-        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "alice"));
+        assert!(
+            matches!(session.state().account(), AccountStatus::LoggedIn(name) if name == "alice")
+        );
     });
 }
 
@@ -610,12 +614,14 @@ fn accepts_prefixed_plain_challenge_and_tracks_logout() {
     .client("CAP END")
     .inspect(|session| {
         assert_eq!(session.account(), Some("emersion"));
-        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "emersion"));
+        assert!(
+            matches!(session.state().account(), AccountStatus::LoggedIn(name) if name == "emersion")
+        );
     })
     .server(":solanum.example 901 emersion emersion!user@host :logged out")
     .inspect(|session| {
         assert_eq!(session.account(), None);
-        assert_eq!(session.state().account(), &Account::LoggedOut);
+        assert_eq!(session.state().account(), &AccountStatus::LoggedOut);
     });
 }
 
@@ -763,7 +769,7 @@ fn already_authenticated_counts_as_success() {
         .client("AUTHENTICATE PLAIN")
         .server(success)
         .client("CAP END")
-        .inspect(|session| assert_eq!(session.state().account(), &Account::Unknown));
+        .inspect(|session| assert_eq!(session.state().account(), &AccountStatus::Unknown));
     }
 }
 
@@ -1373,7 +1379,7 @@ fn unverified_scram_success_discards_the_pending_account() {
             assert_eq!(session.account(), None);
             assert!(matches!(
                 session.state().account(),
-                Account::Unknown | Account::LoggedOut
+                AccountStatus::Unknown | AccountStatus::LoggedOut
             ));
         })
         .server(":ergo.test 903 user :SASL authentication successful")
@@ -1386,7 +1392,7 @@ fn unverified_scram_success_discards_the_pending_account() {
             assert_eq!(session.account(), None);
             assert!(matches!(
                 session.state().account(),
-                Account::Unknown | Account::LoggedOut
+                AccountStatus::Unknown | AccountStatus::LoggedOut
             ));
         });
 }
@@ -1416,7 +1422,7 @@ fn sasl_failure_discards_the_pending_account() {
         assert_eq!(session.account(), None);
         assert!(matches!(
             session.state().account(),
-            Account::Unknown | Account::LoggedOut
+            AccountStatus::Unknown | AccountStatus::LoggedOut
         ));
     });
 }
@@ -1498,14 +1504,16 @@ fn verified_scram_success_publishes_the_pending_account() {
         assert_eq!(session.account(), None);
         assert!(matches!(
             session.state().account(),
-            Account::Unknown | Account::LoggedOut
+            AccountStatus::Unknown | AccountStatus::LoggedOut
         ));
     })
     .server(":ergo.test 903 user :SASL authentication successful")
     .client("CAP END")
     .inspect(|session| {
         assert_eq!(session.account(), Some("user"));
-        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "user"));
+        assert!(
+            matches!(session.state().account(), AccountStatus::LoggedIn(name) if name == "user")
+        );
     });
 }
 

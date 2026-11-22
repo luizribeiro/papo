@@ -77,9 +77,9 @@ async fn archived_private_events_preserve_accounts_and_reject_stale_actors() {
     let bob_message = archived_bob.chat_messages().next().unwrap();
     assert!(matches!(
         alice_message.actor_account(),
-        papo::Account::LoggedIn(account) if account == "alice-account"
+        papo::AccountStatus::LoggedIn(account) if account == "alice-account"
     ));
-    assert_eq!(bob_message.actor_account(), &papo::Account::Unknown);
+    assert_eq!(bob_message.actor_account(), &papo::AccountStatus::Unknown);
     let alice_tag = archived_alice
         .items
         .iter()
@@ -97,7 +97,7 @@ async fn archived_private_events_preserve_accounts_and_reject_stale_actors() {
         })
         .unwrap();
     assert_eq!(alice_tag.actor_account(), alice_message.actor_account());
-    assert_eq!(bob_tag.actor_account(), &papo::Account::Unknown);
+    assert_eq!(bob_tag.actor_account(), &papo::AccountStatus::Unknown);
 
     for message in [alice_message, bob_message] {
         assert!(matches!(
@@ -224,14 +224,14 @@ async fn untagged_history_line_is_not_the_current_nick_holder() {
         [0, 1, 2].map(|index| page.chat_messages().nth(index).unwrap().clone());
 
     assert_ne!(untagged.actor, live);
-    assert_eq!(untagged.actor_account(), &papo::Account::Unknown);
+    assert_eq!(untagged.actor_account(), &papo::AccountStatus::Unknown);
     assert_ne!(tagged.actor, live);
     assert_ne!(tagged.actor, untagged.actor);
     assert_ne!(tagged.actor, next_tagged.actor);
     assert_eq!(tagged.actor, tagged.actor.clone());
     assert!(matches!(
         tagged.actor_account(),
-        papo::Account::LoggedIn(account) if account == "writer"
+        papo::AccountStatus::LoggedIn(account) if account == "writer"
     ));
 
     let sending =

@@ -651,7 +651,7 @@ fn kicked(
         subject_party,
         subject: crate::UserHandle::from_history(
             state.known_name_rules()?.nick(nick),
-            crate::Account::Unknown,
+            crate::AccountStatus::Unknown,
             Some(&client.state),
         ),
         facts: None,
@@ -765,7 +765,11 @@ fn mode_changed(
             mapping,
             client.origin(),
             |nick| {
-                crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state))
+                crate::UserHandle::from_history(
+                    nick,
+                    crate::AccountStatus::Unknown,
+                    Some(&client.state),
+                )
             },
         )
     })
@@ -793,7 +797,7 @@ fn mode_changed(
             nick.check(state.isupport().inner()).ok()?;
             crate::Subject::User(crate::UserHandle::from_past_line(
                 nick,
-                crate::Account::Unknown,
+                crate::AccountStatus::Unknown,
             ))
         },
         actor,
@@ -2069,15 +2073,15 @@ mod tests {
         assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"]
                 && quit.actor_party == crate::Party::Other
-                && matches!(quit.actor.account(), crate::Account::LoggedIn(account) if account == "emily")));
+                && matches!(quit.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::ServerTime::from_stored("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::Message(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
-                && matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "papo")));
+                && matches!(message.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
-                && matches!(changed.actor.account(), crate::Account::LoggedIn(account) if account == "papo")));
+                && matches!(changed.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "papo")));
     }
 
     #[test]
@@ -2171,7 +2175,7 @@ mod tests {
                     && event.status.is_none()
                     && event.reacts_to == "RfcBTzyxY120004"
                     && event.reaction == "👍"
-                    && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily")
+                    && matches!(event.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")
                     && event.action == crate::event::ReactionAction::Added
         ));
         let PageEvent::Reacted(event) = reacted else {
@@ -2197,7 +2201,7 @@ mod tests {
                 if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.redacts == "RfcBTzyxY120004"
-                    && matches!(event.actor.user().unwrap().account(), crate::Account::LoggedIn(account) if account == "alice")
+                    && matches!(event.actor.user().unwrap().account(), crate::AccountStatus::LoggedIn(account) if account == "alice")
                     && event.reason.is_none()
         ));
         let PageEvent::Redacted(event) = removal else {
@@ -2234,7 +2238,7 @@ mod tests {
         let nick = event.actor.nick();
 
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
-        assert_eq!(event.actor.account(), &crate::Account::LoggedOut);
+        assert_eq!(event.actor.account(), &crate::AccountStatus::LoggedOut);
         assert_ne!(nick, "alice{bot}");
     }
 
@@ -2284,7 +2288,7 @@ mod tests {
                 if event.channel == "#papo" && event.actor.nick() == "emily"
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
-                    && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
+                    && matches!(event.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
                     && event.actor_party == crate::Party::Unknown
         ));
 
@@ -2295,7 +2299,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
-            if event.actor.account() == &crate::Account::LoggedOut));
+            if event.actor.account() == &crate::AccountStatus::LoggedOut));
 
         let joined = history_item(
             papo_core::HistoryItem::Joined(core_item(":carol!~c@host JOIN #papo")),
@@ -2304,7 +2308,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
-            if event.actor.account() == &crate::Account::Unknown));
+            if event.actor.account() == &crate::AccountStatus::Unknown));
     }
 
     #[test]

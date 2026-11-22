@@ -1,6 +1,6 @@
 use papo_proto::Nick;
 
-use crate::{Account, RecipientGuard, RecipientStatus, ReplyToken, Session, State};
+use crate::{AccountStatus, RecipientGuard, RecipientStatus, ReplyToken, Session, State};
 
 /// Proof that a person target was validated against session state.
 ///
@@ -63,7 +63,7 @@ impl State {
         &self,
         token: ReplyToken,
         nick: Nick,
-        account: Account,
+        account: AccountStatus,
     ) -> Result<RecipientGuard, ProofFailure> {
         if token.origin != self.__reply_token().origin || nick.origin() != token.origin {
             return Err(ProofFailure::ForeignReference);
@@ -84,7 +84,7 @@ impl State {
         &self,
         token: ReplyToken,
         nick: Nick,
-        account: Account,
+        account: AccountStatus,
     ) -> Result<Proven, ProofFailure> {
         let recipient = self.prove_event_user(token, nick, account)?;
         Ok(Proven {
@@ -96,7 +96,11 @@ impl State {
     /// Captures the currently tracked person under a nickname for compatibility callers.
     #[doc(hidden)]
     #[must_use]
-    pub fn __capture_recipient(&self, nick: Nick, account: Account) -> Option<RecipientGuard> {
+    pub fn __capture_recipient(
+        &self,
+        nick: Nick,
+        account: AccountStatus,
+    ) -> Option<RecipientGuard> {
         let token = self.__reply_token_for(nick.as_str());
         self.prove_event_user(token, nick, account).ok()
     }
@@ -131,7 +135,7 @@ impl Session {
         &self,
         token: ReplyToken,
         nick: Nick,
-        account: Account,
+        account: AccountStatus,
     ) -> Option<Proven> {
         self.state.__prove_event_user(token, nick, account).ok()
     }

@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, PersonCommand, RateLimit, Session, TargetGuard};
+use papo_core::{AccountStatus, Config, Event, PersonCommand, RateLimit, Session, TargetGuard};
 use papo_proto::Line;
 
 fn server(session: &mut Session, line: &str) {
@@ -15,7 +15,7 @@ fn observed_alice(session: &Session) -> papo_core::Proven {
         .__prove_event_user(
             state.__reply_token_for("alice"),
             state.user("alice").unwrap().nick().clone(),
-            Account::Unknown,
+            AccountStatus::Unknown,
         )
         .unwrap()
 }

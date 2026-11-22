@@ -54,8 +54,8 @@ A user handle from a live event follows observed nick changes. When papo sees th
 
 For an account check, compare the account you expect with the received message's
 `actor_account()`. To check the account papo currently knows for a nickname, call
-`state.user(nick)` and inspect the returned user's `account()`. Treat `Account::Unknown` and
-`Account::LoggedOut` as failing the check. Account information comes from the server, so use TLS.
+`state.user(nick)` and inspect the returned user's `account()`. Treat `AccountStatus::Unknown` and
+`AccountStatus::LoggedOut` as failing the check. Account information comes from the server, so use TLS.
 
 **Types everywhere.** The APIs have types everywhere to prevent mistakes like putting the channel in place of the nick or whatever. Swap a `ChannelName` and a `Nick` in `client.kick(channel, nick)` and it doesn't compile. The only way around it is constructing your own recipient with "#foo", "bar", etc, and then it only gets caught at runtime.
 

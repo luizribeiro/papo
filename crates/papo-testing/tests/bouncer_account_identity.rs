@@ -104,7 +104,7 @@ async fn same_account_after_bouncer_drop_does_not_revive_the_old_target() {
     };
     assert!(matches!(
         message.actor_account(),
-        papo::Account::LoggedIn(account) if account == "alice-account"
+        papo::AccountStatus::LoggedIn(account) if account == "alice-account"
     ));
     assert!(matches!(
         client.privmsg(&alice, "release approved").await,

@@ -1,6 +1,6 @@
 use super::{
-    Account, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey, Numeric,
-    Outbox, ProtoSource, State, StateLimit, rename::ChannelLifecycle,
+    AccountStatus, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey,
+    Numeric, Outbox, ProtoSource, State, StateLimit, rename::ChannelLifecycle,
 };
 
 impl State {
@@ -130,7 +130,7 @@ impl State {
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
             && join.realname.is_some()
         {
-            user.update_account(Account::from_notify(join.account, self.casemapping));
+            user.update_account(AccountStatus::from_notify(join.account, self.casemapping));
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {

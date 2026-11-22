@@ -1,6 +1,6 @@
 use papo::{
-    Account, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Rank, Refusal, Source,
-    isupport::LimitValue,
+    AccountStatus, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Rank, Refusal,
+    Source, isupport::LimitValue,
 };
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
@@ -116,7 +116,9 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let bob_state = bob.snapshot();
     let observed = super::user(&bob_state, alice_nick.as_str()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
-    assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_str()));
+    assert!(
+        matches!(observed.account(), AccountStatus::LoggedIn(name) if name == account.as_str())
+    );
     assert!(
         bob_state
             .__channel_local(&channel)
@@ -592,7 +594,7 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
     assert!(!entry.username.is_empty());
     assert!(!entry.host.is_empty());
     assert_eq!(entry.realname, "Alice Example");
-    assert_eq!(entry.away, papo::Away::Present);
+    assert_eq!(entry.away, papo::AwayStatus::Present);
     assert!(!entry.is_oper);
     Ok(())
 }

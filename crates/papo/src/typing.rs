@@ -47,7 +47,9 @@ impl Typer {
             papo_core::Conversation::Private(nick) => {
                 let account = state
                     .user(nick)
-                    .map_or(papo_core::Account::Unknown, |user| user.account().clone());
+                    .map_or(papo_core::AccountStatus::Unknown, |user| {
+                        user.account().clone()
+                    });
                 let proof = state
                     .__prove_event_user(
                         state.__reply_token_for(nick.as_str()),

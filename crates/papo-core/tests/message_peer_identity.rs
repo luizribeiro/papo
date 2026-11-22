@@ -3,7 +3,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, RecipientStatus, ReplyToken, Session};
+use papo_core::{AccountStatus, Config, Event, RecipientStatus, ReplyToken, Session};
 
 const ALICE_ADMIN: &str =
     "@account=alice;msgid=4kd8y2mxa1 :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!ping";
@@ -35,15 +35,15 @@ fn registered(caps: &str) -> Session {
     session
 }
 
-fn account(session: &Session, nick: &str) -> Option<Account> {
+fn account(session: &Session, nick: &str) -> Option<AccountStatus> {
     session
         .state()
         .user(nick)
         .map(|user| user.account().clone())
 }
 
-fn logged_in(session: &Session, name: &str) -> Account {
-    Account::LoggedIn(session.state().casemapping().account(name))
+fn logged_in(session: &Session, name: &str) -> AccountStatus {
+    AccountStatus::LoggedIn(session.state().casemapping().account(name))
 }
 
 fn token(session: &Session, nick: &str) -> ReplyToken {
@@ -69,7 +69,7 @@ fn an_unseen_nick_handoff_does_not_inherit_the_admins_identity_or_account() {
     );
     let events = drain(&mut session);
 
-    assert_eq!(account(&session, "alice"), Some(Account::LoggedOut));
+    assert_eq!(account(&session, "alice"), Some(AccountStatus::LoggedOut));
     assert_ne!(token(&session, "alice"), admin);
     assert_eq!(
         session.state().__resolve_recipient(&guard),
@@ -175,9 +175,9 @@ fn a_person_papo_cannot_follow_stays_the_same_only_while_every_fact_matches() {
         let before = token(&session, nick);
         server(&mut session, case.second);
         let expected = match case.account {
-            Some("") => Account::Unknown,
+            Some("") => AccountStatus::Unknown,
             Some(name) => logged_in(&session, name),
-            None => Account::LoggedOut,
+            None => AccountStatus::LoggedOut,
         };
         assert_eq!(
             token(&session, nick) == before,
@@ -206,13 +206,13 @@ fn a_channel_member_without_the_account_tag_logs_out_in_place() {
         account(&session, "alice"),
         Some(logged_in(&session, "alice"))
     );
-    assert_eq!(account(&session, "carol"), Some(Account::Unknown));
+    assert_eq!(account(&session, "carol"), Some(AccountStatus::Unknown));
     server(
         &mut session,
         ":carol!~u@3fx9z1q8yk2pa.irc PRIVMSG #ops :morning",
     );
     let spoke = drain(&mut session);
-    assert_eq!(account(&session, "carol"), Some(Account::LoggedOut));
+    assert_eq!(account(&session, "carol"), Some(AccountStatus::LoggedOut));
     assert!(
         !spoke
             .iter()
@@ -226,11 +226,11 @@ fn a_channel_member_without_the_account_tag_logs_out_in_place() {
     );
     let events = drain(&mut session);
 
-    assert_eq!(account(&session, "alice"), Some(Account::LoggedOut));
+    assert_eq!(account(&session, "alice"), Some(AccountStatus::LoggedOut));
     assert_eq!(token(&session, "alice"), alice);
     assert!(events.iter().any(|event| matches!(
         event,
-        Event::AccountChanged { nick, account: Account::LoggedOut, .. } if nick == "alice"
+        Event::AccountChanged { nick, account: AccountStatus::LoggedOut, .. } if nick == "alice"
     )));
 }
 

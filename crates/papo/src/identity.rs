@@ -64,7 +64,7 @@ pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
 mod tests {
     use papo_core::{Config, ProofFailure, Session};
 
-    use crate::{Account, Error};
+    use crate::{AccountStatus, Error};
 
     #[test]
     fn foreign_proof_failure_stays_typed() {
@@ -105,7 +105,7 @@ mod tests {
         let names = state.name_rules().unwrap();
         let actor = crate::UserHandle::from_past_line(
             names.nick("alice"),
-            Account::LoggedIn(names.account("alice-account")),
+            AccountStatus::LoggedIn(names.account("alice-account")),
         );
 
         assert!(matches!(

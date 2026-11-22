@@ -53,7 +53,7 @@ async fn registers_then_logs_in_with_sasl() {
         wait_connected(&mut authenticated_events, &account).await;
         assert!(matches!(
             authenticated.snapshot().account(),
-            papo::Account::LoggedIn(logged_in)
+            papo::AccountStatus::LoggedIn(logged_in)
                 if logged_in == account.as_str()
                     && logged_in.origin() == authenticated.origin()
         ));

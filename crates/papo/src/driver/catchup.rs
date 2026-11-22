@@ -305,7 +305,7 @@ mod tests {
             "#papo".into(),
         );
         crate::Event::Reacted(crate::event::Reacted {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: Some(msgid.into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,

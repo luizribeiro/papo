@@ -239,8 +239,8 @@ pub struct User {
     nick: Nick,
     username: Option<String>,
     host: Option<String>,
-    account: Account,
-    away: Away,
+    account: AccountStatus,
+    away: AwayStatus,
     realname: Option<String>,
     is_bot: Option<bool>,
     monitored: bool,
@@ -274,7 +274,7 @@ impl<'a> MetadataView<'a> {
 /// A user's known account state.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum Account {
+pub enum AccountStatus {
     /// No source has named the user's account or reported them logged out; a server may have
     /// confirmed a login without naming its account.
     Unknown,
@@ -284,7 +284,7 @@ pub enum Account {
     LoggedIn(AccountName),
 }
 
-impl Account {
+impl AccountStatus {
     /// Returns the authenticated account name, when the user is known to be logged in.
     #[must_use]
     pub const fn name(&self) -> Option<&AccountName> {
@@ -298,7 +298,7 @@ impl Account {
 /// A user's known presence state.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum Away {
+pub enum AwayStatus {
     /// The user's away state has not been reported.
     Unknown,
     /// The user is known to be present.
@@ -311,7 +311,7 @@ pub enum Away {
     },
 }
 
-impl Away {
+impl AwayStatus {
     /// Returns the away message, when the user is away and the server supplied one.
     #[must_use]
     pub fn message(&self) -> Option<&str> {
@@ -497,8 +497,8 @@ impl State {
         let names = Names::new(casemapping, config.origin);
         let nick = config.origin.__nick(casemapping, &config.nick);
         let mut own = User::new(&config.nick, Some(&config.username), None, names, 0, 0);
-        own.account = Account::LoggedOut;
-        own.away = Away::Present;
+        own.account = AccountStatus::LoggedOut;
+        own.away = AwayStatus::Present;
         own.realname = Some(config.realname.clone());
         let mut users = HashMap::new();
         users.insert(NameKey::new(nick.as_str(), names), own);
@@ -737,10 +737,10 @@ impl State {
                 expected.epoch == user.reply_epoch
                     && expected.sequence == user.departure_sequence
                     && match &guard.account {
-                        Account::LoggedIn(account) => {
-                            matches!(user.account(), Account::LoggedIn(actual) if actual == account)
+                        AccountStatus::LoggedIn(account) => {
+                            matches!(user.account(), AccountStatus::LoggedIn(actual) if actual == account)
                         }
-                        Account::Unknown | Account::LoggedOut => true,
+                        AccountStatus::Unknown | AccountStatus::LoggedOut => true,
                     }
             })
         });
@@ -756,8 +756,8 @@ impl State {
         }
         match self.user(&guard.nick) {
             Some(user)
-                if matches!(&guard.account, Account::LoggedIn(_))
-                    && matches!(&user.account, Account::Unknown) =>
+                if matches!(&guard.account, AccountStatus::LoggedIn(_))
+                    && matches!(&user.account, AccountStatus::Unknown) =>
             {
                 crate::RecipientStatus::Unknown
             }
@@ -955,14 +955,14 @@ impl State {
     }
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
-        self.set_own_account(Account::from_notify(account, self.casemapping));
+        self.set_own_account(AccountStatus::from_notify(account, self.casemapping));
     }
 
     pub(crate) fn forget_own_account(&mut self) {
-        self.set_own_account(Account::Unknown);
+        self.set_own_account(AccountStatus::Unknown);
     }
 
-    fn set_own_account(&mut self, account: Account) {
+    fn set_own_account(&mut self, account: AccountStatus) {
         self.users
             .get_mut(self.nick.key())
             .expect("own user is always present")
@@ -1541,7 +1541,7 @@ impl State {
                 .casemapping
                 .origin()
                 .__nick(mapping, user.nick.as_str());
-            if let Account::LoggedIn(account) = &mut user.account {
+            if let AccountStatus::LoggedIn(account) = &mut user.account {
                 *account = self
                     .casemapping
                     .origin()
@@ -1735,13 +1735,13 @@ impl State {
 
     /// Returns the session's account state.
     #[must_use]
-    pub fn account(&self) -> &Account {
+    pub fn account(&self) -> &AccountStatus {
         &self.own_user().account
     }
 
     /// Returns the session's presence state.
     #[must_use]
-    pub fn away(&self) -> &Away {
+    pub fn away(&self) -> &AwayStatus {
         &self.own_user().away
     }
 
@@ -2216,8 +2216,8 @@ impl User {
             nick: casemapping.nick(nick),
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
-            account: Account::Unknown,
-            away: Away::Unknown,
+            account: AccountStatus::Unknown,
+            away: AwayStatus::Unknown,
             realname: None,
             is_bot: None,
             monitored: false,
@@ -2227,7 +2227,7 @@ impl User {
         }
     }
 
-    fn update_account(&mut self, account: Account) {
+    fn update_account(&mut self, account: AccountStatus) {
         self.account = account;
     }
 
@@ -2260,13 +2260,13 @@ impl User {
 
     /// Returns the user's known account state.
     #[must_use]
-    pub const fn account(&self) -> &Account {
+    pub const fn account(&self) -> &AccountStatus {
         &self.account
     }
 
     /// Returns the user's known presence state.
     #[must_use]
-    pub const fn away(&self) -> &Away {
+    pub const fn away(&self) -> &AwayStatus {
         &self.away
     }
 
@@ -2291,7 +2291,7 @@ impl User {
     }
 }
 
-impl Account {
+impl AccountStatus {
     fn from_notify(account: Option<&str>, casemapping: Names) -> Self {
         account.map_or(Self::LoggedOut, |account| {
             Self::LoggedIn(casemapping.account(account))

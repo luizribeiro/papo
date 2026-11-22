@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Account, Client, Event};
+use papo::{AccountStatus, Client, Event};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         };
         let is_admin = matches!(
             message.actor_account(),
-            Account::LoggedIn(account) if account == admin.as_str()
+            AccountStatus::LoggedIn(account) if account == admin.as_str()
         );
         let reason = if !is_admin {
             "permission denied".to_owned()

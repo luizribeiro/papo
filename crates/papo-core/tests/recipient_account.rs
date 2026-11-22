@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, Session};
+use papo_core::{AccountStatus, Config, Event, Session};
 use papo_proto::Line;
 
 const RELEASE_TOKEN: &str = "alice only: the deploy token is hunter2";
@@ -23,7 +23,7 @@ fn send_to_alice_after(lines: &[&str]) -> (Option<Vec<u8>>, Vec<Event>) {
         &mut session,
         ":alice!~alice@cloak.example JOIN #release alice-account :Alice",
     );
-    let account = Account::LoggedIn(session.state().casemapping().account("alice-account"));
+    let account = AccountStatus::LoggedIn(session.state().casemapping().account("alice-account"));
     let guard = session
         .state()
         .__capture_recipient(session.state().casemapping().nick("alice"), account)

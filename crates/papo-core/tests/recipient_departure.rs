@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, RecipientStatus, Session};
+use papo_core::{AccountStatus, Config, RecipientStatus, Session};
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -28,8 +28,8 @@ fn resolve_after_forgotten_departure(guard_account: Option<&str>, rejoin: &str) 
         &mut session,
         ":alice!~alice@cloak.example JOIN #review alice-account :Alice",
     );
-    let account = guard_account.map_or(Account::Unknown, |account| {
-        Account::LoggedIn(session.state().casemapping().account(account))
+    let account = guard_account.map_or(AccountStatus::Unknown, |account| {
+        AccountStatus::LoggedIn(session.state().casemapping().account(account))
     });
     let guard = session
         .state()
@@ -83,7 +83,7 @@ fn departed_identity_history_is_bounded_and_fails_closed() {
         .state()
         .__capture_recipient(
             session.state().casemapping().nick("alice"),
-            Account::Unknown,
+            AccountStatus::Unknown,
         )
         .unwrap();
     server(

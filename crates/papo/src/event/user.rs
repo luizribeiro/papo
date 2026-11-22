@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{Account, Away, BatchId, MessageId, Nick, Party, ServerName};
+use crate::{AccountStatus, AwayStatus, BatchId, MessageId, Nick, Party, ServerName};
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,7 +24,7 @@ pub struct Quit {
     pub channels: Vec<crate::ChannelHandle>,
     /// Who the disconnected user is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: Box<Account>,
+    pub(crate) actor_account: Box<AccountStatus>,
     /// The netsplit batch that carried this quit, when applicable.
     pub netsplit: Option<SplitServers>,
 }
@@ -51,7 +51,7 @@ pub struct NickChanged {
     pub channels: Vec<crate::ChannelHandle>,
     /// Who the renamed user is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
 }
 
 super::actor_account_accessor!(NickChanged);
@@ -73,10 +73,10 @@ pub struct AwayChanged {
     /// The affected user.
     pub actor: crate::UserHandle,
     /// The user's new presence state.
-    pub new: Away,
+    pub new: AwayStatus,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
 }
 
 super::actor_account_accessor!(AwayChanged);
@@ -97,10 +97,10 @@ pub struct AccountChanged {
     /// The account state after the change.
     ///
     /// This is retained because it describes the change itself.
-    pub new: Account,
+    pub new: AccountStatus,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
 }
 
 super::actor_account_accessor!(AccountChanged);
@@ -124,7 +124,7 @@ pub struct HostChanged {
     pub new_host: String,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
 }
 
 super::actor_account_accessor!(HostChanged);
@@ -143,7 +143,7 @@ pub struct RealnameChanged {
     pub new: String,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
 }
 
 super::actor_account_accessor!(RealnameChanged);

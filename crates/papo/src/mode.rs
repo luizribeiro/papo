@@ -639,7 +639,7 @@ impl Change {
                 };
                 crate::UserHandle::current_name(
                     nick,
-                    crate::Account::Unknown,
+                    crate::AccountStatus::Unknown,
                     proof,
                     Some(&client.state),
                 )

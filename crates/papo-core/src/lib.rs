@@ -219,7 +219,7 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::{AccountUpdate, SaslSession};
 pub use sasl::{Entropy, Sasl};
-pub use state::{Account, Away, Channel, Member, MetadataView, State, User};
+pub use state::{AccountStatus, AwayStatus, Channel, Member, MetadataView, State, User};
 use state::{MetadataContext, StateGrowth};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
@@ -3054,7 +3054,7 @@ pub enum Event {
         /// The affected user's nickname.
         nick: Nick,
         /// The user's new account state.
-        account: Account,
+        account: AccountStatus,
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Who the affected user is relative to this session's user.
@@ -3072,7 +3072,7 @@ pub enum Event {
         /// The affected user's nickname.
         nick: Nick,
         /// The user's new presence state.
-        away: Away,
+        away: AwayStatus,
         /// Identity of the affected user when the line arrived.
         token: ReplyToken,
         /// Who the affected user is relative to this session's user.
@@ -3184,8 +3184,8 @@ hidden_event_constructors! {
     __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, actor_party: Party, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, actor_party: Party) => NickChanged;
-    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, token: ReplyToken, actor_party: Party) => AccountChanged;
-    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, token: ReplyToken, actor_party: Party) => AwayChanged;
+    __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: AccountStatus, token: ReplyToken, actor_party: Party) => AccountChanged;
+    __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: AwayStatus, token: ReplyToken, actor_party: Party) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, actor_party: Party) => HostChanged;
     __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, actor_party: Party) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
@@ -3331,7 +3331,7 @@ impl ReplyToken {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RecipientGuard {
     nick: Nick,
-    account: Account,
+    account: AccountStatus,
     token: ReplyToken,
 }
 
@@ -3398,7 +3398,7 @@ impl ChannelGuard {
 }
 
 impl RecipientGuard {
-    pub(crate) const fn from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
+    pub(crate) const fn from_parts(nick: Nick, account: AccountStatus, token: ReplyToken) -> Self {
         Self {
             nick,
             account,
@@ -3416,7 +3416,7 @@ impl RecipientGuard {
     /// Returns the captured account state.
     #[doc(hidden)]
     #[must_use]
-    pub const fn __account(&self) -> &Account {
+    pub const fn __account(&self) -> &AccountStatus {
         &self.account
     }
 
@@ -5650,8 +5650,8 @@ impl Session {
     #[must_use]
     pub fn account(&self) -> Option<&str> {
         match self.state.account() {
-            Account::LoggedIn(account) => Some(account.as_str()),
-            Account::Unknown | Account::LoggedOut => None,
+            AccountStatus::LoggedIn(account) => Some(account.as_str()),
+            AccountStatus::Unknown | AccountStatus::LoggedOut => None,
         }
     }
 

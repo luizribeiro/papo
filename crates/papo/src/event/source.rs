@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Account, Casemapping, Nick};
+use crate::{AccountStatus, Casemapping, Nick};
 
 /// The user or server that caused an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -83,7 +83,7 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
         papo_core::Source::User { nick, .. } => {
             Some(Source::User(crate::UserHandle::from_past_line(
                 origin.__nick(nick.casemapping(), nick.as_str()),
-                Account::Unknown,
+                AccountStatus::Unknown,
             )))
         }
         papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
@@ -122,7 +122,7 @@ mod tests {
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
-            account: crate::Account::LoggedIn(origin.__account(mapping, "alice-account")),
+            account: crate::AccountStatus::LoggedIn(origin.__account(mapping, "alice-account")),
         };
         let core = || {
             papo_core::Source::from_proto(
@@ -140,7 +140,7 @@ mod tests {
             super::from_line(super::LinePrefix::Core(core()), &envelope, mapping, origin),
             super::from_core(core(), origin),
         ];
-        let unknown = crate::Account::Unknown;
+        let unknown = crate::AccountStatus::Unknown;
         for (source, account) in
             sources
                 .iter()

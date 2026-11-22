@@ -4,7 +4,7 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Account, Config, Event, RecipientStatus, Session};
+use papo_core::{AccountStatus, Config, Event, RecipientStatus, Session};
 use papo_proto::Casemapping;
 use support::Transcript;
 
@@ -20,7 +20,7 @@ fn replay(session: &mut Session, trace: &str) {
             original = Some(token);
             guard = session.state().__capture_recipient(
                 session.state().casemapping().nick("alice"),
-                Account::Unknown,
+                AccountStatus::Unknown,
             );
             continue;
         }

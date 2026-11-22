@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use papo::{Account, Client, Endpoint, Error, Event, Party, Sasl, SendOutcome};
+use papo::{AccountStatus, Client, Endpoint, Error, Event, Party, Sasl, SendOutcome};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{confirmed_line, conversation_name, latest_history_with};
@@ -97,7 +97,7 @@ async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(confirmed_text, text);
     let expected_time = expected_time.expect("Ergo supplies a server time for the multiline echo");
     let expected_account = writer.snapshot().account().clone();
-    assert!(matches!(expected_account, Account::LoggedIn(_)));
+    assert!(matches!(expected_account, AccountStatus::LoggedIn(_)));
 
     let page = latest_history_with(&writer, &channel, &text).await?;
     let replayed = page

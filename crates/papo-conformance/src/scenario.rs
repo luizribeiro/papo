@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use papo::{Account, Builder, Client, Endpoint, IntoEndpoint, Sasl};
+use papo::{AccountStatus, Builder, Client, Endpoint, IntoEndpoint, Sasl};
 use papo_test_server::{ServerInfo, create_account, unique};
 
 use papo_testing::{Error, Result, skipped};
@@ -346,7 +346,7 @@ impl Scenario {
 fn logged_in_as(peer: &Peer, account: &str) -> bool {
     matches!(
         peer.snapshot().account(),
-        Account::LoggedIn(current) if current.as_str() == account
+        AccountStatus::LoggedIn(current) if current.as_str() == account
     )
 }
 

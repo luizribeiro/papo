@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Account, Away, Config, Event};
+use papo_core::{AccountStatus, AwayStatus, Config, Event};
 use papo_proto::Casemapping;
 use support::Transcript;
 
@@ -51,7 +51,10 @@ fn learning_many_initial_away_statuses_emits_one_refresh_event() {
     )
     .inspect(|session| {
         for nick in members {
-            assert_eq!(session.state().user(nick).unwrap().away(), &Away::Unknown);
+            assert_eq!(
+                session.state().user(nick).unwrap().away(),
+                &AwayStatus::Unknown
+            );
         }
     })
     .no_event()
@@ -74,17 +77,17 @@ fn learning_many_initial_away_statuses_emits_one_refresh_event() {
         .inspect(|session| {
             for (index, nick) in members.into_iter().enumerate() {
                 let expected = if index % 2 == 0 {
-                    Away::Present
+                    AwayStatus::Present
                 } else {
-                    Away::__away_value(None)
+                    AwayStatus::__away_value(None)
                 };
                 assert_eq!(session.state().user(nick).unwrap().away(), &expected);
             }
         });
 }
 
-fn logged_in(account: &str) -> Account {
-    Account::LoggedIn(Casemapping::default().account(account))
+fn logged_in(account: &str) -> AccountStatus {
+    AccountStatus::LoggedIn(Casemapping::default().account(account))
 }
 
 fn member_nicks(session: &papo_core::Session) -> Vec<String> {

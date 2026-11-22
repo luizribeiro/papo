@@ -1,4 +1,4 @@
-use papo::{Account, AccountOutcome, Away, Error, Event, NewAccount, Refusal};
+use papo::{AccountOutcome, AccountStatus, AwayStatus, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::{assert_delivery_tags, confirmed_line, subject_name};
@@ -39,14 +39,14 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.server_time, server_time);
     assert!(matches!(
         super::user(&bob.snapshot(), &message.actor).map(papo::User::account),
-        Some(Account::LoggedIn(observed)) if observed == account.as_str()
+        Some(AccountStatus::LoggedIn(observed)) if observed == account.as_str()
     ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
         super::user(&bob.snapshot(), alice_nick.as_str())
             .unwrap()
             .account(),
-        Account::LoggedIn(observed) if observed == account.as_str()
+        AccountStatus::LoggedIn(observed) if observed == account.as_str()
     ));
     alice
         .send_raw(papo::Line::new("PART").with_params([&channel, "account-tag check"]))
@@ -60,7 +60,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         parted.facts.as_ref().map(papo::User::account),
-        Some(Account::LoggedIn(observed)) if observed == account.as_str()
+        Some(AccountStatus::LoggedIn(observed)) if observed == account.as_str()
     ));
     bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
@@ -106,13 +106,13 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(
         alice.snapshot().account(),
-        &Account::LoggedIn(account.clone())
+        &AccountStatus::LoggedIn(account.clone())
     );
     assert!(matches!(
         super::user(&bob.snapshot(), alice_nick.as_str())
             .unwrap()
             .account(),
-        Account::LoggedIn(observed) if observed == account.as_str()
+        AccountStatus::LoggedIn(observed) if observed == account.as_str()
     ));
     alice.wait_for(Event::as_account_creation).await?;
     bob.expect_none(Event::as_account_changed).await?;
@@ -136,29 +136,29 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let changed = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.actor.nick(), alice_nick.as_str());
-    assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
+    assert_eq!(changed.new, AwayStatus::__away_value(Some(away.to_owned())));
     assert_eq!(
         alice.snapshot().away(),
-        &Away::__away_value(Some(away.to_owned()))
+        &AwayStatus::__away_value(Some(away.to_owned()))
     );
     assert_eq!(
         super::user(&bob.snapshot(), alice_nick.as_str())
             .unwrap()
             .away(),
-        &Away::__away_value(Some(away.to_owned()))
+        &AwayStatus::__away_value(Some(away.to_owned()))
     );
 
     alice.clear_away().await?;
     let returned = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(returned.actor.nick(), alice_nick.as_str());
-    assert_eq!(returned.new, Away::Present);
-    assert_eq!(alice.snapshot().away(), &Away::Present);
+    assert_eq!(returned.new, AwayStatus::Present);
+    assert_eq!(alice.snapshot().away(), &AwayStatus::Present);
     assert_eq!(
         super::user(&bob.snapshot(), alice_nick.as_str())
             .unwrap()
             .away(),
-        &Away::Present
+        &AwayStatus::Present
     );
     bob.expect_none(Event::as_away_changed).await?;
     Ok(())
@@ -197,7 +197,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(
         alice.snapshot().away(),
-        &Away::__away_value(Some(away.to_owned()))
+        &AwayStatus::__away_value(Some(away.to_owned()))
     );
     assert!(sent.fallbacks.is_empty());
     alice
@@ -218,14 +218,14 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.snapshot().nick().clone());
     assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
-    assert_eq!(alice.snapshot().away(), &Away::__away_value(None));
+    assert_eq!(alice.snapshot().away(), &AwayStatus::__away_value(None));
 
     let whois = bob
         .whois(alice.snapshot().nick().as_str())
         .await?
         .expect("WHOIS target exists");
     assert_eq!(whois.user.nick(), alice.snapshot().nick().as_str());
-    assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
+    assert_eq!(whois.away, AwayStatus::__away_value(Some(away.to_owned())));
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }
@@ -362,12 +362,12 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.actor.nick(), bob_nick.as_str());
-    assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
+    assert_eq!(changed.new, AwayStatus::__away_value(Some(away.to_owned())));
     assert_eq!(
         super::user(&alice.snapshot(), bob_nick.as_str())
             .unwrap()
             .away(),
-        &Away::__away_value(Some(away.to_owned()))
+        &AwayStatus::__away_value(Some(away.to_owned()))
     );
 
     let new_nick = format!("r{bob_nick}");
@@ -504,7 +504,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
-    assert_eq!(alice_who.away, Away::__away_value(None));
+    assert_eq!(alice_who.away, AwayStatus::__away_value(None));
     assert!(!alice_who.is_oper);
     assert_eq!(alice_who.is_bot, expected_bot);
     assert_eq!(
@@ -562,7 +562,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
     assert_eq!(whois.realname.as_deref(), Some("papo test peer"));
     assert!(whois.idle.is_some());
-    assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
+    assert_eq!(whois.away, AwayStatus::__away_value(Some(away.to_owned())));
     assert!(
         whois
             .channels

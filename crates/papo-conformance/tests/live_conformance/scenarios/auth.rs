@@ -246,7 +246,7 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     assert!(connected.caps.contains_key(&papo::cap::SASL));
     assert_eq!(
         alice.snapshot().account(),
-        &papo::Account::LoggedIn(
+        &papo::AccountStatus::LoggedIn(
             alice
                 .snapshot()
                 .name_rules()
@@ -356,7 +356,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice.wait_for(Event::as_account_creation).await?, outcome);
     assert_eq!(
         alice.snapshot().account(),
-        &papo::Account::LoggedIn(account.clone())
+        &papo::AccountStatus::LoggedIn(account.clone())
     );
 
     let whois = alice
@@ -364,7 +364,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         .await?
         .expect("WHOIS target exists");
     assert_eq!(whois.user.nick(), nick);
-    assert_eq!(whois.account, papo::Account::LoggedIn(account));
+    assert_eq!(whois.account, papo::AccountStatus::LoggedIn(account));
     alice.expect_none(Event::as_account_creation).await?;
     Ok(())
 }

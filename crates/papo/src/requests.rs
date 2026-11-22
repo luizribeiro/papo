@@ -1,6 +1,6 @@
 use std::{future::IntoFuture, time::Duration};
 
-use papo_core::{Account, Away, Response, ResponseMatcher};
+use papo_core::{AccountStatus, AwayStatus, Response, ResponseMatcher};
 use papo_proto::{
     ChannelName, Command, Isupport, Line, LineRef, Nick, Numeric, ServerName, WhoxPresence,
     WhoxReply,
@@ -73,16 +73,16 @@ pub struct Whois {
     pub realname: Option<String>,
     /// The user's account state.
     ///
-    /// [`Account::LoggedIn`] means the server sent `RPL_WHOISACCOUNT` (`330`). A completed
-    /// WHOIS reply without that numeric leaves this [`Account::Unknown`], because WHOIS has no
+    /// [`AccountStatus::LoggedIn`] means the server sent `RPL_WHOISACCOUNT` (`330`). A completed
+    /// WHOIS reply without that numeric leaves this [`AccountStatus::Unknown`], because WHOIS has no
     /// portable reply that proves the user is logged out.
-    pub account: Account,
+    pub account: AccountStatus,
     /// Server to which the user is connected.
     pub server: Option<ServerName>,
     /// Visible channels, retaining membership prefixes.
     pub channels: Vec<WhoisChannel>,
     /// The user's presence reported by WHOIS.
-    pub away: Away,
+    pub away: AwayStatus,
     /// Whether the server identifies the user as a bot.
     pub is_bot: Option<bool>,
     /// Whether the server identifies the connection as secure.
@@ -131,11 +131,11 @@ pub struct WhoEntry {
     /// Visible hostname of the user.
     pub host: String,
     /// The user's account state.
-    pub account: Account,
+    pub account: AccountStatus,
     /// Real name of the user.
     pub realname: String,
     /// The user's presence reported by WHO.
-    pub away: Away,
+    pub away: AwayStatus,
     /// Whether the reply identifies the user as an IRC operator.
     pub is_oper: bool,
     /// Whether the server identifies the user as a bot.
@@ -255,7 +255,7 @@ pub(crate) fn whois(
         account,
         server: None,
         channels: Vec::new(),
-        away: Away::Present,
+        away: AwayStatus::Present,
         is_bot: isupport.bot_mode().map(|_| false),
         secure: false,
         idle: None,
@@ -286,7 +286,7 @@ pub(crate) fn whois(
                     .map(|value| whois_channel(value, isupport, origin)),
             ),
             Numeric::RPL_AWAY => {
-                result.away = Away::__away_value(message.param(2).map(str::to_owned));
+                result.away = AwayStatus::__away_value(message.param(2).map(str::to_owned));
             }
             Numeric::RPL_WHOISBOT => result.is_bot = Some(true),
             Numeric::RPL_WHOISSECURE => result.secure = true,
@@ -309,12 +309,12 @@ fn reply_user(
     mapping: papo_proto::Casemapping,
     nick: &str,
     token: Option<papo_core::ReplyToken>,
-    account: Account,
+    account: AccountStatus,
 ) -> crate::UserHandle {
     let nick = client.origin().__nick(mapping, nick);
     let build =
         |account| crate::UserHandle::from_event(nick.clone(), account, token, Some(&client.state));
-    let proven = build(Account::Unknown);
+    let proven = build(AccountStatus::Unknown);
     if proven.proof().is_some() {
         proven
     } else {
@@ -326,7 +326,7 @@ fn whois_account(
     response: &Response,
     origin: crate::Origin,
     mapping: papo_proto::Casemapping,
-) -> Account {
+) -> AccountStatus {
     response
         .lines
         .iter()
@@ -335,9 +335,9 @@ fn whois_account(
             (message.command() == Command::Numeric(Numeric::RPL_WHOISACCOUNT))
                 .then(|| message.param(2))
                 .flatten()
-                .map(|account| Account::LoggedIn(origin.__account(mapping, account)))
+                .map(|account| AccountStatus::LoggedIn(origin.__account(mapping, account)))
         })
-        .unwrap_or(Account::Unknown)
+        .unwrap_or(AccountStatus::Unknown)
 }
 
 fn whois_user_nick(response: &Response) -> Option<(usize, String)> {
@@ -385,8 +385,8 @@ pub(crate) fn who(
             if extended {
                 let reply = WhoxReply::parse(&message, WHOX_FIELDS)?;
                 let flags = reply.flags(isupport)?;
-                let account = reply.account.map_or(Account::LoggedOut, |account| {
-                    Account::LoggedIn(origin.__account(mapping, account))
+                let account = reply.account.map_or(AccountStatus::LoggedOut, |account| {
+                    AccountStatus::LoggedIn(origin.__account(mapping, account))
                 });
                 Some(WhoEntry {
                     channel: reply.channel.map(|channel| {
@@ -398,9 +398,9 @@ pub(crate) fn who(
                     account,
                     realname: reply.realname?.to_owned(),
                     away: match flags.presence {
-                        Some(WhoxPresence::Here) => Away::Present,
-                        Some(WhoxPresence::Gone) => Away::__away_value(None),
-                        None => Away::Unknown,
+                        Some(WhoxPresence::Here) => AwayStatus::Present,
+                        Some(WhoxPresence::Gone) => AwayStatus::__away_value(None),
+                        None => AwayStatus::Unknown,
                     },
                     is_oper: flags.oper,
                     is_bot: if flags.bot {
@@ -448,16 +448,16 @@ fn plain_who(
             isupport.casemapping(),
             message.param(5)?,
             token,
-            Account::Unknown,
+            AccountStatus::Unknown,
         ),
-        account: Account::Unknown,
+        account: AccountStatus::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {
-            Away::__away_value(None)
+            AwayStatus::__away_value(None)
         } else if flags.contains('H') {
-            Away::Present
+            AwayStatus::Present
         } else {
-            Away::Unknown
+            AwayStatus::Unknown
         },
         is_oper: flags.contains('*'),
         is_bot: if flags.contains('B') {
@@ -560,7 +560,7 @@ fn list_entries(
 mod tests {
     use std::time::Instant;
 
-    use papo_core::{Account, Away, Config, Event, ResponseMatcher, Session};
+    use papo_core::{AccountStatus, AwayStatus, Config, Event, ResponseMatcher, Session};
     use papo_proto::{Casemapping, Isupport, Line};
 
     use super::{
@@ -697,7 +697,7 @@ mod tests {
                 ":ergo.test 330 papo alice alice :is logged in as",
                 ":ergo.test 318 papo alice :End of /WHOIS list",
             ]),
-            Account::LoggedIn(account) if account == "alice"
+            AccountStatus::LoggedIn(account) if account == "alice"
         ));
         assert_eq!(
             reply(&[
@@ -705,7 +705,7 @@ mod tests {
                 ":irc.papo.test 312 papo alice irc.papo.test :papo test server",
                 ":irc.papo.test 318 papo alice :End of /WHOIS list",
             ]),
-            Account::Unknown
+            AccountStatus::Unknown
         );
     }
 
@@ -738,11 +738,11 @@ mod tests {
         let visible = plain_who(&visible.as_ref(), &isupport, &client, None).unwrap();
         assert_eq!(
             (&hidden.account, &hidden.away),
-            (&Account::Unknown, &Away::Present)
+            (&AccountStatus::Unknown, &AwayStatus::Present)
         );
         assert_eq!(
             (&visible.account, &visible.away),
-            (&Account::Unknown, &Away::__away_value(None))
+            (&AccountStatus::Unknown, &AwayStatus::__away_value(None))
         );
         assert_eq!(hidden.channel, None);
         assert_eq!(hidden.prefixes[0].symbol(), '@');

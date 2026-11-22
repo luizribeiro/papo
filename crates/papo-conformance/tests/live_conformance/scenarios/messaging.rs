@@ -1093,7 +1093,10 @@ async fn private_reaction_to_away_user(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| message_text(event, "the build is green again"))
         .await?;
     bob.set_away("out for lunch until 14:00").await?;
-    assert!(matches!(bob.snapshot().away(), papo::Away::Away { .. }));
+    assert!(matches!(
+        bob.snapshot().away(),
+        papo::AwayStatus::Away { .. }
+    ));
 
     let reacted = reaction_or_skip(alice.react(&original, "👍").await)?;
     let seen = bob.wait_for(Event::as_reacted).await?;

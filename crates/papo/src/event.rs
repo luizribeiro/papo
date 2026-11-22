@@ -3,7 +3,7 @@
     deny(clippy::expect_used, clippy::indexing_slicing, clippy::unwrap_used)
 )]
 
-use papo_core::{Account, RequestId, Response, Welcome, sts::StsAction};
+use papo_core::{AccountStatus, RequestId, Response, Welcome, sts::StsAction};
 use papo_format::strip_formatting;
 use std::time::SystemTime;
 
@@ -68,7 +68,7 @@ macro_rules! actor_account_accessor {
             ///
             /// See [`crate::Message::actor_account`] for the meaning of each status.
             #[must_use]
-            pub const fn actor_account(&self) -> &crate::Account {
+            pub const fn actor_account(&self) -> &crate::AccountStatus {
                 &self.actor_account
             }
         }
@@ -118,7 +118,7 @@ pub struct CtcpQuery {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: Account,
+    pub(crate) actor_account: AccountStatus,
     /// The IRC conversation to which the CTCP message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -152,7 +152,7 @@ pub struct CtcpReply {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: Account,
+    pub(crate) actor_account: AccountStatus,
     /// The IRC conversation to which the CTCP reply belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -315,7 +315,7 @@ pub struct Message {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: Account,
+    pub(crate) actor_account: AccountStatus,
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -361,7 +361,7 @@ pub struct Notice {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: Account,
+    pub(crate) actor_account: AccountStatus,
     conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`Restricted::audience`] before delivery.
@@ -428,7 +428,7 @@ impl Incomplete {
     ///
     /// See [`Message::actor_account`] for the meaning of each status.
     #[must_use]
-    pub const fn actor_account(&self) -> &Account {
+    pub const fn actor_account(&self) -> &AccountStatus {
         match self {
             Self::Message(message) => message.actor_account(),
             Self::Notice(notice) => notice.actor_account(),
@@ -474,7 +474,7 @@ pub struct ServerNotice {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: Account,
+    pub(crate) actor_account: AccountStatus,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
@@ -528,7 +528,7 @@ impl std::ops::Deref for Other {
 }
 
 struct MessageMetadata {
-    actor_account: Account,
+    actor_account: AccountStatus,
     actor: Source,
     actor_party: Party,
     conversation: Conversation,
@@ -834,10 +834,10 @@ impl Message {
     /// Returns the actor's account as reported for this line.
     ///
     /// An `account` tag supplies the name. An untagged live line from another user
-    /// with `account-tag` enabled reports [`Account::LoggedOut`]. Other untagged lines,
-    /// including own echoes, server lines and history, report [`Account::Unknown`].
+    /// with `account-tag` enabled reports [`AccountStatus::LoggedOut`]. Other untagged lines,
+    /// including own echoes, server lines and history, report [`AccountStatus::Unknown`].
     #[must_use]
-    pub const fn actor_account(&self) -> &Account {
+    pub const fn actor_account(&self) -> &AccountStatus {
         &self.actor_account
     }
 
@@ -1022,7 +1022,7 @@ impl Notice {
     ///
     /// See [`Message::actor_account`] for the meaning of each account status.
     #[must_use]
-    pub const fn actor_account(&self) -> &Account {
+    pub const fn actor_account(&self) -> &AccountStatus {
         &self.actor_account
     }
 
@@ -1138,7 +1138,7 @@ impl ServerNotice {
     ///
     /// See [`Message::actor_account`] for the meaning of each account status.
     #[must_use]
-    pub const fn actor_account(&self) -> &Account {
+    pub const fn actor_account(&self) -> &AccountStatus {
         &self.actor_account
     }
 
@@ -1419,7 +1419,7 @@ pub(crate) fn historical_conversation(
     let peer = archived_private_peer(message, page_peer, own_nick, mapping)?;
     Some(Conversation::Private(crate::UserHandle::from_past_line(
         peer,
-        Account::Unknown,
+        AccountStatus::Unknown,
     )))
 }
 
@@ -1516,15 +1516,15 @@ fn line_actor_account(
     envelope: &EventEnvelope,
     party: Party,
     account_tag_enabled: bool,
-) -> Account {
+) -> AccountStatus {
     if account_tag_enabled
         && party == Party::Other
         && matches!(line.source(), Some(papo_proto::Source::User { .. }))
-        || matches!(envelope.account, Account::LoggedIn(_))
+        || matches!(envelope.account, AccountStatus::LoggedIn(_))
     {
         envelope.account.clone()
     } else {
-        Account::Unknown
+        AccountStatus::Unknown
     }
 }
 
@@ -1533,16 +1533,16 @@ fn account_from_tag(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
-) -> Account {
+) -> AccountStatus {
     tag_owned(message, &["account"]).map_or_else(
         || {
             if account_tag_enabled {
-                Account::LoggedOut
+                AccountStatus::LoggedOut
             } else {
-                Account::Unknown
+                AccountStatus::Unknown
             }
         },
-        |account| Account::LoggedIn(origin.__account(casemapping, account)),
+        |account| AccountStatus::LoggedIn(origin.__account(casemapping, account)),
     )
 }
 
@@ -1550,20 +1550,20 @@ pub(crate) struct EventEnvelope {
     pub(crate) msgid: Option<MessageId>,
     pub(crate) server_time: Option<ServerTime>,
     pub(crate) received_at: SystemTime,
-    pub(crate) account: Account,
+    pub(crate) account: AccountStatus,
 }
 
 impl EventEnvelope {
-    pub(crate) fn tagged_account(&self) -> Account {
-        if matches!(self.account, Account::LoggedIn(_)) {
+    pub(crate) fn tagged_account(&self) -> AccountStatus {
+        if matches!(self.account, AccountStatus::LoggedIn(_)) {
             self.account.clone()
         } else {
-            Account::Unknown
+            AccountStatus::Unknown
         }
     }
 
-    fn with_account(mut self, account: Account) -> Self {
-        if self.account == Account::Unknown {
+    fn with_account(mut self, account: AccountStatus) -> Self {
+        if self.account == AccountStatus::Unknown {
             self.account = account;
         }
         self
@@ -1599,9 +1599,9 @@ pub(crate) fn joined_from_line(
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
     let account = match (join.realname, join.account) {
-        (None, _) => Account::Unknown,
-        (Some(_), None) => Account::LoggedOut,
-        (Some(_), Some(account)) => Account::LoggedIn(origin.__account(casemapping, account)),
+        (None, _) => AccountStatus::Unknown,
+        (Some(_), None) => AccountStatus::LoggedOut,
+        (Some(_), Some(account)) => AccountStatus::LoggedIn(origin.__account(casemapping, account)),
     };
     let envelope =
         line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at);
@@ -1646,12 +1646,12 @@ fn core_envelope(
         account: envelope.account().map_or_else(
             || {
                 if envelope.__account_known() || account_tag_enabled {
-                    Account::LoggedOut
+                    AccountStatus::LoggedOut
                 } else {
-                    Account::Unknown
+                    AccountStatus::Unknown
                 }
             },
-            |account| Account::LoggedIn(origin.__account(casemapping, account)),
+            |account| AccountStatus::LoggedIn(origin.__account(casemapping, account)),
         ),
     }
 }
@@ -2326,11 +2326,11 @@ pub(crate) fn from_core_with_receipt(
     let actor_account = |envelope: &papo_core::LineEnvelope, party| {
         let (tag, user_source) = envelope.__actor_account_evidence();
         if let Some(name) = tag {
-            Account::LoggedIn(origin.__account(casemapping, name))
+            AccountStatus::LoggedIn(origin.__account(casemapping, name))
         } else if account_tag_enabled && party == papo_core::Party::Other && user_source {
-            Account::LoggedOut
+            AccountStatus::LoggedOut
         } else {
-            Account::Unknown
+            AccountStatus::Unknown
         }
     };
     let map_envelope = |envelope| {
@@ -2371,7 +2371,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Conversation::Channel(channel) => Conversation::Channel(channel_handle(channel)),
         papo_core::Conversation::Private(nick) => Conversation::Private(user_at_arrival(
             origin.__nick(nick.casemapping(), nick.into_string()),
-            Account::Unknown,
+            AccountStatus::Unknown,
             peer_token,
         )),
         _ => unreachable!("core conversations have channel and private variants"),
@@ -2410,7 +2410,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: None,
                 server_time: change.server_time,
                 received_at,
-                account: Account::Unknown,
+                account: AccountStatus::Unknown,
             };
             let Some(actor) = handle_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
@@ -2629,9 +2629,11 @@ pub(crate) fn from_core_with_receipt(
                 papo_core::Subject::Channel(channel) => {
                     crate::Subject::Channel(channel_handle(channel))
                 }
-                papo_core::Subject::User(nick) => {
-                    crate::Subject::User(user_at_arrival(nick, Account::Unknown, subject_token))
-                }
+                papo_core::Subject::User(nick) => crate::Subject::User(user_at_arrival(
+                    nick,
+                    AccountStatus::Unknown,
+                    subject_token,
+                )),
                 _ => return CoreEvent::Unknown,
             },
             key: crate::MetadataKey::new(key),
@@ -2791,7 +2793,7 @@ pub(crate) fn from_core_with_receipt(
                     subject,
                     facts
                         .as_ref()
-                        .map_or(crate::Account::Unknown, |user| user.account().clone()),
+                        .map_or(crate::AccountStatus::Unknown, |user| user.account().clone()),
                     token,
                 ),
                 facts,
@@ -2831,7 +2833,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel),
-                subject: user_at_arrival(subject, Account::Unknown, token),
+                subject: user_at_arrival(subject, AccountStatus::Unknown, token),
                 actor,
                 actor_party: Party::from_core(actor_party),
                 subject_party: Party::from_core(subject_party),
@@ -3036,9 +3038,11 @@ pub(crate) fn from_core_with_receipt(
                     papo_core::Subject::Channel(channel) => {
                         crate::Subject::Channel(channel_handle(channel))
                     }
-                    papo_core::Subject::User(nick) => {
-                        crate::Subject::User(user_at_arrival(nick, Account::Unknown, subject_token))
-                    }
+                    papo_core::Subject::User(nick) => crate::Subject::User(user_at_arrival(
+                        nick,
+                        AccountStatus::Unknown,
+                        subject_token,
+                    )),
                     _ => return CoreEvent::Unknown,
                 },
                 actor,
@@ -3048,7 +3052,7 @@ pub(crate) fn from_core_with_receipt(
                     .into_iter()
                     .map(|change| {
                         ModeChange::from_core(change, |nick, token| {
-                            user_at_arrival(nick, Account::Unknown, token)
+                            user_at_arrival(nick, AccountStatus::Unknown, token)
                         })
                     })
                     .collect(),
@@ -3089,7 +3093,7 @@ pub(crate) fn from_core_with_receipt(
             Event::Warning(Warning::StateLimitReached { kind: limit })
         }
         papo_core::Event::MonitorOnline { nick, token, .. } => {
-            let subject = user_at_arrival(nick, Account::Unknown, token);
+            let subject = user_at_arrival(nick, AccountStatus::Unknown, token);
             let receipt = crate::message_ref::Receipt::without_recipient(
                 Source::User(subject.clone()),
                 Some(token),
@@ -3105,7 +3109,7 @@ pub(crate) fn from_core_with_receipt(
                 nick,
                 facts
                     .as_ref()
-                    .map_or(crate::Account::Unknown, |user| user.account().clone()),
+                    .map_or(crate::AccountStatus::Unknown, |user| user.account().clone()),
                 token,
             ),
             facts,
@@ -3170,7 +3174,7 @@ mod tests {
     };
     use crate::{ModeArg, Subject, Visibility};
     use papo_core::{
-        Account, Away, BatchAbandonReason, Config, Feature, Session,
+        AccountStatus, AwayStatus, BatchAbandonReason, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
@@ -3284,7 +3288,7 @@ mod tests {
             Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
         ] {
             let event = BroadcastTagMsg {
-                actor_account: Account::Unknown,
+                actor_account: AccountStatus::Unknown,
                 actor: actor.clone(),
                 actor_party: Party::Other,
                 to,
@@ -3295,7 +3299,7 @@ mod tests {
             assert_eq!(event.origin(), origin);
         }
         let ctcp = BroadcastCtcp {
-            actor_account: Account::Unknown,
+            actor_account: AccountStatus::Unknown,
             actor,
             actor_party: Party::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
@@ -3811,12 +3815,12 @@ mod tests {
         let now = Instant::now();
         let join = ":alice!~alice@cloak.example JOIN #review alice :Alice";
         for (line, cap, expected) in [
-            (join, true, Account::LoggedOut),
-            (join, false, Account::Unknown),
+            (join, true, AccountStatus::LoggedOut),
+            (join, false, AccountStatus::Unknown),
             (
                 ":papo!~papo@localhost JOIN #review papo :Papo",
                 true,
-                Account::Unknown,
+                AccountStatus::Unknown,
             ),
         ] {
             let event = mapped_live_event_with_account_tag(line, now, cap);
@@ -3824,9 +3828,11 @@ mod tests {
         }
     }
 
-    type ActorAccount = fn(&Event) -> Option<&Account>;
+    type ActorAccount = fn(&Event) -> Option<&AccountStatus>;
 
-    fn tagged_actor_accounts<const N: usize>(cases: [(&str, ActorAccount); N]) -> [Account; N] {
+    fn tagged_actor_accounts<const N: usize>(
+        cases: [(&str, ActorAccount); N],
+    ) -> [AccountStatus; N] {
         let now = Instant::now();
         cases.map(|(kind, account)| {
             let (_, _, line) = MESSAGE_EVENT_METADATA_CASES
@@ -3857,7 +3863,7 @@ mod tests {
                 ("Invited", Event::Invited(event)) => event.actor_account(),
                 _ => panic!("expected {kind}, got {event:?}"),
             };
-            assert!(matches!(account, Account::LoggedIn(name) if name == "reviewer"));
+            assert!(matches!(account, AccountStatus::LoggedIn(name) if name == "reviewer"));
         }
     }
 
@@ -3883,7 +3889,7 @@ mod tests {
         let expected = Casemapping::default().account("reviewer");
         assert_eq!(
             accounts,
-            [(); 3].map(|()| Account::LoggedIn(expected.clone()))
+            [(); 3].map(|()| AccountStatus::LoggedIn(expected.clone()))
         );
     }
 
@@ -3902,7 +3908,7 @@ mod tests {
         let expected = Casemapping::default().account("reviewer");
         assert_eq!(
             accounts,
-            [(); 2].map(|()| Account::LoggedIn(expected.clone()))
+            [(); 2].map(|()| AccountStatus::LoggedIn(expected.clone()))
         );
     }
 
@@ -3960,7 +3966,7 @@ mod tests {
                 })
                 .unwrap_or_else(|| panic!("expected a presence change for {line}"));
             assert!(
-                matches!(accessor(&event), Some(Account::LoggedIn(name)) if name == "reviewer"),
+                matches!(accessor(&event), Some(AccountStatus::LoggedIn(name)) if name == "reviewer"),
                 "{event:?}"
             );
         }
@@ -3989,7 +3995,7 @@ mod tests {
         let expected = Casemapping::default().account("reviewer");
         assert_eq!(
             accounts,
-            [(); 4].map(|()| Account::LoggedIn(expected.clone()))
+            [(); 4].map(|()| AccountStatus::LoggedIn(expected.clone()))
         );
     }
 
@@ -4009,7 +4015,7 @@ mod tests {
         let expected = Casemapping::default().account("reviewer");
         assert_eq!(
             accounts,
-            [(); 3].map(|()| Account::LoggedIn(expected.clone()))
+            [(); 3].map(|()| AccountStatus::LoggedIn(expected.clone()))
         );
     }
 
@@ -4025,7 +4031,7 @@ mod tests {
                 panic!("expected a partial message or notice");
             };
             assert!(
-                matches!(incomplete.actor_account(), Account::LoggedIn(account) if account == "alice")
+                matches!(incomplete.actor_account(), AccountStatus::LoggedIn(account) if account == "alice")
             );
         }
     }
@@ -4033,11 +4039,11 @@ mod tests {
     #[test]
     fn typing_accounts_follow_the_typer_line_that_caused_the_change() {
         let now = Instant::now();
-        let alice = Account::LoggedIn(Casemapping::default().account("alice"));
+        let alice = AccountStatus::LoggedIn(Casemapping::default().account("alice"));
         for (line, expected) in [
             (
                 ":alice!~a@cloak.example PRIVMSG #review :release ready",
-                &Account::Unknown,
+                &AccountStatus::Unknown,
             ),
             (
                 "@account=alice :alice!~a@cloak.example PART #review :Lunch",
@@ -4045,7 +4051,7 @@ mod tests {
             ),
             (
                 "@account=moderator :chanop!~op@staff.example KICK #review alice :Flooding",
-                &Account::Unknown,
+                &AccountStatus::Unknown,
             ),
         ] {
             let mut session = Session::new(Config::default().nick("papo"));
@@ -4128,11 +4134,11 @@ mod tests {
                 _ => panic!("expected a message or notice, got {event:?}"),
             };
             match expected {
-                Some("*") => assert_eq!(account, &Account::LoggedOut),
+                Some("*") => assert_eq!(account, &AccountStatus::LoggedOut),
                 Some(name) => {
-                    assert!(matches!(account, Account::LoggedIn(account) if account == name));
+                    assert!(matches!(account, AccountStatus::LoggedIn(account) if account == name));
                 }
-                None => assert_eq!(account, &Account::Unknown),
+                None => assert_eq!(account, &AccountStatus::Unknown),
             }
         }
     }
@@ -4237,7 +4243,7 @@ mod tests {
         assert!(matches!(user, Event::Notice(notice)
             if notice.kind == MessageKind::Text
                 && matches!(notice.conversation(), Conversation::Private(_))
-                && matches!(notice.actor.account(), Account::LoggedIn(account) if account == "emily")));
+                && matches!(notice.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")));
 
         let action = parse_event(
             Line::notice("@#ops", "\x01ACTION nods hello\x01")
@@ -4319,7 +4325,7 @@ mod tests {
         assert_eq!(broadcast.actor_party, Party::Other);
         assert!(
             matches!(broadcast.actor.user().map(|actor| actor.account().clone()),
-            Some(Account::LoggedIn(account)) if account == "network-admin")
+            Some(AccountStatus::LoggedIn(account)) if account == "network-admin")
         );
         assert!(broadcast.return_address().is_none());
     }
@@ -4438,7 +4444,7 @@ mod tests {
     fn classifies_chat_and_ctcp_messages() {
         let message = chat("PRIVMSG", "hello");
         assert_eq!(message.kind, MessageKind::Text);
-        assert_eq!(message.actor.account(), &Account::Unknown);
+        assert_eq!(message.actor.account(), &AccountStatus::Unknown);
         assert_eq!(
             chat("PRIVMSG", "\x01ACTION waves\x01").kind,
             MessageKind::Action
@@ -4476,13 +4482,15 @@ mod tests {
         assert_eq!(version.params, None);
         assert_eq!(version.return_address(), "@#ops");
         assert!(
-            matches!(version.actor.account(), Account::LoggedIn(account) if account == "emily")
+            matches!(version.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")
         );
         let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
         let reply = reply_event.as_ctcp_reply().unwrap();
         assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
         assert_eq!(reply.return_address(), "@#ops");
-        assert!(matches!(reply.actor.account(), Account::LoggedIn(account) if account == "emily"));
+        assert!(
+            matches!(reply.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")
+        );
         let action_notice = parse("NOTICE", "\x01ACTION waves\x01");
         assert!(matches!(action_notice, Event::Notice(notice)
             if notice.kind == MessageKind::Action && notice.text == "waves"));
@@ -4838,7 +4846,9 @@ mod tests {
         );
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
-        assert!(matches!(tagged.actor.account(), Account::LoggedIn(account) if account == "emily"));
+        assert!(
+            matches!(tagged.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")
+        );
         let tagged_event = Event::Message(tagged.clone());
         assert_eq!(
             tagged_event.msgid().map(AsRef::as_ref),
@@ -5014,12 +5024,15 @@ mod tests {
                 _ => None,
             };
             if let Some(account) = account {
-                assert_eq!(account, Account::Unknown, "{expected_variant}");
+                assert_eq!(account, AccountStatus::Unknown, "{expected_variant}");
             }
             match &event {
-                Event::Reacted(event) => assert_eq!(event.actor.account(), &Account::Unknown),
+                Event::Reacted(event) => assert_eq!(event.actor.account(), &AccountStatus::Unknown),
                 Event::Redacted(event) => {
-                    assert_eq!(event.actor.user().unwrap().account(), &Account::Unknown);
+                    assert_eq!(
+                        event.actor.user().unwrap().account(),
+                        &AccountStatus::Unknown
+                    );
                 }
                 _ => {}
             }
@@ -5209,7 +5222,7 @@ mod tests {
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
         assert!(matches!(
             message.actor.account(),
-            Account::LoggedIn(account) if account.casemapping() == Casemapping::Ascii
+            AccountStatus::LoggedIn(account) if account.casemapping() == Casemapping::Ascii
         ));
         assert_ne!(nick, "alice{bot}");
         #[cfg(feature = "unstable")]
@@ -5381,7 +5394,7 @@ mod tests {
             panic!("part was not forwarded");
         };
         assert!(
-            matches!(parted.actor.account(), Account::LoggedIn(account) if account.origin() == origin)
+            matches!(parted.actor.account(), AccountStatus::LoggedIn(account) if account.origin() == origin)
         );
     }
 
@@ -5732,7 +5745,7 @@ mod tests {
             .state()
             .__capture_recipient(
                 session.state().casemapping().nick("alice"),
-                Account::Unknown,
+                AccountStatus::Unknown,
             )
             .unwrap();
         if request {
@@ -6257,7 +6270,9 @@ mod tests {
             assert_eq!(actor.nick(), "alice");
             assert_eq!(facts.username(), Some("~a"));
             assert_eq!(facts.host(), Some("staff.example"));
-            assert!(matches!(facts.account(), Account::LoggedIn(account) if account == "alice"));
+            assert!(
+                matches!(facts.account(), AccountStatus::LoggedIn(account) if account == "alice")
+            );
             assert_eq!(facts.realname(), Some("Alice Example"));
         }
     }
@@ -6321,7 +6336,7 @@ mod tests {
             Event::Parted(parted)
                 if parted.channel == "#papo"
                     && parted.actor.nick() == "emily"
-                    && parted.actor.account() == &Account::LoggedOut
+                    && parted.actor.account() == &AccountStatus::LoggedOut
                     && parted.reason.as_deref() == Some("Leaving for lunch")
         ));
     }
@@ -6443,7 +6458,7 @@ mod tests {
                 papo_core::LineEnvelope::default(),
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
-                Account::LoggedIn(Casemapping::default().account("emily")),
+                AccountStatus::LoggedIn(Casemapping::default().account("emily")),
                 papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
                 papo_core::Party::Other,
             )),
@@ -6459,13 +6474,13 @@ mod tests {
                 papo_core::LineEnvelope::default(),
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
-                Away::__away_value(Some("Gone to lunch".into())),
+                AwayStatus::__away_value(Some("Gone to lunch".into())),
                 papo_core::ReplyToken::__unknown(Casemapping::default().nick("emily").origin()),
                 papo_core::Party::Other,
             )),
             Event::AwayChanged(changed)
                 if changed.actor.nick() == "emily"
-                    && changed.new == Away::__away_value(Some("Gone to lunch".into()))
+                    && changed.new == AwayStatus::__away_value(Some("Gone to lunch".into()))
         ));
     }
 
@@ -6564,7 +6579,7 @@ mod tests {
             mode.as_mode_changed()
                 .and_then(|event| event.actor.user())
                 .map(|actor| actor.account().clone()),
-            Some(Account::LoggedIn(account)) if account == "services"
+            Some(AccountStatus::LoggedIn(account)) if account == "services"
         ));
     }
 
@@ -6606,7 +6621,7 @@ mod tests {
     fn mode_event(subject: Subject, own_nick: Option<&str>) -> super::ModeChanged {
         let mapping = Casemapping::Rfc1459;
         super::ModeChanged {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -7282,7 +7297,7 @@ mod tests {
         let own_handle = crate::__testing::user_handle(mapping.nick("Papo[Bot]"));
         let events = [
             Event::Joined(super::Joined {
-                actor_account: crate::Account::Unknown,
+                actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7292,7 +7307,7 @@ mod tests {
                 netjoin: None,
             }),
             Event::Parted(super::Parted {
-                actor_account: crate::Account::Unknown,
+                actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7303,7 +7318,7 @@ mod tests {
                 actor_party: Party::Me,
             }),
             Event::Kicked(super::Kicked {
-                actor_account: crate::Account::Unknown,
+                actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7316,7 +7331,7 @@ mod tests {
                 reason: None,
             }),
             Event::Invited(super::Invited {
-                actor_account: crate::Account::Unknown,
+                actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7333,7 +7348,7 @@ mod tests {
                 subject_party: Party::Me,
             }),
             Event::NickChanged(super::NickChanged {
-                actor_account: crate::Account::Unknown,
+                actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7344,7 +7359,7 @@ mod tests {
                 actor_party: Party::Me,
             }),
             Event::Joined(super::Joined {
-                actor_account: crate::Account::Unknown,
+                actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,

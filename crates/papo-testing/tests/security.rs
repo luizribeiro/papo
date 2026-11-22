@@ -1572,7 +1572,7 @@ async fn oauth_bearer_error_challenge_is_acknowledged_without_publication() {
     assert_eq!(wire.next_sent().await, "AUTHENTICATE AQ==");
     assert!(matches!(
         client.snapshot().account(),
-        papo::Account::Unknown | papo::Account::LoggedOut
+        papo::AccountStatus::Unknown | papo::AccountStatus::LoggedOut
     ));
     wire.server(":offline.test 904 papo-wire :SASL authentication failed")
         .await;
@@ -1589,7 +1589,7 @@ async fn oauth_bearer_error_challenge_is_acknowledged_without_publication() {
     assert_eq!(wire.next_sent().await, "CAP END");
     assert!(matches!(
         client.snapshot().account(),
-        papo::Account::Unknown | papo::Account::LoggedOut
+        papo::AccountStatus::Unknown | papo::AccountStatus::LoggedOut
     ));
 }
 
@@ -1717,7 +1717,7 @@ async fn scram_success_requires_verified_server_proof() {
     }
     assert!(matches!(
         client.snapshot().account(),
-        papo::Account::Unknown | papo::Account::LoggedOut
+        papo::AccountStatus::Unknown | papo::AccountStatus::LoggedOut
     ));
     assert_eq!(wire.next_sent().await, "CAP END");
     wire.server(":offline.test 001 papo-wire :Welcome to the hostile test network")
@@ -1725,7 +1725,7 @@ async fn scram_success_requires_verified_server_proof() {
     connected(&mut events).await;
     assert!(matches!(
         client.snapshot().account(),
-        papo::Account::Unknown | papo::Account::LoggedOut
+        papo::AccountStatus::Unknown | papo::AccountStatus::LoggedOut
     ));
 
     let (_client, mut events, mut wire) = start_scram("irc://offline.test").await;
@@ -2618,7 +2618,7 @@ async fn next_private_message(events: &mut Events) -> (papo::Message, Arc<papo::
     }
 }
 
-fn state_account(state: &papo::State, actor: &papo::UserHandle) -> Option<papo::Account> {
+fn state_account(state: &papo::State, actor: &papo::UserHandle) -> Option<papo::AccountStatus> {
     state
         .user(actor)
         .expect("an event actor belongs to its paired state")
@@ -2642,7 +2642,7 @@ async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
     let alice = state.name_rules().unwrap().account("alice");
     assert_eq!(
         state_account(&state, &admin.actor),
-        Some(papo::Account::LoggedIn(alice.clone()))
+        Some(papo::AccountStatus::LoggedIn(alice.clone()))
     );
 
     wire.server("@msgid=9fq3nb7c2e :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :!op alice")
@@ -2651,7 +2651,7 @@ async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
 
     assert_eq!(
         state_account(&state, &takeover.actor),
-        Some(papo::Account::LoggedOut)
+        Some(papo::AccountStatus::LoggedOut)
     );
     assert_ne!(takeover.actor, admin.actor);
     assert!(matches!(

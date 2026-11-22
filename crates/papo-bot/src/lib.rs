@@ -58,7 +58,7 @@ use std::{
 use web_time::Instant;
 
 use papo::{
-    Account, AccountName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
+    AccountName, AccountStatus, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
     MessageKind, Prefix, Restricted, RestrictedLine, State, UserHandle,
 };
 
@@ -272,7 +272,7 @@ pub struct BotCommand {
     name: String,
     args: Vec<String>,
     rest: String,
-    account: Account,
+    account: AccountStatus,
     audience: Option<Prefix>,
     replies: ReplyRateLimiter,
 }
@@ -309,7 +309,7 @@ impl BotCommand {
             .get("account")
             .filter(|account| *account != "*")
             .and_then(|account| state.name_rules().map(|names| names.account(account)))
-            .map_or(Account::Unknown, Account::LoggedIn);
+            .map_or(AccountStatus::Unknown, AccountStatus::LoggedIn);
         Some(Self {
             actor: message.actor.clone(),
             client: client.clone(),
@@ -368,7 +368,7 @@ impl BotCommand {
     #[must_use]
     pub const fn account(&self) -> Option<&AccountName> {
         match &self.account {
-            Account::LoggedIn(account) => Some(account),
+            AccountStatus::LoggedIn(account) => Some(account),
             _ => None,
         }
     }
@@ -768,7 +768,7 @@ mod tests {
 
         assert!(matches!(
             client.snapshot().user("emily").unwrap().unwrap().account(),
-            papo::Account::LoggedIn(account) if account == "Emily"
+            papo::AccountStatus::LoggedIn(account) if account == "Emily"
         ));
         let command = BotConfig::new("!")
             .command(&client, &incoming.state, &incoming)

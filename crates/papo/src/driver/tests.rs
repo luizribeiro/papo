@@ -501,7 +501,9 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
     let actor = state.user_local(&message.actor).unwrap();
-    assert!(matches!(actor.account(), crate::Account::LoggedIn(account) if account == "emily"));
+    assert!(
+        matches!(actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")
+    );
     assert_eq!(actor.is_bot(), Some(true));
     assert_eq!(
         message.in_reply_to.as_ref().map(AsRef::as_ref),
@@ -1957,7 +1959,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::ChannelRenamed(crate::event::ChannelRenamed {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
@@ -1975,7 +1977,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -1989,7 +1991,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2005,7 +2007,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2020,7 +2022,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2042,7 +2044,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2058,7 +2060,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
-            actor_account: crate::Account::Unknown,
+            actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2133,7 +2135,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         ..super::PostConnect::default()
     };
     let joined = Event::Joined(crate::event::Joined {
-        actor_account: crate::Account::Unknown,
+        actor_account: crate::AccountStatus::Unknown,
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
@@ -5481,7 +5483,7 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
         (who[0].user.nick(), &who[0].account),
         (
             test_nick("alice"),
-            &crate::Account::LoggedIn(test_account("alice"))
+            &crate::AccountStatus::LoggedIn(test_account("alice"))
         )
     );
     assert_eq!(
@@ -5490,7 +5492,7 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
             who[0].is_bot,
             prefix_symbols(&who[0].prefixes)
         ),
-        (&crate::Away::Present, Some(true), vec!['@'])
+        (&crate::AwayStatus::Present, Some(true), vec!['@'])
     );
     assert_eq!(
         (
@@ -5500,8 +5502,8 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
             prefix_symbols(&who[1].prefixes)
         ),
         (
-            &crate::Account::LoggedOut,
-            &crate::Away::__away_value(None),
+            &crate::AccountStatus::LoggedOut,
+            &crate::AwayStatus::__away_value(None),
             true,
             vec!['+']
         )
@@ -5546,7 +5548,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     assert_eq!(prefix_symbols(&whois.channels[1].prefixes), ['+']);
     assert_eq!(
         whois.away,
-        crate::Away::__away_value(Some("away from keyboard".into()))
+        crate::AwayStatus::__away_value(Some("away from keyboard".into()))
     );
     assert_eq!(whois.is_bot, Some(true));
     assert!(whois.secure);
@@ -6802,7 +6804,7 @@ async fn typed_requests_match_unlabelled_responses() {
     let whois = within(whois).await.unwrap().unwrap().unwrap();
     assert_eq!(whois.user.nick(), "alice");
     assert_eq!(whois.user.nick().origin(), client.origin());
-    assert_eq!(whois.account, crate::Account::Unknown);
+    assert_eq!(whois.account, crate::AccountStatus::Unknown);
 
     let who = tokio::spawn({
         let client = client.clone();
@@ -6989,8 +6991,8 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
     ));
     let state = client.state();
     let dan = state.user_local("dan").unwrap();
-    assert!(matches!(dan.account(), crate::Account::LoggedIn(account) if account == "dan"));
-    assert_eq!(dan.away(), &crate::Away::__away_value(None));
+    assert!(matches!(dan.account(), crate::AccountStatus::LoggedIn(account) if account == "dan"));
+    assert_eq!(dan.away(), &crate::AwayStatus::__away_value(None));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -10266,7 +10268,7 @@ async fn client_reads_owned_state_snapshots() {
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
     assert!(client.state().is_connected());
-    assert_eq!(client.state().account(), &crate::Account::LoggedOut);
+    assert_eq!(client.state().account(), &crate::AccountStatus::LoggedOut);
 
     server_line(
         &mut server,
@@ -10427,7 +10429,7 @@ async fn public_state_accessors_report_the_registered_session() {
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert_connected(&mut events).await;
-    assert_eq!(client.state().away(), &crate::Away::Present);
+    assert_eq!(client.state().away(), &crate::AwayStatus::Present);
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n").await;
     while !matches!(next_active_event(&mut events).await, Event::ModeChanged(_)) {}
 
@@ -10459,11 +10461,11 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(state.nick(), &nick);
     assert_eq!(
         state.account(),
-        &crate::Account::LoggedIn(crate::Casemapping::Ascii.account("emily"))
+        &crate::AccountStatus::LoggedIn(crate::Casemapping::Ascii.account("emily"))
     );
     assert_eq!(
         state.away(),
-        &crate::Away::__away_value(Some("reviewing patches".into()))
+        &crate::AwayStatus::__away_value(Some("reviewing patches".into()))
     );
     assert_eq!(state.host(), Some("localhost"));
     assert_eq!(state.realname(), "papo driver test");
@@ -10500,7 +10502,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(snapshot.nick(), "papo-driver");
     assert_eq!(
         snapshot.account(),
-        &crate::Account::LoggedIn(crate::Casemapping::Ascii.account("emily"))
+        &crate::AccountStatus::LoggedIn(crate::Casemapping::Ascii.account("emily"))
     );
 
     within(server.shutdown()).await.unwrap();
@@ -10570,7 +10572,7 @@ async fn every_state_change_replaces_the_snapshot() {
     previous = changed_snapshot(&client, &previous, "ACCOUNT");
     assert_eq!(
         previous.user_local("papo-driver").unwrap().account(),
-        &papo_core::Account::LoggedIn(test_account("emily"))
+        &papo_core::AccountStatus::LoggedIn(test_account("emily"))
     );
 
     server_line(
@@ -10585,7 +10587,7 @@ async fn every_state_change_replaces_the_snapshot() {
     previous = changed_snapshot(&client, &previous, "AWAY");
     assert_eq!(
         previous.user_local("papo-driver").unwrap().away(),
-        &crate::Away::__away_value(Some("Gone to lunch".into()))
+        &crate::AwayStatus::__away_value(Some("Gone to lunch".into()))
     );
 
     server_line(

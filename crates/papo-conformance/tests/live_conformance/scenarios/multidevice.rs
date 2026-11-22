@@ -1,4 +1,4 @@
-use papo::{Away, Error, Event, Party, Refusal};
+use papo::{AwayStatus, Error, Event, Party, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::{
@@ -94,17 +94,17 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
 
     let reason = "reviewing the production rollout";
     desktop.set_away(reason).await?;
-    let away = Away::__away_value(Some(reason.to_owned()));
+    let away = AwayStatus::__away_value(Some(reason.to_owned()));
     assert_eq!(desktop.snapshot().away(), &away);
     if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
         phone.expect_none(Event::as_away_changed).await?;
         observer.expect_none(Event::as_away_changed).await?;
-        assert_eq!(phone.snapshot().away(), &Away::Present);
+        assert_eq!(phone.snapshot().away(), &AwayStatus::Present);
         assert_eq!(
             super::user(&observer.snapshot(), nick.as_str())
                 .unwrap()
                 .away(),
-            &Away::Present
+            &AwayStatus::Present
         );
         return Ok(());
     }

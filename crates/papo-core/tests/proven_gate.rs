@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, PersonCommand, Proven, Session, TextKind};
+use papo_core::{AccountStatus, Config, Event, PersonCommand, Proven, Session, TextKind};
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -43,7 +43,7 @@ fn event_proof(session: &mut Session) -> Proven {
         .__prove_event_user(
             token,
             session.state().casemapping().nick("alice"),
-            Account::LoggedIn(session.state().casemapping().account("alice-account")),
+            AccountStatus::LoggedIn(session.state().casemapping().account("alice-account")),
         )
         .unwrap()
 }

@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use papo::event::ModeChanged;
 use papo::{
-    Account, AccountName, Conversation, Error, Event, Feature, Message, Refusal, State, Subject,
-    UnsupportedReason,
+    AccountName, AccountStatus, Conversation, Error, Event, Feature, Message, Refusal, State,
+    Subject, UnsupportedReason,
 };
 use papo_test_server::DeploymentProfile;
 
@@ -100,8 +100,8 @@ fn check_delivery_tags(
 
 pub(super) fn logged_in_account(state: &State) -> &AccountName {
     match state.account() {
-        Account::LoggedIn(account) => account,
-        Account::Unknown | Account::LoggedOut => panic!("peer is not logged in"),
+        AccountStatus::LoggedIn(account) => account,
+        AccountStatus::Unknown | AccountStatus::LoggedOut => panic!("peer is not logged in"),
         _ => panic!("unexpected account state"),
     }
 }

@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `AccountStatus` and `AwayStatus` for account and away state.
+
 Use `papo_bot::BotCommand` in place of `papo_bot::Command`.
 
 `Client::channel` is crate-private. Pass channel names as text or `ChannelName` values.
@@ -270,7 +272,7 @@ never closes the connection. Account creation requested before 001 never sends `
 it: a 001 read first closes a connection configured to create its account, and fails an early
 `create_account` call as unsupported. A `create_account` call after 001 is unchanged.
 After a SASL success that names no account (903 without 900, or 907), `State::account` is
-`Account::Unknown` rather than `Account::LoggedOut`.
+`AccountStatus::Unknown` rather than `AccountStatus::LoggedOut`.
 A `REGISTER VERIFICATION_REQUIRED` reply leaves `State::account` as it was.
 
 `History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
@@ -702,15 +704,15 @@ User lifecycle payloads were normalized as follows:
 | Earlier fields | 0.1.0 fields |
 |---|---|
 | `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
-| `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `new: Away`, `actor_party`, and timestamps |
-| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `new: Account`, `actor_party`, and timestamps |
+| `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `new: AwayStatus`, `actor_party`, and timestamps |
+| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `new: AccountStatus`, `actor_party`, and timestamps |
 | `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `new_username`, `new_host`, `actor_party`, and timestamps |
 | `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `actor_party`, and timestamps |
 | `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserHandle`; offline facts are retained when removed from state |
 | A single subject flag on `ModeChanged` | `ModeChanged::subject_party(&change)` gives the `Party` of each member mode change |
 | String netsplit server names | `SplitServers` contains `ServerName` values |
 
-`Whois::account` is now `Account`; a reply without `330` remains `Unknown` because WHOIS does not
+`Whois::account` is now `AccountStatus`; a reply without `330` remains `Unknown` because WHOIS does not
 portably prove logout. Bot flags in `Whois` and `WhoEntry` are `Option<bool>` so unknown is not
 reported as false. WHO and WHOIS membership prefixes are `Prefix`; their channel rows provide
 `rank()`. `MetadataChanged::value` is `Option<MetadataValue>` rather than separate text and
@@ -760,7 +762,7 @@ order as one driver-owned composite operation.
 | `Tags` required `.iter()` and had no length | `&Tags` implements `IntoIterator`; `len()` and `TagsIter` are public |
 | `Isupport::targmax()` required allocating and scanning all entries | `targmax_for(command)` performs a direct lookup |
 
-`Account` and `Away` provide variant accessors. Name types and `MessageId` compare with text in
+`AccountStatus` and `AwayStatus` provide variant accessors. Name types and `MessageId` compare with text in
 either operand order. `Error` gains `From<ServerError>`, `From<StateLimit>`, and
 `From<Unsupported>` conversions. Input errors are now specific (`InvalidName`, `WireMessage`,
 `InvalidMode`, `InvalidMetadataKey`, and related variants) rather than the catch-all

@@ -4,7 +4,7 @@ mod support;
 
 use std::{cell::Cell, time::Instant};
 
-use papo_core::{Account, Away, Config, Event, Feature, UnsupportedReason};
+use papo_core::{AccountStatus, AwayStatus, Config, Event, Feature, UnsupportedReason};
 use papo_proto::{Casemapping, Line, Nick, Origin};
 use support::Transcript;
 
@@ -686,9 +686,9 @@ fn extended_monitor_updates_an_unshared_users_record() {
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
         .server(":alice!~alice@cloak.example AWAY :Gone to lunch")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "alice" && message == "Gone to lunch"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: AwayStatus::Away { message: Some(message), .. }, .. } if nick == "alice" && message == "Gone to lunch"))
         .server(":alice!~alice@cloak.example ACCOUNT alice")
-        .event(|event| matches!(event, Event::AccountChanged { nick, account, .. } if nick == "alice" && account == &Account::LoggedIn(Casemapping::default().account("alice"))))
+        .event(|event| matches!(event, Event::AccountChanged { nick, account, .. } if nick == "alice" && account == &AccountStatus::LoggedIn(Casemapping::default().account("alice"))))
         .server(":alice!~alice@cloak.example CHGHOST alice account/alice")
         .event(|event| matches!(event, Event::HostChanged { nick, .. } if nick == "alice"))
         .server(":alice!alice@account/alice SETNAME :Alice Smith")
@@ -698,11 +698,11 @@ fn extended_monitor_updates_an_unshared_users_record() {
             assert_eq!(alice.channels().count(), 0);
             assert_eq!(
                 alice.away(),
-                &Away::__away_value(Some("Gone to lunch".into()))
+                &AwayStatus::__away_value(Some("Gone to lunch".into()))
             );
             assert_eq!(
                 alice.account(),
-                &Account::LoggedIn(Casemapping::default().account("alice"))
+                &AccountStatus::LoggedIn(Casemapping::default().account("alice"))
             );
             assert_eq!(alice.host(), Some("account/alice"));
             assert_eq!(alice.realname(), Some("Alice Smith"));

@@ -4,7 +4,7 @@ mod support {
     pub mod direct;
 }
 
-use papo::{Account, Client, Event, RateLimit, Reconnect};
+use papo::{AccountStatus, Client, Event, RateLimit, Reconnect};
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
@@ -39,7 +39,7 @@ async fn archived_account_evidence_ignores_the_current_account() {
         }
     };
     assert!(
-        matches!(current.actor_account(), Account::LoggedIn(account) if account == "alice-today")
+        matches!(current.actor_account(), AccountStatus::LoggedIn(account) if account == "alice-today")
     );
     let history = tokio::spawn(async move { client.history("#review").latest().await });
     assert_eq!(
@@ -59,12 +59,17 @@ async fn archived_account_evidence_ignores_the_current_account() {
     }
     let history = history.await.unwrap().unwrap();
     let mut messages = history.chat_messages();
-    assert_eq!(messages.next().unwrap().actor_account(), &Account::Unknown);
+    assert_eq!(
+        messages.next().unwrap().actor_account(),
+        &AccountStatus::Unknown
+    );
     assert!(matches!(
         messages.next().unwrap().actor_account(),
-        Account::LoggedIn(account) if account == "alice-before"
+        AccountStatus::LoggedIn(account) if account == "alice-before"
     ));
     assert!(messages.next().is_none());
     let tag = history.items.iter().find_map(Event::as_tag_msg).unwrap();
-    assert!(matches!(tag.actor_account(), Account::LoggedIn(account) if account == "alice-before"));
+    assert!(
+        matches!(tag.actor_account(), AccountStatus::LoggedIn(account) if account == "alice-before")
+    );
 }

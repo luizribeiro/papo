@@ -5,7 +5,7 @@ mod support;
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
-    Away, Config, Conversation, Event, ListMode, RateLimit, Refusal, RequestError, RequestId,
+    AwayStatus, Config, Conversation, Event, ListMode, RateLimit, Refusal, RequestError, RequestId,
     ResponseMatcher, Secret, ServerError, Session, TextKind, WhoOnJoin, sts::ConnectionSecurity,
 };
 use papo_proto::{Command, Line, LineRef, Numeric};
@@ -1786,7 +1786,10 @@ fn single_nick_who_reports_changes_to_known_away_status() {
         session.handle_line(now, b":ergo.test 301 papo alice :Out for lunch");
         while session.poll_event().is_some() {}
 
-        for (row, expected) in [(here, Away::Present), (gone, Away::__away_value(None))] {
+        for (row, expected) in [
+            (here, AwayStatus::Present),
+            (gone, AwayStatus::__away_value(None)),
+        ] {
             let request = Line::new("WHO").with_params(["ALICE"].into_iter().chain(selector));
             let id = session
                 .request_with_matcher(now, request.clone(), ResponseMatcher::Who("ALICE".into()))
@@ -1843,7 +1846,7 @@ fn labelled_nick_who_uses_its_own_rows_to_refresh_away_status() {
         session.handle_line(now, line.as_bytes());
     }
     assert!(matches!(session.poll_event(),
-        Some(Event::AwayChanged { nick, away: Away::Present, .. }) if nick == "alice"
+        Some(Event::AwayChanged { nick, away: AwayStatus::Present, .. }) if nick == "alice"
     ));
     assert!(matches!(
         session.poll_event(),
@@ -1851,11 +1854,11 @@ fn labelled_nick_who_uses_its_own_rows_to_refresh_away_status() {
     ));
     assert_eq!(
         session.state().user("alice").unwrap().away(),
-        &Away::Present
+        &AwayStatus::Present
     );
     assert_eq!(
         session.state().user("dan").unwrap().away(),
-        &Away::__away_value(Some("Reviewing the release notes".into()))
+        &AwayStatus::__away_value(Some("Reviewing the release notes".into()))
     );
     assert_eq!(session.poll_event(), None);
 }
@@ -1890,7 +1893,7 @@ fn nick_who_ignores_rows_without_a_matching_standard_request() {
         assert_eq!(session.poll_event(), None);
         assert_eq!(
             session.state().user("alice").unwrap().away(),
-            &Away::__away_value(Some("Out for lunch".into())),
+            &AwayStatus::__away_value(Some("Out for lunch".into())),
         );
     }
 }

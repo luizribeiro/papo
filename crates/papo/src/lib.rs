@@ -395,8 +395,8 @@ pub use papo_core::Secret;
 pub use papo_core::UnsupportedReason;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Cap, Capabilities, Feature, InvalidServerTime, Member, MetadataView, ModeAction,
-    ModeValue, Rank, ServerTime, User,
+    AccountStatus, AwayStatus, Cap, Capabilities, Feature, InvalidServerTime, Member, MetadataView,
+    ModeAction, ModeValue, Rank, ServerTime, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

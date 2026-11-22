@@ -428,7 +428,7 @@ async fn replay_account_comes_from_the_archived_line(s: Scenario) -> papo_testin
     let old = reader
         .wait_for(|event| message_text(event, old_text))
         .await?;
-    assert_eq!(old.actor_account(), &papo::Account::LoggedOut);
+    assert_eq!(old.actor_account(), &papo::AccountStatus::LoggedOut);
     latest_history_with(&reader, &channel, old_text).await?;
 
     writer.set_nick(&original_nick).await?;
@@ -465,7 +465,7 @@ async fn replay_account_comes_from_the_archived_line(s: Scenario) -> papo_testin
         .await?;
     assert_eq!(current.actor.nick(), nick.as_str());
     assert!(
-        matches!(current.actor_account(), papo::Account::LoggedIn(name) if name == nick.as_str())
+        matches!(current.actor_account(), papo::AccountStatus::LoggedIn(name) if name == nick.as_str())
     );
 
     let page = latest_history_with(&reader, &channel, new_text).await?;
@@ -474,7 +474,7 @@ async fn replay_account_comes_from_the_archived_line(s: Scenario) -> papo_testin
         .find(|message| message.text == old_text)
         .unwrap();
     assert_eq!(archived.actor.nick(), nick.as_str());
-    assert_eq!(archived.actor_account(), &papo::Account::Unknown);
-    assert_eq!(old.actor_account(), &papo::Account::LoggedOut);
+    assert_eq!(archived.actor_account(), &papo::AccountStatus::Unknown);
+    assert_eq!(old.actor_account(), &papo::AccountStatus::LoggedOut);
     Ok(())
 }

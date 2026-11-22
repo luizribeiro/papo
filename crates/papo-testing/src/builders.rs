@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use papo::{Account, AccountName, Message, MessageId, MessageKind};
+use papo::{AccountName, AccountStatus, Message, MessageId, MessageKind};
 
 /// Builds an incoming chat-message payload.
 #[derive(Debug)]
@@ -47,7 +47,10 @@ impl MessageBuilder {
     #[must_use]
     pub fn account(mut self, account: impl Into<AccountName>) -> Self {
         let account = account.into();
-        papo::__testing::set_message_account(&mut self.message, Account::LoggedIn(account.clone()));
+        papo::__testing::set_message_account(
+            &mut self.message,
+            AccountStatus::LoggedIn(account.clone()),
+        );
         self.tags
             .push(("account".into(), Some(account.as_str().into())));
         self

@@ -205,7 +205,7 @@ pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate
         papo_proto::Source::User { nick, .. } => {
             crate::Source::User(crate::UserHandle::current_name(
                 crate::Origin::NONE.__nick(casemapping, nick),
-                crate::Account::Unknown,
+                crate::AccountStatus::Unknown,
                 None,
                 None,
             ))
@@ -248,7 +248,7 @@ pub fn message(
     let actor = actor.unwrap_or_else(|| user_handle(nickname(Casemapping::default(), "unknown")));
     let receipt = receipt(&actor, &conversation, None, None);
     Message {
-        actor_account: crate::Account::Unknown,
+        actor_account: crate::AccountStatus::Unknown,
         actor,
         actor_party: Party::Other,
         conversation,
@@ -269,7 +269,7 @@ pub fn message(
 }
 
 /// Sets the account fact on a test message actor.
-pub fn set_message_account(message: &mut Message, account: crate::Account) {
+pub fn set_message_account(message: &mut Message, account: crate::AccountStatus) {
     message.actor_account = account.clone();
     message.actor = crate::UserHandle::current_name(message.actor.nick(), account, None, None);
     if let crate::Conversation::Private(user) = &mut message.conversation {
@@ -342,7 +342,7 @@ pub fn connected(nick: impl Into<Nick>) -> Connected {
 pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool) -> Joined {
     let nick = nick.into();
     Joined {
-        actor_account: crate::Account::Unknown,
+        actor_account: crate::AccountStatus::Unknown,
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
@@ -355,9 +355,9 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
 
 /// Constructs an away-state event payload.
 #[must_use]
-pub fn away_changed(nick: impl Into<Nick>, away: crate::Away) -> AwayChanged {
+pub fn away_changed(nick: impl Into<Nick>, away: crate::AwayStatus) -> AwayChanged {
     AwayChanged {
-        actor_account: crate::Account::Unknown,
+        actor_account: crate::AccountStatus::Unknown,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
         actor: user_handle(nick),
@@ -559,12 +559,12 @@ mod tests {
 
         set_message_account(
             &mut message,
-            crate::Account::LoggedIn(mapping.account("emily")),
+            crate::AccountStatus::LoggedIn(mapping.account("emily")),
         );
 
         assert_eq!(message.return_address(), "emily");
         assert!(
-            matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "emily")
+            matches!(message.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")
         );
         let recipient = message
             .receipt
@@ -572,7 +572,7 @@ mod tests {
             .expect("private recipient guard");
         assert_eq!(recipient.nick(), "emily");
         assert!(
-            matches!(recipient.account(), crate::Account::LoggedIn(account) if account == "emily")
+            matches!(recipient.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")
         );
     }
 

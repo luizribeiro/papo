@@ -1,8 +1,8 @@
 pub mod papo
-pub use papo::Account
 pub use papo::AccountName
+pub use papo::AccountStatus
 pub use papo::AsAccount
-pub use papo::Away
+pub use papo::AwayStatus
 pub use papo::BatchId
 pub use papo::BatchType
 pub use papo::BouncerNetwork
@@ -264,11 +264,11 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 #[non_exhaustive] pub struct papo::event::AccountChanged
 pub papo::event::AccountChanged::actor: papo::UserHandle
 pub papo::event::AccountChanged::actor_party: papo::Party
-pub papo::event::AccountChanged::new: papo::Account
+pub papo::event::AccountChanged::new: papo::AccountStatus
 pub papo::event::AccountChanged::received_at: std::time::SystemTime
 pub papo::event::AccountChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::AccountChanged
-pub const fn papo::event::AccountChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::AccountChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::AccountChanged
 pub fn papo::event::AccountChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AccountChanged
@@ -305,11 +305,11 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::AutoJoinFailed
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::actor: papo::UserHandle
 pub papo::event::AwayChanged::actor_party: papo::Party
-pub papo::event::AwayChanged::new: papo::Away
+pub papo::event::AwayChanged::new: papo::AwayStatus
 pub papo::event::AwayChanged::received_at: std::time::SystemTime
 pub papo::event::AwayChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::AwayChanged
-pub const fn papo::event::AwayChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::AwayChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::AwayChanged
 pub fn papo::event::AwayChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AwayChanged
@@ -354,7 +354,7 @@ pub papo::event::BroadcastCtcp::server_time: core::option::Option<papo_proto::ti
 pub papo::event::BroadcastCtcp::tags: papo::Tags
 pub papo::event::BroadcastCtcp::to: papo::event::Broadcast
 impl papo::event::BroadcastCtcp
-pub const fn papo::event::BroadcastCtcp::actor_account(&self) -> &papo::Account
+pub const fn papo::event::BroadcastCtcp::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::BroadcastCtcp
 pub fn papo::event::BroadcastCtcp::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::BroadcastCtcp
@@ -379,7 +379,7 @@ pub papo::event::BroadcastTagMsg::received_at: std::time::SystemTime
 pub papo::event::BroadcastTagMsg::tags: papo::Tags
 pub papo::event::BroadcastTagMsg::to: papo::event::Broadcast
 impl papo::event::BroadcastTagMsg
-pub const fn papo::event::BroadcastTagMsg::actor_account(&self) -> &papo::Account
+pub const fn papo::event::BroadcastTagMsg::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::BroadcastTagMsg
 pub const fn papo::event::BroadcastTagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::BroadcastTagMsg
@@ -447,7 +447,7 @@ pub papo::event::ChannelRenamed::reason: core::option::Option<alloc::string::Str
 pub papo::event::ChannelRenamed::received_at: std::time::SystemTime
 pub papo::event::ChannelRenamed::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::ChannelRenamed
-pub const fn papo::event::ChannelRenamed::actor_account(&self) -> &papo::Account
+pub const fn papo::event::ChannelRenamed::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::ChannelRenamed
 pub fn papo::event::ChannelRenamed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ChannelRenamed
@@ -528,7 +528,7 @@ pub papo::event::CtcpQuery::received_at: std::time::SystemTime
 pub papo::event::CtcpQuery::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
-pub const fn papo::event::CtcpQuery::actor_account(&self) -> &papo::Account
+pub const fn papo::event::CtcpQuery::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::CtcpQuery
 pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpQuery::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -560,7 +560,7 @@ pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
-pub const fn papo::event::CtcpReply::actor_account(&self) -> &papo::Account
+pub const fn papo::event::CtcpReply::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::CtcpReply
 pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpReply::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -609,7 +609,7 @@ pub papo::event::HostChanged::new_username: alloc::string::String
 pub papo::event::HostChanged::received_at: std::time::SystemTime
 pub papo::event::HostChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::HostChanged
-pub const fn papo::event::HostChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::HostChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::HostChanged
 pub fn papo::event::HostChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::HostChanged
@@ -635,7 +635,7 @@ pub papo::event::Invited::server_time: core::option::Option<papo_proto::time::Se
 pub papo::event::Invited::subject: papo::UserHandle
 pub papo::event::Invited::subject_party: papo::Party
 impl papo::event::Invited
-pub const fn papo::event::Invited::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Invited::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::Invited
 pub fn papo::event::Invited::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Invited
@@ -660,7 +660,7 @@ pub papo::event::Joined::netjoin: core::option::Option<papo::event::SplitServers
 pub papo::event::Joined::received_at: std::time::SystemTime
 pub papo::event::Joined::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Joined
-pub const fn papo::event::Joined::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Joined::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::Joined
 pub fn papo::event::Joined::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Joined
@@ -688,7 +688,7 @@ pub papo::event::Kicked::server_time: core::option::Option<papo_proto::time::Ser
 pub papo::event::Kicked::subject: papo::UserHandle
 pub papo::event::Kicked::subject_party: papo::Party
 impl papo::event::Kicked
-pub const fn papo::event::Kicked::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Kicked::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::Kicked
 pub fn papo::event::Kicked::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Kicked
@@ -789,7 +789,7 @@ pub papo::event::ModeChanged::received_at: std::time::SystemTime
 pub papo::event::ModeChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::ModeChanged::subject: papo::Subject
 impl papo::event::ModeChanged
-pub const fn papo::event::ModeChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::ModeChanged::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::ModeChanged
 pub fn papo::event::ModeChanged::subject_party(&self, &papo::ModeChange) -> papo::Party
 impl core::clone::Clone for papo::event::ModeChanged
@@ -869,7 +869,7 @@ pub papo::event::NickChanged::old: papo::Nick
 pub papo::event::NickChanged::received_at: std::time::SystemTime
 pub papo::event::NickChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::NickChanged
-pub const fn papo::event::NickChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::NickChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::NickChanged
 pub fn papo::event::NickChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::NickChanged
@@ -898,7 +898,7 @@ pub papo::event::Notice::server_time: core::option::Option<papo_proto::time::Ser
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
-pub const fn papo::event::Notice::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Notice::actor_account(&self) -> &papo::AccountStatus
 pub const fn papo::event::Notice::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Notice::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
@@ -951,7 +951,7 @@ pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Parted::received_at: std::time::SystemTime
 pub papo::event::Parted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Parted
-pub const fn papo::event::Parted::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Parted::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::Parted
 pub fn papo::event::Parted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Parted
@@ -978,7 +978,7 @@ pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo::event::Quit::received_at: std::time::SystemTime
 pub papo::event::Quit::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Quit
-pub const fn papo::event::Quit::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Quit::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::Quit
 pub fn papo::event::Quit::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Quit
@@ -1003,7 +1003,7 @@ pub papo::event::Reacted::reacts_to: papo::MessageId
 pub papo::event::Reacted::received_at: std::time::SystemTime
 pub papo::event::Reacted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Reacted
-pub const fn papo::event::Reacted::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Reacted::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::Reacted
 pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Reacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1053,7 +1053,7 @@ pub papo::event::RealnameChanged::new: alloc::string::String
 pub papo::event::RealnameChanged::received_at: std::time::SystemTime
 pub papo::event::RealnameChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::RealnameChanged
-pub const fn papo::event::RealnameChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::RealnameChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::RealnameChanged
 pub fn papo::event::RealnameChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::RealnameChanged
@@ -1077,7 +1077,7 @@ pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::redacts: papo::MessageId
 pub papo::event::Redacted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Redacted
-pub const fn papo::event::Redacted::actor_account(&self) -> &papo::Account
+pub const fn papo::event::Redacted::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::Redacted
 pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Redacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1111,7 +1111,7 @@ pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
 pub papo::event::ServerNotice::to: papo::event::Audience
 impl papo::event::ServerNotice
-pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::Account
+pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::AccountStatus
 pub const fn papo::event::ServerNotice::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::ServerNotice::return_address(&self) -> core::option::Option<papo::NoticeRef>
 impl core::clone::Clone for papo::event::ServerNotice
@@ -1176,7 +1176,7 @@ pub papo::event::TagMsg::received_at: std::time::SystemTime
 pub papo::event::TagMsg::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
-pub const fn papo::event::TagMsg::actor_account(&self) -> &papo::Account
+pub const fn papo::event::TagMsg::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::TagMsg
 pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::TagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1208,7 +1208,7 @@ pub papo::event::TopicChanged::received_at: std::time::SystemTime
 pub papo::event::TopicChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 impl papo::event::TopicChanged
-pub const fn papo::event::TopicChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::TopicChanged::actor_account(&self) -> &papo::AccountStatus
 impl core::clone::Clone for papo::event::TopicChanged
 pub fn papo::event::TopicChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TopicChanged
@@ -1232,7 +1232,7 @@ pub papo::event::TypingChanged::received_at: std::time::SystemTime
 pub papo::event::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TypingChanged::state: papo::Typing
 impl papo::event::TypingChanged
-pub const fn papo::event::TypingChanged::actor_account(&self) -> &papo::Account
+pub const fn papo::event::TypingChanged::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::TypingChanged
 pub const fn papo::event::TypingChanged::conversation(&self) -> &papo::Conversation
 pub fn papo::event::TypingChanged::return_address(&self) -> papo::MessageRef
@@ -1832,7 +1832,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 pub papo::Incomplete::Message(papo::Message)
 pub papo::Incomplete::Notice(papo::event::Notice)
 impl papo::Incomplete
-pub const fn papo::Incomplete::actor_account(&self) -> &papo::Account
+pub const fn papo::Incomplete::actor_account(&self) -> &papo::AccountStatus
 pub const fn papo::Incomplete::as_message(&self) -> core::option::Option<&papo::Message>
 pub const fn papo::Incomplete::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 pub fn papo::Incomplete::conversation(&self) -> &papo::Conversation
@@ -3059,7 +3059,7 @@ pub papo::Message::server_time: core::option::Option<papo_proto::time::ServerTim
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
-pub const fn papo::Message::actor_account(&self) -> &papo::Account
+pub const fn papo::Message::actor_account(&self) -> &papo::AccountStatus
 pub const fn papo::Message::channel_context(&self) -> core::option::Option<&papo::Conversation>
 pub const fn papo::Message::conversation(&self) -> &papo::Conversation
 pub fn papo::Message::is_own(&self) -> bool
@@ -3737,8 +3737,8 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::SetModes
 impl !core::panic::unwind_safe::UnwindSafe for papo::SetModes
 pub struct papo::State
 impl papo::State
-pub fn papo::State::account(&self) -> &papo::Account
-pub fn papo::State::away(&self) -> &papo::Away
+pub fn papo::State::account(&self) -> &papo::AccountStatus
+pub fn papo::State::away(&self) -> &papo::AwayStatus
 pub const fn papo::State::bouncer_network(&self) -> core::option::Option<&papo::NetworkId>
 pub fn papo::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::BouncerNetwork>
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
@@ -3987,8 +3987,8 @@ impl core::marker::UnsafeUnpin for papo::WebPush
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WebPush
 impl core::panic::unwind_safe::UnwindSafe for papo::WebPush
 #[non_exhaustive] pub struct papo::WhoEntry
-pub papo::WhoEntry::account: papo::Account
-pub papo::WhoEntry::away: papo::Away
+pub papo::WhoEntry::account: papo::AccountStatus
+pub papo::WhoEntry::away: papo::AwayStatus
 pub papo::WhoEntry::channel: core::option::Option<papo::ChannelHandle>
 pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: core::option::Option<bool>
@@ -4015,8 +4015,8 @@ impl core::marker::UnsafeUnpin for papo::WhoEntry
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoEntry
 #[non_exhaustive] pub struct papo::Whois
-pub papo::Whois::account: papo::Account
-pub papo::Whois::away: papo::Away
+pub papo::Whois::account: papo::AccountStatus
+pub papo::Whois::away: papo::AwayStatus
 pub papo::Whois::channels: alloc::vec::Vec<papo::WhoisChannel>
 pub papo::Whois::host: core::option::Option<alloc::string::String>
 pub papo::Whois::idle: core::option::Option<core::time::Duration>
@@ -4121,27 +4121,6 @@ impl papo::Target for papo::Nick
 impl papo::Target for str
 impl<T: papo::Target + ?core::marker::Sized> papo::Target for &T
 # re-exported type surfaces
-#[non_exhaustive] pub enum papo::Account
-pub papo::Account::LoggedIn(papo::AccountName)
-pub papo::Account::LoggedOut
-pub papo::Account::Unknown
-impl papo::Account
-pub const fn papo::Account::name(&self) -> core::option::Option<&papo::AccountName>
-impl core::clone::Clone for papo::Account
-pub fn papo::Account::clone(&self) -> Self
-impl core::cmp::Eq for papo::Account
-impl core::cmp::PartialEq for papo::Account
-pub fn papo::Account::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Account
-pub fn papo::Account::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Account
-impl core::marker::Freeze for papo::Account
-impl core::marker::Send for papo::Account
-impl core::marker::Sync for papo::Account
-impl core::marker::Unpin for papo::Account
-impl core::marker::UnsafeUnpin for papo::Account
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Account
-impl core::panic::unwind_safe::UnwindSafe for papo::Account
 pub struct papo::AccountName
 impl papo::AccountName
 pub fn papo::AccountName::as_str(&self) -> &str
@@ -4180,6 +4159,27 @@ impl core::marker::Unpin for papo::AccountName
 impl core::marker::UnsafeUnpin for papo::AccountName
 impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountName
 impl core::panic::unwind_safe::UnwindSafe for papo::AccountName
+#[non_exhaustive] pub enum papo::AccountStatus
+pub papo::AccountStatus::LoggedIn(papo::AccountName)
+pub papo::AccountStatus::LoggedOut
+pub papo::AccountStatus::Unknown
+impl papo::AccountStatus
+pub const fn papo::AccountStatus::name(&self) -> core::option::Option<&papo::AccountName>
+impl core::clone::Clone for papo::AccountStatus
+pub fn papo::AccountStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo::AccountStatus
+impl core::cmp::PartialEq for papo::AccountStatus
+pub fn papo::AccountStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::AccountStatus
+pub fn papo::AccountStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::AccountStatus
+impl core::marker::Freeze for papo::AccountStatus
+impl core::marker::Send for papo::AccountStatus
+impl core::marker::Sync for papo::AccountStatus
+impl core::marker::Unpin for papo::AccountStatus
+impl core::marker::UnsafeUnpin for papo::AccountStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountStatus
+impl core::panic::unwind_safe::UnwindSafe for papo::AccountStatus
 pub trait papo::AsAccount: papo::name_argument::Sealed
 impl papo::AsAccount for alloc::borrow::Cow<'_, str>
 impl papo::AsAccount for alloc::boxed::Box<str>
@@ -4188,28 +4188,28 @@ impl papo::AsAccount for alloc::string::String
 impl papo::AsAccount for papo::AccountName
 impl papo::AsAccount for str
 impl<T: papo::AsAccount + ?core::marker::Sized> papo::AsAccount for &T
-#[non_exhaustive] pub enum papo::Away
-#[non_exhaustive] pub papo::Away::Away
-pub papo::Away::Away::message: core::option::Option<alloc::string::String>
-pub papo::Away::Present
-pub papo::Away::Unknown
-impl papo::Away
-pub fn papo::Away::message(&self) -> core::option::Option<&str>
-impl core::clone::Clone for papo::Away
-pub fn papo::Away::clone(&self) -> Self
-impl core::cmp::Eq for papo::Away
-impl core::cmp::PartialEq for papo::Away
-pub fn papo::Away::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Away
-pub fn papo::Away::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Away
-impl core::marker::Freeze for papo::Away
-impl core::marker::Send for papo::Away
-impl core::marker::Sync for papo::Away
-impl core::marker::Unpin for papo::Away
-impl core::marker::UnsafeUnpin for papo::Away
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Away
-impl core::panic::unwind_safe::UnwindSafe for papo::Away
+#[non_exhaustive] pub enum papo::AwayStatus
+#[non_exhaustive] pub papo::AwayStatus::Away
+pub papo::AwayStatus::Away::message: core::option::Option<alloc::string::String>
+pub papo::AwayStatus::Present
+pub papo::AwayStatus::Unknown
+impl papo::AwayStatus
+pub fn papo::AwayStatus::message(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo::AwayStatus
+pub fn papo::AwayStatus::clone(&self) -> Self
+impl core::cmp::Eq for papo::AwayStatus
+impl core::cmp::PartialEq for papo::AwayStatus
+pub fn papo::AwayStatus::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::AwayStatus
+pub fn papo::AwayStatus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::AwayStatus
+impl core::marker::Freeze for papo::AwayStatus
+impl core::marker::Send for papo::AwayStatus
+impl core::marker::Sync for papo::AwayStatus
+impl core::marker::Unpin for papo::AwayStatus
+impl core::marker::UnsafeUnpin for papo::AwayStatus
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AwayStatus
+impl core::panic::unwind_safe::UnwindSafe for papo::AwayStatus
 pub struct papo::BatchId(_)
 impl papo::BatchId
 pub fn papo::BatchId::into_string(self) -> alloc::string::String
@@ -5403,8 +5403,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::UnsupportedReason
 impl core::panic::unwind_safe::UnwindSafe for papo::UnsupportedReason
 pub struct papo::User
 impl papo::User
-pub const fn papo::User::account(&self) -> &papo::Account
-pub const fn papo::User::away(&self) -> &papo::Away
+pub const fn papo::User::account(&self) -> &papo::AccountStatus
+pub const fn papo::User::away(&self) -> &papo::AwayStatus
 pub fn papo::User::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::ChannelName>
 pub fn papo::User::host(&self) -> core::option::Option<&str>
 pub const fn papo::User::is_bot(&self) -> core::option::Option<bool>

@@ -24,7 +24,7 @@ pub struct BroadcastCtcp {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// The command with its original spelling.
@@ -51,7 +51,7 @@ pub struct BroadcastTagMsg {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// Tags in wire order with last-wins lookup.
@@ -118,7 +118,7 @@ pub struct Reacted {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -153,7 +153,7 @@ pub struct Redacted {
     pub actor: Source,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -187,7 +187,7 @@ pub struct TypingChanged {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
     pub(super) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`super::Restricted::audience`] before delivery.
@@ -215,7 +215,7 @@ pub struct TagMsg {
     pub actor: crate::UserHandle,
     /// Who the actor is relative to you.
     pub actor_party: Party,
-    pub(crate) actor_account: crate::Account,
+    pub(crate) actor_account: crate::AccountStatus,
     /// The IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

@@ -1,7 +1,7 @@
 use super::{
-    Account, AccountNotify, Away, AwayNotify, Chghost, Command, Event, Handled, Isupport, LineRef,
-    NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, User, WHOX_FIELDS, WHOX_TOKEN,
-    WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
+    AccountNotify, AccountStatus, AwayNotify, AwayStatus, Chghost, Command, Event, Handled,
+    Isupport, LineRef, NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, User,
+    WHOX_FIELDS, WHOX_TOKEN, WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
@@ -24,14 +24,14 @@ impl State {
         message: &LineRef<'_>,
         nick: &str,
         enabled_caps: &crate::Capabilities,
-    ) -> Option<Account> {
+    ) -> Option<AccountStatus> {
         match message.tag("account") {
-            Some(account) => Some(Account::LoggedIn(
+            Some(account) => Some(AccountStatus::LoggedIn(
                 self.casemapping.account(account.as_ref()),
             )),
             None => (enabled_caps.contains_key(&crate::cap::ACCOUNT_TAG)
                 && !crate::names_equal(self.casemapping, nick, self.nick.as_str()))
-            .then_some(Account::LoggedOut),
+            .then_some(AccountStatus::LoggedOut),
         }
     }
 
@@ -54,7 +54,7 @@ impl State {
                 && user.account != account
             {
                 let learned_logged_out =
-                    user.account == Account::Unknown && account == Account::LoggedOut;
+                    user.account == AccountStatus::Unknown && account == AccountStatus::LoggedOut;
                 user.update_account(account.clone());
                 changed = true;
                 if !learned_logged_out {
@@ -185,7 +185,7 @@ impl State {
             return Some(Handled::No);
         };
         let envelope = crate::LineEnvelope::from_line(message).with_account(account.account);
-        let account = Account::from_notify(account.account, self.casemapping);
+        let account = AccountStatus::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let token = self.__reply_token_for(nick);
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
@@ -215,9 +215,9 @@ impl State {
                 return Some(Handled::No);
             };
             let next = match away.message {
-                None => Away::Present,
-                Some("*") => Away::Away { message: None },
-                Some(message) => Away::Away {
+                None => AwayStatus::Present,
+                Some("*") => AwayStatus::Away { message: None },
+                Some(message) => AwayStatus::Away {
                     message: Some(message.to_owned()),
                 },
             };
@@ -254,7 +254,7 @@ impl State {
                 if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                     let envelope = crate::LineEnvelope::from_line(message);
                     let message = away.to_owned();
-                    let next = Away::Away {
+                    let next = AwayStatus::Away {
                         message: Some(message.clone()),
                     };
                     if user.away != next {
@@ -270,24 +270,26 @@ impl State {
                     }
                 }
             }
-            Command::Numeric(Numeric::RPL_UNAWAY) if self.own_user().away != Away::Present => {
+            Command::Numeric(Numeric::RPL_UNAWAY)
+                if self.own_user().away != AwayStatus::Present =>
+            {
                 self.users
                     .get_mut(self.nick.key())
                     .expect("own user is always present")
-                    .away = Away::Present;
+                    .away = AwayStatus::Present;
                 outbox.event(Event::AwayChanged {
                     envelope: crate::LineEnvelope::from_line(message),
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
-                    away: Away::Present,
+                    away: AwayStatus::Present,
                     token: self.__reply_token_for(self.nick.as_str()),
                     actor_party: Party::Me,
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY)
-                if !matches!(self.own_user().away, Away::Away { .. }) =>
+                if !matches!(self.own_user().away, AwayStatus::Away { .. }) =>
             {
-                let away = Away::Away {
+                let away = AwayStatus::Away {
                     message: own_away_message.map(str::to_owned),
                 };
                 self.users
@@ -471,7 +473,7 @@ impl State {
             outbox,
         );
         if applied && let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-            user.update_account(Account::from_notify(reply.account, self.casemapping));
+            user.update_account(AccountStatus::from_notify(reply.account, self.casemapping));
         }
         Some(Handled::Yes)
     }
@@ -533,13 +535,15 @@ impl State {
             return;
         };
         let away = match (presence, &user.away) {
-            (Some(WhoxPresence::Here), Away::Unknown | Away::Away { .. }) => Away::Present,
-            (Some(WhoxPresence::Gone), Away::Unknown | Away::Present) => {
-                Away::Away { message: None }
+            (Some(WhoxPresence::Here), AwayStatus::Unknown | AwayStatus::Away { .. }) => {
+                AwayStatus::Present
+            }
+            (Some(WhoxPresence::Gone), AwayStatus::Unknown | AwayStatus::Present) => {
+                AwayStatus::Away { message: None }
             }
             _ => return,
         };
-        let known = user.away != Away::Unknown;
+        let known = user.away != AwayStatus::Unknown;
         user.away = away.clone();
         if known {
             outbox.event(Event::AwayChanged {
@@ -684,14 +688,15 @@ impl User {
         &self,
         username: Option<&str>,
         host: Option<&str>,
-        account: Option<&Account>,
+        account: Option<&AccountStatus>,
     ) -> bool {
         let unchanged = |known: Option<&str>, seen: Option<&str>| {
             known.zip(seen).is_none_or(|(known, seen)| known == seen)
         };
         unchanged(self.username.as_deref(), username)
             && unchanged(self.host.as_deref(), host)
-            && account
-                .is_none_or(|account| self.account == Account::Unknown || self.account == *account)
+            && account.is_none_or(|account| {
+                self.account == AccountStatus::Unknown || self.account == *account
+            })
     }
 }

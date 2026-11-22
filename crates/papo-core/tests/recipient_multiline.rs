@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, Session, TextKind};
+use papo_core::{AccountStatus, Config, Event, Session, TextKind};
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -48,7 +48,7 @@ fn queued_multiline_direct_message_rewrites_every_target_after_rename() {
         .state()
         .__capture_recipient(
             session.state().casemapping().nick("alice"),
-            Account::Unknown,
+            AccountStatus::Unknown,
         )
         .unwrap();
     session
@@ -80,7 +80,7 @@ fn guarded_multiline_closes_its_batch_after_takeover() {
         .state()
         .__capture_recipient(
             session.state().casemapping().nick("alice"),
-            Account::Unknown,
+            AccountStatus::Unknown,
         )
         .unwrap();
     let sent = session

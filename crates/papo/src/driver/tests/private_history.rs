@@ -1,5 +1,5 @@
 use crate::driver::test_support::*;
-use crate::{Account, Client, Events, HistoryPage};
+use crate::{AccountStatus, Client, Events, HistoryPage};
 
 const CAPS: &str = "account-tag batch draft/chathistory draft/message-redaction extended-join labeled-response message-tags server-time";
 const TAGGED: &str = "pwcbkkexfp2uqmk5ri5x5b5bya";
@@ -138,7 +138,7 @@ async fn private_history_actor_refuses_a_direct_send_even_with_a_matching_live_a
 
     let page = fetch(&mut server, &client, ERGO_PAGE).await;
     let archived = page.chat_messages().last().unwrap();
-    assert!(matches!(archived.actor_account(), Account::LoggedIn(name) if name == "writer"));
+    assert!(matches!(archived.actor_account(), AccountStatus::LoggedIn(name) if name == "writer"));
     assert!(matches!(
         within(client.privmsg(&archived.actor, "the next release is scheduled")).await,
         Err(Error::TargetGone)

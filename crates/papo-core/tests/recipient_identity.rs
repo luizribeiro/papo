@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Account, Config, Event, ProofFailure, RecipientStatus, ReplyToken, Session};
+use papo_core::{AccountStatus, Config, Event, ProofFailure, RecipientStatus, ReplyToken, Session};
 use papo_proto::Origin;
 
 fn server(session: &mut Session, now: Instant, line: &str) {
@@ -102,7 +102,7 @@ fn recipient_identity_follows_rename_and_rejects_account_change() {
         .state()
         .__capture_recipient(
             session.state().casemapping().nick("alice"),
-            Account::LoggedIn(session.state().casemapping().account("alice")),
+            AccountStatus::LoggedIn(session.state().casemapping().account("alice")),
         )
         .unwrap();
 
@@ -142,7 +142,7 @@ fn event_proof_requires_a_concrete_identity() {
     let result = session.state().__prove_event_user(
         token,
         session.state().casemapping().nick("alice"),
-        Account::LoggedIn(session.state().casemapping().account("alice-account")),
+        AccountStatus::LoggedIn(session.state().casemapping().account("alice-account")),
     );
     assert_eq!(result.unwrap_err(), ProofFailure::MissingEvidence);
 }
@@ -154,7 +154,7 @@ fn event_proof_adapters_preserve_a_concrete_recipient() {
     let token = alice_event(&mut session, now);
     assert!(token.__is_known());
     let nick = Origin::__new(73).__nick(session.state().casemapping(), "alice");
-    let account = Account::LoggedIn(
+    let account = AccountStatus::LoggedIn(
         Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
     );
 
@@ -170,7 +170,7 @@ fn event_proof_rejects_a_foreign_nickname_with_a_local_token() {
     let mut session = session_with_origin(73);
     let token = alice_event(&mut session, now);
     let foreign_nick = Origin::__new(91).__nick(session.state().casemapping(), "alice");
-    let account = Account::LoggedIn(
+    let account = AccountStatus::LoggedIn(
         Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
     );
 

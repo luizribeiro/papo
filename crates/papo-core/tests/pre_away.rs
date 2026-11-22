@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Away, AwayOnConnect, Config, Event};
+use papo_core::{AwayOnConnect, AwayStatus, Config, Event};
 use support::Transcript;
 
 fn config(away: AwayOnConnect, cap: bool) -> Config {
@@ -47,13 +47,13 @@ fn hidden_pre_away_records_away_without_a_message() {
             matches!(
                 event,
                 Event::AwayChanged {
-                    away: Away::Away { message: None, .. },
+                    away: AwayStatus::Away { message: None, .. },
                     ..
                 }
             )
         })
         .inspect(|session| {
-            assert_eq!(session.state().away(), &Away::__away_value(None));
+            assert_eq!(session.state().away(), &AwayStatus::__away_value(None));
         });
 }
 

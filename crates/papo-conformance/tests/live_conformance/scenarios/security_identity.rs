@@ -96,7 +96,7 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
         .await?;
     assert!(matches!(
         state.user(&admin.actor)?.map(papo::User::account),
-        Some(papo::Account::LoggedIn(_))
+        Some(papo::AccountStatus::LoggedIn(_))
     ));
 
     alice.quit().await?;
@@ -108,7 +108,7 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
 
     assert_eq!(
         state.user(&takeover.actor)?.map(papo::User::account),
-        Some(&papo::Account::LoggedOut)
+        Some(&papo::AccountStatus::LoggedOut)
     );
     assert_ne!(takeover.actor, admin.actor);
     assert!(matches!(
