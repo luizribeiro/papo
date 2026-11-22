@@ -2,7 +2,7 @@
 //! lines nor an item of a history page, however recent its stamp.
 
 use papo::{Event, Reconnect};
-use papo_bot::{BotConfig, Command};
+use papo_bot::{BotCommand, BotConfig};
 use papo_testing::{Wire, wire};
 
 const STAMP: &str = "@time=2026-11-16T09:00:00.412Z";
@@ -42,7 +42,7 @@ async fn attach(caps: &str, isupport: &str) -> (papo::Client, papo::Events, Wire
     (client, events, wire)
 }
 
-async fn next_command(client: &papo::Client, events: &mut papo::Events) -> Option<Command> {
+async fn next_command(client: &papo::Client, events: &mut papo::Events) -> Option<BotCommand> {
     loop {
         match events.next().await.expect("driver stopped") {
             (Event::Message(message), state) => {

@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `papo_bot::BotCommand` in place of `papo_bot::Command`.
+
 `Client::channel` is crate-private. Pass channel names as text or `ChannelName` values.
 
 `UserHandle` no longer compares directly with text. Use `handle.nick() == "luiz"` to check a nickname.
@@ -151,7 +153,7 @@ lines but neither stamps 001 nor offers `batch`, so a bouncer's unbatched playba
 It also ignores every message from a history page, whatever its stamp.
 
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
-the line's own audience. `papo_bot::Command::private_notice` no longer threads its notice.
+the line's own audience. `papo_bot::BotCommand::private_notice` no longer threads its notice.
 
 `Message::channel_context()` and `Notice::channel_context` are a `Conversation` to file a private
 line under, not a sendable `ChannelHandle`, so answering a DM cannot reach the whole channel.

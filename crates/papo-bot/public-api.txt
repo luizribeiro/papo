@@ -20,14 +20,39 @@ impl core::marker::Unpin for papo_bot::ReplyStatus
 impl core::marker::UnsafeUnpin for papo_bot::ReplyStatus
 impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::ReplyStatus
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::ReplyStatus
+pub struct papo_bot::BotCommand
+pub papo_bot::BotCommand::actor: papo::handle::UserHandle
+impl papo_bot::BotCommand
+pub const fn papo_bot::BotCommand::account(&self) -> core::option::Option<&papo::AccountName>
+pub fn papo_bot::BotCommand::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo_bot::BotCommand::args(&self) -> &[alloc::string::String]
+pub const fn papo_bot::BotCommand::audience(&self) -> core::option::Option<papo::isupport::Prefix>
+pub const fn papo_bot::BotCommand::client(&self) -> &papo::Client
+pub const fn papo_bot::BotCommand::message(&self) -> &papo::Message
+pub fn papo_bot::BotCommand::name(&self) -> &str
+pub async fn papo_bot::BotCommand::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
+pub async fn papo_bot::BotCommand::reply(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
+pub fn papo_bot::BotCommand::rest(&self) -> &str
+pub async fn papo_bot::BotCommand::say(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
+impl core::clone::Clone for papo_bot::BotCommand
+pub fn papo_bot::BotCommand::clone(&self) -> Self
+impl core::fmt::Debug for papo_bot::BotCommand
+pub fn papo_bot::BotCommand::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo_bot::BotCommand
+impl core::marker::Send for papo_bot::BotCommand
+impl core::marker::Sync for papo_bot::BotCommand
+impl core::marker::Unpin for papo_bot::BotCommand
+impl core::marker::UnsafeUnpin for papo_bot::BotCommand
+impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotCommand
+impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotCommand
 pub struct papo_bot::BotConfig
 impl papo_bot::BotConfig
-pub fn papo_bot::BotConfig::command(&self, &papo::Client, &papo::state::State, &papo::Message) -> core::option::Option<papo_bot::Command>
+pub fn papo_bot::BotConfig::command(&self, &papo::Client, &papo::state::State, &papo::Message) -> core::option::Option<papo_bot::BotCommand>
 pub const fn papo_bot::BotConfig::ignore_bots(self, bool) -> Self
 pub const fn papo_bot::BotConfig::mention(self, bool) -> Self
 pub fn papo_bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_bot::BotConfig::reply_limiter(self, papo_bot::ReplyRateLimiter) -> Self
-pub fn papo_bot::BotConfig::restricted_command(&self, &papo::Client, &papo::state::State, &papo::Restricted) -> core::option::Option<papo_bot::Command>
+pub fn papo_bot::BotConfig::restricted_command(&self, &papo::Client, &papo::state::State, &papo::Restricted) -> core::option::Option<papo_bot::BotCommand>
 impl core::clone::Clone for papo_bot::BotConfig
 pub fn papo_bot::BotConfig::clone(&self) -> Self
 impl core::fmt::Debug for papo_bot::BotConfig
@@ -39,31 +64,6 @@ impl core::marker::Unpin for papo_bot::BotConfig
 impl core::marker::UnsafeUnpin for papo_bot::BotConfig
 impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotConfig
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotConfig
-pub struct papo_bot::Command
-pub papo_bot::Command::actor: papo::handle::UserHandle
-impl papo_bot::Command
-pub const fn papo_bot::Command::account(&self) -> core::option::Option<&papo::AccountName>
-pub fn papo_bot::Command::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
-pub fn papo_bot::Command::args(&self) -> &[alloc::string::String]
-pub const fn papo_bot::Command::audience(&self) -> core::option::Option<papo::isupport::Prefix>
-pub const fn papo_bot::Command::client(&self) -> &papo::Client
-pub const fn papo_bot::Command::message(&self) -> &papo::Message
-pub fn papo_bot::Command::name(&self) -> &str
-pub async fn papo_bot::Command::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
-pub async fn papo_bot::Command::reply(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
-pub fn papo_bot::Command::rest(&self) -> &str
-pub async fn papo_bot::Command::say(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
-impl core::clone::Clone for papo_bot::Command
-pub fn papo_bot::Command::clone(&self) -> Self
-impl core::fmt::Debug for papo_bot::Command
-pub fn papo_bot::Command::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo_bot::Command
-impl core::marker::Send for papo_bot::Command
-impl core::marker::Sync for papo_bot::Command
-impl core::marker::Unpin for papo_bot::Command
-impl core::marker::UnsafeUnpin for papo_bot::Command
-impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::Command
-impl core::panic::unwind_safe::UnwindSafe for papo_bot::Command
 pub struct papo_bot::ReplyRateLimiter
 impl papo_bot::ReplyRateLimiter
 pub fn papo_bot::ReplyRateLimiter::new(usize, core::time::Duration) -> core::result::Result<Self, papo::InvalidRateLimit>

@@ -12,15 +12,15 @@
 //! ignores known bots by default. Unlike raw `papo` event handling, it ignores a line papo cannot
 //! show is live, such as a bouncer's unbatched playback or an item of a [`papo::HistoryPage`]
 //! (see [`BotConfig::command`]). Authorize privileged commands with
-//! [`Command::account_in`], which checks the message's account tag; a nickname alone is not an
-//! identity. [`Command::reply`] applies the configuration's shared reply limit. Its default is two
+//! [`BotCommand::account_in`], which checks the message's account tag; a nickname alone is not an
+//! identity. [`BotCommand::reply`] applies the configuration's shared reply limit. Its default is two
 //! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
 //! reply; use [`ReplyRateLimiter`] to choose another budget.
 //!
 //! A command sent to a status-prefixed address such as `@#ops` arrives as
 //! [`papo::Event::Restricted`], which the message loop above never sees, so it is ignored. To
 //! accept one, pass the [`Restricted`] line to [`BotConfig::restricted_command`]: the command's
-//! [`Command::audience`] names the sign, and its replies keep the restricted address.
+//! [`BotCommand::audience`] names the sign, and its replies keep the restricted address.
 //! [`BotConfig::command`] ignores the line's inner message, so this opt-in is the only way in. See
 //! [`papo::Conversation`] for status-prefixed line guidance.
 //!
@@ -189,7 +189,7 @@ impl BotConfig {
     /// without `server-time` cannot be told from a replay and is accepted. Messages produced by
     /// another client are ignored. So is the message
     /// inside a [`papo::Event::Restricted`] line, such as one sent to `@#ops`: its command would
-    /// report no [`Command::audience`] while its replies reach only that audience, so the one way
+    /// report no [`BotCommand::audience`] while its replies reach only that audience, so the one way
     /// to accept it is [`BotConfig::restricted_command`]. See [`papo::Conversation`] for
     /// status-prefixed line guidance.
     #[must_use]
@@ -198,17 +198,17 @@ impl BotConfig {
         client: &Client,
         state: &State,
         message: &ChatMessage,
-    ) -> Option<Command> {
+    ) -> Option<BotCommand> {
         if reaches_a_status_audience(state, message) {
             return None;
         }
-        Command::parse(client, state, message, None, self)
+        BotCommand::parse(client, state, message, None, self)
     }
 
     /// Parses a live command from a line that reached only the members holding its audience's
     /// sign or a higher rank, such as `@#ops`.
     ///
-    /// The command's [`Command::audience`] is that sign, and its replies keep the restricted
+    /// The command's [`BotCommand::audience`] is that sign, and its replies keep the restricted
     /// address. Lines other than a [`RestrictedLine::Message`] are not commands. See
     /// [`papo::Conversation`] for status-prefixed line guidance.
     #[must_use]
@@ -217,11 +217,11 @@ impl BotConfig {
         client: &Client,
         state: &State,
         restricted: &Restricted,
-    ) -> Option<Command> {
+    ) -> Option<BotCommand> {
         let RestrictedLine::Message(message) = &restricted.line else {
             return None;
         };
-        Command::parse(client, state, message, Some(restricted.audience), self)
+        BotCommand::parse(client, state, message, Some(restricted.audience), self)
     }
 }
 
@@ -264,7 +264,7 @@ pub enum ReplyStatus {
 
 /// A parsed command from a live private message.
 #[derive(Clone, Debug)]
-pub struct Command {
+pub struct BotCommand {
     /// The user that sent the command.
     pub actor: UserHandle,
     client: Client,
@@ -277,7 +277,7 @@ pub struct Command {
     replies: ReplyRateLimiter,
 }
 
-impl Command {
+impl BotCommand {
     fn parse(
         client: &Client,
         state: &State,
@@ -547,7 +547,7 @@ mod tests {
     use papo_testing::{MessageBuilder, channel_handle};
     use web_time::Instant;
 
-    use super::{BotConfig, Command, ReplyRateLimiter, ReplyStatus};
+    use super::{BotCommand, BotConfig, ReplyRateLimiter, ReplyStatus};
 
     fn nick(text: impl AsRef<str>) -> Nick {
         papo_testing::nick(Casemapping::Rfc1459, text)
@@ -712,7 +712,7 @@ mod tests {
         }
     }
 
-    fn parse(message: &papo::Message, config: &BotConfig) -> Option<Command> {
+    fn parse(message: &papo::Message, config: &BotConfig) -> Option<BotCommand> {
         let client = client(Casemapping::Rfc1459);
         config.command(&client, &client.snapshot(), message)
     }
