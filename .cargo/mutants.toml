@@ -9,6 +9,9 @@ exclude_re = [
   # These cfg(test) helpers contain assertions; replacing them removes the test itself.
   'replace check_action with \(\)$',
   'replace check_chat with \(\)$',
+  'replace assert_pre_welcome_refusal_backoff with \(\)$',
+  'replace assert_reply_wire with \(\)$',
+  'replace check_builder with \(\)$',
   'replace tests::assert_event_times with \(\)$',
   'replace assert_structured_who with \(\)$',
   'replace tests::identity::assert_person_at_arrival with \(\)$',
