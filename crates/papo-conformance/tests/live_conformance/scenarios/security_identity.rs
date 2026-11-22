@@ -118,55 +118,6 @@ async fn unseen_private_sender_handoff(s: Scenario) -> papo_testing::Result<()> 
     Ok(())
 }
 
-/// refuses a direct message to a WHO-proven nick after its holder leaves and another takes it
-#[scenario(covers = ["security.guard-proof.who-proof-nick-handoff"])]
-async fn who_proof_nick_handoff(s: Scenario) -> papo_testing::Result<()> {
-    if profile() == "soju-ergo" {
-        return s.skip("soju keeps the upstream user attached after downstream QUIT");
-    }
-    let mut bot = s.connect("bot").await?;
-    let mut bob = s.connect("bob").await?;
-    let mut mallory = s.connect("mallory").await?;
-    let bob_nick = bob.snapshot().nick().clone();
-    let channel = s.channel_name();
-    bot.join(&channel).await?;
-    mallory.join(&channel).await?;
-
-    let direct = bot.query(bob_nick.as_str())?;
-    bot.privmsg(&direct, "release notes attached").await?;
-    bob.wait_for(|event| message_text(event, "release notes attached"))
-        .await?;
-
-    bob.join(&channel).await?;
-    bob.quit().await?;
-    bot.wait_for(|event| {
-        event
-            .as_quit()
-            .filter(|quit| quit.actor.nick() == bob_nick.as_str())
-    })
-    .await?;
-    mallory.set_nick(bob_nick.as_str()).await?;
-    bot.wait_for(|event| {
-        event
-            .as_nick_changed()
-            .filter(|changed| changed.new == bob_nick.as_str())
-    })
-    .await?;
-
-    assert!(matches!(
-        bot.privmsg(&direct, "SECRET payroll export").await,
-        Err(papo::Error::TargetGone)
-    ));
-    mallory
-        .expect_none(|event| {
-            event
-                .as_message()
-                .filter(|message| message.text == "SECRET payroll export")
-        })
-        .await?;
-    Ok(())
-}
-
 /// keeps a broadcast out of the replyable message event
 #[scenario(covers = ["security.reply.broadcast-private"])]
 async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {

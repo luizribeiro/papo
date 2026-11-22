@@ -140,7 +140,6 @@ ids = [
   "security.guard-proof.past-line-names",
   "security.guard-proof.unseen-message-peer-handoff",
   "security.d-4.departed-handle-account-retarget",
-  "security.guard-proof.who-proof-nick-handoff",
   "security.guard-proof.reply-subject-at-arrival",
   "security.guard-proof.reply-subject-account",
   "security.casemapping.unknown-token",

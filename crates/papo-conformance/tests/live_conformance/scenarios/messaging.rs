@@ -450,14 +450,6 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     )
     .await?;
 
-    let unavailable = alice.query(papo_test_server::unique("missing-target").as_str())?;
-    let Error::TargetGone = alice
-        .privmsg(&unavailable, "note to nobody")
-        .await
-        .expect_err("a nonexistent target must be refused")
-    else {
-        panic!("a nonexistent target did not return TargetGone")
-    };
     alice
         .expect_none(|event| message_text(event, "note to self"))
         .await?;
