@@ -88,12 +88,6 @@
 "security::an_unseen_nick_handoff_does_not_pass_the_admins_account_check" = [
   "security.guard-proof.unseen-message-peer-handoff",
 ]
-"security::a_who_proof_never_follows_its_nick_to_the_next_holder" = [
-  "security.guard-proof.who-proof-nick-handoff",
-]
-"security::without_account_tag_a_who_proven_account_is_not_lent_to_the_next_sender" = [
-  "security.guard-proof.no-account-tag-handoff",
-]
 "reply_subjects::a_reply_subject_seen_leaving_or_renaming_is_never_the_next_holder" = [
   "security.guard-proof.reply-subject-at-arrival",
 ]
