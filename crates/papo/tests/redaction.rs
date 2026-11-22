@@ -14,7 +14,7 @@ fn public_credentials_are_redacted_from_debug_output() {
     for sasl in [
         Sasl::plain("alice", Secret::new(sasl_password)),
         Sasl::scram_sha256("alice", Secret::new(sasl_password)),
-        Sasl::any("alice", Secret::new(sasl_password)),
+        Sasl::password("alice", Secret::new(sasl_password)),
     ] {
         assert_redacted(&sasl, sasl_password);
     }

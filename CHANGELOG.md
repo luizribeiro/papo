@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Choose password-based SASL mechanisms with `Sasl::password`.
+
 Use `Actor` for an event actor.
 
 Request registration during connection with `Builder::create_account_on_connect`.

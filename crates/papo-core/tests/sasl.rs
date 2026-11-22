@@ -44,7 +44,7 @@ fn oauth_bearer_after_initial_response() -> Transcript {
 
 #[test]
 fn configures_mechanisms_policy_and_entropy() {
-    let config = Config::default().sasl(Sasl::any(
+    let config = Config::default().sasl(Sasl::password(
         "alice",
         papo_core::Secret::new("correct horse battery staple"),
     ));
@@ -58,7 +58,7 @@ fn configures_mechanisms_policy_and_entropy() {
 fn debug_output_redacts_server_and_sasl_passwords() {
     let config = Config::default()
         .password(papo_core::Secret::new("server-password-7391"))
-        .sasl(Sasl::any(
+        .sasl(Sasl::password(
             "alice",
             papo_core::Secret::new("correct horse battery staple"),
         ));
@@ -449,7 +449,7 @@ fn bouncer_sasl_return_after_a_failed_login_sends_no_credentials() {
 
 fn scram_then_plain_started() -> Transcript {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
+        secure_sasl(Sasl::password("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -670,7 +670,7 @@ fn chunks_plain_responses_at_literal_400_bytes() {
 #[test]
 fn falls_back_and_honors_the_server_mechanism_list() {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
+        secure_sasl(Sasl::password("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -692,7 +692,7 @@ fn any_scram_start(security: ConnectionSecurity) -> Transcript {
     Transcript::with_entropy(
         Config::default()
             .connection_security(security)
-            .sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
+            .sasl(Sasl::password("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -737,7 +737,7 @@ fn scram_fallback_requires_secure_transport_before_a_challenge() {
 #[test]
 fn reports_every_failed_mechanism_and_continues_when_optional() {
     Transcript::new(secure_sasl(
-        Sasl::any("alice", papo_core::Secret::new("hunter2")).optional(),
+        Sasl::password("alice", papo_core::Secret::new("hunter2")).optional(),
     ))
     .connect_default()
     .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
@@ -1077,7 +1077,7 @@ fn required_sasl_timeout_is_unavailable_after_the_abort_deadline() {
 fn terminal_sasl_numerics_do_not_try_another_mechanism() {
     for numeric in ["902", "906"] {
         Transcript::new(secure_sasl(
-            Sasl::any("alice", papo_core::Secret::new("hunter2")).optional(),
+            Sasl::password("alice", papo_core::Secret::new("hunter2")).optional(),
         ))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -1186,7 +1186,7 @@ fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
 #[test]
 fn aborts_at_the_literal_30_second_deadline_then_falls_back() {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
+        secure_sasl(Sasl::password("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -1227,7 +1227,7 @@ fn a_sasl_deadline_is_cleared_on_disconnect() {
 #[test]
 fn reconnect_resets_every_sasl_exchange_state() {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
+        secure_sasl(Sasl::password("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -1561,7 +1561,7 @@ fn rejects_an_excessive_scram_iteration_count_before_derivation() {
 #[test]
 fn a_bad_scram_proof_never_falls_back_to_plain() {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("user", papo_core::Secret::new("pencil"))),
+        Config::default().sasl(Sasl::password("user", papo_core::Secret::new("pencil"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -1641,7 +1641,8 @@ fn rejects_unoffered_and_908_removed_mechanisms() {
         .client("CAP END");
 
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("alice", papo_core::Secret::new("hunter2")).optional()),
+        Config::default()
+            .sasl(Sasl::password("alice", papo_core::Secret::new("hunter2")).optional()),
         Box::new(FixedEntropy),
     )
     .connect_default()

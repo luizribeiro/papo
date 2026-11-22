@@ -1517,7 +1517,7 @@ async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
         papo::Client::builder(address, "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::any("alice", papo::Secret::new(PASSWORD)))
+            .sasl(Sasl::password("alice", papo::Secret::new(PASSWORD)))
             .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
@@ -1536,7 +1536,7 @@ async fn start_cap_negotiation() -> (papo::Client, Events, Wire) {
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::any("alice", papo::Secret::new(PASSWORD)))
+            .sasl(Sasl::password("alice", papo::Secret::new(PASSWORD)))
             .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");

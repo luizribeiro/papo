@@ -5204,10 +5204,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Refusal
 impl core::panic::unwind_safe::UnwindSafe for papo::Refusal
 pub struct papo::Sasl
 impl papo::Sasl
-pub fn papo::Sasl::any(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
 pub fn papo::Sasl::external() -> Self
 pub fn papo::Sasl::oauth_bearer(papo::Secret) -> Self
 pub const fn papo::Sasl::optional(self) -> Self
+pub fn papo::Sasl::password(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
 pub fn papo::Sasl::plain(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
 pub fn papo::Sasl::scram_sha256(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
 impl core::clone::Clone for papo::Sasl

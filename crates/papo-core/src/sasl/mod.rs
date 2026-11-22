@@ -83,7 +83,7 @@ impl Sasl {
     /// PLAIN fallback is allowed only on a secure connection and before the
     /// client answers any SCRAM challenge. Otherwise the SASL attempt fails.
     #[must_use]
-    pub fn any(username: impl Into<String>, password: Secret) -> Self {
+    pub fn password(username: impl Into<String>, password: Secret) -> Self {
         let username = username.into();
         Self {
             mechanisms: vec![
@@ -101,7 +101,7 @@ impl Sasl {
     ///
     /// ```
     /// # use papo_core as papo;
-    /// let sasl = papo::Sasl::any("alice", papo::Secret::new("secret")).optional();
+    /// let sasl = papo::Sasl::password("alice", papo::Secret::new("secret")).optional();
     /// # _ = sasl;
     /// ```
     #[must_use]
