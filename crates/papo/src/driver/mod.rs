@@ -181,12 +181,6 @@ pub(crate) enum Command {
         target: String,
         result: oneshot::Sender<Result<Response, Error>>,
     },
-    ProveUser {
-        nick: crate::Nick,
-        expected_account: Option<crate::AccountName>,
-        lines: Vec<Line>,
-        result: oneshot::Sender<Result<papo_core::Proven, Error>>,
-    },
     SendText {
         kind: TextKind,
         target: String,
@@ -1243,13 +1237,6 @@ where
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
-                }
-                Some(Command::ProveUser { nick, expected_account, lines, result }) => {
-                    let proof = session
-                        .__prove_who_user(nick, expected_account.as_ref(), &lines)
-                        .map_err(crate::identity::map_failure);
-                    publish_session_state(events, session);
-                    _ = result.send(proof);
                 }
                 Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, guard, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();

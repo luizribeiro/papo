@@ -3,7 +3,14 @@ pub(crate) struct ProvenUser {
     pub(crate) nick: crate::Nick,
 }
 
-pub(crate) async fn prove(
+pub(crate) fn prove(
+    client: &crate::Client,
+    handle: &crate::UserHandle,
+) -> std::future::Ready<Result<ProvenUser, crate::Error>> {
+    std::future::ready(resolve_captured(client, handle))
+}
+
+fn resolve_captured(
     client: &crate::Client,
     handle: &crate::UserHandle,
 ) -> Result<ProvenUser, crate::Error> {
@@ -13,45 +20,16 @@ pub(crate) async fn prove(
     if handle.is_private_history() {
         return Err(crate::Error::TargetGone);
     }
-    if let Some(proof) = handle.proof() {
-        let nick = client
-            .state()
-            .core
-            .__resolve_proven(proof)
-            .map_err(map_failure)?;
-        return Ok(ProvenUser {
-            core: proof.clone(),
-            nick,
-        });
-    }
-    let nick = handle.nick();
-    let response = client
-        .correlated(
-            papo_proto::Line::new("WHO").with_params([nick.to_string(), "%na".into()]),
-            Some(papo_core::ResponseMatcher::Who(nick.to_string())),
-        )
-        .await?;
-    who_account(client, nick.as_str(), &response)?;
-    let expected_account = handle.account().name().cloned();
-    if handle.is_unproven_history() && expected_account.is_none() {
-        return Err(crate::Error::TargetGone);
-    }
-    let (result, receiver) = tokio::sync::oneshot::channel();
-    client
-        .commands
-        .send(crate::driver::Command::ProveUser {
-            nick: nick.clone(),
-            expected_account,
-            lines: response.lines,
-            result,
-        })
-        .await
-        .map_err(|_| crate::Error::connection_lost())?;
-    let proof = receiver
-        .await
-        .map_err(|_| crate::Error::connection_lost())??;
-    handle.remember(proof.clone());
-    Ok(ProvenUser { core: proof, nick })
+    let proof = handle.proof().ok_or(crate::Error::TargetGone)?;
+    let nick = client
+        .state()
+        .core
+        .__resolve_proven(proof)
+        .map_err(map_failure)?;
+    Ok(ProvenUser {
+        core: proof.clone(),
+        nick,
+    })
 }
 
 pub(crate) async fn prove_parts(
@@ -82,25 +60,6 @@ pub(crate) fn prove_current_name(
     Ok(ProvenUser { core, nick })
 }
 
-pub(crate) fn who_account(
-    client: &crate::Client,
-    nick: &str,
-    response: &papo_core::Response,
-) -> Result<crate::Account, crate::Error> {
-    crate::requests::empty(response)?;
-    let state = client.state();
-    let account = state
-        .core
-        .__who_account(nick, &response.lines)
-        .ok_or(crate::Error::TargetGone)?;
-    if matches!(account, crate::Account::LoggedIn(_)) {
-        state
-            .known_name_rules()
-            .ok_or(crate::InvalidInput::NameRulesUnknown)?;
-    }
-    Ok(account)
-}
-
 pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
     match failure {
         papo_core::ProofFailure::ForeignReference => crate::ForeignReference.into(),
@@ -110,7 +69,9 @@ pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use papo_core::ProofFailure;
+    use papo_core::{Config, ProofFailure, Session};
+
+    use crate::{Account, Error};
 
     #[test]
     fn foreign_proof_failure_stays_typed() {
@@ -134,5 +95,30 @@ mod tests {
             super::map_failure(ProofFailure::IdentityChanged),
             crate::Error::TargetGone
         ));
+    }
+
+    #[tokio::test]
+    async fn past_line_handle_is_gone_without_a_lookup() {
+        let mut session = Session::new(Config::default().nick("papo"));
+        let now = crate::rt::now_mono();
+        for line in [
+            ":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
+            ":alice!~alice@cloak.example PRIVMSG papo :release is ready",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let state = client.state();
+        let names = state.name_rules().unwrap();
+        let actor = crate::UserHandle::from_past_line(
+            names.nick("alice"),
+            Account::LoggedIn(names.account("alice-account")),
+        );
+
+        assert!(matches!(
+            client.privmsg(actor, "thanks").await,
+            Err(Error::TargetGone)
+        ));
+        assert!(commands.try_recv().is_err());
     }
 }
