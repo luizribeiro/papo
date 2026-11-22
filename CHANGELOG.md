@@ -71,6 +71,8 @@ output tests. Their example binaries require TLS when sending credentials.
 
 Replies, reactions, and redactions on private history items address the peer nickname.
 
+Save a message reference as opaque text with `MessageRef::to_saved` and restore it with `Client::saved_message`.
+
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 

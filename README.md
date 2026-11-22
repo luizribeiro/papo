@@ -73,6 +73,11 @@ if let Event::Restricted(restricted) = &event
 }
 ```
 
+To use a message reference later, call `message.return_address().to_saved()` and keep the text
+next to the message you stored. Treat the text as opaque and restore it with
+`client.saved_message(&text)` on the same network. Restored references preserve the channel
+audience. For a private message, they address whoever holds the saved nickname.
+
 **No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
 
 ```rust
