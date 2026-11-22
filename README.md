@@ -44,47 +44,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 We put a lot of effort into making papo hard to misuse. Not just by someone hostile, but also accidental misuse and footguns. One rule we had is that nothing should fall to documentation if it's a pitfall. We should always prefer structural fixes.
 
-**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. Sending to a nickname in text or as a `Nick` reaches its current holder without a WHO lookup. To answer the sender, reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`). A reply to a private history item reaches the current holder of the thread's peer nickname.
+**Sending.** To DM someone, send to their nick. To answer a message, reply to it.
 
 ```rust
-client.privmsg("alice", "deploy finished").await?;
-```
-
-A user reference from a live event follows observed nick changes. When papo sees the user leave or the nickname change hands, a send through that reference returns `Error::TargetGone`. Without a shared channel or other presence information, papo can miss a handoff.
-
-For an account check, compare the account you expect with the received message's
-`actor_account()`. To check the account papo currently knows for a nickname, call
-`state.user(nick)` and inspect the returned user's `account()`. Treat `AccountStatus::Unknown` and
-`AccountStatus::LoggedOut` as failing the check. Account information comes from the server, so use TLS.
-
-**Types everywhere.** The APIs have types everywhere to prevent mistakes like putting the channel in place of the nick or whatever. Swap a `ChannelName` and a `Nick` in `client.kick(channel, nick)` and it doesn't compile. The only way around it is constructing your own recipient with "#foo", "bar", etc, and then it only gets caught at runtime.
-
-**Multiple connections.** With bouncers you can have channels with the same name in different networks, same nicknames, etc, and it's easy to mix them up accidentally. Typed values remember which client they came from, so passing one to another client gets you a `ForeignReference` error, and #papo on one network isn't equal to #papo on another. If you're on soju, with the `unstable` feature, `client.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
-
-Channel events carry `ChannelRef`, which follows a joined channel across `RENAME`. Send to the whole channel with `client.privmsg("#ops", text)` or by passing its reference to `privmsg`. A line sent to `@#ops` files under the plain `#ops` conversation. Use `client.reply`, `client.react`, or `return_address()` on the line to address its ops-only audience.
-
-Ops-only lines get their own arm. A line sent to `@#ops` (or `+#ops`) arrives only as `Event::Restricted`, never as `Event::Message`, so a bot whose handler announces to `#ops` cannot repeat an ops-only command to the whole channel just because it never thought about them. Handle the arm when you want those lines:
-
-```rust
-if let Event::Restricted(restricted) = &event
-    && let RestrictedLine::Message(message) = &restricted.line
-{
-    client.reply(message, "on it").await?; // answers @#ops
+async fn send(client: &papo::Client, message: &papo::Message) -> Result<(), papo::Error> {
+    client.privmsg("alice", "deploy finished").await?;
+    client.reply(message, "thanks").await?;
+    Ok(())
 }
 ```
 
-To use a message reference later, call `message.return_address().to_saved()` and keep the text
-next to the message you stored. Treat the text as opaque and restore it with
-`client.saved_message(&text)` on the same network. Restored references preserve the channel
-audience. For a private message, they address whoever holds the saved nickname.
+**Who sent this?** Every message tells you the sender's nick and, when the server knows it, their
+account. Trust the account, not the nick.
+
+```rust
+use papo::{AccountStatus, Message};
+
+fn authorized(message: &Message) -> bool {
+    let nick = message.actor.nick();
+    let account = message.actor_account();
+    eprintln!("command received from {nick}");
+    matches!(account, AccountStatus::LoggedIn(name) if name == "alice")
+}
+```
+
+**One safety net.** If papo saw the sender of a message leave or get replaced, replying to that
+message fails instead of reaching a stranger.
+
+```rust
+use papo::{Client, Error, Message};
+
+async fn answer(client: &Client, message: &Message) -> Result<(), Error> {
+    match client.reply(message, "pong").await {
+        Ok(_) => Ok(()),
+        Err(Error::TargetGone) => {
+            eprintln!("the reply target is gone");
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
+}
+```
+
+- A message sent to a nick reaches whoever holds that nick. That is how IRC works.
+- The safety net only covers what papo saw. If you share no channel with someone, papo can't see them
+  leave.
+- The account comes from the server. It is only as trustworthy as the server and the connection, so
+  use TLS.
+- Nothing on IRC is end-to-end encrypted. Don't send secrets you can't afford to misdeliver.
+
+| Type | Means | Where it comes from |
+|---|---|---|
+| `Nick`, or plain text | a name, whoever holds it | the app builds it |
+| `UserRef` | the user papo saw in an event | an event's actor or subject, a WHO or WHOIS row, or a mode-change member |
+
+The safety net applies to live private replies. A reply to private history addresses the
+conversation's peer by nickname. If that nickname is now yours, the reply fails with
+`Error::TargetGone`.
+
+**Typed names.** `client.kick(channel, nick)` accepts a `ChannelName` and a `Nick` in that
+order. Swapping those typed arguments fails at compile time. Plain text is checked when the
+request runs.
+
+**Multiple connections.** Typed names and references remember which client produced them.
+Passing one to another client returns `ForeignReference`. A channel named `#papo` on one
+network compares unequal to one on another network. With soju and the `unstable` feature,
+`client.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
+
+Channel events carry `ChannelRef`, which follows a joined channel across `RENAME`. Send to the whole channel with `client.privmsg("#ops", text)` or by passing its reference to `privmsg`. A line sent to `@#ops` files under the plain `#ops` conversation. Use `client.reply`, `client.react`, or `return_address()` on the line to address its ops-only audience.
+
+A line sent to `@#ops` (or `+#ops`) arrives only as `Event::Restricted`, never as `Event::Message`, so a bot whose handler announces to `#ops` cannot repeat an ops-only command to the whole channel just because it never thought about them. Handle the arm when you want those lines:
+
+```rust
+use papo::{Client, Error, Event, RestrictedLine};
+
+async fn answer(client: &Client, event: &Event) -> Result<(), Error> {
+    if let Event::Restricted(restricted) = event
+        && let RestrictedLine::Message(message) = &restricted.line
+    {
+        client.reply(message, "on it").await?; // answers @#ops
+    }
+    Ok(())
+}
+```
+
+For a message with a server-assigned ID, save `message.return_address().to_saved()` alongside
+the message. Treat the text as opaque and restore it with `client.saved_message(&text)` on the
+same network. Restored references preserve the channel audience. A restored private reference
+addresses whoever holds the saved nickname.
 
 **No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
 
 ```rust
-let whois = client.whois("alice").await?.expect("alice is online");
+async fn lookup(client: &papo::Client) -> Result<Option<papo::Whois>, papo::Error> {
+    client.whois("alice").await
+}
 ```
 
-So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out and we don't know aren't the same thing. And when you send a message, each line it was split into is only `Confirmed` (with the msgid the server assigned) if the server echoed that line back. Otherwise it's `Unconfirmed`, with the reason, and you can't react to it or delete it.
+An `AccountStatus` is `LoggedIn(name)`, `LoggedOut` or `Unknown`. Each sent line records its
+`Confirmation`. A matched echo with a server-assigned message ID yields `Confirmed`.
+`Unconfirmed` reports why confirmation was unavailable. Reactions and redactions require a
+reference with a server-assigned message ID.
 
 ## Examples
 
@@ -98,7 +158,7 @@ So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out an
 | [graceful-shutdown](examples/graceful-shutdown) | Handling SIGINT and SIGTERM and quitting cleanly |
 | [lurker](examples/lurker) | Member lists and join, part, quit and nick events |
 | [ping-bot](examples/ping-bot) | The smallest complete bot |
-| [react-bot](examples/react-bot) | Reacting to every message |
+| [react-bot](examples/react-bot) | Reacting to live messages |
 | [sts-store](examples/sts-store) | Persisting STS policies in your own storage |
 
 ## Read more
