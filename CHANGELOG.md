@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Read the sent message prefix from `SendOutcome::audience()`.
+
 Choose password-based SASL mechanisms with `Sasl::password`.
 
 Use `Actor` for an event actor.
@@ -52,7 +54,7 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `ServerNotice::msgid()` replaces the corresponding field.
 
-`SendOutcome::conversation()` and `SendOutcome::status()` replace the corresponding fields.
+`SendOutcome::conversation()` and `SendOutcome::audience()` replace the corresponding fields.
 
 `SetModes::add_with` and `remove_with` accept nicknames and user handles for advertised membership modes.
 
@@ -759,7 +761,7 @@ for line in &sent.lines {
 }
 ```
 
-`SendOutcome` has no `msgid`, `line_msgids` or `server_time`. `SendOutcome::status()` returns
+`SendOutcome` has no `msgid`, `line_msgids` or `server_time`. `SendOutcome::audience()` returns
 `Option<Prefix>`, and
 `return_address()` returns a guarded `MessageRef`. Reacting or redacting an unconfirmed send fails
 because it has no server message ID. Redacting a confirmed split send processes every line in send

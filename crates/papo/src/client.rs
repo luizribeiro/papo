@@ -57,7 +57,7 @@ pub struct Client {
 #[non_exhaustive]
 pub struct SendOutcome {
     conversation: crate::Conversation,
-    status: Option<crate::Prefix>,
+    audience: Option<crate::Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Each logical line papo sent, in send order, with the server's confirmation of it.
     ///
@@ -579,8 +579,8 @@ impl SendOutcome {
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub const fn status(&self) -> Option<crate::Prefix> {
-        self.status
+    pub const fn audience(&self) -> Option<crate::Prefix> {
+        self.audience
     }
 
     /// Which `Client` produced this value (not the sender or the server).
@@ -599,14 +599,14 @@ impl SendOutcome {
 
     pub(crate) fn new(
         conversation: crate::Conversation,
-        status: Option<crate::Prefix>,
+        audience: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
         lines: Vec<SentLine>,
     ) -> Self {
         Self {
             conversation,
-            status,
+            audience,
             receipt,
             lines,
             fallbacks,
@@ -618,7 +618,7 @@ impl SendOutcome {
         echoes: &[Option<papo_core::SentInfo>],
         texts: Vec<String>,
         conversation: crate::Conversation,
-        status: Option<crate::Prefix>,
+        audience: Option<crate::Prefix>,
         mut receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
@@ -642,7 +642,7 @@ impl SendOutcome {
             .collect();
         Self {
             conversation,
-            status,
+            audience,
             receipt,
             lines,
             fallbacks,

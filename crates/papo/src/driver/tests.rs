@@ -7728,7 +7728,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     assert!(
         matches!(sent.conversation(), crate::Conversation::Channel(channel) if channel == "#papo")
     );
-    assert_eq!(sent.status(), None);
+    assert_eq!(sent.audience(), None);
     assert_eq!(sent.fallbacks, [crate::Fallback::SplitIntoLines]);
     let lines = format!(
         "PRIVMSG #papo {}\r\nPRIVMSG #papo {}\r\n",
@@ -7751,7 +7751,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     assert!(
         matches!(sent.conversation(), crate::Conversation::Channel(channel) if channel == "#ops")
     );
-    assert_eq!(sent.status().map(crate::Prefix::symbol), Some('@'));
+    assert_eq!(sent.audience().map(crate::Prefix::symbol), Some('@'));
     let sent = client
         .privmsg("#helpers", "reviewed")
         .reply_to(crate::MessageId::from("RfcBTzyxY120004"))
@@ -8059,7 +8059,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     assert!(
         matches!(sent.conversation(), crate::Conversation::Channel(channel) if channel == "#papo")
     );
-    assert_eq!(sent.status(), None);
+    assert_eq!(sent.audience(), None);
 
     let sender = client.clone();
     let split = tokio::spawn(async move { sender.notice("#papo", "a".repeat(600)).await });

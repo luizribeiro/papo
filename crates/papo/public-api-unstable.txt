@@ -3639,10 +3639,10 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 pub papo::SendOutcome::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::SendOutcome::lines: alloc::vec::Vec<papo::SentLine>
 impl papo::SendOutcome
+pub const fn papo::SendOutcome::audience(&self) -> core::option::Option<papo::Prefix>
 pub const fn papo::SendOutcome::conversation(&self) -> &papo::Conversation
 pub fn papo::SendOutcome::origin(&self) -> papo::Origin
 pub fn papo::SendOutcome::return_address(&self) -> papo::MessageRef
-pub const fn papo::SendOutcome::status(&self) -> core::option::Option<papo::Prefix>
 impl core::clone::Clone for papo::SendOutcome
 pub fn papo::SendOutcome::clone(&self) -> Self
 impl core::cmp::Eq for papo::SendOutcome

@@ -495,13 +495,13 @@ pub papo::event::Notice::conversation: papo::Conversation
 pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::event::Notice::channel_context: core::option::Option<papo::Conversation>
-pub papo::SendOutcome::status: core::option::Option<papo::Prefix>
+pub papo::SendOutcome::audience: core::option::Option<papo::Prefix>
 pub papo::SendOutcome::audience: core::option::Option<papo::Prefix>
 pub papo::ReactOutcome::conversation: papo::Conversation";
     let exposed = [
         "pub papo::event::Notice::conversation: papo::Conversation",
         "pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>",
-        "pub papo::SendOutcome::status: core::option::Option<papo::Prefix>",
+        "pub papo::SendOutcome::audience: core::option::Option<papo::Prefix>",
         "pub papo::SendOutcome::audience: core::option::Option<papo::Prefix>",
     ];
     for (name, snapshot, expected) in [
