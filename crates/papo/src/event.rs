@@ -32,6 +32,8 @@ mod restricted;
 mod server;
 #[path = "event/tags.rs"]
 mod tags;
+#[path = "event/test_accessors.rs"]
+mod test_accessors;
 #[path = "event/user.rs"]
 mod user;
 
@@ -1830,55 +1832,6 @@ pub(crate) enum OverflowPriority {
 pub(crate) struct OverflowClass<'a> {
     pub(crate) priority: OverflowPriority,
     pub(crate) conversation: Option<&'a Conversation>,
-}
-
-variant_accessors! { Event;
-    (Message, as_message, Message),
-    (Notice, as_notice, Notice),
-    (Incomplete, as_incomplete, Incomplete),
-    (ServerNotice, as_server_notice, ServerNotice),
-    (Restricted, as_restricted, Restricted),
-    (CtcpQuery, as_ctcp_query, CtcpQuery),
-    (CtcpReply, as_ctcp_reply, CtcpReply),
-    (BroadcastCtcp, as_broadcast_ctcp, BroadcastCtcp),
-    (BroadcastTagMsg, as_broadcast_tag_msg, BroadcastTagMsg),
-    (History, as_history, crate::HistoryPage),
-    (Connected, as_connected, Connected),
-    (Lagged, as_lagged, Lagged),
-    (Connecting, as_connecting, Connecting),
-    (Motd, as_motd, Motd),
-    (Disconnected, as_disconnected, Disconnected),
-    (CapsChanged, as_caps_changed, CapsChanged),
-    (FeaturesChanged, as_features_changed, FeaturesChanged),
-    (CasemappingChanged, as_casemapping_changed, CasemappingChanged),
-    (AutoJoinFailed, as_auto_join_failed, AutoJoinFailed),
-    (Reacted, as_reacted, Reacted),
-    (Redacted, as_redacted, Redacted),
-    (TypingChanged, as_typing_changed, TypingChanged),
-    (TagMsg, as_tag_msg, TagMsg),
-    (ReadMarkerChanged, as_read_marker_changed, ReadMarkerChanged),
-    (StandardReply, as_standard_reply, StandardReply),
-    (Joined, as_joined, Joined),
-    (ChannelSynced, as_channel_synced, ChannelSynced),
-    (MembersRefreshed, as_members_refreshed, MembersRefreshed),
-    (Parted, as_parted, Parted),
-    (Kicked, as_kicked, Kicked),
-    (Invited, as_invited, Invited),
-    (TopicChanged, as_topic_changed, TopicChanged),
-    (ModeChanged, as_mode_changed, ModeChanged),
-    (ChannelRenamed, as_channel_renamed, ChannelRenamed),
-    (Quit, as_quit, Quit),
-    (NickChanged, as_nick_changed, NickChanged),
-    (AwayChanged, as_away_changed, AwayChanged),
-    (AccountChanged, as_account_changed, AccountChanged),
-    (HostChanged, as_host_changed, HostChanged),
-    (RealnameChanged, as_realname_changed, RealnameChanged),
-    (MonitorOnline, as_monitor_online, MonitorOnline),
-    (MonitorOffline, as_monitor_offline, MonitorOffline),
-    (MetadataChanged, as_metadata_changed, MetadataChanged),
-    (AccountCreation, as_account_creation, crate::AccountOutcome),
-    (Warning, as_warning, Warning),
-    (Other, as_other, Other),
 }
 
 impl Event {
