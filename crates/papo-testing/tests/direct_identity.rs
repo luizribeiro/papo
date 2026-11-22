@@ -72,6 +72,7 @@ async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
         ":alice!~alice@cloak.example JOIN #review",
     )
     .await;
+    let before_rename_hash = handle_hash(&alice);
     join(
         &mut events,
         &mut wire,
@@ -85,7 +86,8 @@ async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
     };
     let renamed = renamed.actor;
     assert_eq!(alice, renamed);
-    assert_eq!(handle_hash(&alice), handle_hash(&renamed));
+    assert_eq!(before_rename_hash, handle_hash(&alice));
+    assert_eq!(before_rename_hash, handle_hash(&renamed));
     client.privmsg(&alice, "release approved").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alicia :release approved");
 
@@ -111,6 +113,30 @@ async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn user_handles_from_separate_clients_are_distinct() {
+    async fn observe_alice() -> (papo::Client, papo::UserHandle) {
+        let (client, mut events, mut wire) =
+            wire(papo::Client::builder("irc://offline.test", "papo").reconnect(Reconnect::never()));
+        wire.register(&[]).await;
+        connected(&mut events).await;
+        join(&mut events, &mut wire, ":papo!p@localhost JOIN #review").await;
+        let alice = join(
+            &mut events,
+            &mut wire,
+            ":alice!~alice@cloak.example JOIN #review",
+        )
+        .await;
+        (client, alice)
+    }
+
+    let (first, alice) = observe_alice().await;
+    let (second, same_nick) = observe_alice().await;
+    assert_ne!(first.origin(), second.origin());
+    assert_eq!(alice.nick().as_str(), same_nick.nick().as_str());
+    assert_ne!(alice, same_nick);
 }
 
 #[tokio::test]

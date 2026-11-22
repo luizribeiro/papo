@@ -1464,7 +1464,7 @@ mod tests {
     }
 
     #[test]
-    fn history_and_live_build_equal_handles() {
+    fn history_and_live_mint_proof_for_distinct_handles() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
         for line in [
@@ -1506,7 +1506,8 @@ mod tests {
 
         assert!(live.actor.proof().is_some());
         assert!(historical.actor.proof().is_some());
-        assert_eq!(historical.actor, live.actor);
+        assert_ne!(historical.actor, live.actor);
+        assert_eq!(historical.actor, historical.actor.clone());
     }
 
     #[test]
@@ -1626,7 +1627,7 @@ mod tests {
             };
             assert_eq!(Some(handle.nick().as_str()), peer, "{case}");
             assert_eq!(*handle == message.actor, sent_by_peer, "{case}");
-            assert_eq!(*handle == live, sent_by_peer, "{case}");
+            assert_ne!(*handle, live, "{case}");
             let reference = message.return_address();
             let parts = crate::Target::__parts(&reference);
             assert_eq!(Some(parts.text()), peer, "{case}");
@@ -1756,7 +1757,7 @@ mod tests {
     }
 
     #[test]
-    fn live_and_history_build_the_same_actor_from_one_line() {
+    fn live_and_history_report_the_same_actor_nick_and_account() {
         let raw = "@account=alice;bot;draft/oper=network-admin;msgid=RfcBTzyxY120019 :alice!~a@staff.example PART #papo :Deploying release";
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -1793,7 +1794,9 @@ mod tests {
             panic!("expected historical part")
         };
 
-        assert_eq!(live.actor, historical.actor);
+        assert_eq!(live.actor.nick(), historical.actor.nick());
+        assert_eq!(live.actor.account(), historical.actor.account());
+        assert_ne!(live.actor, historical.actor);
     }
 
     #[test]

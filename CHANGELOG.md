@@ -4,6 +4,8 @@
 
 `UserHandle` no longer compares directly with text. Use `handle.nick() == "luiz"` to check a nickname.
 
+Stored and untracked `UserHandle` values compare equal only to their own clones. Live tracked handles compare and hash by identity on the same client, including across observed renames.
+
 `Client::query` and the first-send WHO lookup are removed. Send to the nickname and use `actor_account()` to check an incoming message’s account.
 
 Saved direct-message identities are removed. Compare the expected account with the message's `actor_account()` or the account returned by `state.user(nick)`.
@@ -95,9 +97,8 @@ Initial away statuses learned in a channel refresh are included in `MembersRefre
 the line arrives, from the nick and account you held then, and a replayed history line is `Me` or
 `Other` only when its `account` tag proves it.
 
-A history actor's handle equals a current member's, and can receive a reply, only when the line's
-own `account` tag names the account that member is logged into. A matching `nick!user@host`
-alone never links them.
+A history actor's handle can receive a guarded send only when the line's own `account` tag names
+the account that a current member is logged into. A matching `nick!user@host` alone never links them.
 
 `Client::kickban` can be awaited only after `.nick(..)` and `.ban(..)`; an incomplete kickban does not
 compile.

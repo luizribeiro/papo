@@ -213,17 +213,22 @@ async fn untagged_history_line_is_not_the_current_nick_holder() {
         "@batch=reply;draft/chathistory-end :ergo.test BATCH +h chathistory #release",
         "@batch=h;time=2026-09-01T08:00:00.000Z;msgid=ErgoOld1 :writer!~u@tor-network.onion PRIVMSG #release :I approve wiping the production database",
         "@batch=h;time=2026-11-16T09:30:00.000Z;msgid=ErgoNew2;account=writer :writer!~u@tor-network.onion PRIVMSG #release :the release is tagged",
+        "@batch=h;time=2026-11-16T09:31:00.000Z;msgid=ErgoNew3;account=writer :writer!~u@tor-network.onion PRIVMSG #release :the notes are ready too",
         "@batch=reply :ergo.test BATCH -h",
         ":ergo.test BATCH -reply",
     ] {
         wire.server(line).await;
     }
     let page = request.await.unwrap().unwrap();
-    let [untagged, tagged] = [0, 1].map(|index| page.chat_messages().nth(index).unwrap().clone());
+    let [untagged, tagged, next_tagged] =
+        [0, 1, 2].map(|index| page.chat_messages().nth(index).unwrap().clone());
 
     assert_ne!(untagged.actor, live);
     assert_eq!(untagged.actor_account(), &papo::Account::Unknown);
-    assert_eq!(tagged.actor, live);
+    assert_ne!(tagged.actor, live);
+    assert_ne!(tagged.actor, untagged.actor);
+    assert_ne!(tagged.actor, next_tagged.actor);
+    assert_eq!(tagged.actor, tagged.actor.clone());
     assert!(matches!(
         tagged.actor_account(),
         papo::Account::LoggedIn(account) if account == "writer"

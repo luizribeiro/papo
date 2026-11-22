@@ -200,6 +200,10 @@ impl Drop for WatchLease {
 /// [`crate::State`] with [`crate::State::user`]. To answer a private history item, pass
 /// the item to [`crate::Client::reply`]. Sending to its actor returns [`crate::Error::TargetGone`].
 ///
+/// Equality and hashing use the tracked user identity on this client, which follows observed
+/// nickname changes. Handles from stored lines and handles without a tracked identity only
+/// compare equal to their own clones.
+///
 /// Compare nickname text through [`Self::nick`].
 ///
 /// ```compile_fail,E0308
@@ -213,6 +217,7 @@ pub struct UserHandle(Arc<UserInner>);
 #[allow(dead_code)]
 struct UserInner {
     identity: UserIdentity,
+    arrival_identity: Option<papo_core::ReplyToken>,
     nick: crate::Nick,
     account: crate::Account,
     proof: Option<papo_core::Proven>,
@@ -227,8 +232,26 @@ enum History {
     Private,
 }
 
+#[derive(Eq, Hash, PartialEq)]
+enum HandleIdentity {
+    Tracked(papo_core::ReplyToken),
+    Instance(*const UserInner),
+}
+
 #[allow(dead_code)]
 impl UserHandle {
+    fn comparison_identity(&self) -> HandleIdentity {
+        match (
+            self.0.history,
+            self.0.arrival_identity.as_ref(),
+            &self.0.identity,
+        ) {
+            (History::Live, Some(token), _)
+            | (History::Live, None, UserIdentity::Proven(token)) => HandleIdentity::Tracked(*token),
+            _ => HandleIdentity::Instance(Arc::as_ptr(&self.0)),
+        }
+    }
+
     pub(crate) fn from_nick(nick: crate::Nick) -> Self {
         Self::current_name(nick, crate::Account::Unknown, None, None)
     }
@@ -242,14 +265,14 @@ impl UserHandle {
         proof: Option<papo_core::Proven>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
     ) -> Self {
-        Self::from_parts_kind(nick, account, proof, state, History::Live)
+        Self::from_parts_kind(nick, account, proof, state, History::Live, None)
     }
 
     /// Builds the handle for a person a line names in the past: an archived line, a topic
     /// setter, or the setter of a list-mode entry. A send through this handle returns
     /// [`crate::Error::TargetGone`].
     pub(crate) fn from_past_line(nick: crate::Nick, account: crate::Account) -> Self {
-        Self::from_parts_kind(nick, account, None, None, History::Archived)
+        Self::from_parts_kind(nick, account, None, None, History::Archived, None)
     }
 
     fn from_parts_kind(
@@ -258,6 +281,7 @@ impl UserHandle {
         proof: Option<papo_core::Proven>,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,
         history: History,
+        arrival_identity: Option<papo_core::ReplyToken>,
     ) -> Self {
         let identity = proof
             .as_ref()
@@ -268,6 +292,7 @@ impl UserHandle {
             );
         Self(Arc::new(UserInner {
             identity,
+            arrival_identity,
             nick,
             account,
             proof,
@@ -351,11 +376,14 @@ impl UserHandle {
             &crate::Account,
         ) -> Option<papo_core::ReplyToken>,
     ) -> Self {
+        let mut arrival_identity = None;
         let proof = state.and_then(|shared| {
             let snapshot = shared
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let token = token(&snapshot, &nick, &account)?;
+            // A receipt can still identify the user after the evidence needed to send expires.
+            arrival_identity = token.__is_known().then_some(token);
             snapshot
                 .core
                 .__prove_event_user(token, nick.clone(), account.clone())
@@ -366,7 +394,7 @@ impl UserHandle {
                         .flatten()
                 })
         });
-        Self::from_parts_kind(nick, account, proof, state, history)
+        Self::from_parts_kind(nick, account, proof, state, history, arrival_identity)
     }
 
     pub(crate) fn proof(&self) -> Option<&papo_core::Proven> {
@@ -465,7 +493,7 @@ impl std::fmt::Debug for UserHandle {
 
 impl PartialEq for UserHandle {
     fn eq(&self, other: &Self) -> bool {
-        self.0.identity == other.0.identity
+        self.comparison_identity() == other.comparison_identity()
     }
 }
 
@@ -479,7 +507,7 @@ impl std::fmt::Display for UserHandle {
 
 impl Hash for UserHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.identity.hash(state);
+        self.comparison_identity().hash(state);
     }
 }
 
@@ -1033,8 +1061,17 @@ mod tests {
             );
 
             assert_eq!(historical.proof().is_some(), linked, "{account:?}");
-            assert_eq!(historical == alice, linked, "{account:?}");
+            assert_ne!(historical, alice, "{account:?}");
         }
+    }
+
+    #[test]
+    fn untracked_handles_with_the_same_nick_have_distinct_identities() {
+        let from_nick = || crate::UserHandle::from_nick(crate::Casemapping::Rfc1459.nick("Alice"));
+        let handle = from_nick();
+        assert_eq!(handle, handle.clone());
+        assert_ne!(handle, from_nick());
+        assert_eq!(handle_hash(&handle), handle_hash(&handle.clone()));
     }
 
     #[test]

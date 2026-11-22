@@ -6946,7 +6946,6 @@ mod tests {
                 "@+typing=active :alice!~alice@cloak.example TAGMSG papo",
             ] {
                 let (mut session, shared) = joined_review();
-                server(&mut session, &shared, line);
                 let current = |nick: &str| {
                     crate::UserHandle::from_current_state(
                         session.state().casemapping().nick(nick),
@@ -6955,6 +6954,7 @@ mod tests {
                 };
                 let alice = current("alice");
                 let own = current("papo");
+                server(&mut session, &shared, line);
                 let arrived: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
                 server(
                     &mut session,

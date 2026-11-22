@@ -31,7 +31,7 @@ use std::fmt;
 pub enum Conversation {
     /// Messages addressed to a channel.
     Channel(crate::ChannelHandle),
-    /// Messages exchanged with one proven or expected user identity.
+    /// Messages exchanged with a user. Equality follows [`crate::UserHandle`].
     Private(crate::UserHandle),
 }
 

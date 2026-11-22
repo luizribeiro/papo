@@ -1498,14 +1498,16 @@ async fn list_modes_returns_entries_and_updates_joined_channel_state() {
             .nick()
             .is_some_and(|nick| nick.as_str() == expected.as_str())
     );
-    assert_eq!(
-        client
-            .state()
-            .channel_local("#papo")
-            .unwrap()
-            .list(crate::ListMode::Ban),
-        Some(entries.as_slice())
-    );
+    let state = client.state();
+    let cached = state
+        .channel_local("#papo")
+        .unwrap()
+        .list(crate::ListMode::Ban)
+        .unwrap();
+    assert_eq!(cached.len(), 1);
+    assert_eq!(cached[0].mask, entries[0].mask);
+    assert_eq!(cached[0].set_at, entries[0].set_at);
+    assert_eq!(cached[0].actor().unwrap().nick(), actor.nick());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
