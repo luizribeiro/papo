@@ -2,6 +2,9 @@ use std::fmt;
 
 /// The IRC conversation to which a chat line belongs: the window an application files it in.
 ///
+/// Match [`Self::Channel`] or [`Self::Private`] and compare the channel's
+/// [`name()`](crate::ChannelRef::name) or the user's [`nick()`](crate::UserRef::nick) with text.
+///
 /// # Ops-only lines
 ///
 /// A line sent to a status-prefixed address such as `@#ops` reached only the channel's operators

@@ -186,6 +186,9 @@ pub(crate) trait ReplyReference {
 /// do not participate: they are read-marker metadata, not part of the routing or message identity
 /// represented by a reference.
 ///
+/// Compare the exact return address with [`AsRef<str>`](AsRef), as in
+/// `reference.as_ref() == "@#ops"`. The address includes any status prefix.
+///
 /// ```compile_fail,E0308
 /// fn matches_text(reference: papo::MessageRef) -> bool {
 ///     reference == "@#ops"
@@ -337,6 +340,9 @@ impl crate::Target for MessageRef {
 /// passed to [`crate::Client::notice`]. It deliberately cannot be converted into a [`MessageRef`],
 /// so it cannot be passed to reply, reaction, or redaction methods. See [`Conversation`] for
 /// status-prefixed audience guidance.
+///
+/// Compare the exact return address with [`AsRef<str>`](AsRef), as in
+/// `reference.as_ref() == "@#ops"`.
 ///
 /// ```compile_fail,E0308
 /// fn matches_text(reference: papo::NoticeRef) -> bool {

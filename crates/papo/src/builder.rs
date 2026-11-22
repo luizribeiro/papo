@@ -524,7 +524,7 @@ impl Builder {
     ///     .connect()
     ///     .await?;
     /// while let Some((event, _)) = events.next().await {
-    ///     if matches!(event, Event::ChannelSynced(ref synced) if synced.channel == "#papo") {
+    ///     if matches!(event, Event::ChannelSynced(ref synced) if synced.channel.name() == "#papo") {
     ///         break;
     ///     }
     /// }

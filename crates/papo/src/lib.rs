@@ -406,6 +406,9 @@ pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.
 ///
+/// Compare channel name text through [`Self::channel`] and [`ChannelRef::name`].
+/// Compare nickname text through [`Self::nick`].
+///
 /// ```compile_fail,E0308
 /// fn matches_text(reference: papo::Subject) -> bool {
 ///     reference == "alice"

@@ -522,6 +522,8 @@ impl Hash for UserRef {
 /// A reference names the whole channel and never carries a status sign: sending to it reaches
 /// everyone. See [`crate::Conversation`] for answering ops-only lines.
 ///
+/// Compare channel name text through [`Self::name`], as in `channel.name() == "#rust"`.
+///
 /// ```compile_fail,E0308
 /// fn matches_text(reference: papo::ChannelRef) -> bool {
 ///     reference == "#rust"
