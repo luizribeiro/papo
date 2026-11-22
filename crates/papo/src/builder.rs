@@ -323,7 +323,9 @@ impl Builder {
         } = account;
         let account = account.map(|(text, _origin)| text);
         if let Some(text) = account.as_deref()
-            && let Err(reason) = crate::Casemapping::default().account(text).check()
+            && let Err(reason) = crate::Origin::NONE
+                .__account(crate::Casemapping::default(), text)
+                .check()
         {
             self.invalid_input.get_or_insert_with(|| {
                 InvalidInput::invalid_argument("create_account: account", text.to_owned(), reason)

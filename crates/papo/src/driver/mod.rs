@@ -2027,9 +2027,9 @@ fn part_restored_channel(
 
 fn remember_rejoin(session: &Session, defaults: &mut PostConnect, entry: Autojoin) {
     let casemapping = session.isupport().casemapping();
-    defaults
-        .channels
-        .retain(|configured| casemapping.channel(&configured.channel) != entry.channel.as_str());
+    defaults.channels.retain(|configured| {
+        casemapping.fold(&configured.channel) != casemapping.fold(&entry.channel)
+    });
     defaults.channels.push(entry);
 }
 
@@ -2040,7 +2040,7 @@ fn response_confirms_join(session: &Session, lines: &[Line], channel: &crate::Ch
         line.command() == ProtoCommand::Join
             && line.param(0).is_some_and(|target| channel == target)
             && matches!(line.source(), Some(papo_proto::Source::User { nick, .. })
-                if mapping.nick(nick) == mapping.nick(session.nick()))
+                if mapping.fold(nick) == mapping.fold(session.nick()))
     })
 }
 
@@ -2058,7 +2058,7 @@ fn drop_bad_rejoin_key(
     let casemapping = session.isupport().casemapping();
     defaults
         .channels
-        .retain(|entry| casemapping.channel(&entry.channel) != channel);
+        .retain(|entry| casemapping.fold(&entry.channel) != casemapping.fold(channel));
 }
 
 fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
@@ -2066,7 +2066,7 @@ fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
     let mut deduplicated = Vec::with_capacity(defaults.channels.len());
     for entry in defaults.channels.drain(..) {
         deduplicated.retain(|configured: &Autojoin| {
-            casemapping.channel(&configured.channel) != entry.channel.as_str()
+            casemapping.fold(&configured.channel) != casemapping.fold(&entry.channel)
         });
         deduplicated.push(entry);
     }
@@ -2144,7 +2144,7 @@ fn resolve_sync_waiters(
     *waiters = std::mem::take(waiters)
         .into_iter()
         .filter_map(|(waiting, result)| {
-            if mapping.channel(&waiting) == channel {
+            if mapping.fold(&waiting) == mapping.fold(channel) {
                 _ = result.send(Ok(()));
                 None
             } else {

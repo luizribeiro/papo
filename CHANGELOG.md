@@ -40,6 +40,8 @@ and its three configuration errors have been removed.
 `Isupport::casemapping` reports only a currently advertised and supported casemapping.
 Use `State::name_rules` for the rules papo uses to build names. `State::casemapping` is removed.
 
+Construct names with `State::name_rules` and use `papo-testing` for standalone fixtures.
+
 The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
 
 `Line` keeps byte encoding. The public `LineRef`, `Line::as_ref`, and `Line::to_line` are removed.

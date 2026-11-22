@@ -99,24 +99,25 @@ impl AwayChangedBuilder {
 #[cfg(test)]
 mod tests {
     use super::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder};
+    use crate::{channel, nick};
 
     #[test]
     fn builds_common_event_payloads() {
         let mapping = papo::Casemapping::default();
-        let connected = ConnectedBuilder::new(mapping.nick("alice"))
+        let connected = ConnectedBuilder::new(nick(mapping, "alice"))
             .welcome("Welcome to Ergo")
             .reconnected(true)
             .build();
         assert_eq!(connected.welcome, "Welcome to Ergo");
         assert!(connected.reconnected);
 
-        let joined = JoinedBuilder::new(mapping.channel("#papo"), mapping.nick("alice"))
+        let joined = JoinedBuilder::new(channel(mapping, "#papo"), nick(mapping, "alice"))
             .own(true)
             .build();
         assert_eq!(joined.channel.name().as_str(), "#papo");
         assert_eq!(joined.actor_party, papo::Party::Me);
 
-        let away = AwayChangedBuilder::new(mapping.nick("alice"))
+        let away = AwayChangedBuilder::new(nick(mapping, "alice"))
             .away(papo::Away::__away_value(Some("reviewing IRCv3".into())))
             .build();
         assert_eq!(

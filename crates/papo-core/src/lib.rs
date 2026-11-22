@@ -3979,7 +3979,7 @@ impl Session {
         let same_account = message.tag("account").is_some_and(|actor| {
             self.account().is_some_and(|own| {
                 let mapping = self.isupport.value().casemapping();
-                mapping.account(actor.as_ref()) == mapping.account(own)
+                names_equal(mapping, actor.as_ref(), own)
             })
         });
         if self.is_own_source(message) || same_account {
@@ -4545,10 +4545,10 @@ impl Session {
     /// ```compile_fail
     /// # use std::time::Instant;
     /// # use papo_core::{Config, Session, TextKind};
-    /// # use papo_proto::Casemapping;
+    /// # use papo_proto::{Casemapping, Origin};
     /// fn person_writer_requires_proven() {
     ///     let mut session = Session::new(Config::default());
-    ///     let nick = Casemapping::default().nick("alice");
+    ///     let nick = Origin::NONE.__nick(Casemapping::default(), "alice");
     ///     let _ = session.send_person_text_detailed(
     ///         Instant::now(), nick, TextKind::Privmsg, "release approved", &[],
     ///     );

@@ -29,7 +29,8 @@ impl Extban {
     /// let _ = papo::Extban::Account("*".to_owned());
     /// ```
     pub fn account(name: impl crate::AsAccount) -> Result<Self, InvalidInput> {
-        let name = Casemapping::Ascii.account(crate::AsAccount::__parts(&name).text());
+        let name = crate::Origin::NONE
+            .__account(Casemapping::Ascii, crate::AsAccount::__parts(&name).text());
         if name.as_str() == "0" || name.as_str().contains(['*', '?']) || name.check().is_err() {
             return Err(InvalidInput::InvalidExtbanAccount(name.into_string()));
         }
@@ -785,9 +786,8 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
     if matches!(kind, ModeKind::Prefix(_))
         && let Some(argument) = &change.arg
     {
-        isupport
-            .casemapping()
-            .nick(argument.text())
+        crate::Origin::NONE
+            .__nick(isupport.casemapping(), argument.text())
             .check(isupport)
             .map_err(|reason| InvalidInput::invalid_name(argument.text(), reason))?;
     }
@@ -874,7 +874,8 @@ fn confirmed(
 
 fn same_target(state: &crate::State, left: &str, right: &str) -> bool {
     if state.isupport().is_channel(left) {
-        state.working_casemapping().channel(left) == right
+        let mapping = state.working_casemapping();
+        mapping.fold(left) == mapping.fold(right)
     } else {
         state
             .known_name_rules()

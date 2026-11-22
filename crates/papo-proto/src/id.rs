@@ -12,7 +12,7 @@ use crate::{Casemapping, Isupport};
 /// Which `Client` produced this value (not the sender or the server).
 ///
 /// This opaque identity records the client that produced a protocol value.
-/// Values built directly through [`Casemapping`] have [`Origin::NONE`]. High-level clients
+/// Origin-free names used in test fixtures carry [`Origin::NONE`]. High-level clients
 /// assign a distinct origin so names from different clients do not compare equal.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Origin(u64);
@@ -684,12 +684,16 @@ fn check_address(value: &str, isupport: &Isupport) -> Result<(), InvalidIdentifi
         .and_then(|prefixes| value.strip_prefix(|character| prefixes.contains(character)))
         .unwrap_or(value);
     if isupport.is_channel(target) {
-        return isupport.casemapping().channel(target).check(isupport);
+        return Origin::NONE
+            .__channel(isupport.casemapping(), target)
+            .check(isupport);
     }
     if value == "*" || value.starts_with('$') {
         return check_parameter(value);
     }
-    isupport.casemapping().nick(value).check(isupport)
+    Origin::NONE
+        .__nick(isupport.casemapping(), value)
+        .check(isupport)
 }
 fn check_length(value: &str, maximum: usize) -> Result<(), InvalidIdentifier> {
     let length = value.chars().count();

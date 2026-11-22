@@ -94,25 +94,25 @@ pub fn exercise_session_mapping_invariants(input: &[u8]) -> usize {
 /// Constructs an origin-free nickname for test fixtures.
 #[must_use]
 pub fn nickname(casemapping: Casemapping, text: impl Into<String>) -> Nick {
-    casemapping.nick(text)
+    crate::Origin::NONE.__nick(casemapping, text)
 }
 
 /// Constructs an origin-free channel name for test fixtures.
 #[must_use]
 pub fn channel_name(casemapping: Casemapping, text: impl Into<String>) -> ChannelName {
-    casemapping.channel(text)
+    crate::Origin::NONE.__channel(casemapping, text)
 }
 
 /// Constructs an origin-free account name for test fixtures.
 #[must_use]
 pub fn account_name(casemapping: Casemapping, text: impl Into<String>) -> AccountName {
-    casemapping.account(text)
+    crate::Origin::NONE.__account(casemapping, text)
 }
 
 /// Constructs an origin-free mask for test fixtures.
 #[must_use]
 pub fn mask(casemapping: Casemapping, text: impl Into<String>) -> Mask {
-    casemapping.mask(text)
+    crate::Origin::NONE.__mask(casemapping, text)
 }
 
 /// Builds details for a connection that ended before `attempt`.
@@ -218,17 +218,18 @@ pub fn message(
         let other = actor
             .as_ref()
             .map_or_else(|| target.clone(), |actor| actor.nick().to_string());
-        crate::Conversation::Private(crate::UserHandle::from_nick(
-            crate::Casemapping::default().nick(other),
-        ))
+        crate::Conversation::Private(crate::UserHandle::from_nick(nickname(
+            Casemapping::default(),
+            other,
+        )))
     } else {
         crate::Conversation::Channel(crate::ChannelHandle::from_parts(
-            crate::Casemapping::default().channel(&target),
+            channel_name(Casemapping::default(), &target),
             None,
             None,
         ))
     };
-    let actor = actor.unwrap_or_else(|| user_handle(crate::Casemapping::default().nick("unknown")));
+    let actor = actor.unwrap_or_else(|| user_handle(nickname(Casemapping::default(), "unknown")));
     let receipt = receipt(&actor, &conversation, None, None);
     Message {
         actor_account: crate::Account::Unknown,

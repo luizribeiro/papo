@@ -894,7 +894,8 @@ impl Message {
             let papo_proto::Source::User { nick: source, .. } = source else {
                 return false;
             };
-            isupport.casemapping().nick(source) == nick
+            let mapping = isupport.casemapping();
+            mapping.fold(source) == mapping.fold(nick)
         });
         let actor_party = if own_source { Party::Me } else { Party::Other };
         let Ok((status, conversation)) =

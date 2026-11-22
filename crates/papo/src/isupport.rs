@@ -37,7 +37,7 @@ impl Isupport {
     /// Returns the casemapping currently advertised by the server and understood by papo.
     ///
     /// Returns `None` when the advertisement is absent, withdrawn, or unsupported.
-    /// Use [`State::name_rules`](crate::State::name_rules) for the rules papo can use to build
+    /// Use [`crate::State::name_rules`] for the rules papo can use to build
     /// names, including a local seed.
     #[must_use]
     pub fn casemapping(&self) -> Option<Casemapping> {

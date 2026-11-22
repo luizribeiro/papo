@@ -2422,7 +2422,7 @@ fn same_list_entry(a: &Mask, b: &Mask, isupport: &Isupport) -> bool {
         isupport
             .accountextban()
             .contains(&kind)
-            .then(|| mask.casemapping().account(account))
+            .then(|| Origin::NONE.__account(mask.casemapping(), account))
     };
     match (account(a), account(b)) {
         (Some(a), Some(b)) => a == b,
@@ -2435,7 +2435,7 @@ fn canonical_list_mask(mask: &Mask) -> Mask {
     if mask.as_str().contains(['!', '@']) {
         mask.clone()
     } else {
-        mask.casemapping().mask(format!("{mask}!*@*"))
+        Origin::NONE.__mask(mask.casemapping(), format!("{mask}!*@*"))
     }
 }
 
