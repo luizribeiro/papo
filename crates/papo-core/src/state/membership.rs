@@ -280,10 +280,8 @@ impl State {
         }
     }
 
-    /// Ends what papo knew about whoever held `nick`: its WHO proofs, and every in-flight WHO
-    /// sweep's rows for it, which may describe that earlier holder.
+    /// In-flight WHO sweep rows for `nick` may describe its previous holder.
     fn nick_holder_changed(&mut self, nick: &str) {
-        self.forget_proven(nick);
         self.sweep_member_changed(None, nick);
     }
 

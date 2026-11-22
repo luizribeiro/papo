@@ -80,7 +80,6 @@ pub struct State {
     channel_epoch: u64,
     departure_sequence: u64,
     departed_identities: VecDeque<(crate::ReplyIdentity, Nick)>,
-    proven_identities: VecDeque<(crate::ReplyIdentity, Nick, Account)>,
     max_channels: usize,
     max_members_per_channel: usize,
     max_list_entries_per_mode: usize,
@@ -171,7 +170,6 @@ impl Clone for State {
             channel_epoch: self.channel_epoch,
             departure_sequence: self.departure_sequence,
             departed_identities: self.departed_identities.clone(),
-            proven_identities: self.proven_identities.clone(),
             max_channels: self.max_channels,
             max_members_per_channel: self.max_members_per_channel,
             max_list_entries_per_mode: self.max_list_entries_per_mode,
@@ -242,7 +240,6 @@ pub struct User {
     username: Option<String>,
     host: Option<String>,
     account: Account,
-    proven_account: Account,
     away: Away,
     realname: Option<String>,
     is_bot: Option<bool>,
@@ -529,7 +526,6 @@ impl State {
             channel_epoch: 0,
             departure_sequence: 0,
             departed_identities: VecDeque::new(),
-            proven_identities: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             max_list_entries_per_mode: config.max_list_entries_per_mode,
@@ -742,28 +738,12 @@ impl State {
                     && expected.sequence == user.departure_sequence
                     && match &guard.account {
                         Account::LoggedIn(account) => {
-                            matches!(user.guard_account(), Account::LoggedIn(actual) if actual == account)
+                            matches!(user.account(), Account::LoggedIn(actual) if actual == account)
                         }
                         Account::Unknown | Account::LoggedOut => true,
                     }
             })
         });
-        let proven = guard.token.identity.and_then(|expected| {
-            self.proven_identities
-                .iter()
-                .find(|(identity, _, account)| {
-                    *identity == expected
-                        && match &guard.account {
-                            Account::LoggedIn(expected) => {
-                                matches!(account, Account::LoggedIn(actual) if actual == expected)
-                            }
-                            Account::Unknown | Account::LoggedOut => true,
-                        }
-                })
-        });
-        if let Some((_, nick, _)) = proven {
-            return crate::RecipientStatus::Current(nick.clone());
-        }
         if let Some(user) = tracked {
             return crate::RecipientStatus::Current(user.nick.clone());
         }
@@ -856,9 +836,15 @@ impl State {
     }
 
     fn new_user(&mut self, nick: &str, username: Option<&str>, host: Option<&str>) -> User {
-        self.forget_proven(nick);
         let identity = self.next_identity();
-        self.user_with_identity(nick, username, host, identity)
+        User::new(
+            nick,
+            username,
+            host,
+            self.casemapping,
+            identity.epoch,
+            identity.sequence,
+        )
     }
 
     fn next_identity(&mut self) -> crate::ReplyIdentity {
@@ -889,7 +875,6 @@ impl State {
             user.reply_epoch = self.reply_epoch;
         }
         self.departed_identities.clear();
-        self.proven_identities.clear();
         self.who_sweeps.clear();
         self.metadata.clear();
         self.typing = TypingTable::new();
@@ -910,58 +895,6 @@ impl State {
         self.departed_identities.push_back((identity, nick));
         if self.departed_identities.len() > MAX_DEPARTED_IDENTITIES {
             self.departed_identities.pop_front();
-        }
-    }
-
-    /// Takes the WHO proof for `nick`, with the account it proved, unless the line's account
-    /// contradicts it. A WHO proof is all papo knows of a person it shares no channel with, so their
-    /// first private line keeps the identity papo already handed out for them.
-    pub(super) fn take_proven(
-        &mut self,
-        nick: &str,
-        account: Option<&Account>,
-    ) -> Option<(crate::ReplyIdentity, Account)> {
-        let index = self
-            .proven_identities
-            .iter()
-            .position(|(_, proven, proven_account)| {
-                crate::names_equal(self.casemapping, proven.as_str(), nick)
-                    && account.is_none_or(|account| account == proven_account)
-            })?;
-        self.proven_identities
-            .remove(index)
-            .map(|(identity, _, account)| (identity, account))
-    }
-
-    fn user_with_identity(
-        &self,
-        nick: &str,
-        username: Option<&str>,
-        host: Option<&str>,
-        identity: crate::ReplyIdentity,
-    ) -> User {
-        User::new(
-            nick,
-            username,
-            host,
-            self.casemapping,
-            identity.epoch,
-            identity.sequence,
-        )
-    }
-
-    /// Ends every WHO proof for `nick`. A proof names whoever held the nick when WHO answered;
-    /// once papo sees the nick arrive, leave or change hands, the proof no longer says who holds it.
-    pub(super) fn forget_proven(&mut self, nick: &str) {
-        let casemapping = self.casemapping;
-        let (ended, kept) = std::mem::take(&mut self.proven_identities)
-            .into_iter()
-            .partition::<VecDeque<_>, _>(|(_, proven, _)| {
-                crate::names_equal(casemapping, proven.as_str(), nick)
-            });
-        self.proven_identities = kept;
-        for (identity, nick, _) in ended {
-            self.remember_departed_identity(identity, nick);
         }
     }
 
@@ -1082,7 +1015,6 @@ impl State {
             self.monitored = monitored;
             self.mark_changed();
         }
-        self.forget_proven(nick);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             if !self.users.contains_key(&key) {
                 self.prepare_identity_arrival(nick);
@@ -2285,7 +2217,6 @@ impl User {
             username: user.map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
-            proven_account: Account::Unknown,
             away: Away::Unknown,
             realname: None,
             is_bot: None,
@@ -2293,17 +2224,6 @@ impl User {
             channels: BTreeSet::new(),
             reply_epoch,
             departure_sequence,
-        }
-    }
-
-    /// The account a recipient guard checks: what the user's lines said, or, while they have said
-    /// nothing, what a WHO proof saw for the nick. Only the first is the user's account, because
-    /// the proof cannot say the sender is still the person WHO saw. A guarded send still goes to
-    /// whoever holds the nick, as every send to a nick papo cannot follow does.
-    fn guard_account(&self) -> &Account {
-        match self.account {
-            Account::Unknown => &self.proven_account,
-            _ => &self.account,
         }
     }
 
