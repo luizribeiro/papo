@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Enable bot mode with `Builder::bot_mode`.
+
 Build mode changes with `Client::set_modes`.
 
 Send typing notifications with `Client::set_typing`.

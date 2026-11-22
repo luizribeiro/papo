@@ -402,7 +402,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     ]
 )]
 async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
-    let mut alice = s.connect_with(s.configure("alice")?.bot(true)).await?;
+    let mut alice = s.connect_with(s.configure("alice")?.bot_mode(true)).await?;
     let mut bob = s.connect("bob").await?;
     let alice_nick = alice.snapshot().nick().clone();
     let channel = s.channel_name();

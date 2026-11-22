@@ -107,7 +107,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, _a, _b, _c => builder.reconnect(crate::Reconnect::never()));
         probe!(builder, a, _b, _c => builder.connect_timeout(Duration::from_secs(a.len() as u64)));
         probe!(builder, _a, _b, _c => builder.sts_store(papo_core::sts::MemoryStsStore::new()));
-        probe!(builder, a, _b, _c => builder.bot(a.len() % 2 == 0));
+        probe!(builder, a, _b, _c => builder.bot_mode(a.len() % 2 == 0));
         probe!(builder, a, b, _c => builder.autojoin([a, b]));
         probe!(builder, a, b, _c => builder.autojoin_with_key(a, crate::Secret::new(b)));
         probe!(builder, a, _b, _c => builder.history_on_reconnect(a.len() % 2 == 0));

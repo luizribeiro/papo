@@ -502,7 +502,7 @@ impl Builder {
     /// The default is `false`. When enabled, this is skipped if the server offers no bot mode.
     /// After connecting, [`crate::State::supports`] with [`crate::Feature::BotMode`] reports
     /// whether the server offers one.
-    pub fn bot(mut self, enabled: bool) -> Self {
+    pub fn bot_mode(mut self, enabled: bool) -> Self {
         self.bot = enabled;
         self
     }
@@ -1448,9 +1448,9 @@ mod tests {
             crate::WhoOnJoin::Always
         );
         let staff = crate::Casemapping::default().channel("#staff");
-        assert!(!Builder::new("ircs://irc.example.net").bot(false).bot);
+        assert!(!Builder::new("ircs://irc.example.net").bot_mode(false).bot);
         let builder = Builder::new("ircs://irc.example.net")
-            .bot(true)
+            .bot_mode(true)
             .autojoin(["#papo", "#papo-bots"])
             .autojoin_with_key(staff, crate::Secret::new("private channel key"))
             .who_on_join(crate::WhoOnJoin::BelowMembers(25))

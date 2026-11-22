@@ -18,7 +18,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         )
         .sasl(Sasl::plain(&account, papo::Secret::new(password)))
         .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
-        .bot(true)
+        .bot_mode(true)
         .autojoin([&channel])
         .connect()
         .await

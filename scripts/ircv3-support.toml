@@ -73,7 +73,7 @@ specs = [
 title = "ISUPPORT tokens and other specifications"
 specs = [
   { name = "Account extended ban", url = "https://ircv3.net/specs/extensions/account-extban", wire = "ACCOUNTEXTBAN", support = "Yes", api = "Extban::account", coverage = "ircv3.account-extban" },
-  { name = "Bot mode", url = "https://ircv3.net/specs/extensions/bot-mode", wire = "BOT, bot", support = "Opt-in", api = "Builder::bot", coverage = "ircv3.bot-mode" },
+  { name = "Bot mode", url = "https://ircv3.net/specs/extensions/bot-mode", wire = "BOT, bot", support = "Opt-in", api = "Builder::bot_mode", coverage = "ircv3.bot-mode" },
   { name = "Monitor", url = "https://ircv3.net/specs/extensions/monitor", wire = "MONITOR", support = "Yes", api = "UserHandle::watch", coverage = "ircv3.monitor." },
   { name = "Network icon", url = "https://ircv3.net/specs/extensions/network-icon", wire = "draft/ICON", support = "Yes", api = "Isupport::icon_url", coverage = "draft.network-icon" },
   { name = "WHOX", url = "https://ircv3.net/specs/extensions/whox", wire = "WHOX", support = "Yes", api = "Client::who", coverage = "ircv3.whox" },
