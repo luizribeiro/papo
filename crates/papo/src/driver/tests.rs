@@ -1256,7 +1256,7 @@ async fn broadcasts_are_not_replyable_message_events() {
     let notice = event.as_server_notice().unwrap();
     assert_eq!(notice.kind, crate::event::ServerNoticeKind::Privmsg);
     assert!(
-        matches!(&notice.to, crate::event::Audience::Broadcast(crate::event::Broadcast::Mask(mask))
+        matches!(&notice.to, crate::event::NoticeTarget::Broadcast(crate::event::Broadcast::Mask(mask))
         if mask == "$*.example.org")
     );
     assert_eq!(notice.text, "!status");
@@ -1410,7 +1410,7 @@ async fn wallops_is_a_server_notice() {
     assert_eq!(notice.kind, crate::event::ServerNoticeKind::Wallops);
     assert_eq!(
         notice.to,
-        crate::event::Audience::Broadcast(crate::event::Broadcast::Everyone)
+        crate::event::NoticeTarget::Broadcast(crate::event::Broadcast::Everyone)
     );
     assert_eq!(notice.text, "Network maintenance begins soon");
 
@@ -4449,7 +4449,7 @@ async fn successful_registration_preserves_earlier_events() {
         Some(Event::ServerNotice(notice))
             if notice.kind == crate::event::ServerNoticeKind::Notice
                 && notice.to
-                    == crate::event::Audience::Broadcast(crate::event::Broadcast::Everyone)
+                    == crate::event::NoticeTarget::Broadcast(crate::event::Broadcast::Everyone)
     ));
     assert_connected(&mut events).await;
     within(server.shutdown()).await.unwrap();

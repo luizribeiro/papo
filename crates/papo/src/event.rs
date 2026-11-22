@@ -101,7 +101,7 @@ pub enum ServerNoticeKind {
 /// The audience addressed by a server notice.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
-pub enum Audience {
+pub enum NoticeTarget {
     /// This client.
     Me,
     /// A channel.
@@ -478,7 +478,7 @@ pub struct ServerNotice {
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
-    pub to: Audience,
+    pub to: NoticeTarget,
     /// The lowest-ranked `STATUSMSG` prefix on a channel audience, moved to
     /// [`Restricted::audience`] before delivery.
     pub(crate) status: Option<Prefix>,
@@ -1160,7 +1160,7 @@ impl ServerNotice {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> Option<crate::NoticeRef> {
-        matches!(self.to, Audience::Channel(_))
+        matches!(self.to, NoticeTarget::Channel(_))
             .then(|| crate::message_ref::from_server_notice(self))
     }
 
@@ -1191,24 +1191,24 @@ impl ServerNotice {
             return Err(raw);
         };
         let to = if let Some(Conversation::Channel(channel)) = conversation {
-            Audience::Channel(channel.clone())
+            NoticeTarget::Channel(channel.clone())
         } else if wallops || message.param(0) == Some("*") {
-            Audience::Broadcast(Broadcast::Everyone)
+            NoticeTarget::Broadcast(Broadcast::Everyone)
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
-            Audience::Broadcast(Broadcast::Mask(
+            NoticeTarget::Broadcast(Broadcast::Mask(
                 origin.__mask(isupport.casemapping(), target),
             ))
         } else if let Some(target) = message
             .param(0)
             .filter(|target| isupport.is_channel(target))
         {
-            Audience::Channel(crate::ChannelHandle::from_parts(
+            NoticeTarget::Channel(crate::ChannelHandle::from_parts(
                 origin.__channel(isupport.casemapping(), target),
                 None,
                 None,
             ))
         } else {
-            Audience::Me
+            NoticeTarget::Me
         };
         let Some(prefix) = message.raw_source() else {
             return Err(raw);
@@ -1229,7 +1229,7 @@ impl ServerNotice {
             return Err(raw);
         };
         let receipt = match &to {
-            Audience::Channel(channel) => crate::message_ref::Receipt::new(
+            NoticeTarget::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
                 &Conversation::Channel(channel.clone()),
                 reply_token,
@@ -1237,7 +1237,7 @@ impl ServerNotice {
                     .param(0)
                     .map_or_else(|| channel.name().to_string(), str::to_owned),
             ),
-            Audience::Broadcast(_) | Audience::Me => {
+            NoticeTarget::Broadcast(_) | NoticeTarget::Me => {
                 crate::message_ref::Receipt::without_recipient(
                     actor.clone(),
                     reply_token,
@@ -2173,8 +2173,8 @@ pub(crate) fn attach_message_handles(
             if let Actor::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
                 let conversation = match &event.to {
-                    Audience::Channel(channel) => Conversation::Channel(channel.clone()),
-                    Audience::Me | Audience::Broadcast(_) => return,
+                    NoticeTarget::Channel(channel) => Conversation::Channel(channel.clone()),
+                    NoticeTarget::Me | NoticeTarget::Broadcast(_) => return,
                 };
                 event
                     .receipt
@@ -3166,10 +3166,10 @@ mod tests {
     };
 
     use super::{
-        Actor, Audience, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent, Event,
+        Actor, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent, Event,
         Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
-        ModeChange, Party, RequestEnd, ServerNoticeKind, StandardReplyKind, Tags, Warning,
-        ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
+        ModeChange, NoticeTarget, Party, RequestEnd, ServerNoticeKind, StandardReplyKind, Tags,
+        Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
         message_event_from_line,
     };
     use crate::{ModeArg, Subject, Visibility};
@@ -4219,7 +4219,7 @@ mod tests {
                 ("broadcast", Event::ServerNotice(notice)) => {
                     assert_eq!(notice.actor.nick().unwrap().origin(), origin);
                     assert!(
-                        matches!(notice.to, Audience::Broadcast(Broadcast::Mask(mask))
+                        matches!(notice.to, NoticeTarget::Broadcast(Broadcast::Mask(mask))
                         if mask.origin() == origin)
                     );
                 }
@@ -4274,7 +4274,7 @@ mod tests {
             panic!("expected server notice")
         };
         assert_eq!(server.kind, ServerNoticeKind::Notice);
-        assert_eq!(server.to, Audience::Me);
+        assert_eq!(server.to, NoticeTarget::Me);
         assert!(server.msgid().is_none());
         assert_eq!(server.actor_party, Party::Other);
         assert!(server.status.is_none());
@@ -4298,7 +4298,7 @@ mod tests {
             panic!("expected WALLOPS server notice")
         };
         assert_eq!(wallops.kind, ServerNoticeKind::Wallops);
-        assert_eq!(wallops.to, Audience::Broadcast(Broadcast::Everyone));
+        assert_eq!(wallops.to, NoticeTarget::Broadcast(Broadcast::Everyone));
         assert!(wallops.return_address().is_none());
 
         let broadcast = message_event_from_line(
@@ -4320,7 +4320,7 @@ mod tests {
         };
         assert!(matches!(
             broadcast.to,
-            Audience::Broadcast(Broadcast::Mask(_))
+            NoticeTarget::Broadcast(Broadcast::Mask(_))
         ));
         assert_eq!(broadcast.actor_party, Party::Other);
         assert!(
@@ -4345,7 +4345,7 @@ mod tests {
         let Event::ServerNotice(notice) = event else {
             panic!("expected channel server notice")
         };
-        assert!(matches!(notice.to, Audience::Channel(_)));
+        assert!(matches!(notice.to, NoticeTarget::Channel(_)));
         assert_eq!(notice.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120008"));
         assert_eq!(notice.return_address().as_ref().unwrap(), "@#ops");
     }
@@ -4378,7 +4378,7 @@ mod tests {
                 UNIX_EPOCH,
             );
             assert!(matches!(event, Event::ServerNotice(notice)
-                if matches!(notice.to, Audience::Channel(ref name) if name == channel)
+                if matches!(notice.to, NoticeTarget::Channel(ref name) if name == channel)
                     && notice.status.map(crate::Prefix::symbol) == Some(status)));
         }
     }
@@ -4752,7 +4752,7 @@ mod tests {
         );
         assert!(matches!(server, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Notice
-                && notice.to == Audience::Me));
+                && notice.to == NoticeTarget::Me));
 
         let broadcast = parse_event(
             Line::notice("$*.example.org", "Maintenance begins soon").with_source("oper!o@staff"),
@@ -4761,7 +4761,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
-            if matches!(&notice.to, Audience::Broadcast(Broadcast::Mask(mask)) if mask == "$*.example.org")));
+            if matches!(&notice.to, NoticeTarget::Broadcast(Broadcast::Mask(mask)) if mask == "$*.example.org")));
     }
 
     #[test]

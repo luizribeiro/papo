@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use super::{
-    Audience, CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, Other, Reacted,
+    CtcpQuery, CtcpReply, Incomplete, Message, MessageId, Notice, NoticeTarget, Other, Reacted,
     Redacted, ServerNotice, ServerTime, TagMsg, TypingChanged,
 };
 use crate::{Conversation, Prefix};
@@ -164,8 +164,8 @@ impl<'a> LineView<'a> {
             Self::Notice(line) => Some(line.conversation().clone()),
             Self::Incomplete(line) => Some(line.conversation().clone()),
             Self::ServerNotice(line) => match &line.to {
-                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
-                Audience::Me | Audience::Broadcast(_) => None,
+                NoticeTarget::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                NoticeTarget::Me | NoticeTarget::Broadcast(_) => None,
             },
             Self::CtcpQuery(line) => Some(line.conversation.clone()),
             Self::CtcpReply(line) => Some(line.conversation.clone()),

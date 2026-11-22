@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `event::NoticeTarget` for the destination of a server notice.
+
 Read the typing notification prefix from `Typer::audience()`.
 
 Read the sent message prefix from `SendOutcome::audience()`.
@@ -710,7 +712,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | `Redacted::message` | `redacts` |
 | `NoticeKind` duplicated message kinds | Notices use the shared `MessageKind`; `NoticeKind` was removed |
 | `Vec<char>` status prefixes | `Option<Prefix>` preserves the lowest-ranked addressed prefix |
-| `ServerNoticeTarget` | `Audience::{Me, Channel, Broadcast}` plus `Broadcast::{Everyone, Mask}` |
+| `ServerNoticeTarget` | `NoticeTarget::{Me, Channel, Broadcast}` plus `Broadcast::{Everyone, Mask}` |
 | Server-wide CTCP and tag messages were folded into unrelated events | `Event::BroadcastCtcp` and `Event::BroadcastTagMsg` carry explicit broadcast audiences |
 | `Event::Other(Line)` | `Event::Other(event::Other)` preserves the line plus msgid and timestamps and dereferences to `Line` |
 | `event::Unparsed` | `event::Other`, named like its `Event::Other` variant and `as_other()` accessor |

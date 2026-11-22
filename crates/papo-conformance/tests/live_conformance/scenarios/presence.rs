@@ -705,7 +705,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(delivered.kind, papo::event::ServerNoticeKind::Wallops);
     assert_eq!(
         delivered.to,
-        papo::event::Audience::Broadcast(papo::event::Broadcast::Everyone)
+        papo::event::NoticeTarget::Broadcast(papo::event::Broadcast::Everyone)
     );
     assert_eq!(delivered.text, wallops);
     Ok(())

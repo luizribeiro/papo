@@ -94,27 +94,6 @@ pub use papo::cap::WHOAMI
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::TypingReason
-#[non_exhaustive] pub enum papo::event::Audience
-pub papo::event::Audience::Broadcast(papo::event::Broadcast)
-pub papo::event::Audience::Channel(papo::ChannelHandle)
-pub papo::event::Audience::Me
-impl core::clone::Clone for papo::event::Audience
-pub fn papo::event::Audience::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Audience
-impl core::cmp::PartialEq for papo::event::Audience
-pub fn papo::event::Audience::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Audience
-pub fn papo::event::Audience::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::event::Audience
-pub fn papo::event::Audience::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo::event::Audience
-impl core::marker::Freeze for papo::event::Audience
-impl core::marker::Send for papo::event::Audience
-impl core::marker::Sync for papo::event::Audience
-impl core::marker::Unpin for papo::event::Audience
-impl core::marker::UnsafeUnpin for papo::event::Audience
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Audience
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Audience
 #[non_exhaustive] pub enum papo::event::Broadcast
 pub papo::event::Broadcast::Everyone
 pub papo::event::Broadcast::Mask(papo::Mask)
@@ -159,6 +138,27 @@ impl core::marker::Unpin for papo::event::ConnectPhase
 impl core::marker::UnsafeUnpin for papo::event::ConnectPhase
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
+#[non_exhaustive] pub enum papo::event::NoticeTarget
+pub papo::event::NoticeTarget::Broadcast(papo::event::Broadcast)
+pub papo::event::NoticeTarget::Channel(papo::ChannelHandle)
+pub papo::event::NoticeTarget::Me
+impl core::clone::Clone for papo::event::NoticeTarget
+pub fn papo::event::NoticeTarget::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::NoticeTarget
+impl core::cmp::PartialEq for papo::event::NoticeTarget
+pub fn papo::event::NoticeTarget::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::NoticeTarget
+pub fn papo::event::NoticeTarget::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::NoticeTarget
+pub fn papo::event::NoticeTarget::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::event::NoticeTarget
+impl core::marker::Freeze for papo::event::NoticeTarget
+impl core::marker::Send for papo::event::NoticeTarget
+impl core::marker::Sync for papo::event::NoticeTarget
+impl core::marker::Unpin for papo::event::NoticeTarget
+impl core::marker::UnsafeUnpin for papo::event::NoticeTarget
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NoticeTarget
+impl core::panic::unwind_safe::UnwindSafe for papo::event::NoticeTarget
 #[non_exhaustive] pub enum papo::event::ReactionAction
 pub papo::event::ReactionAction::Added
 pub papo::event::ReactionAction::Removed
@@ -1109,7 +1109,7 @@ pub papo::event::ServerNotice::received_at: std::time::SystemTime
 pub papo::event::ServerNotice::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
-pub papo::event::ServerNotice::to: papo::event::Audience
+pub papo::event::ServerNotice::to: papo::event::NoticeTarget
 impl papo::event::ServerNotice
 pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::AccountStatus
 pub const fn papo::event::ServerNotice::msgid(&self) -> core::option::Option<&papo::MessageId>
