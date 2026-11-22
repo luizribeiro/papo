@@ -142,7 +142,6 @@ ids = [
   "security.d-4.departed-handle-account-retarget",
   "security.guard-proof.who-proof-nick-handoff",
   "security.guard-proof.no-account-tag-handoff",
-  "security.guard-proof.who-expected-account",
   "security.guard-proof.reply-subject-at-arrival",
   "security.guard-proof.reply-subject-account",
   "security.casemapping.unknown-token",
