@@ -787,7 +787,14 @@ fn mode_changed(
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(client.channel(message.param(0)?).ok()?)
         } else {
-            crate::Subject::User(client.query(message.param(0)?).ok()?)
+            let subject = message.param(0)?;
+            let rules = state.known_name_rules()?;
+            let nick = rules.nick(subject);
+            nick.check(state.isupport().inner()).ok()?;
+            crate::Subject::User(crate::UserHandle::from_past_line(
+                nick,
+                crate::Account::Unknown,
+            ))
         },
         actor,
         actor_party,
@@ -1514,7 +1521,10 @@ mod tests {
             session.handle_line(now, line);
         }
         let (client, _) = client_with_commands(&session);
-        let live = client.query("writer").unwrap();
+        let live = crate::UserHandle::from_current_state(
+            client.state().name_rules().unwrap().nick("writer"),
+            Some(&client.state),
+        );
         assert!(live.proof().is_some());
         let conversation = crate::Conversation::Private(live.clone());
         let mut sent = core_item(
@@ -1555,8 +1565,15 @@ mod tests {
             session.handle_line(now, line);
         }
         let (client, _) = client_with_commands(&session);
-        let live = client.query("alice").unwrap();
-        let page = |nick| crate::Conversation::Private(client.query(nick).unwrap());
+        let live = crate::UserHandle::from_current_state(
+            client.state().name_rules().unwrap().nick("alice"),
+            Some(&client.state),
+        );
+        let page = |nick| {
+            crate::Conversation::Private(crate::UserHandle::from_nick(
+                client.state().name_rules().unwrap().nick(nick),
+            ))
+        };
         let (alice, own) = (page("alice"), page("papo"));
         let ours = "@time=2026-11-01T09:00:00.000Z;msgid=own-1 :papo!~u@papo.irc PRIVMSG alice :I will send the token once you confirm";
         let theirs = "@time=2026-11-01T09:01:00.000Z;msgid=alice-1;account=alice :alice!~u@alice.irc PRIVMSG papo :confirmed, send it";
@@ -2407,6 +2424,27 @@ mod tests {
                 if event.reaction == "👍"
                     && event.action == crate::event::ReactionAction::Removed
         ));
+    }
+
+    #[test]
+    fn replayed_user_mode_subject_is_a_past_line() {
+        let session = review_session(&["alice"]);
+        let (client, _) = client_with_commands(&session);
+        let event = history_item(
+            papo_core::HistoryItem::ModeChanged(core_item(":alice!~a@localhost MODE alice +i")),
+            None,
+            &client,
+            UNIX_EPOCH,
+        );
+        let PageEvent::ModeChanged(event) = event else {
+            panic!("expected a mode change");
+        };
+        let crate::Subject::User(subject) = event.subject else {
+            panic!("expected a user subject");
+        };
+        assert_eq!(subject.nick(), "alice");
+        assert!(subject.__names_a_past_line());
+        assert!(subject.proof().is_none());
     }
 
     #[test]
