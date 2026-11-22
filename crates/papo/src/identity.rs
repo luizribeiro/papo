@@ -6,13 +6,6 @@ pub(crate) struct ProvenUser {
 pub(crate) fn prove(
     client: &crate::Client,
     handle: &crate::UserHandle,
-) -> std::future::Ready<Result<ProvenUser, crate::Error>> {
-    std::future::ready(resolve_captured(client, handle))
-}
-
-fn resolve_captured(
-    client: &crate::Client,
-    handle: &crate::UserHandle,
 ) -> Result<ProvenUser, crate::Error> {
     if handle.nick().origin() != client.origin() {
         return Err(crate::ForeignReference.into());
@@ -32,13 +25,13 @@ fn resolve_captured(
     })
 }
 
-pub(crate) async fn prove_parts(
+pub(crate) fn prove_parts(
     client: &crate::Client,
     parts: crate::target::sealed::Parts<'static>,
     argument: &'static str,
 ) -> Result<ProvenUser, crate::Error> {
     if let Some(handle) = parts.user.as_ref() {
-        return prove(client, handle).await;
+        return prove(client, handle);
     }
     let nick = client.resolve(crate::target::Role::Nick(argument), parts)?;
     let state = client.state();

@@ -502,7 +502,7 @@ impl IntoFuture for SendMessage {
             if let Some(error) = self.invalid_input {
                 return Err(error.into());
             }
-            let target = self.client.resolve_send("target", self.target).await?;
+            let target = self.client.resolve_send("target", self.target)?;
             let channel_context = self
                 .channel_context
                 .map(|channel| {
@@ -681,13 +681,13 @@ fn current_channel_text(
 }
 
 impl Client {
-    async fn resolve_send(
+    fn resolve_send(
         &self,
         argument: &'static str,
         parts: crate::target::sealed::Parts<'static>,
     ) -> Result<ResolvedSend, Error> {
         if let Some(handle) = parts.user.as_ref() {
-            let proven = crate::identity::prove(self, handle).await?;
+            let proven = crate::identity::prove(self, handle)?;
             return Ok(ResolvedSend {
                 text: proven.nick.to_string(),
                 guard: None,
@@ -968,9 +968,7 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let body = body.ok_or(InvalidInput::InvalidCtcp)?;
-            let target = client
-                .resolve_send("ctcp_reply: query", target.into_owned())
-                .await?;
+            let target = client.resolve_send("ctcp_reply: query", target.into_owned())?;
             let state = client.state();
             let (status, conversation) = target.conversation(&client, &state)?;
             let receipt = state.sent_receipt(&conversation, target.text.clone());
@@ -1265,10 +1263,10 @@ impl Client {
     /// # }
     /// ```
     ///
-    /// A private return address follows a tracked sender's nickname changes. If the sender is not
-    /// tracked, papo verifies its captured account with `WHO`; a mismatch or identity that cannot
-    /// be verified is refused rather than sent to a bare nickname. A [`crate::MessageRef`] from
-    /// private history addresses the thread's peer by nickname and refuses your own nickname.
+    /// A live private return address follows observed nickname changes. It expires on
+    /// reconnect or when papo observes the sender leave or the nickname change hands.
+    /// A [`crate::MessageRef`] from private history addresses the thread's peer by nickname
+    /// and refuses your own nickname.
     ///
     /// # Errors
     ///
@@ -1369,12 +1367,10 @@ impl Client {
                 }
                 .into());
             }
-            let target = client
-                .resolve_send(
-                    "reaction: message",
-                    crate::Target::__parts(&message).into_owned(),
-                )
-                .await?;
+            let target = client.resolve_send(
+                "reaction: message",
+                crate::Target::__parts(&message).into_owned(),
+            )?;
             let state = client.state();
             Self::require_feature(&state, Feature::Reactions)?;
             message_id
@@ -1421,7 +1417,7 @@ impl Client {
         let client = self.clone();
         let target = crate::Target::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
-            let target = client.resolve_send("typing: target", target).await?;
+            let target = client.resolve_send("typing: target", target)?;
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
             let (result, receiver) = oneshot::channel();
@@ -1477,12 +1473,10 @@ impl Client {
             if message.msgids().is_empty() {
                 return Err(InvalidInput::UnusableMessageReference.into());
             }
-            let target = client
-                .resolve_send(
-                    "redact: message",
-                    crate::Target::__parts(&message).into_owned(),
-                )
-                .await?;
+            let target = client.resolve_send(
+                "redact: message",
+                crate::Target::__parts(&message).into_owned(),
+            )?;
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
             let (status, conversation) = target.conversation(&client, &state)?;
@@ -1600,7 +1594,7 @@ impl Client {
         let client = self.clone();
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            let proven = crate::identity::prove_parts(&client, nick, "whois: nick").await?;
+            let proven = crate::identity::prove_parts(&client, nick, "whois: nick")?;
             let nick = proven.nick;
             let response = client
                 .correlated_guarded(
@@ -1950,7 +1944,7 @@ impl Client {
         crate::RequestFuture::new(async move {
             let channel =
                 client.resolve(crate::target::Role::Channel("invite: channel"), channel)?;
-            let proven = crate::identity::prove_parts(&client, nick, "invite: nick").await?;
+            let proven = crate::identity::prove_parts(&client, nick, "invite: nick")?;
             let state = client.state();
             let names = state
                 .known_name_rules()
@@ -2307,7 +2301,7 @@ async fn kick_resolved(
     nick: crate::target::sealed::Parts<'static>,
     reason: String,
 ) -> Result<crate::KickOutcome, Error> {
-    let proven = crate::identity::prove_parts(client, nick, "kick: nick").await?;
+    let proven = crate::identity::prove_parts(client, nick, "kick: nick")?;
     let state = client.state();
     let nick = proven.nick;
     validate_kick_reason(&state, &reason)?;

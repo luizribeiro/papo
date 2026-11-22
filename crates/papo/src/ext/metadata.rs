@@ -80,7 +80,7 @@ impl Metadata {
         Ok(response)
     }
 
-    async fn prove_target(
+    fn prove_target(
         &self,
         target: &str,
         user: Option<crate::UserHandle>,
@@ -94,9 +94,7 @@ impl Metadata {
             |user| crate::AsNick::__parts(&user).into_owned(),
         );
         Ok(Some(
-            crate::identity::prove_parts(&self.client, parts, argument)
-                .await?
-                .core,
+            crate::identity::prove_parts(&self.client, parts, argument)?.core,
         ))
     }
 
@@ -123,9 +121,7 @@ impl Metadata {
             if value.as_ref().is_some_and(String::is_empty) {
                 return Err(crate::InvalidInput::EmptyText.into());
             }
-            let proof = metadata
-                .prove_target(&target, user, "metadata: target")
-                .await?;
+            let proof = metadata.prove_target(&target, user, "metadata: target")?;
             metadata
                 .request(MetadataCommand::__set(target, key, value), proof)
                 .await
@@ -170,9 +166,7 @@ impl Metadata {
         };
         crate::RequestFuture::new(async move {
             let target = target?;
-            let proof = metadata
-                .prove_target(&target, user, "metadata: target")
-                .await?;
+            let proof = metadata.prove_target(&target, user, "metadata: target")?;
             let response = metadata
                 .request(MetadataCommand::__clear(target), proof)
                 .await?;
@@ -227,9 +221,7 @@ impl Metadata {
                         reason,
                     })?;
             }
-            let proof = metadata
-                .prove_target(&target, user, "metadata.get: target")
-                .await?;
+            let proof = metadata.prove_target(&target, user, "metadata.get: target")?;
             metadata
                 .request(
                     MetadataCommand::__get(
@@ -273,9 +265,7 @@ impl Metadata {
         let (target, user) = self.target(target, "metadata.list: target");
         crate::RequestFuture::new(async move {
             let target = target?;
-            let proof = metadata
-                .prove_target(&target, user, "metadata.list: target")
-                .await?;
+            let proof = metadata.prove_target(&target, user, "metadata.list: target")?;
             metadata
                 .request(MetadataCommand::__list(target.clone()), proof)
                 .await?;
@@ -469,9 +459,7 @@ impl Metadata {
         let (target, user) = self.target(target, "metadata.sync: target");
         crate::RequestFuture::new(async move {
             let target = target?;
-            let proof = metadata
-                .prove_target(&target, user, "metadata.sync: target")
-                .await?;
+            let proof = metadata.prove_target(&target, user, "metadata.sync: target")?;
             let response = metadata
                 .request(MetadataCommand::__sync(target), proof)
                 .await?;

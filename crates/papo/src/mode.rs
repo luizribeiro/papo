@@ -413,7 +413,7 @@ impl IntoFuture for SetModes {
                 .map_err(|reason| InvalidInput::invalid_name(target.clone(), reason))?;
             let mut proven = Vec::with_capacity(self.changes.len());
             for change in self.changes {
-                proven.push(change.resolve_nick(&self.client).await?);
+                proven.push(change.resolve_nick(&self.client)?);
             }
             let state = self.client.state();
             let changes = proven
@@ -561,7 +561,7 @@ pub(crate) struct Change {
 }
 
 impl Change {
-    async fn resolve_nick(mut self, client: &Client) -> Result<Self, Error> {
+    fn resolve_nick(mut self, client: &Client) -> Result<Self, Error> {
         self.arg = match self.arg {
             Some(Argument::PendingNick(parts)) => {
                 if let Selector::WithArg(mode) = self.mode
@@ -576,7 +576,7 @@ impl Change {
                     self.arg = Some(Argument::Raw(parts.text.into_owned()));
                     return Ok(self);
                 }
-                let proven = crate::identity::prove_parts(client, parts, "mode: nick").await?;
+                let proven = crate::identity::prove_parts(client, parts, "mode: nick")?;
                 Some(Argument::ProvenNick(proven.nick, proven.core))
             }
             argument => argument,
