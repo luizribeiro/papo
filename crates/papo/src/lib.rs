@@ -325,11 +325,6 @@ mod mode;
 mod mode_change;
 mod name_rules;
 pub mod numeric;
-#[cfg_attr(not(feature = "unstable"), path = "peer_bouncer/stable.rs")]
-#[allow(dead_code)]
-mod peer_bouncer;
-#[allow(dead_code)]
-mod peer_key;
 mod reconnect;
 mod requests;
 mod rt;
