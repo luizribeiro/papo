@@ -187,13 +187,18 @@ async fn untagged_history_line_is_not_the_current_nick_holder() {
     ])
     .await;
     connected(&mut events).await;
-    for line in [
+    join(
+        &mut events,
+        &mut wire,
         ":papo!~u@papo.irc JOIN #release papo :Papo",
+    )
+    .await;
+    let live = join(
+        &mut events,
+        &mut wire,
         ":writer!~u@tor-network.onion JOIN #release writer :Writer",
-    ] {
-        join(&mut events, &mut wire, line).await;
-    }
-    let live = client.query("writer").unwrap();
+    )
+    .await;
 
     let request = tokio::spawn({
         let client = client.clone();

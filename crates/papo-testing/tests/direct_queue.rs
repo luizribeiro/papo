@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use papo::Reconnect;
 use papo_testing::wire;
-use support::direct::{connected, next_active_event};
+use support::direct::{connected, join, next_active_event};
 
 #[tokio::test(start_paused = true)]
 async fn queued_direct_line_is_rechecked_after_a_nickname_takeover() {
@@ -19,18 +19,19 @@ async fn queued_direct_line_is_rechecked_after_a_nickname_takeover() {
     );
     wire.register(&[]).await;
     connected(&mut events).await;
-    for line in [
-        ":papo!p@localhost JOIN #review",
+    join(&mut events, &mut wire, ":papo!p@localhost JOIN #review").await;
+    let alice = join(
+        &mut events,
+        &mut wire,
         ":alice!~alice@cloak.example JOIN #review",
+    )
+    .await;
+    join(
+        &mut events,
+        &mut wire,
         ":mallory!~mallory@users.example JOIN #review",
-    ] {
-        wire.server(line).await;
-        assert!(matches!(
-            next_active_event(&mut events).await,
-            papo::Event::Joined(_)
-        ));
-    }
-    let alice = client.query("alice").unwrap();
+    )
+    .await;
     client
         .send_raw(papo::Line::new("PING").param("fence"))
         .await

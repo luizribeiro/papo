@@ -53,13 +53,18 @@ async fn same_account_after_bouncer_drop_does_not_revive_the_old_target() {
         next_active_event(&mut events).await,
         Event::BouncerNetworkChanged(_)
     ) {}
-    for line in [
+    join(
+        &mut events,
+        &mut wire,
         ":papo!~u@client.example JOIN #review papo-account :Papo",
+    )
+    .await;
+    let alice = join(
+        &mut events,
+        &mut wire,
         ":alice!alice-old@cloak.example JOIN #review alice-account :Alice",
-    ] {
-        join(&mut events, &mut wire, line).await;
-    }
-    let alice = client.query("alice").unwrap();
+    )
+    .await;
     wire.server("BOUNCER NETWORK 1 state=disconnected").await;
     while !matches!(
         next_active_event(&mut events).await,
