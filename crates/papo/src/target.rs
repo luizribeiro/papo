@@ -88,8 +88,7 @@ pub trait Target: sealed::Sealed {
 
 /// A nickname accepted by user-oriented operations.
 ///
-/// A [`crate::UserRef`] retains the recipient identity so operations can refuse a nickname
-/// handoff.
+/// A [`crate::UserRef`] follows nickname changes papo sees and can detect a nickname handoff.
 /// Plain text and [`crate::Nick`] identify whoever currently holds that nickname.
 pub trait AsNick: sealed::Sealed {
     /// Returns the nickname and its safety metadata.

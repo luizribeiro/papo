@@ -593,7 +593,25 @@ identifier!(BatchId, "An opaque IRC batch reference.");
 identifier!(BatchType, "An IRC batch type token.");
 identifier!(
     MessageId,
-    "An opaque, network-unique IRC message identifier."
+    r#"An opaque IRC message identifier.
+
+A message ID is unique only on one server. Key your tables by network and ID so that the same
+ID on two networks can refer to two different messages.
+
+```
+# extern crate papo_proto as papo;
+use papo::MessageId;
+use std::collections::HashMap;
+
+let id = MessageId::from("RfcBTzyxY120004");
+let messages = HashMap::from([
+    (("libera", id.clone()), "release announced"),
+    (("oftc", id.clone()), "meeting notes posted"),
+]);
+
+assert_eq!(messages.get(&("libera", id.clone())), Some(&"release announced"));
+assert_eq!(messages.get(&("oftc", id)), Some(&"meeting notes posted"));
+```"#
 );
 text_comparisons!(MessageId);
 

@@ -1173,9 +1173,9 @@ impl Client {
     /// A conversation is deliberately not a send target because it does not retain a received
     /// line's status-prefixed audience:
     ///
-    /// ```compile_fail
+    /// ```compile_fail,E0277
     /// # fn answer(client: &papo::Client, message: &papo::Message) {
-    /// let _ = client.privmsg(&message.conversation, "acknowledged");
+    /// let _ = client.privmsg(message.conversation(), "acknowledged");
     /// # }
     /// ```
     ///
@@ -1204,7 +1204,7 @@ impl Client {
         }
     }
 
-    /// Sends a notice to a channel, nickname, guarded direct recipient, or return address.
+    /// Sends a notice to a channel, nickname, [`crate::UserRef`], or return address.
     ///
     /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
@@ -1231,7 +1231,7 @@ impl Client {
         }
     }
 
-    /// Sends a CTCP ACTION to a channel, nickname, guarded direct recipient, or return address.
+    /// Sends a CTCP ACTION to a channel, nickname, [`crate::UserRef`], or return address.
     ///
     /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
@@ -1433,7 +1433,7 @@ impl Client {
         })
     }
 
-    /// Sends a typing state to a channel, nickname, guarded direct recipient, or return address.
+    /// Sends a typing state to a channel, nickname, [`crate::UserRef`], or return address.
     ///
     /// A nickname in text or as a [`crate::Nick`] addresses whoever holds that name.
     ///
@@ -1820,8 +1820,8 @@ impl Client {
 
     /// Removes `nick` from `channel` and resolves to the server's echo of our `KICK`.
     ///
-    /// A [`crate::UserRef`] follows its proven identity; text or [`crate::Nick`] addresses
-    /// whoever currently holds that nickname. Add a reason with [`KickRequest::reason`]:
+    /// A [`crate::UserRef`] follows observed nickname changes. Text and [`crate::Nick`] address
+    /// the current holder. Add a reason with [`KickRequest::reason`].
     ///
     /// ```no_run
     /// # async fn remove(client: &papo::Client) -> Result<(), papo::Error> {
@@ -1965,8 +1965,8 @@ impl Client {
 
     /// Invites `nick` to `channel`.
     ///
-    /// A [`crate::UserRef`] retains the user's identity. Text and [`crate::Nick`] address the
-    /// current holder.
+    /// A [`crate::UserRef`] follows observed nickname changes. Text and [`crate::Nick`] address
+    /// the current holder.
     ///
     /// # Errors
     ///

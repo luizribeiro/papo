@@ -323,7 +323,7 @@ impl SetModes {
 
     /// Grants channel-operator privileges to `nick`.
     ///
-    /// A [`crate::UserRef`] follows its proven identity. Text and [`crate::Nick`] address
+    /// A [`crate::UserRef`] follows observed nickname changes. Text and [`crate::Nick`] address
     /// the current holder.
     pub fn op(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(true, 'o', nick)
@@ -331,21 +331,21 @@ impl SetModes {
 
     /// Removes channel-operator privileges from `nick`.
     ///
-    /// A [`crate::UserRef`] follows its proven identity; text addresses the current holder.
+    /// A [`crate::UserRef`] follows observed nickname changes. Text addresses the current holder.
     pub fn deop(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'o', nick)
     }
 
     /// Grants voice privileges to `nick`.
     ///
-    /// Accepts the same nickname and identity arguments as [`Self::op`].
+    /// Accepts the same nicknames and user references as [`Self::op`].
     pub fn voice(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
     ///
-    /// A [`crate::UserRef`] follows its proven identity; text addresses the current holder.
+    /// A [`crate::UserRef`] follows observed nickname changes. Text addresses the current holder.
     pub fn devoice(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'v', nick)
     }

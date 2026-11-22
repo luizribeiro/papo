@@ -231,10 +231,9 @@
 //!
 //! # Public type paths
 //!
-//! Handles and types useful outside an [`Event`] are at the crate root. Types used only as event
-//! payloads are in [`event`]. Feature modules contain their feature-specific helpers. Each public
-//! type has one public path; for example, [`Disconnected`] is at the root while [`event::Motd`]
-//! and [`event::CasemappingChanged`] are event payloads.
+//! Types used across the API are at the crate root, including [`Client`], [`UserRef`],
+//! [`ChannelRef`], and [`Actor`]. The [`event`] module contains payloads such as [`event::Motd`] and
+//! [`event::CasemappingChanged`]. Feature modules contain their feature-specific helpers.
 //!
 //! # Argument conventions
 //!
@@ -251,9 +250,12 @@
 //! to the same plain string. Converting a typed name into a string explicitly discards this
 //! protection.
 //!
-//! The sealed [`Target`] trait accepts nicknames, channel names, user and channel references, and return addresses.
-//! A nickname in text or as a [`Nick`] addresses its current holder. A [`UserRef`] addresses
-//! the person the client observed.
+//! The sealed [`Target`] trait accepts nicknames, channel names, user and channel references,
+//! and return addresses. A nickname in text or as a [`Nick`] addresses its current holder.
+//! A [`UserRef`] follows nickname changes that papo observes and can fail with
+//! [`Error::TargetGone`]. Read a received message's account with [`Message::actor_account`].
+//! To answer a message, use [`Client::reply`] to retain its audience. See [`Conversation`]
+//! for guidance on ops-only lines.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

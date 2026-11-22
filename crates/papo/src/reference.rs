@@ -192,21 +192,29 @@ impl Drop for WatchLease {
     }
 }
 
-/// A reference to an IRC user reported by the server.
+/// The user papo saw in an event.
 ///
-/// For a reference carried by an event, read mutable user facts from that event's paired
-/// [`crate::State`] with [`crate::State::user`]. To answer a private history item, pass
-/// the item to [`crate::Client::reply`]. Sending to its actor returns [`crate::Error::TargetGone`].
+/// Get a reference from an event's actor or subject, a [WHO row](crate::WhoEntry::user),
+/// a [WHOIS reply](crate::Whois::user), or the member in a [mode change](crate::ModeArg).
+/// For an event, read mutable user facts from its paired [`crate::State`] with
+/// [`crate::State::user`]. Read the account reported on a message itself with
+/// [`crate::Message::actor_account`].
 ///
-/// Equality and hashing use the tracked user identity on this client, which follows observed
-/// nickname changes. References from stored lines and references without a tracked identity only
-/// compare equal to their own clones.
+/// A live reference follows nickname changes papo sees. Sending through it can return
+/// [`crate::Error::TargetGone`] after a QUIT, a PART from the last shared channel, a detected
+/// nickname takeover, or a reconnect. The same error applies when papo has no current user
+/// it can associate with the reference. A reference makes no promise about who holds
+/// the nickname now. Sending to the actor of a private history item returns
+/// [`crate::Error::TargetGone`]. Use [`crate::Client::reply`] on the item to address the current
+/// holder of the conversation's peer nickname.
 ///
+/// Tracked live references compare and hash as the same user on this client across observed
+/// nickname changes. Other references compare equal only to their own clones.
 /// Compare nickname text through [`Self::nick`].
 ///
 /// ```compile_fail,E0308
-/// fn is_luiz(handle: papo::UserRef) -> bool {
-///     handle == "luiz"
+/// fn is_luiz(user: papo::UserRef) -> bool {
+///     user == "luiz"
 /// }
 /// ```
 #[derive(Clone)]
@@ -509,7 +517,7 @@ impl Hash for UserRef {
     }
 }
 
-/// A live identity for one joined-channel lifecycle.
+/// A reference to a joined channel that follows renames papo sees.
 ///
 /// A reference names the whole channel and never carries a status sign: sending to it reaches
 /// everyone. See [`crate::Conversation`] for answering ops-only lines.

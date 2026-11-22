@@ -21,7 +21,7 @@ use crate::Error;
 ///
 /// | Request | Safe to retry automatically? | Why |
 /// |---|---|---|
-/// | Read-only queries: `whois`, `who`, `list`, `list_modes`, `history`, read-marker fetch, metadata get/list/sync, bouncer network listing, persistence get, `ping`, and direct-recipient discovery | Yes | Repeating the query does not repeat a remote state change. The result may reflect newer state. |
+/// | Read-only queries: `whois`, `who`, `list`, `list_modes`, `history`, read-marker fetch, metadata get/list/sync, bouncer network listing, persistence get, and `ping` | Yes | Repeating the query does not repeat a remote state change. The result may reflect newer state. |
 /// | Chat sends (`privmsg`, `notice`, actions and CTCP), reactions, redaction, and read-marker updates | No | The first request may already be visible or applied. A retry can duplicate it. This includes every line of a split or multiline send. |
 /// | `KICK`, `MODE`, `kickban`, join/part/invite, topic/nick/away/realname changes, and channel rename | No | The server may have changed state even though its confirmation was lost. Re-read state or query the server before deciding what to do. |
 /// | Account, operator, metadata, monitor, bouncer, persistence, and web-push mutations | No | Retrying can repeat an action or apply it to state that changed after the first request. |

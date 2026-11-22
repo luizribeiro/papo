@@ -6,14 +6,14 @@ use crate::{AccountStatus, Casemapping, Nick};
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Actor {
-    /// A user identity whose mutable facts are available from the event's paired state.
+    /// The [`crate::UserRef`] for the user who caused the event.
     User(crate::UserRef),
     /// A server name.
     Server(crate::ServerName),
 }
 
 impl Actor {
-    /// Returns the nickname for a user source.
+    /// Returns the nickname when the actor is a user.
     #[must_use]
     pub fn nick(&self) -> Option<Nick> {
         match self {
@@ -22,7 +22,7 @@ impl Actor {
         }
     }
 
-    /// Returns the user source when the actor is a user.
+    /// Returns the reference when the actor is a user.
     #[must_use]
     pub const fn user(&self) -> Option<&crate::UserRef> {
         match self {

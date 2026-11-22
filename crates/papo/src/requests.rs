@@ -117,14 +117,8 @@ pub struct WhoEntry {
     pub channel: Option<crate::ChannelRef>,
     /// User reported by the reply.
     ///
-    /// It stands for the person the row described when it arrived, as does [`Whois::user`]. It
-    /// follows that person's later nickname changes; once papo sees them leave, a send through
-    /// it fails with [`Error::TargetGone`], even after someone else takes the nickname.
-    ///
-    /// When papo cannot see them leave, as without a shared channel, a send first asks the
-    /// server with `WHO` and fails with [`Error::TargetGone`] unless the nickname's holder is
-    /// logged in to the account the reply showed. A reply that shows no account, such as a plain
-    /// `WHO` row or a logged-out user, leaves only the nickname to check.
+    /// Like [`Whois::user`], this is a [`crate::UserRef`] for the user the server described.
+    /// Sending through it uses what papo observed and issues no additional `WHO` lookup.
     pub user: crate::UserRef,
     /// Username from `nick!user@host`; it may start with `~`.
     pub username: String,
@@ -296,14 +290,9 @@ pub(crate) fn whois(
     Ok(Some(result))
 }
 
-/// Builds the reference for the person a WHO or WHOIS row described, from the identity papo-core
-/// recorded when the row arrived, so a later holder of the nickname is never adopted. A WHOIS
-/// reply without `RPL_WHOISUSER` has no such row and names the requested user's current holder.
-///
-/// A person papo can prove is followed by that identity alone: the state often knows no
-/// account for them, and a guard naming one would refuse them. The reference keeps the account the
-/// reply showed when the state has no associated identity. Sending through such a reference returns
-/// [`Error::TargetGone`].
+/// Uses the user recorded when the row arrived. A WHOIS reply without `RPL_WHOISUSER`
+/// uses the requested nickname. The tracked user may have no known account in state, so
+/// try following that user before applying the account reported in the reply.
 fn reply_user(
     client: &crate::Client,
     mapping: papo_proto::Casemapping,

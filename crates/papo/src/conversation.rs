@@ -12,15 +12,14 @@ use std::fmt;
 /// `audience` names it. Answer it with [`crate::Client::reply`], [`crate::Client::react`],
 /// [`crate::Client::redact`] or the line's `return_address()`, which keep `@#ops`.
 ///
-/// Code that never matches the restricted arm never sees ops-only lines, so a bot that announces
-/// to `#ops` from its message handler cannot repeat an ops-only command to everyone. Its cost is
-/// the other direction: such code misses those lines entirely, and a log or a window that should
-/// show them has to handle the arm. State still counts them under the plain channel: the typing
-/// list shows a typer who typed to `@#ops` (each [`crate::Typer`] keeps that address), and
+/// Match [`crate::Event::Restricted`] and its [`crate::RestrictedLine`] to display or act on
+/// ops-only lines. The typing list still files them under the plain channel. Read the prefix with
+/// [`crate::Typer::audience`] or use [`crate::Typer::return_address`] to keep the audience.
 /// [`crate::Client::mark_read`] without an explicit boundary marks through the newest line,
-/// restricted or not. Ergo stores no ops-only lines in history; soju stores and replays them.
+/// including restricted lines. Ergo stores no ops-only lines in history. Soju can replay them.
 ///
-/// To send to everyone in `#ops`, pass the plain name `"#ops"` or the conversation's channel reference.
+/// A [`crate::ChannelRef`] names the whole channel. To address everyone, send to that reference
+/// or use the plain name `"#ops"`.
 ///
 /// A server can also hide an audience without a sign (Ergo's `+U`, Solanum's `+z`): such a line
 /// arrives as plain `#ops` and no client can tell.

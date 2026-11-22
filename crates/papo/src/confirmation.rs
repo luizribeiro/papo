@@ -9,7 +9,7 @@ pub enum Confirmation {
     /// The server echoed the write with the identifier it assigned.
     #[non_exhaustive]
     Confirmed {
-        /// Network-unique identifier the server assigned.
+        /// The [`MessageId`] the server assigned to the echoed write.
         msgid: MessageId,
         /// Server time of the echo, when the server supplied one.
         server_time: Option<ServerTime>,
