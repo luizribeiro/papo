@@ -515,3 +515,88 @@ pub papo::ReactOutcome::conversation: papo::Conversation";
         );
     }
 }
+
+const EXHAUSTIVE_TYPES: &[(&str, &str)] = &[
+    ("papo::ModeAction", "A mode change adds or removes a mode."),
+    ("papo::ModeValue", "A set mode has an argument or has none."),
+    ("papo::Typing", "IRCv3 typing defines exactly three states."),
+    (
+        "papo::isupport::Advertised",
+        "A token is absent or present, with or without an equals sign.",
+    ),
+    (
+        "papo::isupport::LimitValue",
+        "An advertised limit is numeric or unbounded.",
+    ),
+];
+
+fn exhaustive_types(snapshot: &str) -> BTreeSet<&str> {
+    let named_field_owners: BTreeSet<_> = snapshot
+        .lines()
+        .filter_map(|line| {
+            let (path, _) = line.strip_prefix("pub ")?.split_once(": ")?;
+            let (owner, _) = path.rsplit_once("::")?;
+            Some(owner)
+        })
+        .collect();
+
+    snapshot
+        .lines()
+        .filter_map(|line| {
+            let (kind, declaration) = line.strip_prefix("pub ")?.split_once(' ')?;
+            let path = declaration.split(['<', '(', ' ']).next()?;
+            match kind {
+                "enum" => Some(path),
+                "struct"
+                    if named_field_owners.contains(path)
+                        || declaration.contains("(pub ")
+                        || declaration.contains(", pub ") =>
+                {
+                    Some(path)
+                }
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn only_documented_public_types_are_exhaustive() {
+    let allowed: BTreeSet<_> = EXHAUSTIVE_TYPES.iter().map(|&(path, _)| path).collect();
+    for (name, snapshot) in [("papo", STABLE), ("papo unstable", UNSTABLE)] {
+        assert_eq!(
+            exhaustive_types(snapshot),
+            allowed,
+            "{name} has a different set of exhaustive public types"
+        );
+    }
+}
+
+#[test]
+fn exhaustive_type_check_includes_named_and_tuple_fields_and_reexports() {
+    let snapshot = "\
+pub use example::LineSource
+pub struct example::Limits<'a>
+pub example::Limits::channel: &'a str
+pub struct example::Port(_)
+pub struct example::Address(_, pub u16)
+pub struct example::Capability(pub &'static str)
+#[non_exhaustive] pub struct example::FutureCaps(pub &'static str)
+#[non_exhaustive] pub struct example::Report
+pub example::Report::count: usize
+#[non_exhaustive] pub enum example::Event
+pub example::Event::ClientReady
+pub example::Event::ClientReady::nick: &'static str
+# re-exported type surfaces
+pub enum example::LineSource<'a>
+pub example::LineSource::Server(&'a str)";
+    assert_eq!(
+        exhaustive_types(snapshot),
+        BTreeSet::from([
+            "example::Address",
+            "example::Capability",
+            "example::Limits",
+            "example::LineSource",
+        ])
+    );
+}
