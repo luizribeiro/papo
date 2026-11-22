@@ -1,5 +1,8 @@
 use std::fmt;
 
+#[cfg(test)]
+mod saved;
+
 use crate::{
     Conversation, Message, MessageId, SendOutcome, Source,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
