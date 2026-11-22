@@ -276,7 +276,7 @@ After a SASL success that names no account (903 without 900, or 907), `State::ac
 A `REGISTER VERIFICATION_REQUIRED` reply leaves `State::account` as it was.
 
 `History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
-and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.
+which can skip older messages after that cursor. Use `History::after` for contiguous pagination.
 `HistoryPage::cursor` now provides one `HistoryReference` for continuing from either page edge.
 `History::message` fetches the one history item with a saved message ID, or `None` when the
 server no longer has it; the item answers with replies and reactions like any page item.

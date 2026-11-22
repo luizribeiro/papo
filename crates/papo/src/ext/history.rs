@@ -876,10 +876,8 @@ pub struct HistoryPage {
     pub reason: HistoryReason,
     /// Whether this page was empty or the server reported that no further page exists.
     ///
-    /// For [`History::latest_after`], `true` means every available item after the reference was
-    /// returned. When it is `false`, the oldest available items may have been omitted between the
-    /// reference and this page. A page shorter than the requested limit does not imply the end,
-    /// because the server may cap or vary the number of returned items.
+    /// A nonempty page shorter than the requested limit may still have more history, since the
+    /// server may cap or vary the number of returned items.
     pub end: bool,
 }
 
@@ -983,9 +981,9 @@ impl History {
 
     /// Requests the newest messages strictly after `reference`, at most the requested limit.
     ///
-    /// If more messages exist, the oldest are omitted, so a full page may hide a gap between
-    /// `reference` and the page; check [`HistoryPage::end`] to learn whether the page is complete.
-    /// Unlike [`History::after`], this returns the newest page after the reference.
+    /// If more messages exist, the server can skip the oldest ones between `reference` and this
+    /// page. [`HistoryPage::end`] reports an empty page or the server's end marker. For contiguous
+    /// pagination from `reference`, use [`History::after`].
     pub fn latest_after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         self.reference_query(reference, CursorEdge::After, |target, after, limit| {
             HistoryQuery::__latest(target, Some(after), limit)

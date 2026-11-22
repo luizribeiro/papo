@@ -109,7 +109,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn latest_after_returns_the_newest_page_and_reports_a_gap() {
+async fn latest_after_returns_the_newest_page_and_preserves_the_end_marker() {
     within(async {
         let server = from_env();
         let channel = format!("#{}", unique("papo-latest-after"));

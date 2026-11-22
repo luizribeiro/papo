@@ -2265,7 +2265,7 @@ pub struct HistoryPage {
     ///
     /// The server is allowed to use a different order; papo does not sort the items.
     pub items: Vec<HistoryItem>,
-    /// Whether the server reported that no further page exists.
+    /// Whether this page was empty or the server marked the end of history.
     ///
     /// A page shorter than the requested limit does not imply the end.
     pub end: bool,
@@ -2768,7 +2768,7 @@ pub enum Event {
         ///
         /// The server is allowed to use a different order; papo does not sort the items.
         items: Vec<HistoryItem>,
-        /// Whether the server reported that no further page exists.
+        /// Whether this page was empty or the server marked the end of history.
         end: bool,
     },
     /// Targets that received messages during a requested time range.

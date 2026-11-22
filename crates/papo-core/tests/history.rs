@@ -408,41 +408,56 @@ fn recorded_ergo_latest_response_keeps_oldest_to_newest_order() {
 }
 
 #[test]
-fn empty_page_is_the_end_but_a_short_untagged_page_is_not() {
-    let page = |lines: &[&str]| {
-        let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
-        session
-            .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 10))
-            .unwrap();
-        let _ = session.poll_transmit();
-        for line in lines {
-            session.handle_line(now, line.as_bytes());
-        }
-        loop {
-            if let Some(Event::Response(response)) = session.poll_event() {
-                break response.history.expect("history page");
+fn history_end_marker_has_the_same_meaning_for_every_page_request() {
+    let target = "#papo";
+    let reference = MsgRef::Msgid("RfcBTzyxY120000".into());
+    let later = MsgRef::Msgid("RfcBTzyxY120003".into());
+    for query in [
+        HistoryQuery::__latest(target.into(), None, 10),
+        HistoryQuery::__latest(target.into(), Some(reference.clone()), 10),
+        HistoryQuery::__before(target.into(), reference.clone(), 10),
+        HistoryQuery::__after(target.into(), reference.clone(), 10),
+        HistoryQuery::__around(target.into(), reference.clone(), 10),
+        HistoryQuery::__between(target.into(), reference, later, 10),
+    ] {
+        for (tagged, has_item, end) in [
+            (false, false, true),
+            (false, true, false),
+            (true, true, true),
+        ] {
+            let (mut session, now) =
+                history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+            session.chathistory(now, query.clone()).unwrap();
+            let _ = session.poll_transmit();
+            session.handle_line(now, b"@label=0 :ergo.test BATCH +reply labeled-response");
+            let opening = if tagged {
+                b"@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo"
+                    .as_slice()
+            } else {
+                b"@batch=reply :ergo.test BATCH +history chathistory #papo".as_slice()
+            };
+            session.handle_line(now, opening);
+            if has_item {
+                session.handle_line(now, b"@batch=history;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :deploy started");
             }
+            session.handle_line(now, b"@batch=reply :ergo.test BATCH -history");
+            session.handle_line(now, b":ergo.test BATCH -reply");
+            let page = std::iter::from_fn(|| session.poll_event())
+                .find_map(|event| {
+                    if let Event::Response(response) = event {
+                        response.history
+                    } else {
+                        None
+                    }
+                })
+                .expect("history page");
+            assert_eq!(page.items.len(), usize::from(has_item));
+            assert_eq!(
+                page.end, end,
+                "{query:?}, tagged: {tagged}, has item: {has_item}"
+            );
         }
-    };
-
-    let empty = page(&[
-        "@label=0 :ergo.test BATCH +reply labeled-response",
-        "@batch=reply :ergo.test BATCH +history chathistory #papo",
-        "@batch=reply :ergo.test BATCH -history",
-        ":ergo.test BATCH -reply",
-    ]);
-    assert!(empty.items.is_empty());
-    assert!(empty.end);
-
-    let short = page(&[
-        "@label=0 :ergo.test BATCH +reply labeled-response",
-        "@batch=reply :ergo.test BATCH +history chathistory #papo",
-        "@batch=history;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@localhost PRIVMSG #papo :deploy started",
-        "@batch=reply :ergo.test BATCH -history",
-        ":ergo.test BATCH -reply",
-    ]);
-    assert_eq!(short.items.len(), 1);
-    assert!(!short.end);
+    }
 }
 
 #[test]
