@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
     sync::{
-        Arc, Mutex, OnceLock, RwLock, Weak,
+        Arc, Mutex, RwLock, Weak,
         atomic::{AtomicU64, Ordering},
     },
 };
@@ -194,7 +194,7 @@ impl Drop for WatchLease {
     }
 }
 
-/// A live identity for one IRC user.
+/// An IRC user reported by the server.
 ///
 /// For a handle carried by an event, read mutable user facts from that event's paired
 /// [`crate::State`] with [`crate::State::user`]. To answer a private history item, pass
@@ -207,7 +207,7 @@ struct UserInner {
     identity: UserIdentity,
     nick: crate::Nick,
     account: crate::Account,
-    proof: OnceLock<papo_core::Proven>,
+    proof: Option<papo_core::Proven>,
     state: Option<Arc<RwLock<Arc<crate::State>>>>,
     history: History,
 }
@@ -238,8 +238,8 @@ impl UserHandle {
     }
 
     /// Builds the handle for a person a line names in the past: an archived line, a topic
-    /// setter, or the setter of a list-mode entry. papo never saw that line's sender live, so a
-    /// send through it is refused unless the line named an account the current holder proves.
+    /// setter, or the setter of a list-mode entry. A send through this handle returns
+    /// [`crate::Error::TargetGone`].
     pub(crate) fn from_past_line(nick: crate::Nick, account: crate::Account) -> Self {
         Self::from_parts_kind(nick, account, None, None, History::Archived)
     }
@@ -258,15 +258,11 @@ impl UserHandle {
                 || UserIdentity::Expected(nick.origin(), nick.key().to_owned()),
                 |recipient| UserIdentity::Proven(recipient.__token()),
             );
-        let stored = OnceLock::new();
-        if let Some(proof) = proof {
-            stored.set(proof).expect("a new handle has no proof");
-        }
         Self(Arc::new(UserInner {
             identity,
             nick,
             account,
-            proof: stored,
+            proof,
             state: state.map(Arc::clone),
             history,
         }))
@@ -366,11 +362,7 @@ impl UserHandle {
     }
 
     pub(crate) fn proof(&self) -> Option<&papo_core::Proven> {
-        self.0.proof.get()
-    }
-
-    pub(crate) fn remember(&self, proof: papo_core::Proven) {
-        _ = self.0.proof.set(proof);
+        self.0.proof.as_ref()
     }
 
     pub(crate) fn account(&self) -> &crate::Account {
@@ -387,6 +379,7 @@ impl UserHandle {
         &self.0.nick
     }
 
+    #[cfg(test)]
     pub(crate) fn is_unproven_history(&self) -> bool {
         self.__names_a_past_line() && self.proof().is_none()
     }

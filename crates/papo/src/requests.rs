@@ -301,9 +301,9 @@ pub(crate) fn whois(
 /// reply without `RPL_WHOISUSER` has no such row and names the requested user's current holder.
 ///
 /// A person papo can prove is followed by that identity alone: the state often knows no
-/// account for them, and a guard naming one would refuse them. Without that proof the handle
-/// keeps the account the reply showed, which the `WHO` check before a send then requires of the
-/// holder.
+/// account for them, and a guard naming one would refuse them. The handle keeps the account the
+/// reply showed when the state has no associated identity. Sending through such a handle returns
+/// [`Error::TargetGone`].
 fn reply_user(
     client: &crate::Client,
     mapping: papo_proto::Casemapping,
