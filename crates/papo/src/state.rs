@@ -815,6 +815,16 @@ mod name_tests {
             assert_eq!(user.nick().as_str(), nick);
             assert!(user.is_unproven_history(), "{nick}");
         }
+
+        session.handle_line(
+            now,
+            b":solanum.example 333 papo #release irc.libera.chat 1760529342",
+        );
+        let state = State::from_session(&session, true);
+        assert!(matches!(
+            state.channels[0].topic_set_by(),
+            Some(crate::Actor::Server(name)) if name == "irc.libera.chat"
+        ));
     }
 
     #[test]
