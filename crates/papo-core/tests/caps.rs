@@ -578,6 +578,12 @@ fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
             .wanted_caps(["sts"]),
     )
     .connect_default()
+    .inspect(|session| {
+        assert_eq!(
+            session.supports(Feature::StrictTransportSecurity),
+            Err(UnsupportedReason::NotOffered)
+        );
+    })
     .server("CAP * LS :sts=duration=3600,preload")
     .event(|event| {
         matches!(event, Event::StsPolicy(StsAction::Persist { host, duration, .. })
@@ -585,6 +591,7 @@ fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
             && *duration == Duration::from_secs(3_600))
     })
     .client("CAP END")
+    .inspect(|session| assert_eq!(session.supports(Feature::StrictTransportSecurity), Ok(())))
     .server("CAP papo NEW :sts=duration=7200")
     .event(|event| {
         matches!(event, Event::StsPolicy(StsAction::Persist { duration, .. })
@@ -596,8 +603,25 @@ fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
         if host == "irc.example.net")
     })
     .server("CAP papo DEL :sts")
+    .inspect(|session| assert_eq!(session.supports(Feature::StrictTransportSecurity), Ok(())))
     .no_event()
     .no_client();
+}
+
+#[test]
+fn sts_feature_is_unavailable_when_the_server_does_not_advertise_it() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test CAP * LS :server-time")
+        .client("CAP REQ :server-time")
+        .server(":ergo.test CAP * ACK :server-time")
+        .client("CAP END")
+        .inspect(|session| {
+            assert_eq!(
+                session.supports(Feature::StrictTransportSecurity),
+                Err(UnsupportedReason::NotOffered)
+            );
+        });
 }
 
 #[test]

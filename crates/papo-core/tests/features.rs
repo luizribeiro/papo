@@ -321,6 +321,10 @@ fn every_feature_name_round_trips() {
         (Feature::Relay, "relaymsg"),
         (Feature::LabeledResponse, "labeled-response"),
         (Feature::Sasl, "SASL authentication"),
+        (
+            Feature::StrictTransportSecurity,
+            "strict transport security",
+        ),
         (Feature::AwayTracking, "away tracking"),
         (Feature::AccountTracking, "account tracking"),
         (Feature::ExtendedJoin, "extended join details"),

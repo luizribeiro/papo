@@ -65,6 +65,11 @@ macro_rules! feature_table {
             [] LabeledResponse => cap::LABELED_RESPONSE.constant_str(), [Some(cap::LABELED_RESPONSE), None];
             /// Published `IRCv3` authentication exchange, requiring `sasl`.
             [] Sasl => "SASL authentication", [Some(cap::SASL), None];
+            /// The server advertises an `IRCv3` Strict Transport Security (STS) policy.
+            ///
+            /// Use this to report that the server offers STS. Papo handles the policy
+            /// automatically for transports that support STS.
+            [] StrictTransportSecurity => "strict transport security", [Some(cap::STS), None];
             /// Published `IRCv3` live away information, requiring `away-notify`.
             [] AwayTracking => "away tracking", [Some(cap::AWAY_NOTIFY), None];
             /// Published `IRCv3` live account information, requiring both `account-notify`
@@ -282,16 +287,22 @@ impl Session {
             _ => {}
         }
         let required = feature.caps();
-        let enabled =
-            if feature == Feature::AccountTracking {
-                required.iter().flatten().all(|name| {
-                    cap::advertised_spelling(name.as_str(), self.caps.enabled()).is_some()
-                })
-            } else {
-                required.iter().flatten().any(|name| {
-                    cap::advertised_spelling(name.as_str(), self.caps.enabled()).is_some()
-                })
-            };
+        let available = if feature == Feature::StrictTransportSecurity {
+            self.caps.advertised()
+        } else {
+            self.caps.enabled()
+        };
+        let enabled = if feature == Feature::AccountTracking {
+            required
+                .iter()
+                .flatten()
+                .all(|name| cap::advertised_spelling(name.as_str(), available).is_some())
+        } else {
+            required
+                .iter()
+                .flatten()
+                .any(|name| cap::advertised_spelling(name.as_str(), available).is_some())
+        };
         if !enabled {
             let disabled = required.iter().flatten().any(|required| {
                 self.config.cap_disabled(required.as_str())

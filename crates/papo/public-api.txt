@@ -4125,6 +4125,7 @@ pub papo::Feature::Sasl
 pub papo::Feature::ServerTime
 pub papo::Feature::SetName
 pub papo::Feature::StandardReplies
+pub papo::Feature::StrictTransportSecurity
 pub papo::Feature::Typing
 pub papo::Feature::UserhostInNames
 pub papo::Feature::WhoAmI

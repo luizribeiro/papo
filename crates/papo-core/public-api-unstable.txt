@@ -764,6 +764,7 @@ pub papo_core::Feature::Sasl
 pub papo_core::Feature::ServerTime
 pub papo_core::Feature::SetName
 pub papo_core::Feature::StandardReplies
+pub papo_core::Feature::StrictTransportSecurity
 pub papo_core::Feature::Typing
 pub papo_core::Feature::UserhostInNames
 pub papo_core::Feature::WebPush

@@ -37,7 +37,7 @@
 //! | `draft/metadata-3` | draft/metadata-2 | default | metadata | `metadata`, `state::metadata` |
 //! | `metadata-notify` | — | fallback | — | `metadata`, `state::metadata` |
 //! | `sasl` | — | automatic | SASL authentication | `sasl` |
-//! | `sts` | — | never | — | `sts` |
+//! | `sts` | — | never | strict transport security | `sts` |
 //! | `ergo.chat/nope` | — | never | — | `caps` |
 //! | `soju.im/account-required` | — | never | — | `caps` |
 //! | `draft/account-registration` | account-registration | default | account creation | `account_registration` |

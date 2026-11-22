@@ -17,6 +17,8 @@ Build channel conversation fixtures with `papo_testing::channel_conversation`.
 
 Membership privilege checks can use `is_at_least_op()` and `is_at_least_voice()` with the server's advertised PREFIX order.
 
+`Feature::StrictTransportSecurity` reports whether the server advertises an STS policy.
+
 Build negotiated capabilities for tests with `papo_testing::capabilities`.
 
 `papo-format` provides IRC text formatting with no stability promise. Use

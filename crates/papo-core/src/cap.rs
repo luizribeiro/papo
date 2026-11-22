@@ -196,7 +196,7 @@ capabilities! {
     [cap] METADATA = "draft/metadata-2"; "Client metadata."; name: "draft/metadata-3"; aliases: ["draft/metadata-2"]; request: Request::Default("draft/metadata-2"); features: [Feature::Metadata]; code: [crate::metadata, crate::state::metadata];
     [cap] METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded("draft/metadata-3"); features: []; code: [crate::metadata, crate::state::metadata];
     [cap] SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: [Feature::Sasl]; code: [crate::sasl];
-    [cap] STS = "sts"; "Strict Transport Security policy."; name: "sts"; aliases: []; request: Request::Never; features: []; code: [crate::sts];
+    [cap] STS = "sts"; "Strict Transport Security policy."; name: "sts"; aliases: []; request: Request::Never; features: [Feature::StrictTransportSecurity]; code: [crate::sts];
     [cap] NOPE = "ergo.chat/nope"; "Ergo capability-negotiation test trap."; name: "ergo.chat/nope"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     [cap] ACCOUNT_REQUIRED = "soju.im/account-required"; "Soju authentication requirement, which is not part of any `IRCv3` specification."; name: "soju.im/account-required"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     [cap] ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
