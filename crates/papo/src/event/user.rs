@@ -73,7 +73,7 @@ pub struct AwayChanged {
     /// The affected user.
     pub actor: crate::UserHandle,
     /// The user's new presence state.
-    pub new: AwayStatus,
+    pub away: AwayStatus,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

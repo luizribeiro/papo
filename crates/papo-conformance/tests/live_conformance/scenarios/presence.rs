@@ -136,7 +136,10 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let changed = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.actor.nick(), alice_nick.as_str());
-    assert_eq!(changed.new, AwayStatus::__away_value(Some(away.to_owned())));
+    assert_eq!(
+        changed.away,
+        AwayStatus::__away_value(Some(away.to_owned()))
+    );
     assert_eq!(
         alice.snapshot().away(),
         &AwayStatus::__away_value(Some(away.to_owned()))
@@ -152,7 +155,7 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     let returned = bob.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(returned.actor.nick(), alice_nick.as_str());
-    assert_eq!(returned.new, AwayStatus::Present);
+    assert_eq!(returned.away, AwayStatus::Present);
     assert_eq!(alice.snapshot().away(), &AwayStatus::Present);
     assert_eq!(
         super::user(&bob.snapshot(), alice_nick.as_str())
@@ -362,7 +365,10 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice.wait_for(Event::as_away_changed).await?;
 
     assert_eq!(changed.actor.nick(), bob_nick.as_str());
-    assert_eq!(changed.new, AwayStatus::__away_value(Some(away.to_owned())));
+    assert_eq!(
+        changed.away,
+        AwayStatus::__away_value(Some(away.to_owned()))
+    );
     assert_eq!(
         super::user(&alice.snapshot(), bob_nick.as_str())
             .unwrap()

@@ -122,8 +122,8 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
                 .filter(|changed| changed.actor.nick() == nick.as_str())
         })
         .await?;
-    assert_eq!(sibling.new, away);
-    assert_eq!(visible.new, away);
+    assert_eq!(sibling.away, away);
+    assert_eq!(visible.away, away);
     assert_eq!(sibling.actor_party, Party::Me);
     assert_eq!(visible.actor_party, Party::Other);
     assert_eq!(phone.snapshot().away(), &away);

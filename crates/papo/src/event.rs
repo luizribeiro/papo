@@ -2961,7 +2961,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                new: away,
+                away,
                 actor_party: Party::from_core(actor_party),
             })
         }
@@ -6480,7 +6480,7 @@ mod tests {
             )),
             Event::AwayChanged(changed)
                 if changed.actor.nick() == "emily"
-                    && changed.new == AwayStatus::__away_value(Some("Gone to lunch".into()))
+                    && changed.away == AwayStatus::__away_value(Some("Gone to lunch".into()))
         ));
     }
 

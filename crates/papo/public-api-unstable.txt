@@ -305,7 +305,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::AutoJoinFailed
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::actor: papo::UserHandle
 pub papo::event::AwayChanged::actor_party: papo::Party
-pub papo::event::AwayChanged::new: papo::AwayStatus
+pub papo::event::AwayChanged::away: papo::AwayStatus
 pub papo::event::AwayChanged::received_at: std::time::SystemTime
 pub papo::event::AwayChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::AwayChanged

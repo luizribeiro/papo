@@ -361,7 +361,7 @@ pub fn away_changed(nick: impl Into<Nick>, away: crate::AwayStatus) -> AwayChang
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
         actor: user_handle(nick),
-        new: away,
+        away,
         actor_party: Party::Other,
     }
 }
