@@ -37,6 +37,8 @@ and its three configuration errors have been removed.
 `Sasl::authzid` is removed. PLAIN and EXTERNAL use an empty authorization identity.
 `Sasl::device` is removed.
 
+`Isupport::casemapping` reports only a currently advertised and supported casemapping.
+
 The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
 
 `Line` keeps byte encoding. The public `LineRef`, `Line::as_ref`, and `Line::to_line` are removed.

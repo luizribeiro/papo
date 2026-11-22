@@ -349,3 +349,63 @@ fn utf8mapping_alone_keeps_bracket_nicks_apart() {
         3
     );
 }
+
+#[test]
+fn casemapping_advertisement_and_working_rules_are_independent() {
+    use papo_proto::Casemapping::{Ascii, Rfc1459};
+    use papo_proto::UnknownCasemapping;
+
+    let announced = ":ergo.test 005 papo CASEMAPPING=ascii :are supported by this server";
+    let unrelated = ":ergo.test 005 papo NETWORK=ErgoTest :are supported by this server";
+    let withdrawn = ":ergo.test 005 papo -CASEMAPPING :are supported by this server";
+    for (seed, lines, advertised, working, known) in [
+        (None, &[announced][..], Some(Ok(Ascii)), Ascii, true),
+        (None, &[][..], None, Rfc1459, false),
+        (None, &[unrelated][..], None, Rfc1459, false),
+        (
+            None,
+            &[":ergo.test 005 papo CASEMAPPING=rfc8265 :are supported by this server"][..],
+            Some(Err(UnknownCasemapping)),
+            Ascii,
+            false,
+        ),
+        (Some(Ascii), &[unrelated][..], None, Ascii, true),
+        (None, &[announced, withdrawn][..], None, Ascii, true),
+        (
+            None,
+            &[
+                ":ergo.test BATCH +isup draft/isupport",
+                "@batch=isup :ergo.test 005 papo CASEMAPPING=ascii :are supported by this server",
+                "@batch=isup :ergo.test 005 papo -CASEMAPPING :are supported by this server",
+                ":ergo.test BATCH -isup",
+            ][..],
+            None,
+            Ascii,
+            false,
+        ),
+    ] {
+        let config = seed.map_or_else(Config::default, |seed| Config::default().casemapping(seed));
+        let mut transcript = Transcript::new(config)
+            .connect_default()
+            .server(":ergo.test CAP * LS :")
+            .client("CAP END")
+            .welcome(":ergo.test 001 papo :Welcome to Ergo")
+            .advance(std::time::Duration::from_millis(20));
+        for line in lines {
+            transcript = transcript.server(line);
+        }
+        if lines.first() == Some(&announced) {
+            transcript =
+                transcript.event(|event| event == &Event::__casemapping_changed(None, Ascii));
+        }
+        transcript.no_event().no_client().inspect(|session| {
+            assert_eq!(
+                session.isupport().__advertised_casemapping(),
+                advertised,
+                "{lines:?}"
+            );
+            assert_eq!(session.state().casemapping(), working, "{lines:?}");
+            assert_eq!(session.__name_rules_known(), known, "{lines:?}");
+        });
+    }
+}

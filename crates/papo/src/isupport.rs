@@ -34,13 +34,14 @@ impl Isupport {
         self.inner.tokens()
     }
 
-    /// Returns the server's name casemapping, once a `005` has arrived.
+    /// Returns the casemapping currently advertised by the server and understood by papo.
     ///
-    /// A `CASEMAPPING` token papo doesn't know yields [`Casemapping::Ascii`], the narrowest
-    /// folding, and [`State::name_rules`](crate::State::name_rules) stays `None`.
+    /// Returns `None` when the advertisement is absent, withdrawn, or unsupported.
+    /// Use [`State::name_rules`](crate::State::name_rules) for the rules papo can use to build
+    /// names, including a local seed.
     #[must_use]
     pub fn casemapping(&self) -> Option<Casemapping> {
-        self.inner.__received().then(|| self.inner.casemapping())
+        self.inner.__advertised_casemapping().and_then(Result::ok)
     }
 
     /// Returns the channel-type prefix characters.
@@ -285,6 +286,38 @@ mod tests {
         assert_eq!(support.nicklen(), None);
         assert_eq!(support.msgreftypes(), ["msgid", "timestamp"]);
         assert!(!support.whox());
+    }
+
+    #[test]
+    fn reports_only_active_supported_casemappings() {
+        use crate::Casemapping::{Ascii, Rfc1459};
+
+        let mut inner = papo_proto::Isupport::default();
+        inner.__seed_casemapping(Rfc1459);
+        for (line, expected) in [
+            (
+                ":ergo.test 005 papo NETWORK=ErgoTest :are supported by this server",
+                None,
+            ),
+            (
+                ":ergo.test 005 papo CASEMAPPING=ascii :are supported by this server",
+                Some(Ascii),
+            ),
+            (
+                ":ergo.test 005 papo -CASEMAPPING :are supported by this server",
+                None,
+            ),
+            (
+                ":ergo.test 005 papo CASEMAPPING=rfc8265 :are supported by this server",
+                None,
+            ),
+        ] {
+            inner.apply(&LineRef::parse(line).unwrap());
+            assert_eq!(
+                super::Isupport::from_proto(inner.clone()).casemapping(),
+                expected
+            );
+        }
     }
 
     fn assert_limits_and_lengths(support: &super::Isupport) {
