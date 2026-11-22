@@ -7569,6 +7569,54 @@ async fn rejected_monitor_entry_does_not_fail_a_watched_send() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn named_rank_modes_require_their_advertised_prefix() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let task = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+
+    let mut label = 0;
+    for (prefix, advertised) in [("(v)+", Some('v')), ("(o)@", Some('o')), ("", None)] {
+        let support = format!(
+            ":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX={prefix} :are supported by this server\r\nPING :prefix-fence\r\n"
+        );
+        server_line(&mut server, support.as_bytes()).await;
+        client_line(&mut server, b"PONG prefix-fence\r\n").await;
+
+        for (sign, mode, request) in [
+            ('+', 'o', client.mode("#review").op("alice")),
+            ('-', 'o', client.mode("#review").deop("alice")),
+            ('+', 'v', client.mode("#review").voice("alice")),
+            ('-', 'v', client.mode("#review").devoice("alice")),
+        ] {
+            if advertised == Some(mode) {
+                let pending = tokio::spawn(async move { request.await });
+                let command = format!("@label={label} MODE #review {sign}{mode} alice\r\n");
+                client_line(&mut server, command.as_bytes()).await;
+                let echo = format!(
+                    "@label={label} :papo-driver!papo@localhost MODE #review {sign}{mode} alice\r\n"
+                );
+                server_line(&mut server, echo.as_bytes()).await;
+                assert_eq!(within(pending).await.unwrap().unwrap().applied.len(), 1);
+                label += 1;
+            } else {
+                let result = within(request).await;
+                assert!(
+                    matches!(&result, Err(Error::InvalidInput(crate::InvalidInput::InvalidMode(message)))
+                        if *message == format!("prefix mode {mode} was not advertised")),
+                    "{sign}{mode} with PREFIX={prefix}: {result:?}"
+                );
+                server_line(&mut server, b"PING :no-mode-write\r\n").await;
+                client_line(&mut server, b"PONG no-mode-write\r\n").await;
+            }
+        }
+    }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn generic_modes_round_trip_explicit_prefix_letters() {
     for (support, letter, symbol) in [
         (
