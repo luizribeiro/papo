@@ -3398,15 +3398,6 @@ impl ChannelGuard {
 }
 
 impl RecipientGuard {
-    pub(crate) fn new(state: &State, nick: Nick, account: Account) -> Self {
-        let token = state.__reply_token_for(nick.as_str());
-        Self {
-            nick,
-            account,
-            token,
-        }
-    }
-
     pub(crate) const fn from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
         Self {
             nick,

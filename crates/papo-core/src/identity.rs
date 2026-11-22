@@ -1,6 +1,5 @@
 mod person;
 mod proof;
-mod who;
 
 pub use person::PersonCommand;
 pub use proof::{ProofFailure, Proven};

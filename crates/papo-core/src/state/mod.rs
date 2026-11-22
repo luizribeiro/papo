@@ -26,8 +26,8 @@ use crate::monitor::presence_nicks;
 use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 use crate::{
     Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode, MetadataValue, ModeArg,
-    ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox, Party, ReadMarker,
-    RecipientGuard, Secret, Source, StateLimit, Subject, WhoOnJoin,
+    ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox, Party, ReadMarker, Secret,
+    Source, StateLimit, Subject, WhoOnJoin,
     bounded::BoundedCollection,
     cap,
     conversation::{LineTarget, classify_target_with_names},
@@ -39,7 +39,6 @@ pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
-const MAX_PROVEN_IDENTITIES: usize = 1_000;
 const MAX_MESSAGE_USERS: usize = 1_000;
 
 #[derive(Clone, Copy)]
@@ -964,29 +963,6 @@ impl State {
         for (identity, nick, _) in ended {
             self.remember_departed_identity(identity, nick);
         }
-    }
-
-    pub(crate) fn prove_who_identity(&mut self, nick: Nick, account: Account) -> RecipientGuard {
-        if let Some(user) = self.users.get_mut(nick.key()) {
-            user.update_account(account.clone());
-            let recipient = RecipientGuard::new(self, nick, account);
-            self.mark_changed();
-            return recipient;
-        }
-        let identity = self.next_identity();
-        self.proven_identities
-            .push_back((identity, nick.clone(), account.clone()));
-        if self.proven_identities.len() > MAX_PROVEN_IDENTITIES {
-            self.proven_identities.pop_front();
-        }
-        RecipientGuard::from_parts(
-            nick,
-            account,
-            crate::ReplyToken {
-                origin: self.casemapping.origin(),
-                identity: Some(identity),
-            },
-        )
     }
 
     #[doc(hidden)]
