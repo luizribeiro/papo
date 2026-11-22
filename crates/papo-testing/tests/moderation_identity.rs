@@ -209,7 +209,6 @@ const UNGATED_PERSON_INPUTS: &[(&str, &str)] = &[
         "the conversation's own read marker",
     ),
     ("papo::Client::mode", "channel or own user modes"),
-    ("papo::Client::query", "local handle constructor"),
     ("papo::Client::relay", "relayed source label"),
     ("papo::Client::set_nick", "the client's own nickname"),
     ("papo::Client::watch", "fixed nickname presence lease"),

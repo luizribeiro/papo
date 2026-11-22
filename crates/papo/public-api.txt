@@ -2385,7 +2385,6 @@ pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc:
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core::option::Option<papo::Whois>>
 impl papo::Client
 pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::Error>
-pub fn papo::Client::query(&self, impl papo::AsNick) -> core::result::Result<papo::UserHandle, papo::Error>
 pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountOutcome>

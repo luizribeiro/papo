@@ -225,15 +225,6 @@ impl UserHandle {
         Self::current_name(nick, crate::Account::Unknown, None, None)
     }
 
-    pub(crate) fn new(
-        client: &crate::Client,
-        nick: crate::Nick,
-        account: crate::Account,
-        proof: Option<papo_core::Proven>,
-    ) -> Self {
-        Self::current_name(nick, account, proof, Some(&client.state))
-    }
-
     /// Builds the handle for a name that stands for its holder now: one the application named,
     /// the client's own nick, or a person papo-core proves present. A line naming a person in
     /// the past goes through [`Self::from_past_line`].
@@ -630,26 +621,6 @@ impl crate::Client {
         self.state()
             .watch_registry()
             .acquire_target(WatchIdentity::Name(nick.as_ref().to_owned()), None)
-    }
-
-    /// Creates a user handle without sending an IRC command.
-    /// # Errors
-    /// Returns [`crate::Error::InvalidInput`] when name rules are unknown or reject the nickname,
-    /// [`crate::Error::ForeignReference`] when `nick` belongs to another client, and
-    /// [`crate::Error::TargetGone`] when `nick` is a handle whose user has left.
-    pub fn query(&self, nick: impl crate::AsNick) -> Result<UserHandle, crate::Error> {
-        let parts = crate::AsNick::__parts(&nick).into_owned();
-        let text = self.resolve(crate::target::Role::Nick("query: nick"), parts)?;
-        let state = self.state();
-        let nick = state
-            .known_name_rules()
-            .ok_or(crate::InvalidInput::NameRulesUnknown)?
-            .nick(text);
-        let account = state
-            .user_local(&nick)
-            .map_or(crate::Account::Unknown, |user| user.account().clone());
-        let proof = capture_proof(&state, &nick, &account);
-        Ok(UserHandle::new(self, nick, account, proof))
     }
 
     /// Creates a channel handle without sending an IRC command.

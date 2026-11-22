@@ -2495,7 +2495,6 @@ impl papo::Client
 pub fn papo::Client::bouncer(&self) -> papo::Bouncer
 impl papo::Client
 pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::Error>
-pub fn papo::Client::query(&self, impl papo::AsNick) -> core::result::Result<papo::UserHandle, papo::Error>
 pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountOutcome>
