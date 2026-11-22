@@ -220,7 +220,12 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
 
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.snapshot().nick().clone());
-    assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
+    assert!(
+        connected
+            .caps
+            .iter()
+            .any(|(enabled, _)| enabled == &papo::cap::PRE_AWAY)
+    );
     assert_eq!(alice.snapshot().away(), &AwayStatus::__away_value(None));
 
     let whois = bob

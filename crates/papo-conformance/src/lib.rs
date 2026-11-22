@@ -406,8 +406,8 @@ mod tests {
         time::Duration,
     };
 
-    use papo_core::Capabilities;
     use papo_proto::Isupport;
+    use papo_testing::capabilities;
     use papo_testing::unsupported;
 
     use super::unstable_feature_for_cap;
@@ -553,8 +553,7 @@ mod tests {
 
     #[test]
     fn requirements_match_cap_names_values_and_isupport_tokens() {
-        let mut caps = Capabilities::new();
-        caps.insert("sasl".into(), Some("PLAIN,SCRAM-SHA-256".into()));
+        let caps = capabilities([("sasl".into(), Some("PLAIN,SCRAM-SHA-256".into()))]);
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii"]);
         let requirements = Requirements {
@@ -566,7 +565,7 @@ mod tests {
         };
         assert_eq!(requirements.unsupported(&caps, &isupport), None);
 
-        caps.clear();
+        let caps = capabilities([]);
         assert_eq!(
             requirements.unsupported(&caps, &isupport).as_deref(),
             Some("server does not advertise sasl")
@@ -575,8 +574,7 @@ mod tests {
 
     #[test]
     fn requirements_reject_missing_values_and_tokens() {
-        let mut caps = Capabilities::new();
-        caps.insert("sasl".into(), Some("PLAIN".into()));
+        let caps = capabilities([("sasl".into(), Some("PLAIN".into()))]);
         let requirements = Requirements {
             caps: &[CapRequirement {
                 name: "sasl",
@@ -590,7 +588,7 @@ mod tests {
                 .as_deref(),
             Some("server does not advertise sasl=SCRAM-SHA-256")
         );
-        caps.insert("sasl".into(), Some("SCRAM-SHA-256".into()));
+        let caps = capabilities([("sasl".into(), Some("SCRAM-SHA-256".into()))]);
         assert_eq!(
             requirements
                 .unsupported(&caps, &Isupport::default())

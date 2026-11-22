@@ -291,7 +291,8 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
         alice
             .snapshot()
             .caps()
-            .contains_key(&papo::cap::NO_IMPLICIT_NAMES)
+            .iter()
+            .any(|(enabled, _)| enabled == &papo::cap::NO_IMPLICIT_NAMES)
     );
 
     alice.join(&channel).await?;

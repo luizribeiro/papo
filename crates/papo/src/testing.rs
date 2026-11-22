@@ -323,6 +323,14 @@ pub fn set_message_actor(message: &mut Message, actor: &crate::UserRef) {
     restamp(message);
 }
 
+/// Constructs capability facts for a synthetic event.
+#[must_use]
+pub fn capabilities(
+    entries: impl IntoIterator<Item = (crate::Cap, Option<String>)>,
+) -> Capabilities {
+    entries.into_iter().collect()
+}
+
 /// Constructs a connected event payload.
 #[must_use]
 pub fn connected(nick: impl Into<Nick>) -> Connected {
@@ -330,7 +338,7 @@ pub fn connected(nick: impl Into<Nick>) -> Connected {
     Connected {
         nick,
         welcome: String::new(),
-        caps: Capabilities::default(),
+        caps: capabilities([]),
         reconnected: false,
     }
 }

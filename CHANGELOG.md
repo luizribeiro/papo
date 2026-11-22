@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Build synthetic negotiated capabilities with `papo_testing::capabilities`.
+
 Match event variants in application code. Event shortcut accessors are available through `papo-testing`.
 
 Use `ChannelRef` for a reference to a channel.

@@ -18,7 +18,7 @@ mod wire;
 pub use builders::MessageBuilder;
 #[doc(hidden)]
 pub use error::{Error, FixtureError, Result, skip_reason, skipped};
-pub use event_builders::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder};
+pub use event_builders::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder, capabilities};
 pub use value_builders::{
     ErrorBuilder, StateBuilder, account, channel, channel_handle, mask, nick, unsupported,
 };

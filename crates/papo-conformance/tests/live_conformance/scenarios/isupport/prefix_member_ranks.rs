@@ -165,7 +165,8 @@ async fn assert_carol_view(
         !carol
             .snapshot()
             .caps()
-            .contains_key(&papo::cap::MULTI_PREFIX)
+            .iter()
+            .any(|(enabled, _)| enabled == &papo::cap::MULTI_PREFIX)
     );
     carol.join(channel).await?;
     let carol_nick = carol.snapshot().nick().clone();
@@ -192,7 +193,8 @@ async fn assert_dave_view(
     assert!(
         dave.snapshot()
             .caps()
-            .contains_key(&papo::cap::MULTI_PREFIX)
+            .iter()
+            .any(|(enabled, _)| enabled == &papo::cap::MULTI_PREFIX)
     );
     dave.join(channel).await?;
     let state = dave.snapshot();

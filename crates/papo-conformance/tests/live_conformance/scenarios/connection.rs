@@ -37,15 +37,15 @@ async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_caps_changed()
-                .filter(|changed| !changed.added.is_empty())
+                .filter(|changed| changed.added.iter().next().is_some())
         })
         .await?;
-    assert!(changed.removed.is_empty());
+    assert!(changed.removed.iter().next().is_none());
     assert!(
         changed
             .added
-            .keys()
-            .any(|name| !connected.caps.contains_key(name))
+            .iter()
+            .any(|(name, _)| !connected.caps.iter().any(|(enabled, _)| enabled == name))
     );
     for (name, value) in &changed.added {
         assert_eq!(alice.snapshot().caps().get(name), Some(value));
@@ -104,17 +104,23 @@ async fn cap_notify_del(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_caps_changed()
-                .filter(|changed| !changed.removed.is_empty())
+                .filter(|changed| changed.removed.iter().next().is_some())
         })
         .await?;
-    assert!(changed.added.is_empty());
-    assert!(changed.removed.keys().all(|name| before.contains_key(name)));
+    assert!(changed.added.iter().next().is_none());
     assert!(
         changed
             .removed
-            .keys()
-            .all(|name| !bound.snapshot().caps().contains_key(name))
+            .iter()
+            .all(|(name, _)| before.iter().any(|(enabled, _)| enabled == name))
     );
+    assert!(changed.removed.iter().all(|(name, _)| {
+        !bound
+            .snapshot()
+            .caps()
+            .iter()
+            .any(|(enabled, _)| enabled == name)
+    }));
     Ok(())
 }
 
@@ -209,7 +215,8 @@ async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
         alice
             .snapshot()
             .caps()
-            .contains_key(&papo::cap::EXTENDED_ISUPPORT)
+            .iter()
+            .any(|(enabled, _)| enabled == &papo::cap::EXTENDED_ISUPPORT)
     );
     assert!(!alice.snapshot().isupport().chantypes().is_empty());
     assert!(!alice.snapshot().isupport().prefix().is_empty());
@@ -237,7 +244,12 @@ async fn whoami(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     alice.join(s.channel_name()).await?;
     let state = alice.snapshot();
-    assert!(state.caps().contains_key(&papo::cap::WHOAMI));
+    assert!(
+        state
+            .caps()
+            .iter()
+            .any(|(enabled, _)| enabled == &papo::cap::WHOAMI)
+    );
     let identity = super::user(&state, state.nick()).expect("WHOAMI supplies self state");
     assert!(identity.username().is_some_and(|user| !user.is_empty()));
     assert!(identity.host().is_some_and(|host| !host.is_empty()));

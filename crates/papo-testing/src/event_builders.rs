@@ -3,6 +3,14 @@ use papo::{
     event::{AwayChanged, Connected, Joined},
 };
 
+/// Builds capability facts for a synthetic connected event.
+#[must_use]
+pub fn capabilities(
+    entries: impl IntoIterator<Item = (papo::Cap, Option<String>)>,
+) -> Capabilities {
+    papo::__testing::capabilities(entries)
+}
+
 /// Builds a connected event payload.
 #[derive(Debug)]
 pub struct ConnectedBuilder(Connected);
@@ -102,7 +110,48 @@ impl AwayChangedBuilder {
 #[cfg(test)]
 mod tests {
     use super::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder};
-    use crate::{channel, nick};
+    use crate::{capabilities, channel, nick};
+
+    #[test]
+    fn reads_capabilities_on_synthetic_connections() {
+        let alice = nick(papo::Casemapping::default(), "alice");
+        let connected = ConnectedBuilder::new(&alice)
+            .capabilities(capabilities([
+                (papo::cap::BATCH, Some(String::new())),
+                (papo::cap::CHATHISTORY, None),
+                (papo::cap::SASL, Some("PLAIN,SCRAM-SHA-256".to_owned())),
+            ]))
+            .build();
+        let caps = &connected.caps;
+        for (name, value) in [
+            ("batch", Some(Some(""))),
+            ("chathistory", Some(None)),
+            ("draft/chathistory", Some(None)),
+            ("sasl", Some(Some("PLAIN,SCRAM-SHA-256"))),
+            ("server-time", None),
+        ] {
+            let name = papo::Cap::from(name);
+            assert_eq!(caps.get(&name).map(Option::as_deref), value);
+            assert_eq!(caps.contains_key(&name), value.is_some());
+        }
+        let expected = [
+            ("batch", Some("")),
+            ("draft/chathistory", None),
+            ("sasl", Some("PLAIN,SCRAM-SHA-256")),
+        ];
+        assert!(
+            caps.iter()
+                .map(|(name, value)| (name.as_str(), value.as_deref()))
+                .eq(expected)
+        );
+        let mut borrowed = Vec::new();
+        for (name, value) in caps {
+            borrowed.push((name.as_str(), value.as_deref()));
+        }
+        assert_eq!(borrowed, expected);
+        let empty = ConnectedBuilder::new(alice).build();
+        assert!(empty.caps.iter().next().is_none());
+    }
 
     #[test]
     fn builds_common_event_payloads() {
