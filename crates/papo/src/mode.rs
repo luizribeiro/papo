@@ -1135,7 +1135,10 @@ mod tests {
         }
         let client = crate::driver::test_support::client_with_commands(&session).0;
         let state = client.state();
-        let alice = client.query("alice").unwrap();
+        let alice = crate::UserHandle::from_current_state(
+            state.name_rules().unwrap().nick("alice"),
+            Some(&client.state),
+        );
         assert!(alice.proof().is_some());
         let op = crate::ModeChange::new(
             'o',

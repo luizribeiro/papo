@@ -7516,13 +7516,13 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
         b":papo-driver!p@localhost JOIN #release\r\n:alice!a@localhost JOIN #release\r\n",
     )
     .await;
-    let mut joined = 0;
-    while joined != 2 {
-        if matches!(next_event(&mut events).await, Some(Event::Joined(_))) {
-            joined += 1;
+    let private = loop {
+        if let Some(Event::Joined(joined)) = next_event(&mut events).await
+            && joined.actor == "alice"
+        {
+            break joined.actor;
         }
-    }
-    let private = client.query("alice").unwrap();
+    };
     within(client.privmsg(private, "deployment details"))
         .await
         .unwrap();
@@ -8818,7 +8818,7 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn message_sender_is_event_proven_handle() {
-    let (mut server, client, mut events, driver) = scripted(config());
+    let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
 
@@ -8830,7 +8830,7 @@ async fn message_sender_is_event_proven_handle() {
     let (message, state) = next_message_with_state(&mut events).await;
 
     assert!(message.actor.proof().is_some());
-    assert_eq!(message.actor, client.query("alice").unwrap());
+    assert_eq!(message.actor, "alice");
     let actor = state.user(&message.actor).unwrap().unwrap();
     assert_eq!(actor.username(), Some("~alice"));
     assert_eq!(actor.host(), Some("cloak.example"));

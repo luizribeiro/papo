@@ -76,8 +76,8 @@ impl ModeListEntry {
     ///
     /// The server names the setter as they were when the entry was set, which can be long ago,
     /// so a user here is a past name and a send through it fails with
-    /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, open a handle
-    /// with [`crate::Client::query`].
+    /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, send to the
+    /// nickname.
     #[must_use]
     pub const fn actor(&self) -> Option<&crate::Source> {
         self.actor.as_ref()
@@ -143,8 +143,8 @@ impl Channel {
     ///
     /// The server names the setter as they were when the topic was set, which can be long ago,
     /// so a user here is a past name and a send through it fails with
-    /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, open a handle
-    /// with [`crate::Client::query`].
+    /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, send to the
+    /// nickname.
     #[must_use]
     pub const fn topic_set_by(&self) -> Option<&crate::Source> {
         self.topic_set_by.as_ref()

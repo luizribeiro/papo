@@ -641,7 +641,7 @@ mod tests {
             ],
         );
         assert_eq!(user.nick().as_str(), "Alice");
-        assert_eq!(user, client.query("alice").unwrap());
+        assert_eq!(user, "alice");
 
         session.handle_line(Instant::now(), b":Alice!~alice@cloak.example NICK alicia");
         *client.state.write().unwrap() =
@@ -652,19 +652,19 @@ mod tests {
     #[test]
     fn whois_user_falls_back_to_the_request_or_an_unshared_name() {
         let mut shared = session_sharing_review_with_alice();
-        let (client, user) = whois_user(
+        let (_client, user) = whois_user(
             &mut shared,
             &[":ergo.test 318 papo alice :End of /WHOIS list"],
         );
-        assert_eq!(user, client.query("Alice").unwrap());
-        assert_eq!(user, client.query("Alice").unwrap());
+        assert_eq!(user, "Alice");
+        assert!(user.proof().is_some());
 
         let mut unshared = Session::new(Config::default().nick("papo"));
         unshared.handle_line(
             Instant::now(),
             b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported by this server",
         );
-        let (client, user) = whois_user(
+        let (_client, user) = whois_user(
             &mut unshared,
             &[
                 ":ergo.test 311 papo Alice ~alice cloak.example * :Alice Example",
@@ -672,7 +672,7 @@ mod tests {
             ],
         );
         assert_eq!(user.nick().as_str(), "Alice");
-        assert_eq!(user, client.query("alice").unwrap());
+        assert!(user.proof().is_none());
     }
 
     #[test]

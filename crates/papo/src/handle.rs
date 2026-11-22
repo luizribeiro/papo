@@ -938,18 +938,15 @@ mod tests {
     }
 
     #[test]
-    fn query_and_channel_send_nothing() {
+    fn channel_handle_sends_nothing() {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(
             crate::rt::now_mono(),
             b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported",
         );
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
-        let user = client.query("alice").unwrap();
         let handle = client.channel("#release").unwrap();
 
-        assert_eq!(user.nick(), "alice");
-        assert_eq!(crate::Target::__parts(&user).user.as_ref(), Some(&user));
         assert_eq!(handle, handle.clone());
         assert_eq!(handle.name(), "#release");
         assert!(commands.try_recv().is_err());
@@ -1024,10 +1021,17 @@ mod tests {
         );
     }
 
+    fn observed_user(client: &crate::Client, nick: &str) -> crate::UserHandle {
+        crate::UserHandle::from_current_state(
+            client.state().name_rules().unwrap().nick(nick),
+            Some(&client.state),
+        )
+    }
+
     #[test]
     fn handles_debug_only_their_current_names() {
         let client = client_with_joined_users();
-        let alice = client.query("Alice").unwrap();
+        let alice = observed_user(&client, "Alice");
         let release = client.channel("#release").unwrap();
 
         assert!(alice.proof().is_some());
@@ -1048,7 +1052,7 @@ mod tests {
     #[test]
     fn historical_proof_rests_only_on_the_lines_account_tag() {
         let client = client_with_joined_users();
-        let alice = client.query("Alice").unwrap();
+        let alice = observed_user(&client, "Alice");
         let mapping = client.state().working_casemapping();
         for (account, linked) in [
             (
@@ -1111,9 +1115,9 @@ mod tests {
     #[test]
     fn handles_compare_and_hash_by_identity() {
         let client = client_with_joined_users();
-        let alice = client.query("Alice").unwrap();
-        let same_alice = client.query("alice").unwrap();
-        let bob = client.query("bob").unwrap();
+        let alice = observed_user(&client, "Alice");
+        let same_alice = observed_user(&client, "alice");
+        let bob = observed_user(&client, "bob");
         for (left, right, equal) in [
             (&alice, &same_alice, true),
             (&alice, &bob, false),
@@ -1143,8 +1147,8 @@ mod tests {
     #[test]
     fn user_handles_compare_with_folded_nick_text() {
         let client = client_with_joined_users();
-        let alice = client.query("Alice").unwrap();
-        let folded = client.query("Alice[ops]").unwrap();
+        let alice = observed_user(&client, "Alice");
+        let folded = observed_user(&client, "Alice[ops]");
 
         assert!(<crate::UserHandle as PartialEq<str>>::eq(&alice, "alice"));
         assert!(!<crate::UserHandle as PartialEq<str>>::eq(&alice, "bob"));
@@ -1159,17 +1163,9 @@ mod tests {
     }
 
     #[test]
-    fn handle_factories_preserve_invalid_name_errors() {
+    fn channel_factory_preserves_invalid_name_errors() {
         let client = client_with_joined_users();
 
-        assert!(matches!(
-            client.query("#release"),
-            Err(crate::Error::InvalidInput(crate::InvalidInput::InvalidName {
-                argument: "query: nick",
-                name,
-                reason: crate::InvalidIdentifier::InvalidPrefix('#'),
-            })) if name == "#release"
-        ));
         assert!(matches!(
             client.channel("release"),
             Err(crate::Error::InvalidInput(crate::InvalidInput::InvalidName {
@@ -1181,28 +1177,21 @@ mod tests {
     }
 
     #[test]
-    fn handle_factories_report_departed_handles_as_gone() {
+    fn channel_factory_reports_departed_handles_as_gone() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
         for line in [
             b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
             b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
-            b":alice!alice@staff.ergo.chat JOIN #release * :Alice Example".as_slice(),
         ] {
             session.handle_line(now, line);
         }
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let alice = client.query("alice").unwrap();
         let channel = client.channel("#release").unwrap();
 
-        session.handle_line(now, b":alice!alice@staff.ergo.chat QUIT :Client exited");
         session.handle_line(now, b":papo!papo@localhost PART #release :Review complete");
         *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
 
-        assert!(matches!(
-            client.query(&alice),
-            Err(crate::Error::TargetGone)
-        ));
         assert!(matches!(
             client.channel(&channel),
             Err(crate::Error::TargetGone)
@@ -1269,44 +1258,22 @@ mod tests {
         assert!(commands.try_recv().is_err());
     }
 
-    #[test]
-    fn query_reports_a_proof_from_another_session_as_foreign() {
-        let now = crate::rt::now_mono();
-        let joined = |origin| {
-            let mut config = Config::default().nick("papo");
-            config.origin = crate::Origin::__new(origin);
-            let mut session = Session::new(config);
-            for line in [
-                b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
-                b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
-                b":alice!alice@staff.ergo.chat JOIN #release * :Alice Example".as_slice(),
-            ] {
-                session.handle_line(now, line);
-            }
-            session
-        };
-        let (client, _) = crate::driver::test_support::client_with_commands(&joined(73));
-        let alice = client.query("alice").unwrap();
-        assert!(alice.proof().is_some());
-        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&joined(91), true));
-
-        assert!(matches!(
-            client.query(&alice),
-            Err(crate::Error::ForeignReference(_))
-        ));
-    }
-
     #[tokio::test]
-    async fn foreign_user_handle_fails_before_who() {
+    async fn foreign_user_handle_sends_nothing() {
+        let now = crate::rt::now_mono();
         let mut source = Config::default().nick("papo");
         source.origin = crate::Origin::__new(73);
         let mut source = Session::new(source);
         source.handle_line(
-            crate::rt::now_mono(),
+            now,
             b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
         );
+        source.handle_line(
+            now,
+            b":alice!~alice@cloak.example PRIVMSG papo :release is ready",
+        );
         let (source, _) = crate::driver::test_support::client_with_commands(&source);
-        let alice = source.query("alice").unwrap();
+        let alice = observed_user(&source, "alice");
 
         let mut destination = Config::default().nick("papo");
         destination.origin = crate::Origin::__new(91);
@@ -1349,7 +1316,7 @@ mod tests {
             ":alice!~alice@cloak.example JOIN #review * :Alice",
         ]);
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let alice = client.query("alice").unwrap();
+        let alice = observed_user(&client, "alice");
 
         replay(
             &client,
@@ -1368,6 +1335,6 @@ mod tests {
         assert_eq!(alice.nick(), "alicia");
         assert_eq!(alice.to_string(), "alicia");
         assert!(format!("{alice:?}").contains("\"alicia\""));
-        assert_ne!(alice, client.query("alicia").unwrap());
+        assert_ne!(alice, observed_user(&client, "alicia"));
     }
 }
