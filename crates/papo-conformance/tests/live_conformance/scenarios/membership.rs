@@ -585,10 +585,10 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
     let entries = alice.who(nick.as_str()).await?;
     let entry = entries
         .iter()
-        .find(|entry| entry.user == nick.as_str())
+        .find(|entry| entry.user.nick() == nick.as_str())
         .expect("WHO must include its exact target");
 
-    assert_eq!(entry.user, nick.as_str());
+    assert_eq!(entry.user.nick(), nick.as_str());
     assert!(!entry.username.is_empty());
     assert!(!entry.host.is_empty());
     assert_eq!(entry.realname, "Alice Example");
@@ -993,7 +993,7 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
 
     for kicked in [&observed, &own] {
         assert_eq!(kicked.channel.name().as_str(), channel);
-        assert_eq!(kicked.subject, bob_nick.as_str());
+        assert_eq!(kicked.subject.nick(), bob_nick.as_str());
         assert_eq!(crate::source_nick(&kicked.actor), Some(alice_nick.as_str()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
@@ -1105,7 +1105,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
         bob.wait_for(|event| {
             event
                 .as_kicked()
-                .filter(|kicked| kicked.subject == bob_nick.as_str())
+                .filter(|kicked| kicked.subject.nick() == bob_nick.as_str())
         })
         .await?,
     ];
@@ -1115,7 +1115,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .wait_for(|event| {
                     event
                         .as_kicked()
-                        .filter(|kicked| kicked.subject == carol_nick.as_str())
+                        .filter(|kicked| kicked.subject.nick() == carol_nick.as_str())
                 })
                 .await?,
         );
@@ -1127,8 +1127,8 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     }
     expected.sort_unstable();
     for ((observed, own), nick) in observed.iter().zip(&own).zip(expected) {
-        assert_eq!(observed.subject, nick.as_str());
-        assert_eq!(own.subject, nick.as_str());
+        assert_eq!(observed.subject.nick(), nick.as_str());
+        assert_eq!(own.subject.nick(), nick.as_str());
         assert_eq!(
             crate::source_nick(&observed.actor),
             Some(alice_nick.as_str())

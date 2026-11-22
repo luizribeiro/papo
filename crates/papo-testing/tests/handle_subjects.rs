@@ -71,7 +71,7 @@ async fn whois_user_follows_the_reported_person() {
     }
     let user = whois.await.unwrap().unwrap().unwrap().user;
     assert_eq!(user.nick().as_str(), "Alice");
-    assert_eq!(user, "alice");
+    assert_eq!(user.nick(), "alice");
 
     server_until(
         &mut events,
@@ -128,7 +128,7 @@ async fn member_mode_user_follows_nick_changes_and_takes_modes() {
     )
     .await;
     let user = member(&event);
-    assert_eq!(user, "alice");
+    assert_eq!(user.nick(), "alice");
 
     server_until(
         &mut events,

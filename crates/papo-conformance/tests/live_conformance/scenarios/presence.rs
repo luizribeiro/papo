@@ -492,7 +492,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let who = bob.who(channel.clone()).await?;
     let alice_who = who
         .iter()
-        .find(|entry| entry.user == alice_nick.as_str())
+        .find(|entry| entry.user.nick() == alice_nick.as_str())
         .unwrap();
 
     assert!(
@@ -591,7 +591,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     let who = bob.who(alice_nick.as_str()).await?;
     let row = who
         .iter()
-        .find(|entry| entry.user == alice_nick.as_str())
+        .find(|entry| entry.user.nick() == alice_nick.as_str())
         .unwrap();
     assert!(row.is_oper);
 

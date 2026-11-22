@@ -476,7 +476,7 @@ impl PartialEq<str> for Subject {
     fn eq(&self, other: &str) -> bool {
         match self {
             Self::Channel(channel) => channel == other,
-            Self::User(user) => user == other,
+            Self::User(user) => user.nick() == other,
         }
     }
 }

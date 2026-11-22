@@ -109,7 +109,7 @@ impl Watched {
         assert!(status.success(), "{status}");
         let nick = self.nick.clone();
         wait_for(&mut self.events, |event| {
-            matches!(event, Event::MonitorOffline(offline) if offline.subject == nick.as_str())
+            matches!(event, Event::MonitorOffline(offline) if offline.subject.nick() == nick.as_str())
         })
         .await;
         let mut stderr = String::new();

@@ -5308,7 +5308,7 @@ mod tests {
         ));
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
-        assert_eq!(invited.subject, "papo");
+        assert_eq!(invited.subject.nick(), "papo");
         assert!(matches!(&invited.actor, Source::User(user) if user.nick() == "emily"));
         assert_eq!(invited.subject_party, Party::Me);
     }
@@ -5364,7 +5364,7 @@ mod tests {
 
         assert_eq!(joined.channel.origin(), origin);
         assert_eq!(joined.actor.nick().origin(), origin);
-        assert_eq!(joined.actor, "alice");
+        assert_eq!(joined.actor.nick(), "alice");
         session.handle_line(
             Instant::now(),
             b"@account=alice :alice!~a@cloak.example PART #papo :deploying",
@@ -6170,8 +6170,8 @@ mod tests {
             let (actual, actor, conversation) = message_handle_actor(&event);
             assert_eq!(actual, expected);
             assert!(actor.proof().is_some(), "{expected}");
-            assert!(actor == "ALICE", "{expected}");
-            assert!(actor != "mallory", "{expected}");
+            assert!(actor.nick() == "ALICE", "{expected}");
+            assert!(actor.nick() != "mallory", "{expected}");
             assert_eq!(crate::Target::__parts(actor).user.as_ref(), Some(actor));
             if let Some(Conversation::Private(peer)) = conversation {
                 assert_eq!(peer, actor, "{expected}");
@@ -6284,7 +6284,7 @@ mod tests {
         let joined_event = Event::Joined(joined.clone());
         assert_eq!(joined_event.server_time(), None);
         assert_eq!(joined_event.received_at(), Some(received_at));
-        assert_eq!(joined.actor, "emily");
+        assert_eq!(joined.actor.nick(), "emily");
     }
 
     #[test]
@@ -6348,7 +6348,7 @@ mod tests {
             )),
             Event::Kicked(kicked)
                 if kicked.channel == "#papo"
-                    && kicked.subject == "emily"
+                    && kicked.subject.nick() == "emily"
                     && kicked.facts.is_none()
                     && kicked.actor.nick().is_some_and(|nick| nick == "alice")
                     && kicked.reason.as_deref() == Some("Flooding")
@@ -6534,7 +6534,7 @@ mod tests {
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'
-                    && matches!(&mode.changes[0].arg, Some(ModeArg::Member { user, .. }) if user == "emily")
+                    && matches!(&mode.changes[0].arg, Some(ModeArg::Member { user, .. }) if user.nick() == "emily")
         ));
     }
 
@@ -6594,7 +6594,7 @@ mod tests {
             Some("emily")
         );
         assert!(
-            matches!(&mode.changes[0].arg, Some(ModeArg::Member { user, .. }) if user == "emily"),
+            matches!(&mode.changes[0].arg, Some(ModeArg::Member { user, .. }) if user.nick() == "emily"),
             "{:?}",
             mode.changes[0]
         );
@@ -6700,7 +6700,7 @@ mod tests {
             .collect();
 
         assert!(
-            matches!(&mapped[0].arg, Some(ModeArg::Member { user, prefix }) if user == "alice" && prefix.symbol() == '@')
+            matches!(&mapped[0].arg, Some(ModeArg::Member { user, prefix }) if user.nick() == "alice" && prefix.symbol() == '@')
         );
         assert!(matches!(&mapped[1].arg, Some(ModeArg::Mask(mask)) if mask == "*!*@spam.example"));
         assert!(
@@ -7136,7 +7136,7 @@ mod tests {
                 None,
             )),
             Event::MonitorOffline(offline)
-                if offline.subject == "alice" && offline.facts.is_none()
+                if offline.subject.nick() == "alice" && offline.facts.is_none()
         ));
     }
 

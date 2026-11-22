@@ -6470,7 +6470,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
     assert_eq!(result.applied.len(), 3);
     assert!(result.is_complete());
     assert!(
-        matches!(result.applied[0].arg, Some(crate::ModeArg::Member { ref user, .. }) if user == "alice" && user.proof().is_some())
+        matches!(result.applied[0].arg, Some(crate::ModeArg::Member { ref user, .. }) if user.nick() == "alice" && user.proof().is_some())
     );
     assert!(
         matches!(result.applied[2].arg, Some(crate::ModeArg::Mask(ref mask)) if mask == "*!*@spam.example")
@@ -6798,7 +6798,7 @@ async fn typed_requests_match_unlabelled_responses() {
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(&mut server, b":ergo.test 311 papo-driver alice ~alice host * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n").await;
     let whois = within(whois).await.unwrap().unwrap().unwrap();
-    assert_eq!(whois.user, "alice");
+    assert_eq!(whois.user.nick(), "alice");
     assert_eq!(whois.user.nick().origin(), client.origin());
     assert_eq!(whois.account, crate::Account::Unknown);
 
@@ -6809,7 +6809,7 @@ async fn typed_requests_match_unlabelled_responses() {
     client_line(&mut server, b"WHO #papo\r\n").await;
     server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
     let who = within(who).await.unwrap().unwrap();
-    assert_eq!(who[0].user, "alice");
+    assert_eq!(who[0].user.nick(), "alice");
     assert_eq!(who[0].user.nick().origin(), client.origin());
     assert_eq!(who[0].channel.as_ref().unwrap().origin(), client.origin());
 
@@ -6980,7 +6980,7 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
         b":ergo.test 315 papo-driver #papo :End of WHO list\r\n",
     )
     .await;
-    assert_eq!(within(who).await.unwrap().unwrap()[0].user, "dan");
+    assert_eq!(within(who).await.unwrap().unwrap()[0].user.nick(), "dan");
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::MembersRefreshed(refreshed)) if refreshed.channel == "#papo"
@@ -7387,7 +7387,7 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
     .await;
     let private = loop {
         if let Some(Event::Joined(joined)) = next_event(&mut events).await
-            && joined.actor == "alice"
+            && joined.actor.nick() == "alice"
         {
             break joined.actor;
         }
@@ -8714,7 +8714,7 @@ async fn message_sender_is_event_proven_handle() {
     let (message, state) = next_message_with_state(&mut events).await;
 
     assert!(message.actor.proof().is_some());
-    assert_eq!(message.actor, "alice");
+    assert_eq!(message.actor.nick(), "alice");
     let actor = state.user(&message.actor).unwrap().unwrap();
     assert_eq!(actor.username(), Some("~alice"));
     assert_eq!(actor.host(), Some("cloak.example"));
@@ -9650,7 +9650,10 @@ async fn only_pending_request_enables_read_ahead() {
         b":ergo.test 311 papo-driver alice ~alice staff.example * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n",
     )
     .await;
-    assert_eq!(within(whois).await.unwrap().unwrap().unwrap().user, "alice");
+    assert_eq!(
+        within(whois).await.unwrap().unwrap().unwrap().user.nick(),
+        "alice"
+    );
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::Lagged(crate::event::Lagged { dropped: 1, .. }))
@@ -9704,7 +9707,10 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
         b":alice!~alice@staff.example QUIT :Client exited\r\n:ergo.test 311 papo-driver dan ~dan users.example * :Dan Example\r\n:ergo.test 318 papo-driver dan :End of /WHOIS list\r\n",
     )
     .await;
-    assert_eq!(within(whois).await.unwrap().unwrap().unwrap().user, "dan");
+    assert_eq!(
+        within(whois).await.unwrap().unwrap().unwrap().user.nick(),
+        "dan"
+    );
 
     loop {
         let event = within(events.next())
@@ -10823,7 +10829,7 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
     assert!(
-        matches!(next_event(&mut events).await, Some(Event::MonitorOffline(offline)) if offline.subject == "alice")
+        matches!(next_event(&mut events).await, Some(Event::MonitorOffline(offline)) if offline.subject.nick() == "alice")
     );
     let online: Vec<_> = client
         .state()

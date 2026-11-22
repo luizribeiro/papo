@@ -62,7 +62,7 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
         wire.server(line).await;
         loop {
             if let Event::Joined(joined) = next_event(&mut events).await {
-                if joined.actor == "alice" {
+                if joined.actor.nick() == "alice" {
                     alice = Some(joined.actor);
                 }
                 break;

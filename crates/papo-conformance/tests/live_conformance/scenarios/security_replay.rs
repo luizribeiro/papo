@@ -187,12 +187,12 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
     assert!(
         wildcard
             .iter()
-            .any(|entry| entry.user == alice_nick.as_str())
+            .any(|entry| entry.user.nick() == alice_nick.as_str())
     );
     assert!(
         channel_rows
             .iter()
-            .any(|entry| entry.user == alice_nick.as_str()),
+            .any(|entry| entry.user.nick() == alice_nick.as_str()),
         "wildcard WHO rows: {wildcard:?}; channel WHO rows: {channel_rows:?}"
     );
     Ok(())

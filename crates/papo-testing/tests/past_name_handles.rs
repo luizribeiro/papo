@@ -153,7 +153,7 @@ async fn past_names_never_reach_the_current_holder() {
         wire.server(line).await;
         loop {
             if let Event::Joined(joined) = support::direct::next_active_event(&mut events).await
-                && joined.actor == nick
+                && joined.actor.nick() == nick
             {
                 break;
             }

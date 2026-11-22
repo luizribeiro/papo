@@ -33,7 +33,7 @@ async fn metadata_wildcard_sets_the_current_user() {
                 {
                     assert!(matches!(
                         changed.subject,
-                        papo::Subject::User(subject) if subject == nick.as_str()
+                        papo::Subject::User(subject) if subject.nick() == nick.as_str()
                     ));
                     break;
                 }

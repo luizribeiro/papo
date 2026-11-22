@@ -2340,7 +2340,7 @@ mod tests {
         assert!(matches!(
             kicked,
             PageEvent::Kicked(event)
-                if event.channel == "#papo" && event.subject == "emily"
+                if event.channel == "#papo" && event.subject.nick() == "emily"
                     && event.channel.origin() == client.origin()
                     && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
@@ -2656,7 +2656,7 @@ mod tests {
                 action: crate::ModeAction::Add,
                 arg: Some(crate::ModeArg::Member { user, .. }),
                 ..
-            }] if user == "alice" && user.is_unproven_history()
+            }] if user.nick() == "alice" && user.is_unproven_history()
         ));
         let Event::ModeChanged(list_mode) = &page.items[4] else {
             panic!("expected replayed list mode")

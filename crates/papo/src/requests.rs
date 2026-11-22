@@ -641,7 +641,7 @@ mod tests {
             ],
         );
         assert_eq!(user.nick().as_str(), "Alice");
-        assert_eq!(user, "alice");
+        assert_eq!(user.nick(), "alice");
 
         session.handle_line(Instant::now(), b":Alice!~alice@cloak.example NICK alicia");
         *client.state.write().unwrap() =
@@ -656,7 +656,7 @@ mod tests {
             &mut shared,
             &[":ergo.test 318 papo alice :End of /WHOIS list"],
         );
-        assert_eq!(user, "Alice");
+        assert_eq!(user.nick(), "Alice");
         assert!(user.proof().is_some());
 
         let mut unshared = Session::new(Config::default().nick("papo"));
