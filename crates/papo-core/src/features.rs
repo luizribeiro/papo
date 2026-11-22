@@ -126,10 +126,16 @@ macro_rules! feature_table {
 
 macro_rules! feature_enum {
     ($($(#[$docs:meta])* [$($gate:meta),*] $variant:ident => $name:expr, $caps:expr;)*) => {
-        /// Optional IRC behavior understood by the session.
+        /// Optional server behavior that papo understands.
         ///
-        /// A Feature is something your app can use or rely on that the server may not offer.
-        /// Caps that only change wire details get no Feature.
+        /// Use [`State::supports`](https://docs.rs/papo/latest/papo/struct.State.html#method.supports)
+        /// to ask what the current connection supports. Capabilities used only for protocol
+        /// testing or legacy compatibility, such as `ergo.chat/nope` and `metadata-notify`,
+        /// are exceptions to feature coverage. Some features depend on several capabilities
+        /// or on server settings advertised through ISUPPORT.
+        ///
+        /// See [`State::caps`](https://docs.rs/papo/latest/papo/struct.State.html#method.caps)
+        /// for the negotiated capability names and values.
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
         #[non_exhaustive]
         pub enum Feature {

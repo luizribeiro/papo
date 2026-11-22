@@ -29,13 +29,14 @@ specs = [
   { name = "Multi-prefix", url = "https://ircv3.net/specs/extensions/multi-prefix", caps = ["multi-prefix"], api = "Member::prefixes", coverage = "ircv3.multi-prefix" },
   { name = "Userhost in names", url = "https://ircv3.net/specs/extensions/userhost-in-names", caps = ["userhost-in-names"], api = "User::host", coverage = "ircv3.userhost-in-names" },
   { name = "No implicit names", url = "https://ircv3.net/specs/extensions/no-implicit-names", caps = ["no-implicit-names"], api = "Feature::NoImplicitNames", coverage = "ircv3.no-implicit-names" },
-  { name = "Metadata", url = "https://ircv3.net/specs/extensions/metadata", caps = ["draft/metadata-3", "metadata-notify"], wire = "draft/metadata-3, draft/metadata-2, metadata-notify", api = "Client::metadata", coverage = "draft.metadata." },
+  { name = "Metadata", url = "https://ircv3.net/specs/extensions/metadata", caps = ["draft/metadata-3"], wire = "draft/metadata-3, draft/metadata-2", api = "Client::metadata", coverage = "draft.metadata." },
   { name = "Extended monitor", url = "https://ircv3.net/specs/extensions/extended-monitor", caps = ["extended-monitor"], api = "State::monitor_online", coverage = "ircv3.extended-monitor" },
   { name = "Multiline", url = "https://ircv3.net/specs/extensions/multiline", caps = ["draft/multiline"], api = "SendMessage", coverage = "draft.multiline." },
   { name = "Server time", url = "https://ircv3.net/specs/extensions/server-time", caps = ["server-time"], api = "Event::server_time", coverage = "ircv3.server-time" },
   { name = "Standard replies", url = "https://ircv3.net/specs/extensions/standard-replies", caps = ["standard-replies"], api = "ServerError", coverage = "ircv3.standard-replies" },
   { name = "Strict Transport Security", url = "https://ircv3.net/specs/extensions/sts", caps = ["sts"], support = "Yes", api = "Builder::sts_store", coverage = "core.sts." },
-  { name = "Bouncer networks", url = "https://github.com/ircv3/ircv3-specifications/pull/478", caps = ["soju.im/bouncer-networks", "soju.im/bouncer-networks-notify"], api = "Client::bouncer", coverage = "draft.bouncer-networks" },
+  { name = "Bouncer networks", url = "https://github.com/ircv3/ircv3-specifications/pull/478", caps = ["soju.im/bouncer-networks"], api = "Client::bouncer", coverage = "draft.bouncer-networks" },
+  { name = "Bouncer network notifications", url = "https://github.com/ircv3/ircv3-specifications/pull/478", caps = ["soju.im/bouncer-networks-notify"], api = "Feature::BouncerNetworkNotifications" },
   { name = "Persistence", url = "https://github.com/ircv3/ircv3-specifications/pull/503", caps = ["draft/persistence"], api = "Client::persistence", coverage = "draft.persistence" },
   { name = "Relay messages", url = "https://github.com/ircv3/ircv3-specifications/pull/417", caps = ["draft/relaymsg"], api = "Client::relay", coverage = "ergo.relaymsg" },
   { name = "Web Push", url = "https://github.com/ircv3/ircv3-specifications/pull/471", caps = ["draft/webpush"], api = "Client::webpush", coverage = "draft.webpush" },
@@ -84,7 +85,7 @@ specs = [
   { name = "WebIRC", url = "https://ircv3.net/specs/extensions/webirc", wire = "WEBIRC", support = "Opt-in", api = "Builder::webirc", coverage = "core.webirc.gateway" },
   { name = "WebSocket", url = "https://ircv3.net/specs/extensions/websocket", wire = "binary.ircv3.net, text.ircv3.net", support = "Opt-in", api = "Client::builder", coverage = "core.websocket." },
   { name = "FILEHOST", url = "https://github.com/ircv3/ircv3-specifications/pull/562", wire = "draft/FILEHOST, soju.im/FILEHOST", support = "Unstable", api = "State::filehost" },
-  { name = "Account required", url = "https://ircv3.net/specs/extensions/account-registration#isupport-token", caps = ["soju.im/account-required"], wire = "draft/ACCOUNTREQUIRED, soju.im/account-required", support = "Yes", api = "Isupport::account_required" },
+  { name = "Account required", url = "https://ircv3.net/specs/extensions/account-registration#isupport-token", caps = ["soju.im/account-required"], wire = "draft/ACCOUNTREQUIRED, soju.im/account-required", support = "Yes", api = "Feature::AccountRequired" },
 ]
 
 [[group]]
@@ -100,4 +101,5 @@ specs = [
   { name = "Display name tag", url = "https://github.com/ircv3/ircv3-specifications/pull/452", wire = "+draft/display-name", reason = "Not yet implemented; the `display-name` metadata key is supported." },
   { name = "Two-factor authentication", url = "https://github.com/ircv3/ircv3-specifications/pull/610", wire = "draft/2fa", reason = "Not yet implemented." },
   { name = "Ergo negotiation trap", url = "https://ergo.chat/nope/", caps = ["ergo.chat/nope"], reason = "Deliberately never requested to avoid registration-time disconnection." },
+  { name = "Legacy metadata notifications", url = "https://ircv3.net/specs/extensions/metadata", caps = ["metadata-notify"], reason = "Compatibility fallback from an older metadata specification." },
 ]

@@ -288,8 +288,8 @@ impl Builder {
 
     /// Enables an optional feature for capability negotiation.
     ///
-    /// Stable features are already on by default. Calling this after [`Self::disable`] turns the
-    /// feature back on; the last call wins.
+    /// Use this to opt in to an optional feature offered by the server.
+    /// Calling this after [`Self::disable`] turns that feature back on.
     pub fn enable(mut self, feature: crate::Feature) -> Self {
         self.config = self.config.enable(feature);
         self
