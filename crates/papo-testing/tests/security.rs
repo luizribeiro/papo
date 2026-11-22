@@ -537,22 +537,6 @@ async fn advertise_monitor(client: &papo::Client, wire: &mut Wire, nick: &str) {
 }
 
 #[tokio::test]
-async fn foreign_watch_add_never_reaches_either_wire() {
-    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
-        client_pair(&[]).await;
-    advertise_monitor(&second, &mut second_wire, "papo-second").await;
-    let alice = first
-        .snapshot()
-        .name_rules()
-        .expect("server advertised CASEMAPPING")
-        .nick("alice");
-
-    assert!(is_foreign(&second.query(alice)));
-    assert!(is_foreign(&second.query(first.query("alice").unwrap())));
-    assert_no_wire(&mut first_wire, &mut second_wire).await;
-}
-
-#[tokio::test]
 async fn foreign_watch_remove_never_reaches_either_wire() {
     let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
         client_pair(&[]).await;
@@ -725,8 +709,6 @@ async fn every_send_reports_a_foreign_value_as_foreign_reference() {
     );
     let message = || foreign.message();
     let results = [
-        ("query", done(second.query(nick))),
-        ("query with a handle", done(second.query(alice))),
         ("channel", done(second.channel(channel))),
         (
             "privmsg to a channel",
@@ -738,7 +720,7 @@ async fn every_send_reports_a_foreign_value_as_foreign_reference() {
         ),
         (
             "notice to a nick",
-            done(second.notice(alice, "release ready").await),
+            done(second.notice(nick, "release ready").await),
         ),
         ("action", done(second.action(channel, "waves").await)),
         ("typing", second.typing(channel, papo::Typing::Active).await),

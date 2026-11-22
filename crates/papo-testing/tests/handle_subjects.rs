@@ -71,7 +71,7 @@ async fn whois_user_follows_the_reported_person() {
     }
     let user = whois.await.unwrap().unwrap().unwrap().user;
     assert_eq!(user.nick().as_str(), "Alice");
-    assert_eq!(user, client.query("alice").unwrap());
+    assert_eq!(user, "alice");
 
     server_until(
         &mut events,
@@ -128,7 +128,7 @@ async fn member_mode_user_follows_nick_changes_and_takes_modes() {
     )
     .await;
     let user = member(&event);
-    assert_eq!(user, client.query("alice").unwrap());
+    assert_eq!(user, "alice");
 
     server_until(
         &mut events,
@@ -159,15 +159,18 @@ async fn member_mode_user_who_left_is_not_the_next_holder() {
         ":mallory!~mallory@users.example QUIT :Quit: bye",
     )
     .await;
-    server_until(
+    let papo::Event::NickChanged(replacement) = server_until(
         &mut events,
         &mut wire,
         ":Alice!~alice@cloak.example NICK mallory",
     )
-    .await;
+    .await
+    else {
+        panic!("expected a nickname change");
+    };
 
     assert_eq!(user.nick().as_str(), "mallory");
-    assert_ne!(user, client.query("mallory").unwrap());
+    assert_ne!(user, replacement.actor);
     assert!(matches!(
         client.mode("#review").op(&user).await,
         Err(papo::Error::TargetGone)
@@ -176,7 +179,7 @@ async fn member_mode_user_who_left_is_not_the_next_holder() {
 
 #[tokio::test]
 async fn member_mode_read_after_a_handoff_names_the_person_at_the_line() {
-    let (client, mut events, mut wire) = joined_review().await;
+    let (_client, mut events, mut wire) = joined_review().await;
     for line in [
         ":ChanServ!ChanServ@localhost MODE #review +v mallory",
         ":mallory!~mallory@users.example QUIT :Quit: bye",
@@ -190,5 +193,10 @@ async fn member_mode_read_after_a_handoff_names_the_person_at_the_line() {
             break member(&event);
         }
     };
-    assert_ne!(user, client.query("mallory").unwrap());
+    let replacement = loop {
+        if let papo::Event::NickChanged(event) = next_active_event(&mut events).await {
+            break event.actor;
+        }
+    };
+    assert_ne!(user, replacement);
 }

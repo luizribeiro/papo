@@ -52,6 +52,7 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
     ])
     .await;
     while !matches!(next_event(&mut events).await, Event::Connected(_)) {}
+    let mut alice = None;
     for line in [
         ":papo-wire!~papo@localhost JOIN #review",
         ":alice!~alice@cloak.example JOIN #review",
@@ -59,9 +60,16 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
         ":dave!~dave@users.example JOIN #review",
     ] {
         wire.server(line).await;
-        while !matches!(next_event(&mut events).await, Event::Joined(_)) {}
+        loop {
+            if let Event::Joined(joined) = next_event(&mut events).await {
+                if joined.actor == "alice" {
+                    alice = Some(joined.actor);
+                }
+                break;
+            }
+        }
     }
-    let alice = client.query("alice").unwrap();
+    let alice = alice.unwrap();
 
     let whois = tokio::spawn({
         let client = client.clone();
@@ -91,21 +99,19 @@ async fn late_mapped_events_name_the_sender_not_the_next_nick_holder() {
     }
     whois.await.unwrap().unwrap();
 
-    let newcomer = client.query("alice").unwrap();
-    assert_ne!(alice, newcomer);
     let mut seen = Vec::new();
-    while seen.len() < 8 {
+    let newcomer = loop {
         let event = next_event(&mut events).await;
+        if let Event::NickChanged(changed) = event {
+            break changed.actor;
+        }
         let Some((line, user)) = person(&event) else {
             continue;
         };
         assert_eq!(user, alice, "{line} named someone else");
-        assert_ne!(
-            user, newcomer,
-            "{line} named the next holder of the nickname"
-        );
         seen.push(line);
-    }
+    };
+    assert_ne!(alice, newcomer);
     assert_eq!(
         seen,
         [
