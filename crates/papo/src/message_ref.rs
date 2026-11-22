@@ -4,8 +4,9 @@ pub(crate) mod saved;
 
 use crate::target::sealed::SendName;
 
+use crate::event::Message;
 use crate::{
-    Actor, Conversation, Message, MessageId, SendOutcome,
+    Actor, Conversation, MessageId, SendOutcome,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -149,7 +150,7 @@ pub(crate) trait ReplyReference {
 /// ops-only message; see [`Conversation`] for status-prefixed audience guidance.
 ///
 /// ```
-/// # fn example(client: &papo::Client, message: &papo::Message) {
+/// # fn example(client: &papo::Client, message: &papo::event::Message) {
 /// let _ = client.react(message, "👀");
 /// let _ = client.redact(message.return_address(), "spam");
 /// # }
@@ -168,7 +169,7 @@ pub(crate) trait ReplyReference {
 /// ```
 ///
 /// ```compile_fail,E0277
-/// # fn example(client: &papo::Client, message: &papo::Message) {
+/// # fn example(client: &papo::Client, message: &papo::event::Message) {
 /// let _ = client.react((message.return_address(), "RfcBTzyxY120005"), "👀");
 /// # }
 /// ```

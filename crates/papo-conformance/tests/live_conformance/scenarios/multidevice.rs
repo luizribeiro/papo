@@ -15,7 +15,7 @@ fn has_account_sessions() -> bool {
     )
 }
 
-fn chat_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::Message> {
+fn chat_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::event::Message> {
     event
         .as_message()
         .filter(|message| message.raw_text == text)

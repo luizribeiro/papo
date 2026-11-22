@@ -18,9 +18,9 @@ pub(crate) use tokio::io::{
 };
 
 pub(crate) use super::{ConnectionPlan, Driver};
+pub(crate) use crate::event::Message as ChatMessage;
 pub(crate) use crate::{
-    Error, Event, Message as ChatMessage, MessageKind, Reconnect, event::Warning,
-    transport::TlsConfig,
+    Error, Event, MessageKind, Reconnect, event::Warning, transport::TlsConfig,
 };
 
 macro_rules! disconnected {

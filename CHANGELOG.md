@@ -36,6 +36,8 @@ other events caused by a user.
 
 ### Changed
 
+Import `Message` from `papo::event`.
+
 `Capabilities` is read-only. Use `get`, `contains`, or `iter` to read negotiated capabilities.
 
 `ChannelHandle` is now `ChannelRef`.

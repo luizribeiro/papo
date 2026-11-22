@@ -69,7 +69,7 @@ macro_rules! actor_account_accessor {
         impl $ty {
             /// Returns the actor's account as reported for this line.
             ///
-            /// See [`crate::Message::actor_account`] for the meaning of each status.
+            /// See [`crate::event::Message::actor_account`] for the meaning of each status.
             #[must_use]
             pub const fn actor_account(&self) -> &crate::AccountStatus {
                 &self.actor_account
@@ -277,7 +277,8 @@ ctcp_reference_accessors!(CtcpQuery, CtcpReply);
 /// the paired one, also goes wrong whenever your nick changed after the event.
 ///
 /// ```
-/// use papo::{Message, Party};
+/// use papo::event::Message;
+/// use papo::Party;
 ///
 /// fn echo(message: &Message) -> Option<String> {
 ///     if message.actor_party == Party::Me {
@@ -849,7 +850,7 @@ impl Message {
     /// [`Conversation`] for audience guidance.
     ///
     /// ```compile_fail,E0277
-    /// # async fn answer(client: &papo::Client, message: &papo::Message) -> Result<(), papo::Error> {
+    /// # async fn answer(client: &papo::Client, message: &papo::event::Message) -> Result<(), papo::Error> {
     /// if let Some(channel) = message.channel_context() {
     ///     client.privmsg(channel, "answering in public").await?;
     /// }

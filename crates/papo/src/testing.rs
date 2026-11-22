@@ -12,9 +12,10 @@ mod error_fixtures;
 #[path = "testing/wrapped.rs"]
 pub mod wrapped;
 
+use crate::event::Message;
 use crate::{
-    AccountName, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind, Nick, Party,
-    State, Tags, UserRef,
+    AccountName, Capabilities, Casemapping, ChannelName, Mask, MessageKind, Nick, Party, State,
+    Tags, UserRef,
     event::{AwayChanged, Connected, Joined},
 };
 

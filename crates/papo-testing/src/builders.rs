@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 
-use papo::{AccountName, AccountStatus, Message, MessageId, MessageKind};
+use papo::event::Message;
+use papo::{AccountName, AccountStatus, MessageId, MessageKind};
 
 /// Builds an incoming chat-message payload.
 #[derive(Debug)]

@@ -710,6 +710,39 @@ impl core::marker::Unpin for papo::event::MembersRefreshed
 impl core::marker::UnsafeUnpin for papo::event::MembersRefreshed
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MembersRefreshed
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MembersRefreshed
+#[non_exhaustive] pub struct papo::event::Message
+pub papo::event::Message::actor: papo::UserRef
+pub papo::event::Message::actor_party: papo::Party
+pub papo::event::Message::in_reply_to: core::option::Option<papo::MessageId>
+pub papo::event::Message::kind: papo::MessageKind
+pub papo::event::Message::raw_text: alloc::string::String
+pub papo::event::Message::received_at: std::time::SystemTime
+pub papo::event::Message::server_time: core::option::Option<papo_proto::time::ServerTime>
+pub papo::event::Message::tags: papo::Tags
+pub papo::event::Message::text: alloc::string::String
+impl papo::event::Message
+pub const fn papo::event::Message::actor_account(&self) -> &papo::AccountStatus
+pub const fn papo::event::Message::channel_context(&self) -> core::option::Option<&papo::Conversation>
+pub const fn papo::event::Message::conversation(&self) -> &papo::Conversation
+pub fn papo::event::Message::is_own(&self) -> bool
+pub const fn papo::event::Message::msgid(&self) -> core::option::Option<&papo::MessageId>
+pub fn papo::event::Message::origin(&self) -> papo::Origin
+pub fn papo::event::Message::return_address(&self) -> papo::MessageRef
+impl core::clone::Clone for papo::event::Message
+pub fn papo::event::Message::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Message
+impl core::cmp::PartialEq for papo::event::Message
+pub fn papo::event::Message::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Message
+pub fn papo::event::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Message
+impl core::marker::Freeze for papo::event::Message
+impl core::marker::Send for papo::event::Message
+impl core::marker::Sync for papo::event::Message
+impl core::marker::Unpin for papo::event::Message
+impl core::marker::UnsafeUnpin for papo::event::Message
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Message
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Message
 #[non_exhaustive] pub struct papo::event::MessageGap
 pub papo::event::MessageGap::conversation: papo::Conversation
 pub papo::event::MessageGap::dropped: u64
@@ -1624,7 +1657,7 @@ pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
 pub papo::Event::Lagged(papo::event::Lagged)
 pub papo::Event::MembersRefreshed(papo::event::MembersRefreshed)
-pub papo::Event::Message(papo::Message)
+pub papo::Event::Message(papo::event::Message)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
@@ -1711,7 +1744,7 @@ impl core::marker::UnsafeUnpin for papo::HistoryReason
 impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryReason
 impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 #[non_exhaustive] pub enum papo::Incomplete
-pub papo::Incomplete::Message(papo::Message)
+pub papo::Incomplete::Message(papo::event::Message)
 pub papo::Incomplete::Notice(papo::event::Notice)
 impl papo::Incomplete
 pub const fn papo::Incomplete::actor_account(&self) -> &papo::AccountStatus
@@ -1960,7 +1993,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ReadMarker
 pub papo::RestrictedLine::CtcpQuery(papo::event::CtcpQuery)
 pub papo::RestrictedLine::CtcpReply(papo::event::CtcpReply)
 pub papo::RestrictedLine::Incomplete(papo::Incomplete)
-pub papo::RestrictedLine::Message(papo::Message)
+pub papo::RestrictedLine::Message(papo::event::Message)
 pub papo::RestrictedLine::Notice(papo::event::Notice)
 pub papo::RestrictedLine::Other(papo::event::Other)
 pub papo::RestrictedLine::Reacted(papo::event::Reacted)
@@ -2528,7 +2561,7 @@ pub papo::HistoryPage::exhausted: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::Event>
 pub papo::HistoryPage::reason: papo::HistoryReason
 impl papo::HistoryPage
-pub fn papo::HistoryPage::chat_messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
+pub fn papo::HistoryPage::chat_messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::event::Message>
 pub fn papo::HistoryPage::cursor(&self) -> core::option::Option<papo::HistoryReference>
 pub fn papo::HistoryPage::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::HistoryPage
@@ -2837,39 +2870,6 @@ impl core::marker::Unpin for papo::MarkReadRequest
 impl core::marker::UnsafeUnpin for papo::MarkReadRequest
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MarkReadRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::MarkReadRequest
-#[non_exhaustive] pub struct papo::Message
-pub papo::Message::actor: papo::UserRef
-pub papo::Message::actor_party: papo::Party
-pub papo::Message::in_reply_to: core::option::Option<papo::MessageId>
-pub papo::Message::kind: papo::MessageKind
-pub papo::Message::raw_text: alloc::string::String
-pub papo::Message::received_at: std::time::SystemTime
-pub papo::Message::server_time: core::option::Option<papo_proto::time::ServerTime>
-pub papo::Message::tags: papo::Tags
-pub papo::Message::text: alloc::string::String
-impl papo::Message
-pub const fn papo::Message::actor_account(&self) -> &papo::AccountStatus
-pub const fn papo::Message::channel_context(&self) -> core::option::Option<&papo::Conversation>
-pub const fn papo::Message::conversation(&self) -> &papo::Conversation
-pub fn papo::Message::is_own(&self) -> bool
-pub const fn papo::Message::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub fn papo::Message::origin(&self) -> papo::Origin
-pub fn papo::Message::return_address(&self) -> papo::MessageRef
-impl core::clone::Clone for papo::Message
-pub fn papo::Message::clone(&self) -> Self
-impl core::cmp::Eq for papo::Message
-impl core::cmp::PartialEq for papo::Message
-pub fn papo::Message::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Message
-pub fn papo::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Message
-impl core::marker::Freeze for papo::Message
-impl core::marker::Send for papo::Message
-impl core::marker::Sync for papo::Message
-impl core::marker::Unpin for papo::Message
-impl core::marker::UnsafeUnpin for papo::Message
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Message
-impl core::panic::unwind_safe::UnwindSafe for papo::Message
 pub struct papo::MessageRef
 impl papo::MessageRef
 pub fn papo::MessageRef::msgid(&self) -> core::option::Option<&papo::MessageId>

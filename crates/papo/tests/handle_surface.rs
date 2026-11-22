@@ -34,7 +34,7 @@ const IDENTITY_TYPES: &[&str] = &[
 ];
 
 const NAME_FACTS: &[&str] = &[
-    "papo::Message::relayed_by",
+    "papo::event::Message::relayed_by",
     "papo::event::ChannelRenamed::new",
     "papo::event::ChannelRenamed::old",
     "papo::event::Connected::nick",
@@ -52,7 +52,7 @@ fn event_fields(api: &str) -> impl Iterator<Item = (&str, &str)> {
     api.lines()
         .filter_map(|line| line.strip_prefix("pub "))
         .filter(|item| {
-            ["papo::event::", "papo::Message::", "papo::WhoEntry::"]
+            ["papo::event::", "papo::WhoEntry::"]
                 .iter()
                 .any(|prefix| item.starts_with(prefix))
         })

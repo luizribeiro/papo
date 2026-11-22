@@ -2614,7 +2614,7 @@ async fn stale_channel_handles_fail_mode_and_metadata_requests() {
     }
 }
 
-async fn next_private_message(events: &mut Events) -> (papo::Message, Arc<papo::State>) {
+async fn next_private_message(events: &mut Events) -> (papo::event::Message, Arc<papo::State>) {
     loop {
         match events.next().await {
             Some((papo::Event::Message(message), state)) => return (message, state),

@@ -14,7 +14,7 @@ type ReplyTask = tokio::task::JoinHandle<Result<papo::SendOutcome, papo::Error>>
 
 fn start_concurrent_replies(
     client: &papo::Client,
-    message: &papo::Message,
+    message: &papo::event::Message,
 ) -> (ReplyTask, ReplyTask) {
     let first = tokio::spawn({
         let client = client.clone();
@@ -32,7 +32,7 @@ fn start_concurrent_replies(
 async fn private_message(
     events: &mut papo::Events,
     wire: &mut papo_testing::Wire,
-) -> papo::Message {
+) -> papo::event::Message {
     wire.server(
         "@account=alice-account;msgid=ErgoGuardRace :alice!~alice@cloak.example PRIVMSG papo :release approval",
     )

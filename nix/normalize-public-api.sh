@@ -10,7 +10,7 @@ expressions=(
   -e 's#papo_core::Conversation#papo::Conversation#g'
   -e 's#papo_core::Capabilities#papo::Capabilities#g'
   -e 's#papo::client::Client#papo::Client#g'
-  -e 's#papo::event_impl::Message#papo::Message#g'
+  -e 's#papo::event_impl::Message#papo::event::Message#g'
   -e 's#papo::event_impl::restricted::Restricted#papo::Restricted#g'
   -e 's#papo::error::Error#papo::Error#g'
 )

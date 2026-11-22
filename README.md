@@ -47,7 +47,7 @@ We put a lot of effort into making papo hard to misuse. Not just by someone host
 **Sending.** To DM someone, send to their nick. To answer a message, reply to it.
 
 ```rust
-async fn send(client: &papo::Client, message: &papo::Message) -> Result<(), papo::Error> {
+async fn send(client: &papo::Client, message: &papo::event::Message) -> Result<(), papo::Error> {
     client.privmsg("alice", "deploy finished").await?;
     client.reply(message, "thanks").await?;
     Ok(())
@@ -58,7 +58,8 @@ async fn send(client: &papo::Client, message: &papo::Message) -> Result<(), papo
 account. Trust the account, not the nick.
 
 ```rust
-use papo::{AccountStatus, Message};
+use papo::event::Message;
+use papo::AccountStatus;
 
 fn authorized(message: &Message) -> bool {
     let nick = message.actor.nick();
@@ -72,7 +73,8 @@ fn authorized(message: &Message) -> bool {
 message fails instead of reaching a stranger.
 
 ```rust
-use papo::{Client, Error, Message};
+use papo::event::Message;
+use papo::{Client, Error};
 
 async fn answer(client: &Client, message: &Message) -> Result<(), Error> {
     match client.reply(message, "pong").await {

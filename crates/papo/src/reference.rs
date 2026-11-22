@@ -198,7 +198,7 @@ impl Drop for WatchLease {
 /// a [WHOIS reply](crate::Whois::user), or the member in a [mode change](crate::ModeArg).
 /// For an event, read mutable user facts from its paired [`crate::State`] with
 /// [`crate::State::user`]. Read the account reported on a message itself with
-/// [`crate::Message::actor_account`].
+/// [`crate::event::Message::actor_account`].
 ///
 /// A live reference follows nickname changes papo sees. Sending through it can return
 /// [`crate::Error::TargetGone`] after a QUIT, a PART from the last shared channel, a detected

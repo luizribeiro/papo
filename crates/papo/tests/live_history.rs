@@ -7,7 +7,8 @@ use support::within;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, Feature, Message as ChatMessage, Reconnect};
+use papo::event::Message as ChatMessage;
+use papo::{Client, Endpoint, Event, Feature, Reconnect};
 use papo_test_server::{OPER_NAME, OPER_PASSWORD, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]

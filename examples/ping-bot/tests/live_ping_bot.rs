@@ -3,7 +3,8 @@
 
 use std::time::Duration;
 
-use papo::{Client, Event, Message};
+use papo::event::Message;
+use papo::{Client, Event};
 use papo_test_server::{from_env, unique};
 use tokio::time::timeout;
 

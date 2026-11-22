@@ -8,7 +8,7 @@ use papo::{Event, Reconnect};
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
-async fn next_message(events: &mut papo::Events) -> papo::Message {
+async fn next_message(events: &mut papo::Events) -> papo::event::Message {
     loop {
         if let Event::Message(message) = next_active_event(events).await {
             return message;

@@ -7,7 +7,8 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
+use papo::event::Message;
+use papo::{Client, Endpoint, Event, Events, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";

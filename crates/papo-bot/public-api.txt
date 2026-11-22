@@ -28,7 +28,7 @@ pub fn papo_bot::BotCommand::account_in<I, S>(&self, I) -> bool where I: core::i
 pub fn papo_bot::BotCommand::args(&self) -> &[alloc::string::String]
 pub const fn papo_bot::BotCommand::audience(&self) -> core::option::Option<papo::isupport::Prefix>
 pub const fn papo_bot::BotCommand::client(&self) -> &papo::Client
-pub const fn papo_bot::BotCommand::message(&self) -> &papo::Message
+pub const fn papo_bot::BotCommand::message(&self) -> &papo::event::Message
 pub fn papo_bot::BotCommand::name(&self) -> &str
 pub async fn papo_bot::BotCommand::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
 pub async fn papo_bot::BotCommand::reply(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
@@ -47,7 +47,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotCommand
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotCommand
 pub struct papo_bot::BotConfig
 impl papo_bot::BotConfig
-pub fn papo_bot::BotConfig::command(&self, &papo::Client, &papo::state::State, &papo::Message) -> core::option::Option<papo_bot::BotCommand>
+pub fn papo_bot::BotConfig::command(&self, &papo::Client, &papo::state::State, &papo::event::Message) -> core::option::Option<papo_bot::BotCommand>
 pub const fn papo_bot::BotConfig::ignore_bots(self, bool) -> Self
 pub const fn papo_bot::BotConfig::mention(self, bool) -> Self
 pub fn papo_bot::BotConfig::new(impl core::convert::Into<alloc::string::String>) -> Self

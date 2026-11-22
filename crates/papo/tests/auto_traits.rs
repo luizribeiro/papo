@@ -2,10 +2,11 @@
 
 use std::{future::IntoFuture, sync::Arc};
 
+use papo::event::Message as ChatMessage;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Kickban,
-    KickbanNick, KickbanRequest, Line, ListRequest, Message as ChatMessage, NewAccount,
-    RequestFuture, SendMessage, SetModes, State,
+    KickbanNick, KickbanRequest, Line, ListRequest, NewAccount, RequestFuture, SendMessage,
+    SetModes, State,
 };
 use papo_proto::Typing;
 

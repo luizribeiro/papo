@@ -1,9 +1,10 @@
 use std::time::Duration;
 
+use papo::event::Message;
 use papo::event::ModeChanged;
 use papo::{
-    AccountName, AccountStatus, Conversation, Error, Event, Feature, Message, Refusal, State,
-    Subject, UnsupportedReason,
+    AccountName, AccountStatus, Conversation, Error, Event, Feature, Refusal, State, Subject,
+    UnsupportedReason,
 };
 use papo_test_server::DeploymentProfile;
 

@@ -44,7 +44,7 @@ async fn wait_for<T>(events: &mut Events, mut matches: impl FnMut(&Event) -> Opt
     }
 }
 
-async fn wait_message(events: &mut Events, text: &str) -> papo::Message {
+async fn wait_message(events: &mut Events, text: &str) -> papo::event::Message {
     wait_for(events, |event| {
         event
             .as_message()

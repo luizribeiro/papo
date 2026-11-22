@@ -52,7 +52,7 @@ pub struct Client {
 /// What papo sent for a chat message, line by line, and what the server confirmed of it.
 ///
 /// Applications that log every chat message must log their own sends from this value. The
-/// correlated server copy is consumed and is not also emitted as a [`crate::Message`] event.
+/// correlated server copy is consumed and is not also emitted as a [`crate::event::Message`] event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct SendOutcome {
@@ -1174,7 +1174,7 @@ impl Client {
     /// line's status-prefixed audience:
     ///
     /// ```compile_fail,E0277
-    /// # fn answer(client: &papo::Client, message: &papo::Message) {
+    /// # fn answer(client: &papo::Client, message: &papo::event::Message) {
     /// let _ = client.privmsg(message.conversation(), "acknowledged");
     /// # }
     /// ```

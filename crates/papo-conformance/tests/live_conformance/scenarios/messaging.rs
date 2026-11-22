@@ -67,7 +67,7 @@ async fn joined_pair(
     Ok((alice, bob, channel))
 }
 
-fn is_private(message: &papo::Message) -> bool {
+fn is_private(message: &papo::event::Message) -> bool {
     conversation_is_private(message.conversation())
 }
 
@@ -973,7 +973,7 @@ async fn channel_original(
     alice: &Peer,
     bob: &mut Peer,
     channel: &str,
-) -> papo_testing::Result<(papo::Message, papo::MessageId)> {
+) -> papo_testing::Result<(papo::event::Message, papo::MessageId)> {
     alice.privmsg(channel, "ship release 2.19").await?;
     let original = bob
         .wait_for(|event| message_text(event, "ship release 2.19"))

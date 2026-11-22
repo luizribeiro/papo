@@ -165,7 +165,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
 }
 
 /// Sends an operators-only question and asserts that only the operator `bob` receives it.
-async fn ops_question(peers: &mut StatusmsgPeers) -> papo_testing::Result<papo::Message> {
+async fn ops_question(peers: &mut StatusmsgPeers) -> papo_testing::Result<papo::event::Message> {
     let channel = &peers.channel;
     peers
         .alice
@@ -271,7 +271,7 @@ async fn statusmsg_saved_reaction_ops(s: Scenario) -> papo_testing::Result<()> {
 
 async fn expect_ops_reaction(
     peers: &mut StatusmsgPeers,
-    question: &papo::Message,
+    question: &papo::event::Message,
 ) -> papo_testing::Result<()> {
     let question_id = question
         .msgid()

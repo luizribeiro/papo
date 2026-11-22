@@ -5,7 +5,9 @@ use papo_testing::wire;
 
 const ID: &str = "z6apvbu245cpg8t9b48v5bdmqs";
 
-async fn next_restricted_message(events: &mut papo::Events) -> (papo::Prefix, papo::Message) {
+async fn next_restricted_message(
+    events: &mut papo::Events,
+) -> (papo::Prefix, papo::event::Message) {
     loop {
         match events.next().await.map(|(event, _)| event) {
             Some(papo::Event::Restricted(papo::Restricted {

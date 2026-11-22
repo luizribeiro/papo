@@ -5,7 +5,8 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Message as ChatMessage, Sasl};
+use papo::event::Message as ChatMessage;
+use papo::{Client, Endpoint, Event, Sasl};
 use papo_test_server::{create_account, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]

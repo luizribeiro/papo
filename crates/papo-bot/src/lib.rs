@@ -7,7 +7,7 @@
 //!
 //! # Writing a bot
 //!
-//! Pass the receiving [`Client`], event state, and each [`papo::Message`] event payload to
+//! Pass the receiving [`Client`], event state, and each [`papo::event::Message`] event payload to
 //! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
 //! ignores known bots by default. Unlike raw `papo` event handling, it ignores a line papo cannot
 //! show is live, such as a bouncer's unbatched playback or an item of a [`papo::HistoryPage`]
@@ -57,9 +57,10 @@ use std::{
 };
 use web_time::Instant;
 
+use papo::event::Message as ChatMessage;
 use papo::{
-    AccountName, AccountStatus, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, Prefix, Restricted, RestrictedLine, State, UserRef,
+    AccountName, AccountStatus, Client, Conversation, InvalidRateLimit, MessageKind, Prefix,
+    Restricted, RestrictedLine, State, UserRef,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -655,7 +656,7 @@ mod tests {
         client
     }
 
-    fn message(target: &str, text: &str) -> papo::Message {
+    fn message(target: &str, text: &str) -> papo::event::Message {
         MessageBuilder::new(target, text)
             .actor(
                 nick("emily"),
@@ -666,12 +667,12 @@ mod tests {
     }
 
     struct Incoming {
-        message: papo::Message,
+        message: papo::event::Message,
         state: Arc<papo::State>,
     }
 
     impl std::ops::Deref for Incoming {
-        type Target = papo::Message;
+        type Target = papo::event::Message;
 
         fn deref(&self) -> &Self::Target {
             &self.message
@@ -711,7 +712,7 @@ mod tests {
         }
     }
 
-    fn parse(message: &papo::Message, config: &BotConfig) -> Option<BotCommand> {
+    fn parse(message: &papo::event::Message, config: &BotConfig) -> Option<BotCommand> {
         let client = client(Casemapping::Rfc1459);
         config.command(&client, &client.snapshot(), message)
     }

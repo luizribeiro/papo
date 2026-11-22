@@ -253,7 +253,7 @@
 //! The sealed [`Target`] trait accepts nicknames, channel names, user and channel references,
 //! and return addresses. A nickname in text or as a [`Nick`] addresses its current holder.
 //! A [`UserRef`] follows nickname changes that papo observes and can fail with
-//! [`Error::TargetGone`]. Read a received message's account with [`Message::actor_account`].
+//! [`Error::TargetGone`]. Read a received message's account with [`event::Message::actor_account`].
 //! To answer a message, use [`Client::reply`] to retain its audience. See [`Conversation`]
 //! for guidance on ops-only lines.
 
@@ -335,8 +335,7 @@ pub use conversation::Conversation;
 pub use driver::{Driver, Events};
 pub use error::*;
 pub use event_impl::{
-    Actor, Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Tags,
-    TagsIter,
+    Actor, Event, Incomplete, MessageKind, Party, Restricted, RestrictedLine, Tags, TagsIter,
 };
 pub use ext::accounts::{AccountOutcome, NewAccount};
 pub use ext::extras::{RenameChannel, RenameChannelRequest};
@@ -465,11 +464,11 @@ pub mod event {
         AccountChanged, AutoJoinFailed, AwayChanged, BatchAbandonReason, Broadcast, BroadcastCtcp,
         BroadcastTagMsg, CapsChanged, CasemappingChanged, ChannelRenamed, ChannelSynced, Connected,
         CtcpQuery, CtcpReply, FeaturesChanged, HostChanged, Invited, Joined, Kicked, Lagged,
-        MembersRefreshed, MessageGap, MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline,
-        Motd, NickChanged, Notice, NoticeTarget, Other, Parted, Quit, Reacted, ReactionAction,
-        ReadMarkerChanged, RealnameChanged, Redacted, ServerNotice, ServerNoticeKind, SplitServers,
-        StandardReply, StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason,
-        Warning,
+        MembersRefreshed, Message, MessageGap, MetadataChanged, ModeChanged, MonitorOffline,
+        MonitorOnline, Motd, NickChanged, Notice, NoticeTarget, Other, Parted, Quit, Reacted,
+        ReactionAction, ReadMarkerChanged, RealnameChanged, Redacted, ServerNotice,
+        ServerNoticeKind, SplitServers, StandardReply, StandardReplyKind, TagMsg, TopicChanged,
+        TypingChanged, TypingReason, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
 }

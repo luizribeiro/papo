@@ -4,8 +4,9 @@ use papo_core::{HistoryQuery, MsgRef, Response};
 use papo_proto::{Line, ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
+use crate::event::Message;
 use crate::{
-    Client, Error, Event, Message, ServerTime,
+    Client, Error, Event, ServerTime,
     driver::Command,
     event::{
         Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TagMsg, TopicChanged,
@@ -1001,7 +1002,7 @@ impl History {
     /// A receipt time from this device's clock cannot be used as a server cursor:
     ///
     /// ```compile_fail
-    /// # fn request(client: &papo::Client, message: &papo::Message) {
+    /// # fn request(client: &papo::Client, message: &papo::event::Message) {
     /// let _ = client.history(&message.conversation()).after(message.received_at);
     /// # }
     /// ```
@@ -1452,7 +1453,7 @@ mod tests {
         }
     }
 
-    fn historical_message(line: Line, received_at: SystemTime) -> crate::Message {
+    fn historical_message(line: Line, received_at: SystemTime) -> crate::event::Message {
         let PageEvent::Message(message) = crate::event_impl::historical_message_event(
             line,
             crate::Party::Unknown,
