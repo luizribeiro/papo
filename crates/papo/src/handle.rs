@@ -1319,17 +1319,9 @@ mod tests {
         assert!(commands.try_recv().is_err());
     }
 
-    fn secure_session(lines: &[&str]) -> Session {
+    fn joined_session(lines: &[&str]) -> Session {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_connected_with(
-            now,
-            papo_core::Connection {
-                host: "irc.example".into(),
-                security: papo_core::sts::ConnectionSecurity::Secure,
-                authenticated_server_name: Some("irc.example".into()),
-            },
-        );
         session.handle_line(
             now,
             b":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
@@ -1351,7 +1343,7 @@ mod tests {
 
     #[test]
     fn departed_handle_keeps_its_last_known_nick() {
-        let mut session = secure_session(&[
+        let mut session = joined_session(&[
             ":papo!p@localhost JOIN #review * :Papo",
             ":alice!~alice@cloak.example JOIN #review * :Alice",
         ]);

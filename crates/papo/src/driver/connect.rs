@@ -312,7 +312,6 @@ pub(super) async fn run_planned_connection(
         Some(Connection {
             host: plan.address.host.clone(),
             security,
-            authenticated_server_name: authenticated_server_name(plan),
         }),
         Some(sts_store),
         plan.address.port,
@@ -320,14 +319,6 @@ pub(super) async fn run_planned_connection(
         pending_events,
     )
     .await
-}
-
-fn authenticated_server_name(plan: &ConnectionPlan) -> Option<String> {
-    if !plan.address.is_secure() {
-        return None;
-    }
-    let name = plan.tls.server_name_or(&plan.address.host);
-    Some(crate::sts::normalize_host(name))
 }
 
 fn triage_connection_end(
@@ -811,7 +802,6 @@ mod tests {
     use std::io;
 
     use super::*;
-    use crate::transport::TlsConfig;
 
     fn connection_end(error: Error, registered: bool) -> ConnectionEnd {
         ConnectionEnd {
@@ -867,67 +857,6 @@ mod tests {
                 &mut || 0,
             ),
             Duration::from_secs(4)
-        );
-    }
-
-    fn plan(address: &str) -> ConnectionPlan {
-        ConnectionPlan {
-            address: address.parse().unwrap(),
-            tls: TlsConfig::default(),
-        }
-    }
-
-    #[test]
-    fn only_verified_transport_plans_authenticate_a_server_name() {
-        assert_eq!(authenticated_server_name(&plan("irc://irc.example")), None);
-        assert_eq!(authenticated_server_name(&plan("ws://irc.example")), None);
-        assert_eq!(
-            authenticated_server_name(&plan("ircs://IRC.Example")),
-            Some("irc.example".to_owned())
-        );
-        assert_eq!(
-            authenticated_server_name(&plan("wss://IRC.Example:8443/webirc")),
-            Some("irc.example".to_owned())
-        );
-        assert_eq!(
-            authenticated_server_name(&plan("wss://irc.example:9443/other")),
-            Some("irc.example".to_owned())
-        );
-    }
-
-    #[cfg(tls)]
-    mod tls {
-        use super::*;
-
-        #[test]
-        fn a_tls_server_name_override_is_the_authenticated_name() {
-            let mut overridden = plan("ircs://edge.example");
-            overridden.tls.server_name = Some("Identity.Example.".to_owned());
-            assert_eq!(
-                authenticated_server_name(&overridden),
-                Some("identity.example".to_owned())
-            );
-        }
-    }
-}
-
-#[cfg(all(test, browser))]
-mod browser_tests {
-    use wasm_bindgen_test::wasm_bindgen_test;
-
-    use super::{ConnectionPlan, authenticated_server_name};
-    use crate::transport::TlsConfig;
-
-    #[test]
-    #[wasm_bindgen_test]
-    fn secure_websocket_authenticates_its_normalized_hostname() {
-        let plan = ConnectionPlan {
-            address: "wss://IRC.Example:8443/webirc".parse().unwrap(),
-            tls: TlsConfig::default(),
-        };
-        assert_eq!(
-            authenticated_server_name(&plan),
-            Some("irc.example".to_owned())
         );
     }
 }

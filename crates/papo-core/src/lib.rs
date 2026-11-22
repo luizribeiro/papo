@@ -602,9 +602,6 @@ pub struct Connection {
     pub host: String,
     /// Security of the connected transport.
     pub security: ConnectionSecurity,
-    /// Server name whose certificate was verified for this connection.
-    #[doc(hidden)]
-    pub authenticated_server_name: Option<String>,
 }
 
 /// Identity asserted by a trusted IRC gateway with `WEBIRC`.
@@ -4027,7 +4024,6 @@ impl Session {
         let connection = Connection {
             host: config.host.clone(),
             security: config.connection_security,
-            authenticated_server_name: None,
         };
         let secure_credentials_allowed = secure_credentials_allowed(&config, &connection);
         let welcome_state = WelcomeState::new(&config);
@@ -4083,7 +4079,6 @@ impl Session {
         let connection = Connection {
             host: self.config.host.clone(),
             security: self.config.connection_security,
-            authenticated_server_name: None,
         };
         self.handle_connected_with(now, connection);
     }
@@ -5579,13 +5574,6 @@ impl Session {
     #[must_use]
     pub fn caps(&self) -> &Capabilities {
         self.caps.enabled()
-    }
-
-    /// Returns the server name authenticated by the active TLS connection.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __authenticated_server_name(&self) -> Option<&str> {
-        self.connection.authenticated_server_name.as_deref()
     }
 
     /// Returns the limits advertised for the negotiated metadata capability.
@@ -7149,10 +7137,9 @@ mod tests {
     }
 
     #[test]
-    fn connection_and_peer_proof_accessors_report_exact_state() {
+    fn peer_proof_accessor_reports_exact_state() {
         let now = std::time::Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
-        assert_eq!(session.__authenticated_server_name(), None);
         assert!(!session.state().__peer_token_for("alice").__is_known());
 
         session.handle_connected_with(
@@ -7160,13 +7147,11 @@ mod tests {
             Connection {
                 host: "irc.example".into(),
                 security: crate::sts::ConnectionSecurity::Secure,
-                authenticated_server_name: Some("irc.example".into()),
             },
         );
         session.handle_line(now, b":papo!p@localhost JOIN #release");
         session.handle_line(now, b":alice!~alice@cloak.example JOIN #release");
 
-        assert_eq!(session.__authenticated_server_name(), Some("irc.example"));
         assert!(session.state().__peer_token_for("alice").__is_known());
     }
 
