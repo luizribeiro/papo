@@ -107,7 +107,7 @@
 //! | `soju.im/account-required` | — | never | account required | `caps` |
 //! | `draft/account-registration` | account-registration | default | account creation | `account_registration` |
 //! | `soju.im/bouncer-networks` | — | opt-in | bouncer networks | `bouncer` |
-//! | `soju.im/bouncer-networks-notify` | — | opt-in | — | `bouncer` |
+//! | `soju.im/bouncer-networks-notify` | — | opt-in | bouncer network notifications | `bouncer` |
 //! | `draft/chathistory` | chathistory | default | chathistory | `history`, `batch` |
 //! | `draft/read-marker` | read-marker | default | read-marker | `history`, `state::read_marker` |
 //! | `draft/persistence` | — | opt-in | persistence | `persistence`, `state::persistence` |

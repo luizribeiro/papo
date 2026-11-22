@@ -128,6 +128,59 @@ fn unstable_capabilities_require_explicit_feature_selection() {
 }
 
 #[test]
+fn bouncer_notifications_require_both_network_capabilities() {
+    let check = |session: &Session, management, notifications| {
+        assert_eq!(session.supports(Feature::Bouncer), management);
+        assert_eq!(
+            session.supports(Feature::BouncerNetworkNotifications),
+            notifications
+        );
+    };
+    let absent = Err(UnsupportedReason::NotOffered);
+    let disabled = Err(UnsupportedReason::DisabledByClient);
+    Transcript::new(Config::default().enable(Feature::BouncerNetworkNotifications))
+        .connect_default()
+        .server(":soju.test CAP * LS :soju.im/bouncer-networks soju.im/bouncer-networks-notify")
+        .client("CAP REQ :soju.im/bouncer-networks soju.im/bouncer-networks-notify")
+        .inspect(|session| check(session, absent, absent))
+        .server(":soju.test CAP * ACK :soju.im/bouncer-networks soju.im/bouncer-networks-notify")
+        .client("CAP END")
+        .inspect(|session| check(session, Ok(()), Ok(())))
+        .server(":soju.test CAP papo DEL :soju.im/bouncer-networks-notify")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { removed, .. }
+                if removed.contains_key(&papo_core::cap::BOUNCER_NETWORKS_NOTIFY))
+        })
+        .inspect(|session| check(session, Ok(()), absent))
+        .no_client();
+
+    for (offered, management, notifications) in [
+        ("soju.im/bouncer-networks", Ok(()), absent),
+        ("soju.im/bouncer-networks-notify", absent, absent),
+    ] {
+        Transcript::new(Config::default().enable(Feature::Bouncer))
+            .connect_default()
+            .server(&format!(":soju.test CAP * LS :{offered}"))
+            .client(&format!("CAP REQ :{offered}"))
+            .server(&format!(":soju.test CAP * ACK :{offered}"))
+            .client("CAP END")
+            .inspect(|session| check(session, management, notifications));
+    }
+
+    Transcript::new(
+        Config::default()
+            .enable(Feature::Bouncer)
+            .disable(Feature::BouncerNetworkNotifications),
+    )
+    .connect_default()
+    .server(":soju.test CAP * LS :soju.im/bouncer-networks soju.im/bouncer-networks-notify")
+    .client("CAP REQ :soju.im/bouncer-networks")
+    .server(":soju.test CAP * ACK :soju.im/bouncer-networks")
+    .client("CAP END")
+    .inspect(|session| check(session, Ok(()), disabled));
+}
+
+#[test]
 fn enabled_features_remain_optional_when_not_offered() {
     Transcript::new(Config::default().enable(Feature::Bouncer))
         .connect_default()
@@ -316,6 +369,10 @@ fn every_feature_name_round_trips() {
         (Feature::AccountCreation, "account creation"),
         (Feature::AccountRequired, "account required"),
         (Feature::Bouncer, "bouncer networks"),
+        (
+            Feature::BouncerNetworkNotifications,
+            "bouncer network notifications",
+        ),
         (Feature::Persistence, "persistence"),
         (Feature::WebPush, "webpush"),
         (Feature::ChannelRename, "channel rename"),

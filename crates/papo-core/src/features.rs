@@ -54,6 +54,13 @@ macro_rules! feature_table {
             /// Upstream network management on an IRC bouncer.
             [cfg(feature = "unstable")]
             Bouncer => "bouncer networks", [Some(cap::BOUNCER_NETWORKS), None];
+            /// Live changes to upstream networks on an IRC bouncer.
+            ///
+            /// Use this to decide whether to expect unsolicited network updates. Both
+            /// bouncer network capabilities must be enabled. Enabling this feature also enables
+            /// [`Feature::Bouncer`].
+            [cfg(feature = "unstable")]
+            BouncerNetworkNotifications => "bouncer network notifications", [Some(cap::BOUNCER_NETWORKS_NOTIFY), None];
             /// `IRCv3` draft account persistence, requiring `draft/persistence`.
             [cfg(feature = "unstable")]
             Persistence => "persistence", [Some(cap::PERSISTENCE), None];
@@ -262,6 +269,10 @@ impl Session {
         ) && !self.config.enabled_features.contains(&feature)
         {
             return Err(UnsupportedReason::DisabledByClient);
+        }
+        #[cfg(feature = "unstable")]
+        if feature == Feature::BouncerNetworkNotifications {
+            self.supports(Feature::Bouncer)?;
         }
         let support = self.isupport.value();
         match feature {

@@ -42,7 +42,7 @@
 //! | `soju.im/account-required` | — | never | account required | `caps` |
 //! | `draft/account-registration` | account-registration | default | account creation | `account_registration` |
 //! | `soju.im/bouncer-networks` | — | opt-in | bouncer networks | `bouncer` |
-//! | `soju.im/bouncer-networks-notify` | — | opt-in | — | `bouncer` |
+//! | `soju.im/bouncer-networks-notify` | — | opt-in | bouncer network notifications | `bouncer` |
 //! | `draft/chathistory` | chathistory | default | chathistory | `history`, `batch` |
 //! | `draft/read-marker` | read-marker | default | read-marker | `history`, `state::read_marker` |
 //! | `draft/persistence` | — | opt-in | persistence | `persistence`, `state::persistence` |
@@ -848,6 +848,10 @@ impl Config {
     /// Enables an optional feature before connecting.
     #[must_use]
     pub fn enable(mut self, feature: Feature) -> Self {
+        #[cfg(feature = "unstable")]
+        if feature == Feature::BouncerNetworkNotifications {
+            self = self.enable(Feature::Bouncer);
+        }
         self.disabled_features.remove(&feature);
         self.enabled_features.insert(feature);
         for required in feature.caps().iter().flatten() {

@@ -21,6 +21,8 @@ Membership privilege checks can use `is_at_least_op()` and `is_at_least_voice()`
 
 `Feature::AccountRequired` reports whether the server advertises an account requirement.
 
+`Feature::BouncerNetworkNotifications` reports whether live bouncer network updates were negotiated.
+
 Build negotiated capabilities for tests with `papo_testing::capabilities`.
 
 `papo-format` provides IRC text formatting with no stability promise. Use

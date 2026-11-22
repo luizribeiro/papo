@@ -4324,6 +4324,7 @@ pub papo::Feature::AwayTracking
 pub papo::Feature::Batches
 pub papo::Feature::BotMode
 pub papo::Feature::Bouncer
+pub papo::Feature::BouncerNetworkNotifications
 pub papo::Feature::CapabilityNotifications
 pub papo::Feature::ChannelRename
 pub papo::Feature::EchoMessages
