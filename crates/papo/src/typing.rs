@@ -103,35 +103,19 @@ impl Typer {
 
 #[derive(Clone, Debug)]
 pub(crate) struct TypingTable {
-    entries: std::collections::VecDeque<(Conversation, Typer)>,
+    entries: std::collections::VecDeque<(papo_core::Conversation, Typer)>,
 }
 
 impl TypingTable {
     pub(crate) fn new(table: &papo_core::TypingTable, state: &papo_core::State) -> Self {
         let entries = table
             .__entries()
-            .map(|(conversation, typer)| {
-                let guard = match conversation {
-                    papo_core::Conversation::Channel(channel) => {
-                        Some(state.__channel_guard(channel))
-                    }
-                    _ => None,
-                };
-                (
-                    Conversation::from_core(
-                        conversation.clone(),
-                        state.nick().origin(),
-                        None,
-                        guard,
-                    ),
-                    Typer::new(typer, state),
-                )
-            })
+            .map(|(conversation, typer)| (conversation.clone(), Typer::new(typer, state)))
             .collect();
         Self { entries }
     }
 
-    pub(crate) fn get(&self, conversation: Option<Conversation>) -> Typers<'_> {
+    pub(crate) fn get(&self, conversation: Option<papo_core::Conversation>) -> Typers<'_> {
         Typers {
             entries: self.entries.iter(),
             conversation,
@@ -141,8 +125,8 @@ impl TypingTable {
 
 /// An iterator over users typing in one conversation.
 pub struct Typers<'a> {
-    entries: vec_deque::Iter<'a, (Conversation, Typer)>,
-    conversation: Option<Conversation>,
+    entries: vec_deque::Iter<'a, (papo_core::Conversation, Typer)>,
+    conversation: Option<papo_core::Conversation>,
 }
 
 impl<'a> Iterator for Typers<'a> {

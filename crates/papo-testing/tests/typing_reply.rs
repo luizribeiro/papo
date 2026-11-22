@@ -55,7 +55,7 @@ async fn retained_typers_reply_to_private_and_ops_only_audiences() {
     ));
     let private = {
         let state = client.snapshot();
-        let conversation = state.name_rules().unwrap().conversation("alice").unwrap();
+        let conversation = state.name_rules().unwrap().conversation("ALICE").unwrap();
         state.typing(conversation).next().unwrap().return_address()
     };
     client.reply(private, "private pong").await.unwrap();

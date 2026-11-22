@@ -679,21 +679,11 @@ impl State {
     fn resolve_conversation(
         &self,
         conversation: impl crate::AsConversation,
-    ) -> Option<crate::Conversation> {
+    ) -> Option<papo_core::Conversation> {
         let parts = crate::AsConversation::__parts(&conversation);
         let origin = self.nick().origin();
         crate::ForeignReference::require_local(parts.origin, origin).ok()?;
-        let conversation = self.core.conversation(parts.text).ok()?;
-        let guard = match &conversation {
-            papo_core::Conversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
-            _ => None,
-        };
-        Some(crate::Conversation::from_core(
-            conversation,
-            origin,
-            None,
-            guard,
-        ))
+        self.core.conversation(parts.text).ok()
     }
 
     /// Returns the capabilities enabled on the current connection.
