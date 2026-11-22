@@ -1,4 +1,5 @@
-use papo::{AccountOutcome, AccountStatus, AwayStatus, Error, Event, NewAccount, Refusal};
+use papo::event::AccountOutcome;
+use papo::{AccountStatus, AwayStatus, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::{assert_delivery_tags, confirmed_line, subject_name};

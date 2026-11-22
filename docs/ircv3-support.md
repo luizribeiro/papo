@@ -70,7 +70,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | --- | --- | :---: | --- | :---: |
 | [Netsplit](https://ircv3.net/specs/batches/netsplit) | `netsplit` | Yes | [`Event::Quit`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.Quit) | [Yes](conformance-matrix.md) |
 | [Netjoin](https://ircv3.net/specs/batches/netsplit) | `netjoin` | Yes | [`Event::Joined`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.Joined) | No |
-| [Chat history batch](https://ircv3.net/specs/batches/chathistory) | `chathistory` | Yes | [`HistoryPage`](https://docs.rs/papo/latest/papo/struct.HistoryPage.html) | [Yes](conformance-matrix.md) |
+| [Chat history batch](https://ircv3.net/specs/batches/chathistory) | `chathistory` | Yes | [`event::HistoryPage`](https://docs.rs/papo/latest/papo/event/struct.HistoryPage.html) | [Yes](conformance-matrix.md) |
 | [Chat history targets batch](https://ircv3.net/specs/extensions/chathistory#implementation) | `draft/chathistory-targets` | Yes | [`RecentConversation`](https://docs.rs/papo/latest/papo/struct.RecentConversation.html) | [Yes](conformance-matrix.md) |
 | [Labeled response batch](https://ircv3.net/specs/extensions/labeled-response) | `labeled-response` | Yes | [`RequestFuture`](https://docs.rs/papo/latest/papo/struct.RequestFuture.html) | [Yes](conformance-matrix.md) |
 | [Multiline batch](https://ircv3.net/specs/extensions/multiline) | `draft/multiline` | Yes | [`SendMessage`](https://docs.rs/papo/latest/papo/struct.SendMessage.html) | [Yes](conformance-matrix.md) |

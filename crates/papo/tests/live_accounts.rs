@@ -6,7 +6,8 @@ mod support;
 
 use support::within;
 
-use papo::{AccountOutcome, Client, Endpoint, Event, NewAccount, Sasl};
+use papo::event::AccountOutcome;
+use papo::{Client, Endpoint, Event, NewAccount, Sasl};
 use papo_test_server::{from_env, unique};
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";

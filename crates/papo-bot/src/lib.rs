@@ -10,7 +10,7 @@
 //! Pass the receiving [`Client`], event state, and each [`papo::event::Message`] event payload to
 //! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
 //! ignores known bots by default. Unlike raw `papo` event handling, it ignores a line papo cannot
-//! show is live, such as a bouncer's unbatched playback or an item of a [`papo::HistoryPage`]
+//! show is live, such as a bouncer's unbatched playback or an item of a [`papo::event::HistoryPage`]
 //! (see [`BotConfig::command`]). Authorize privileged commands with
 //! [`BotCommand::account_in`], which checks the message's account tag; a nickname alone is not an
 //! identity. [`BotCommand::reply`] applies the configuration's shared reply limit. Its default is two
@@ -183,7 +183,7 @@ impl BotConfig {
 
     /// Parses `message` as a live command using its event's `state`.
     ///
-    /// A message must show it arrived live. An item of a [`papo::HistoryPage`] never does, whether
+    /// A message must show it arrived live. An item of a [`papo::event::HistoryPage`] never does, whether
     /// a requested page, a server's replay or a reconnect catch-up. When the welcome is stamped, the message needs a stamp
     /// no earlier than [`State::welcome_time`], so a bouncer whose clock runs ahead of its network
     /// loses commands until the network catches up. When the welcome is not stamped, a stamped

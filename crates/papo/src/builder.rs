@@ -614,7 +614,7 @@ impl Builder {
     ///
     /// The [`crate::Event::Connected`] event remains available from the
     /// returned event stream. When `draft/account-registration` requires email
-    /// verification, this returns after [`crate::AccountOutcome::VerificationRequired`]
+    /// verification, this returns after [`crate::event::AccountOutcome::VerificationRequired`]
     /// because the server holds the connection open until verification.
     /// The first connection attempt fails fast; the configured reconnect policy applies only
     /// after the first successful connection.

@@ -135,7 +135,7 @@ pub(super) fn advance_catchup(
             )
         })
         .collect();
-    Some(Event::History(crate::HistoryPage {
+    Some(Event::History(crate::event::HistoryPage {
         conversation,
         items,
         exhausted,

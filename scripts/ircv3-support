@@ -79,8 +79,12 @@ def api_link(name):
     if name == "—":
         return name
     root, separator, member = name.partition("::")
+    base = "https://docs.rs/papo/latest/papo/"
+    if root == "event":
+        base += "event/"
+        root, separator, member = member.partition("::")
     kind = "enum" if root in ENUMS else "struct"
-    url = f"https://docs.rs/papo/latest/papo/{kind}.{root}.html"
+    url = f"{base}{kind}.{root}.html"
     if separator:
         anchor = "variant" if root in ENUMS and member[0].isupper() else "method"
         url += f"#{anchor}.{member}"

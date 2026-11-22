@@ -837,7 +837,7 @@ pub enum HistoryReason {
 /// Select the chronologically oldest chat message explicitly:
 ///
 /// ```
-/// # fn oldest(page: &papo::HistoryPage) {
+/// # fn oldest(page: &papo::event::HistoryPage) {
 /// let oldest = page.chat_messages().min_by_key(|message| {
 ///     message
 ///         .server_time
@@ -1237,7 +1237,7 @@ impl Client {
     pub(crate) async fn history_page(
         &self,
         query: HistoryQuery,
-    ) -> Result<crate::HistoryPage, Error> {
+    ) -> Result<crate::event::HistoryPage, Error> {
         let target = match &query {
             HistoryQuery::Latest { target, .. }
             | HistoryQuery::Before { target, .. }
@@ -1271,7 +1271,7 @@ impl Client {
             .into_iter()
             .map(|item| history_item(item, Some(&conversation), self, crate::rt::now_wall()))
             .collect();
-        Ok(crate::HistoryPage {
+        Ok(crate::event::HistoryPage {
             conversation,
             items,
             exhausted,

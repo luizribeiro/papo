@@ -335,11 +335,11 @@ pub use conversation::Conversation;
 pub use driver::{Driver, Events};
 pub use error::*;
 pub use event_impl::{Actor, Event, MessageKind, Party, Tags, TagsIter};
-pub use ext::accounts::{AccountOutcome, NewAccount};
+pub use ext::accounts::NewAccount;
 pub use ext::extras::{RenameChannel, RenameChannelRequest};
 pub use ext::history::{
-    History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, MarkReadOutcome,
-    MarkReadRequest, RecentConversation,
+    History, HistoryReason, HistoryReference, HistoryRequest, MarkReadOutcome, MarkReadRequest,
+    RecentConversation,
 };
 pub use ext::metadata::{Metadata, SubscribeOutcome, SyncOutcome};
 #[cfg(feature = "unstable")]
@@ -469,6 +469,7 @@ pub mod event {
         StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
+    pub use crate::ext::{accounts::AccountOutcome, history::HistoryPage};
 }
 
 pub(crate) use event_impl::ConnectPhase;

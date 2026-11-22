@@ -1582,7 +1582,9 @@ where
                 }
                 let completes_registration = matches!(
                     event,
-                    Event::AccountCreation(crate::AccountOutcome::VerificationRequired { .. })
+                    Event::AccountCreation(
+                        crate::event::AccountOutcome::VerificationRequired { .. }
+                    )
                 );
                 enqueue_event(events, pending_events, event);
                 if completes_registration {
@@ -1670,7 +1672,7 @@ where
                         )
                     })
                     .collect();
-                let event = Event::History(crate::HistoryPage {
+                let event = Event::History(crate::event::HistoryPage {
                     conversation,
                     items,
                     exhausted,

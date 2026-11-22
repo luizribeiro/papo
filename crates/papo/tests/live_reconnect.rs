@@ -133,7 +133,7 @@ async fn connect_poster(server: &TestServer, channel: &str) -> Client {
     poster
 }
 
-async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryPage {
+async fn wait_history(events: &mut papo::Events, target: &str) -> papo::event::HistoryPage {
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             match events.next().await.map(|(event, _)| event) {

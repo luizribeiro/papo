@@ -61,7 +61,7 @@ title = "Batch types"
 specs = [
   { name = "Netsplit", url = "https://ircv3.net/specs/batches/netsplit", wire = "netsplit", support = "Yes", api = "Event::Quit", coverage = "core.batch.netsplit-netjoin" },
   { name = "Netjoin", url = "https://ircv3.net/specs/batches/netsplit", wire = "netjoin", support = "Yes", api = "Event::Joined" },
-  { name = "Chat history batch", url = "https://ircv3.net/specs/batches/chathistory", wire = "chathistory", support = "Yes", api = "HistoryPage", coverage = "draft.chathistory." },
+  { name = "Chat history batch", url = "https://ircv3.net/specs/batches/chathistory", wire = "chathistory", support = "Yes", api = "event::HistoryPage", coverage = "draft.chathistory." },
   { name = "Chat history targets batch", url = "https://ircv3.net/specs/extensions/chathistory#implementation", wire = "draft/chathistory-targets", support = "Yes", api = "RecentConversation", coverage = "draft.chathistory." },
   { name = "Labeled response batch", url = "https://ircv3.net/specs/extensions/labeled-response", wire = "labeled-response", support = "Yes", api = "RequestFuture", coverage = "ircv3.labeled-response.batch-wrapped" },
   { name = "Multiline batch", url = "https://ircv3.net/specs/extensions/multiline", wire = "draft/multiline", support = "Yes", api = "SendMessage", coverage = "draft.multiline." },

@@ -83,6 +83,27 @@ pub use papo::cap::WHOAMI
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::TypingReason
+#[non_exhaustive] pub enum papo::event::AccountOutcome
+#[non_exhaustive] pub papo::event::AccountOutcome::Created
+pub papo::event::AccountOutcome::Created::account: papo::AccountName
+#[non_exhaustive] pub papo::event::AccountOutcome::VerificationRequired
+pub papo::event::AccountOutcome::VerificationRequired::account: papo::AccountName
+pub papo::event::AccountOutcome::VerificationRequired::message: alloc::string::String
+impl core::clone::Clone for papo::event::AccountOutcome
+pub fn papo::event::AccountOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::AccountOutcome
+impl core::cmp::PartialEq for papo::event::AccountOutcome
+pub fn papo::event::AccountOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::AccountOutcome
+pub fn papo::event::AccountOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::AccountOutcome
+impl core::marker::Freeze for papo::event::AccountOutcome
+impl core::marker::Send for papo::event::AccountOutcome
+impl core::marker::Sync for papo::event::AccountOutcome
+impl core::marker::Unpin for papo::event::AccountOutcome
+impl core::marker::UnsafeUnpin for papo::event::AccountOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountOutcome
 #[non_exhaustive] pub enum papo::event::Broadcast
 pub papo::event::Broadcast::Everyone
 pub papo::event::Broadcast::Mask(papo::Mask)
@@ -620,6 +641,30 @@ impl core::marker::Unpin for papo::event::FeaturesChanged
 impl core::marker::UnsafeUnpin for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
+#[non_exhaustive] pub struct papo::event::HistoryPage
+pub papo::event::HistoryPage::conversation: papo::Conversation
+pub papo::event::HistoryPage::exhausted: bool
+pub papo::event::HistoryPage::items: alloc::vec::Vec<papo::Event>
+pub papo::event::HistoryPage::reason: papo::HistoryReason
+impl papo::event::HistoryPage
+pub fn papo::event::HistoryPage::chat_messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::event::Message>
+pub fn papo::event::HistoryPage::cursor(&self) -> core::option::Option<papo::HistoryReference>
+pub fn papo::event::HistoryPage::origin(&self) -> papo::Origin
+impl core::clone::Clone for papo::event::HistoryPage
+pub fn papo::event::HistoryPage::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::HistoryPage
+impl core::cmp::PartialEq for papo::event::HistoryPage
+pub fn papo::event::HistoryPage::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::HistoryPage
+pub fn papo::event::HistoryPage::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::HistoryPage
+impl core::marker::Freeze for papo::event::HistoryPage
+impl core::marker::Send for papo::event::HistoryPage
+impl core::marker::Sync for papo::event::HistoryPage
+impl core::marker::Unpin for papo::event::HistoryPage
+impl core::marker::UnsafeUnpin for papo::event::HistoryPage
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::event::HistoryPage
+impl !core::panic::unwind_safe::UnwindSafe for papo::event::HistoryPage
 #[non_exhaustive] pub struct papo::event::HostChanged
 pub papo::event::HostChanged::actor: papo::UserRef
 pub papo::event::HostChanged::actor_party: papo::Party
@@ -1474,27 +1519,6 @@ pub const papo::tags::keys::REPLY: &str
 pub const papo::tags::keys::TYPING: &str
 pub mod papo::time
 pub fn papo::time::now() -> std::time::SystemTime
-#[non_exhaustive] pub enum papo::AccountOutcome
-#[non_exhaustive] pub papo::AccountOutcome::Created
-pub papo::AccountOutcome::Created::account: papo::AccountName
-#[non_exhaustive] pub papo::AccountOutcome::VerificationRequired
-pub papo::AccountOutcome::VerificationRequired::account: papo::AccountName
-pub papo::AccountOutcome::VerificationRequired::message: alloc::string::String
-impl core::clone::Clone for papo::AccountOutcome
-pub fn papo::AccountOutcome::clone(&self) -> Self
-impl core::cmp::Eq for papo::AccountOutcome
-impl core::cmp::PartialEq for papo::AccountOutcome
-pub fn papo::AccountOutcome::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::AccountOutcome
-pub fn papo::AccountOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::AccountOutcome
-impl core::marker::Freeze for papo::AccountOutcome
-impl core::marker::Send for papo::AccountOutcome
-impl core::marker::Sync for papo::AccountOutcome
-impl core::marker::Unpin for papo::AccountOutcome
-impl core::marker::UnsafeUnpin for papo::AccountOutcome
-impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountOutcome
-impl core::panic::unwind_safe::UnwindSafe for papo::AccountOutcome
 #[non_exhaustive] pub enum papo::Actor
 pub papo::Actor::Server(papo::ServerName)
 pub papo::Actor::User(papo::UserRef)
@@ -1700,7 +1724,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::Error
 impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
-pub papo::Event::AccountCreation(papo::AccountOutcome)
+pub papo::Event::AccountCreation(papo::event::AccountOutcome)
 pub papo::Event::AutoJoinFailed(papo::event::AutoJoinFailed)
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::BroadcastCtcp(papo::event::BroadcastCtcp)
@@ -1715,7 +1739,7 @@ pub papo::Event::CtcpQuery(papo::event::CtcpQuery)
 pub papo::Event::CtcpReply(papo::event::CtcpReply)
 pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
-pub papo::Event::History(papo::HistoryPage)
+pub papo::Event::History(papo::event::HistoryPage)
 pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Incomplete(papo::event::Incomplete)
 pub papo::Event::Invited(papo::event::Invited)
@@ -2344,8 +2368,8 @@ pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, 
 pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core::option::Option<papo::Whois>>
 impl papo::Client
-pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountOutcome>
-pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountOutcome>
+pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::event::AccountOutcome>
+pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::event::AccountOutcome>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<papo::ReadMarker>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
@@ -2573,30 +2597,6 @@ impl core::marker::Unpin for papo::History
 impl core::marker::UnsafeUnpin for papo::History
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::History
 impl !core::panic::unwind_safe::UnwindSafe for papo::History
-#[non_exhaustive] pub struct papo::HistoryPage
-pub papo::HistoryPage::conversation: papo::Conversation
-pub papo::HistoryPage::exhausted: bool
-pub papo::HistoryPage::items: alloc::vec::Vec<papo::Event>
-pub papo::HistoryPage::reason: papo::HistoryReason
-impl papo::HistoryPage
-pub fn papo::HistoryPage::chat_messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::event::Message>
-pub fn papo::HistoryPage::cursor(&self) -> core::option::Option<papo::HistoryReference>
-pub fn papo::HistoryPage::origin(&self) -> papo::Origin
-impl core::clone::Clone for papo::HistoryPage
-pub fn papo::HistoryPage::clone(&self) -> Self
-impl core::cmp::Eq for papo::HistoryPage
-impl core::cmp::PartialEq for papo::HistoryPage
-pub fn papo::HistoryPage::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::HistoryPage
-pub fn papo::HistoryPage::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::HistoryPage
-impl core::marker::Freeze for papo::HistoryPage
-impl core::marker::Send for papo::HistoryPage
-impl core::marker::Sync for papo::HistoryPage
-impl core::marker::Unpin for papo::HistoryPage
-impl core::marker::UnsafeUnpin for papo::HistoryPage
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryPage
-impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryPage
 pub struct papo::HistoryReference
 impl core::clone::Clone for papo::HistoryReference
 pub fn papo::HistoryReference::clone(&self) -> Self
@@ -2625,8 +2625,8 @@ pub fn papo::HistoryRequest::limit(self, usize) -> Self
 impl core::fmt::Debug for papo::HistoryRequest
 pub fn papo::HistoryRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::HistoryRequest
-pub type papo::HistoryRequest::IntoFuture = papo::RequestFuture<papo::HistoryPage>
-pub type papo::HistoryRequest::Output = core::result::Result<papo::HistoryPage, papo::Error>
+pub type papo::HistoryRequest::IntoFuture = papo::RequestFuture<papo::event::HistoryPage>
+pub type papo::HistoryRequest::Output = core::result::Result<papo::event::HistoryPage, papo::Error>
 pub fn papo::HistoryRequest::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::HistoryRequest
 impl core::marker::Send for papo::HistoryRequest

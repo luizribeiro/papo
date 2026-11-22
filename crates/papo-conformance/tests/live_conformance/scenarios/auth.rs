@@ -1,4 +1,5 @@
-use papo::{AccountOutcome, ConnectErrorKind, Event, NewAccount, Rank, event::Warning};
+use papo::event::AccountOutcome;
+use papo::{ConnectErrorKind, Event, NewAccount, Rank, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{DeploymentProfile, create_account, unique};

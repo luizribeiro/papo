@@ -135,7 +135,7 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-fn message_texts(page: &papo::HistoryPage, expected: &[&str]) -> Vec<String> {
+fn message_texts(page: &papo::event::HistoryPage, expected: &[&str]) -> Vec<String> {
     page.chat_messages()
         .filter(|message| expected.contains(&message.text.as_str()))
         .map(|message| message.text.clone())

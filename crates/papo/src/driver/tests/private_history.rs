@@ -1,5 +1,6 @@
 use crate::driver::test_support::*;
-use crate::{AccountStatus, Client, Events, HistoryPage};
+use crate::event::HistoryPage;
+use crate::{AccountStatus, Client, Events};
 
 const CAPS: &str = "account-tag batch draft/chathistory draft/message-redaction extended-join labeled-response message-tags server-time";
 const TAGGED: &str = "pwcbkkexfp2uqmk5ri5x5b5bya";

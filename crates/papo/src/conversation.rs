@@ -8,7 +8,7 @@ use std::fmt;
 /// (`+#ops`: voiced members and up). Its conversation is still the plain channel `#ops`, so an
 /// ops-only line and a public line in `#ops` have equal conversations and share one buffer,
 /// history, read marker and member list. The audience stays with the line: such a line arrives
-/// only in [`crate::Event::Restricted`] (live, and among [`crate::HistoryPage::items`]), whose
+/// only in [`crate::Event::Restricted`] (live, and among [`crate::event::HistoryPage::items`]), whose
 /// `audience` names it. Answer it with [`crate::Client::reply`], [`crate::Client::react`],
 /// [`crate::Client::redact`] or the line's `return_address()`, which keep `@#ops`.
 ///

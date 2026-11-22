@@ -36,6 +36,8 @@ other events caused by a user.
 
 ### Changed
 
+Import `AccountOutcome` and `HistoryPage` from `papo::event`.
+
 Import `Incomplete`, `Restricted`, and `RestrictedLine` from `papo::event`.
 
 Import `Message` from `papo::event`.

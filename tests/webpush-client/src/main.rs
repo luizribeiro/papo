@@ -2,9 +2,10 @@
 
 use std::{env, error::Error, fmt};
 
+use papo::event::AccountOutcome;
 use papo::{
-    AccountOutcome, Client, Error as PapoError, Event, Feature, Line, NewAccount,
-    PersistenceSetting, PushKeys, Refusal, Sasl, Secret,
+    Client, Error as PapoError, Event, Feature, Line, NewAccount, PersistenceSetting, PushKeys,
+    Refusal, Sasl, Secret,
 };
 
 const CHANNEL: &str = "#papo-webpush";

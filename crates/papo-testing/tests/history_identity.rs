@@ -16,7 +16,7 @@ async fn history_page(
     label: usize,
     nick: &str,
     account_tag: &str,
-) -> papo::HistoryPage {
+) -> papo::event::HistoryPage {
     let request = tokio::spawn({
         let client = client.clone();
         let nick = nick.to_owned();

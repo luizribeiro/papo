@@ -36,7 +36,7 @@ variant_accessors! { Event;
     (CtcpReply, as_ctcp_reply, CtcpReply),
     (BroadcastCtcp, as_broadcast_ctcp, BroadcastCtcp),
     (BroadcastTagMsg, as_broadcast_tag_msg, BroadcastTagMsg),
-    (History, as_history, crate::HistoryPage),
+    (History, as_history, crate::event::HistoryPage),
     (Connected, as_connected, Connected),
     (Lagged, as_lagged, Lagged),
     (Connecting, as_connecting, Connecting),
@@ -70,7 +70,7 @@ variant_accessors! { Event;
     (MonitorOnline, as_monitor_online, MonitorOnline),
     (MonitorOffline, as_monitor_offline, MonitorOffline),
     (MetadataChanged, as_metadata_changed, MetadataChanged),
-    (AccountCreation, as_account_creation, crate::AccountOutcome),
+    (AccountCreation, as_account_creation, crate::event::AccountOutcome),
     (Warning, as_warning, Warning),
     (Other, as_other, Other),
 }

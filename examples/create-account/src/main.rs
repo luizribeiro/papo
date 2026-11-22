@@ -2,7 +2,8 @@
 
 use std::{env, error::Error, io};
 
-use papo::{AccountOutcome, Client, Event, NewAccount, Secret};
+use papo::event::AccountOutcome;
+use papo::{Client, Event, NewAccount, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {

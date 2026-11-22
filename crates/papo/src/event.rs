@@ -1738,7 +1738,7 @@ pub enum Event {
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
     /// Account creation completed or requires verification.
-    AccountCreation(crate::AccountOutcome),
+    AccountCreation(crate::event::AccountOutcome),
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
     PersistenceChanged(crate::PersistenceStatus),
@@ -1753,7 +1753,7 @@ pub enum Event {
     /// emitted as events. Insert page items by server time because live traffic can arrive while
     /// a batch remains open. Page items keep server delivery order, which is normally oldest to
     /// newest but is not sorted by papo.
-    History(crate::HistoryPage),
+    History(crate::event::HistoryPage),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),
     /// A recoverable protocol or configuration problem occurred.
@@ -2517,13 +2517,14 @@ pub(crate) fn from_core_with_receipt(
             description: reply.description,
         }),
         papo_core::Event::AccountCreated { account, .. } => {
-            Event::AccountCreation(crate::AccountOutcome::Created { account })
+            Event::AccountCreation(crate::event::AccountOutcome::Created { account })
         }
         papo_core::Event::VerificationRequired {
             account, message, ..
-        } => {
-            Event::AccountCreation(crate::AccountOutcome::VerificationRequired { account, message })
-        }
+        } => Event::AccountCreation(crate::event::AccountOutcome::VerificationRequired {
+            account,
+            message,
+        }),
         #[cfg(feature = "unstable")]
         papo_core::Event::PersistenceStatus(status) => Event::PersistenceChanged(status),
         #[cfg(feature = "unstable")]
@@ -5741,12 +5742,12 @@ mod tests {
     fn maps_account_creation_results() {
         assert!(matches!(
             forwarded(papo_core::Event::__account_created(Casemapping::default().account("alice"), true)),
-            Event::AccountCreation(crate::AccountOutcome::Created { account })
+            Event::AccountCreation(crate::event::AccountOutcome::Created { account })
                 if account == "alice"
         ));
         assert!(matches!(
             forwarded(papo_core::Event::__verification_required(Casemapping::default().account("alice"), "Verification code sent".into())),
-            Event::AccountCreation(crate::AccountOutcome::VerificationRequired {
+            Event::AccountCreation(crate::event::AccountOutcome::VerificationRequired {
                 account,
                 message,
             })

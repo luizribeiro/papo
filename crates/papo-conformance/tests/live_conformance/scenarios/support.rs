@@ -274,7 +274,7 @@ pub(super) async fn latest_history_with(
     peer: &Peer,
     target: &str,
     text: &str,
-) -> papo_testing::Result<papo::HistoryPage> {
+) -> papo_testing::Result<papo::event::HistoryPage> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     loop {
         let page = peer.history(target).latest().limit(10).await?;
