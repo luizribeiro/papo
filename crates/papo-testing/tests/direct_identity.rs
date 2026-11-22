@@ -12,7 +12,7 @@ use std::{
 
 use papo::Reconnect;
 use papo_testing::wire;
-use support::direct::{connected, next_active_event};
+use support::direct::{connected, join, next_active_event};
 
 fn handle_hash(user: &papo::UserHandle) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -23,32 +23,27 @@ fn handle_hash(user: &papo::UserHandle) -> u64 {
 #[tokio::test]
 #[allow(clippy::mutable_key_type)]
 async fn learning_an_account_keeps_user_handle_identity() {
-    let (client, mut events, mut wire) = wire(
+    let (_client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
     wire.register(&["account-notify"]).await;
     connected(&mut events).await;
-    for line in [
-        ":papo!p@localhost JOIN #review",
+    join(&mut events, &mut wire, ":papo!p@localhost JOIN #review").await;
+    let before_account = join(
+        &mut events,
+        &mut wire,
         ":alice!~alice@cloak.example JOIN #review",
-    ] {
-        wire.server(line).await;
-        assert!(matches!(
-            next_active_event(&mut events).await,
-            papo::Event::Joined(_)
-        ));
-    }
-    let before_account = client.query("alice").unwrap();
+    )
+    .await;
 
     wire.server(":alice!~alice@cloak.example ACCOUNT alice-account")
         .await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        papo::Event::AccountChanged(_)
-    ));
-    let after_account = client.query("alice").unwrap();
+    let papo::Event::AccountChanged(after_account) = next_active_event(&mut events).await else {
+        panic!("expected AccountChanged");
+    };
+    let after_account = after_account.actor;
 
     assert_eq!(before_account, after_account);
     assert_eq!(handle_hash(&before_account), handle_hash(&after_account));
@@ -70,25 +65,25 @@ async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
     );
     wire.register(&[]).await;
     connected(&mut events).await;
-    for line in [
-        ":papo!p@localhost JOIN #review",
+    join(&mut events, &mut wire, ":papo!p@localhost JOIN #review").await;
+    let alice = join(
+        &mut events,
+        &mut wire,
         ":alice!~alice@cloak.example JOIN #review",
+    )
+    .await;
+    join(
+        &mut events,
+        &mut wire,
         ":mallory!~mallory@users.example JOIN #review",
-    ] {
-        wire.server(line).await;
-        assert!(matches!(
-            next_active_event(&mut events).await,
-            papo::Event::Joined(_)
-        ));
-    }
-    let alice = client.query("alice").unwrap();
+    )
+    .await;
 
     wire.server(":alice!~alice@cloak.example NICK alicia").await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        papo::Event::NickChanged(_)
-    ));
-    let renamed = client.query("alicia").unwrap();
+    let papo::Event::NickChanged(renamed) = next_active_event(&mut events).await else {
+        panic!("expected NickChanged");
+    };
+    let renamed = renamed.actor;
     assert_eq!(alice, renamed);
     assert_eq!(handle_hash(&alice), handle_hash(&renamed));
     client.privmsg(&alice, "release approved").await.unwrap();
@@ -102,11 +97,10 @@ async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
     ));
     wire.server(":mallory!~mallory@users.example NICK alicia")
         .await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        papo::Event::NickChanged(_)
-    ));
-    let replacement = client.query("alicia").unwrap();
+    let papo::Event::NickChanged(replacement) = next_active_event(&mut events).await else {
+        panic!("expected NickChanged");
+    };
+    let replacement = replacement.actor;
     assert_ne!(alice, replacement);
     assert!(matches!(
         client.notice(&alice, "classified").await,
@@ -128,25 +122,42 @@ async fn user_handles_identify_users_not_accounts() {
     );
     wire.register(&["extended-join"]).await;
     connected(&mut events).await;
-    for line in [
+    join(
+        &mut events,
+        &mut wire,
         ":papo!p@localhost JOIN #review papo-account :Papo",
+    )
+    .await;
+    let desktop = join(
+        &mut events,
+        &mut wire,
         ":alice!~alice@cloak.example JOIN #review alice-account :Alice Desktop",
+    )
+    .await;
+    let phone = join(
+        &mut events,
+        &mut wire,
         ":alice-phone!~alice@phone.example JOIN #review alice-account :Alice Phone",
+    )
+    .await;
+    let mallory = join(
+        &mut events,
+        &mut wire,
         ":mallory!~mallory@users.example JOIN #review mallory-account :Mallory",
+    )
+    .await;
+    let bob = join(
+        &mut events,
+        &mut wire,
         ":bob!~bob@users.example JOIN #review * :Bob",
+    )
+    .await;
+    let carol = join(
+        &mut events,
+        &mut wire,
         ":carol!~carol@users.example JOIN #review * :Carol",
-    ] {
-        wire.server(line).await;
-        assert!(matches!(
-            next_active_event(&mut events).await,
-            papo::Event::Joined(_)
-        ));
-    }
-    let desktop = client.query("alice").unwrap();
-    let phone = client.query("alice-phone").unwrap();
-    let mallory = client.query("mallory").unwrap();
-    let bob = client.query("bob").unwrap();
-    let carol = client.query("carol").unwrap();
+    )
+    .await;
     assert_ne!(desktop, phone);
     assert_ne!(desktop, mallory);
     assert_eq!(bob, bob.clone());
@@ -196,18 +207,24 @@ async fn departed_handle_never_reaches_another_nick_on_the_same_account() {
     );
     wire.register(&["account-tag", "extended-join"]).await;
     connected(&mut events).await;
-    for line in [
+    join(
+        &mut events,
+        &mut wire,
         ":papo!~papo@localhost JOIN #release * :Papo",
+    )
+    .await;
+    let alice = join(
+        &mut events,
+        &mut wire,
         ":alice!~alice@cloak.example JOIN #release alice-account :Alice",
+    )
+    .await;
+    join(
+        &mut events,
+        &mut wire,
         ":relaybot!~relay@bots.example JOIN #release alice-account :Shared relay bot",
-    ] {
-        wire.server(line).await;
-        assert!(matches!(
-            next_active_event(&mut events).await,
-            papo::Event::Joined(_)
-        ));
-    }
-    let alice = client.query("alice").unwrap();
+    )
+    .await;
 
     wire.server(":alice!~alice@cloak.example PART #release :bye")
         .await;
