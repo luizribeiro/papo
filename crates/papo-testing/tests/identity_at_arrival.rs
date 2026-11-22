@@ -17,7 +17,7 @@ async fn next_event(events: &mut Events) -> Event {
 }
 
 fn person(event: &Event) -> Option<(&'static str, UserHandle)> {
-    let user = |source: &papo::Source| source.user().cloned();
+    let user = |source: &papo::Actor| source.user().cloned();
     match event {
         Event::AccountChanged(changed) => Some(("ACCOUNT", changed.actor.clone())),
         Event::AwayChanged(changed) => Some(("AWAY", changed.actor.clone())),

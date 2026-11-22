@@ -66,7 +66,7 @@ async fn ban_setter(client: &papo::Client, wire: &mut Wire) -> UserHandle {
         wire.server(line).await;
     }
     let entries = request.await.unwrap().unwrap();
-    let setter = entries[0].actor().and_then(papo::Source::user);
+    let setter = entries[0].actor().and_then(papo::Actor::user);
     setter.cloned().unwrap()
 }
 
@@ -135,7 +135,7 @@ async fn past_names_never_reach_the_current_holder() {
 
     let state = joined_with_topic(&mut events, &mut wire).await;
     let channel = state.channel("#release").unwrap().unwrap();
-    let topic_setter = channel.topic_set_by().and_then(papo::Source::user);
+    let topic_setter = channel.topic_set_by().and_then(papo::Actor::user);
     let mut targets = vec![("333 topic setter", topic_setter.cloned().unwrap())];
     targets.push(("367 ban setter", ban_setter(&client, &mut wire).await));
     targets.extend(archived_actors(&client, &mut wire).await);

@@ -200,17 +200,17 @@ pub fn user_handle(nick: impl Into<Nick>) -> crate::UserHandle {
 
 /// Constructs an event source from a parsed protocol prefix without line tags.
 #[must_use]
-pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate::Source {
+pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate::Actor {
     match source {
         papo_proto::Source::User { nick, .. } => {
-            crate::Source::User(crate::UserHandle::current_name(
+            crate::Actor::User(crate::UserHandle::current_name(
                 crate::Origin::NONE.__nick(casemapping, nick),
                 crate::AccountStatus::Unknown,
                 None,
                 None,
             ))
         }
-        papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
+        papo_proto::Source::Server(server) => crate::Actor::Server(server.into()),
     }
 }
 
@@ -300,7 +300,7 @@ fn receipt(
     channel_context: Option<&crate::Conversation>,
 ) -> crate::message_ref::Receipt {
     let mut receipt = crate::message_ref::Receipt::new(
-        crate::Source::User(actor.clone()),
+        crate::Actor::User(actor.clone()),
         conversation,
         None,
         conversation.to_string(),

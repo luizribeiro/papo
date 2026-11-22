@@ -8,9 +8,8 @@ use std::{
 };
 
 use papo_core::{
-    AccountStatus, AwayStatus, Config, Conversation, Event, ModeAction, ModeArg, ModeChange,
-    ModeValue, Party, Rank, RateLimit, ResponseMatcher, Secret, Source, StateLimit, Subject,
-    WhoOnJoin,
+    AccountStatus, Actor, AwayStatus, Config, Conversation, Event, ModeAction, ModeArg, ModeChange,
+    ModeValue, Party, Rank, RateLimit, ResponseMatcher, Secret, StateLimit, Subject, WhoOnJoin,
 };
 use papo_proto::{
     AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, MetadataKey, Nick, Origin,
@@ -1483,7 +1482,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             assert!(
                 channel
                     .topic_set_by()
-                    .and_then(Source::nick)
+                    .and_then(Actor::nick)
                     .is_some_and(|nick| nick == "alice")
             );
             assert_eq!(
@@ -1515,14 +1514,14 @@ fn parses_topic_setters_as_nicks_user_prefixes_and_servers() {
         .inspect(|session| {
             assert!(matches!(
                 session.state().channel("#papo").unwrap().topic_set_by(),
-                Some(Source::User { nick, username: None, host: None, .. }) if nick == "alice"
+                Some(Actor::User { nick, username: None, host: None, .. }) if nick == "alice"
             ));
         })
         .server(":ergo.test 333 emily #papo alice!~a@staff.example 1723501613")
         .inspect(|session| {
             assert!(matches!(
                 session.state().channel("#papo").unwrap().topic_set_by(),
-                Some(Source::User { nick, username: Some(username), host: Some(host), .. })
+                Some(Actor::User { nick, username: Some(username), host: Some(host), .. })
                     if nick == "alice" && username == "~a" && host == "staff.example"
             ));
         })
@@ -1530,7 +1529,7 @@ fn parses_topic_setters_as_nicks_user_prefixes_and_servers() {
         .inspect(|session| {
             assert!(matches!(
                 session.state().channel("#papo").unwrap().topic_set_by(),
-                Some(Source::Server { name, .. }) if name == "IRC.LIBERA.CHAT"
+                Some(Actor::Server { name, .. }) if name == "IRC.LIBERA.CHAT"
             ));
         })
         .no_event();
@@ -1548,7 +1547,7 @@ fn tracks_live_topic_changes_and_clearing() {
             assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
             assert!(matches!(
                 channel.topic_set_by(),
-                Some(Source::User { nick, username: Some(username), host: Some(host), .. })
+                Some(Actor::User { nick, username: Some(username), host: Some(host), .. })
                     if nick == "alice" && username == "alice" && host == "staff.example"
             ));
             assert_eq!(
@@ -1563,7 +1562,7 @@ fn tracks_live_topic_changes_and_clearing() {
             assert_eq!(channel.topic(), None);
             assert!(channel
                 .topic_set_by()
-                .and_then(Source::nick)
+                .and_then(Actor::nick)
                 .is_some_and(|nick| nick == "alice"));
             assert_eq!(
                 channel.topic_set_at(),
@@ -1583,7 +1582,7 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::TopicChanged {
-                    actor: Source::User {
+                    actor: Actor::User {
                         nick,
                         username: Some(username),
                         host: Some(host),
@@ -1596,7 +1595,7 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
         .inspect(|session| {
             assert!(matches!(
                 session.state().channel("#papo").unwrap().topic_set_by(),
-                Some(Source::User {
+                Some(Actor::User {
                     nick,
                     username: Some(username),
                     host: Some(host),
@@ -1609,7 +1608,7 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::TopicChanged {
-                    actor: Source::Server { name, .. },
+                    actor: Actor::Server { name, .. },
                     ..
                 } if name == "ERGO.TEST"
             )
@@ -1617,7 +1616,7 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
         .inspect(|session| {
             assert!(matches!(
                 session.state().channel("#papo").unwrap().topic_set_by(),
-                Some(Source::Server { name, .. }) if name == "ERGO.TEST"
+                Some(Actor::Server { name, .. }) if name == "ERGO.TEST"
             ));
         })
         .server(":ChanServ TOPIC #papo :Welcome to #papo")
@@ -1625,7 +1624,7 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::TopicChanged {
-                    actor: Source::User {
+                    actor: Actor::User {
                         nick,
                         username: None,
                         host: None,
@@ -1638,7 +1637,7 @@ fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
         .inspect(|session| {
             assert!(matches!(
                 session.state().channel("#papo").unwrap().topic_set_by(),
-                Some(Source::User {
+                Some(Actor::User {
                     nick,
                     username: None,
                     host: None,
@@ -1682,7 +1681,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
             ])
         })
         .server(":ergo.test MODE emily +i")
-        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor: Source::Server { name, .. }, changes, .. } if nick == "emily" && name == "ERGO.TEST" && changes == &vec![ModeChange::__new('i', ModeAction::Add, None)]))
+        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor: Actor::Server { name, .. }, changes, .. } if nick == "emily" && name == "ERGO.TEST" && changes == &vec![ModeChange::__new('i', ModeAction::Add, None)]))
         .no_event();
 }
 
@@ -1694,7 +1693,7 @@ fn mode_events_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::ModeChanged {
-                    actor: Source::User {
+                    actor: Actor::User {
                         nick,
                         username: Some(username),
                         host: Some(host),
@@ -1709,7 +1708,7 @@ fn mode_events_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::ModeChanged {
-                    actor: Source::Server { name, .. },
+                    actor: Actor::Server { name, .. },
                     ..
                 } if name == "ERGO.TEST"
             )
@@ -1719,7 +1718,7 @@ fn mode_events_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::ModeChanged {
-                    actor: Source::User {
+                    actor: Actor::User {
                         nick,
                         username: None,
                         host: None,
@@ -2634,7 +2633,7 @@ fn kick_events_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::Kicked {
-                    actor: Source::User {
+                    actor: Actor::User {
                         nick,
                         username: Some(username),
                         host: Some(host),
@@ -2649,7 +2648,7 @@ fn kick_events_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::Kicked {
-                    actor: Source::Server { name, .. },
+                    actor: Actor::Server { name, .. },
                     ..
                 } if name == "ERGO.TEST"
             )
@@ -2659,7 +2658,7 @@ fn kick_events_keep_user_server_and_bare_nick_sources() {
             matches!(
                 event,
                 Event::Kicked {
-                    actor: Source::User {
+                    actor: Actor::User {
                         nick,
                         username: None,
                         host: None,

@@ -912,7 +912,7 @@ mod tests {
                 .nick("emily"),
         ));
         private.receipt = crate::message_ref::Receipt::new(
-            crate::Source::User(private.actor.clone()),
+            crate::Actor::User(private.actor.clone()),
             &private.conversation,
             None,
             "emily".into(),
@@ -937,7 +937,7 @@ mod tests {
             None,
         );
         let receipt = crate::message_ref::Receipt::new(
-            crate::Source::User(actor.clone()),
+            crate::Actor::User(actor.clone()),
             &conversation,
             None,
             "emily".into(),

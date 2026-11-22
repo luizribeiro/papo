@@ -57,7 +57,7 @@ pub enum Presence {
 pub struct ModeListEntry {
     /// Mask stored by the server.
     pub mask: Mask,
-    actor: Option<crate::Source>,
+    actor: Option<crate::Actor>,
     /// Time at which the entry was set, when reported and valid.
     pub set_at: Option<crate::ServerTime>,
 }
@@ -69,7 +69,7 @@ impl ModeListEntry {
             actor: entry
                 .actor()
                 .cloned()
-                .and_then(|actor| crate::event_impl::source::from_core(actor, origin)),
+                .and_then(|actor| crate::event_impl::actor::from_core(actor, origin)),
             set_at: entry.set_at,
         }
     }
@@ -81,7 +81,7 @@ impl ModeListEntry {
     /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, send to the
     /// nickname.
     #[must_use]
-    pub const fn actor(&self) -> Option<&crate::Source> {
+    pub const fn actor(&self) -> Option<&crate::Actor> {
         self.actor.as_ref()
     }
 }
@@ -103,7 +103,7 @@ pub(crate) fn mode_list_from_core(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Channel {
     inner: papo_core::Channel,
-    topic_set_by: Option<crate::Source>,
+    topic_set_by: Option<crate::Actor>,
     lists: HashMap<crate::ListMode, Vec<ModeListEntry>>,
 }
 
@@ -112,7 +112,7 @@ impl Channel {
         let topic_set_by = inner
             .topic_set_by()
             .cloned()
-            .and_then(|source| crate::event_impl::source::from_core(source, origin));
+            .and_then(|source| crate::event_impl::actor::from_core(source, origin));
         let lists = [
             crate::ListMode::Ban,
             crate::ListMode::Except,
@@ -148,7 +148,7 @@ impl Channel {
     /// [`crate::Error::TargetGone`]. To message whoever holds that nickname now, send to the
     /// nickname.
     #[must_use]
-    pub const fn topic_set_by(&self) -> Option<&crate::Source> {
+    pub const fn topic_set_by(&self) -> Option<&crate::Actor> {
         self.topic_set_by.as_ref()
     }
 
@@ -275,7 +275,7 @@ impl State {
         conversation: &crate::Conversation,
         address: String,
     ) -> crate::message_ref::Receipt {
-        let actor = crate::Source::User(crate::UserHandle::current_name(
+        let actor = crate::Actor::User(crate::UserHandle::current_name(
             self.nick().clone(),
             self.account().clone(),
             None,
@@ -772,7 +772,7 @@ mod name_tests {
 
         let state = State::from_session(&session, true);
         assert_eq!(state.channels[0].inner.topic(), Some("Release planning"));
-        let actor: &crate::Source = state.channels[0].topic_set_by.as_ref().unwrap();
+        let actor: &crate::Actor = state.channels[0].topic_set_by.as_ref().unwrap();
         let expected = origin.__nick(Casemapping::Rfc1459, "Alice[bot]");
         assert!(
             actor
@@ -811,7 +811,7 @@ mod name_tests {
             (channel.topic_set_by(), "alice"),
             (ban.and_then(super::ModeListEntry::actor), "bob"),
         ] {
-            let user = setter.and_then(crate::Source::user).unwrap();
+            let user = setter.and_then(crate::Actor::user).unwrap();
             assert_eq!(user.nick().as_str(), nick);
             assert!(user.is_unproven_history(), "{nick}");
         }

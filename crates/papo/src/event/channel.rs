@@ -4,7 +4,7 @@ use crate::ServerTime;
 
 use crate::{ChannelHandle, ChannelName, MessageId, Nick, Party, Subject};
 
-use super::Source;
+use super::Actor;
 
 /// A user joined a channel shared with the client.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -83,7 +83,7 @@ pub struct Kicked {
     /// User facts removed by this event, or `None` when the paired state still knows the user.
     pub facts: Option<crate::User>,
     /// The user or server that issued the kick.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -108,7 +108,7 @@ pub struct Invited {
     /// The invited user.
     pub subject: crate::UserHandle,
     /// The user or server that sent the invitation.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -132,7 +132,7 @@ pub struct TopicChanged {
     /// The new topic, or `None` when it was cleared.
     pub topic: Option<String>,
     /// The user or server that changed the topic.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -153,7 +153,7 @@ pub struct ModeChanged {
     /// The user or channel whose modes changed.
     pub subject: Subject,
     /// The user or server that changed the modes.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -202,7 +202,7 @@ pub struct ChannelRenamed {
     /// The new channel name.
     pub new: ChannelName,
     /// The user or server that renamed the channel.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

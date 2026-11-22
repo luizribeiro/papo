@@ -5,7 +5,7 @@ pub(crate) mod saved;
 use crate::target::sealed::SendName;
 
 use crate::{
-    Conversation, Message, MessageId, SendOutcome, Source,
+    Actor, Conversation, Message, MessageId, SendOutcome,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -18,7 +18,7 @@ pub(crate) struct Receipt {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ReceiptIdentity {
-    actor: Source,
+    actor: Actor,
     token: Option<papo_core::ReplyToken>,
     recipient: Option<crate::UserHandle>,
     channel: Option<crate::ChannelHandle>,
@@ -29,7 +29,7 @@ struct ReceiptIdentity {
 
 impl Receipt {
     pub(crate) fn new(
-        actor: Source,
+        actor: Actor,
         conversation: &Conversation,
         token: Option<papo_core::ReplyToken>,
         address: String,
@@ -61,7 +61,7 @@ impl Receipt {
     }
 
     pub(crate) fn without_recipient(
-        actor: Source,
+        actor: Actor,
         token: Option<papo_core::ReplyToken>,
         address: String,
         origin: crate::Origin,
@@ -120,7 +120,7 @@ impl Receipt {
         self.reference().recipient
     }
 
-    pub(crate) fn update_event_actor(&mut self, actor: Source, conversation: &Conversation) {
+    pub(crate) fn update_event_actor(&mut self, actor: Actor, conversation: &Conversation) {
         self.identity.actor = actor;
         self.identity.recipient = match conversation {
             Conversation::Private(user) => Some(user.clone()),
@@ -602,7 +602,7 @@ mod tests {
         let mapping = crate::Casemapping::default();
         let actor = crate::__testing::user_handle(mapping.nick("alice"));
         let receipt = Receipt::new(
-            crate::Source::User(crate::UserHandle::current_name(
+            crate::Actor::User(crate::UserHandle::current_name(
                 actor.nick().clone(),
                 actor.account().clone(),
                 None,
@@ -638,7 +638,7 @@ mod tests {
             Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops")));
         received.status = Some(crate::Prefix::__new('o', '@'));
         received.receipt = Receipt::new(
-            crate::Source::User(received.actor.clone()),
+            crate::Actor::User(received.actor.clone()),
             &received.conversation,
             None,
             "@#ops".into(),
@@ -654,7 +654,7 @@ mod tests {
 
         let conversation = Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops")));
         let receipt = Receipt::new(
-            crate::Source::User(user_handle(origin.__nick(mapping, "papo"))),
+            crate::Actor::User(user_handle(origin.__nick(mapping, "papo"))),
             &conversation,
             None,
             "@#ops".into(),
@@ -710,7 +710,7 @@ mod tests {
         let guard = session
             .state()
             .__channel_guard(session.state().channel("#ops").unwrap().name());
-        let actor = crate::Source::User(user_handle(mapping.nick("alice")));
+        let actor = crate::Actor::User(user_handle(mapping.nick("alice")));
         let mut receipt = Receipt::new(actor.clone(), &channel, None, "@#ops".into());
         receipt.identity.channel = Some(crate::ChannelHandle::from_parts(
             mapping.channel("#ops"),

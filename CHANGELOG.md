@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `Actor` for an event actor.
+
 Request registration during connection with `Builder::create_account_on_connect`.
 
 Enable bot mode with `Builder::bot_mode`.
@@ -359,7 +361,7 @@ now defines `Unsupported` with its existing `feature` and `reason` fields.
 
 Use `papo_testing::ErrorBuilder` to build disconnect and server-refusal fixtures in tests.
 
-The hidden `Source::from_proto` constructor is removed; sources come only from received lines.
+The hidden `Actor::from_proto` constructor is removed; sources come only from received lines.
 
 `Whois::nick` is now `Whois::user`, a `UserHandle` for the person the reply describes.
 
@@ -382,7 +384,7 @@ PART events now carry a `UserHandle` and preserve user facts only when the paire
 
 QUIT events now carry user and channel handles and preserve departed user facts.
 
-`Source::User` now contains a `UserHandle`; `UserSource` and its `Oper` fact type are removed, and historical actors without account proof cannot authorize a send to a later holder of the same nickname.
+`Actor::User` now contains a `UserHandle`; `UserSource` and its `Oper` fact type are removed, and historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `Client::mark_read(conversation)` now uses the newest server time papo observed, supports
 `.up_to(&message)`, counts incomplete multiline events only for the implicit newest boundary, and
@@ -599,7 +601,7 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 | Parsed `Extban` values could not be inspected | `Extban::as_account()` returns the typed account name |
 | `metadata::keys` constants were strings | Constants are reusable `MetadataKey` values accepted directly by writes |
 | `MetadataView::get` accepted strings | Cached metadata lookups take `&MetadataKey` |
-| State source fields exposed `papo_core` details | `Channel::topic_set_by()` and `ModeListEntry::actor()` return the same `Source` type as events |
+| State source fields exposed `papo_core` details | `Channel::topic_set_by()` and `ModeListEntry::actor()` return the same `Actor` type as events |
 | Raw `Line` and `Mask` methods exposed unnameable protocol types | `LineRef`, `Param`, `LineSource`, `WireLine`, and `MaskSource` are available from `papo` |
 | Channel receipts were only text | Receipt-derived sends verify that a parted or recreated channel is still the same membership identity |
 | `HistoryReference: From<String/&str>` guessed that text was a message ID | Construct `HistoryReference` explicitly from a `MessageId` or time |
@@ -696,7 +698,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Party::Me` |
 | The earlier actor-relation enum and its actor and subject fields on events and `Message` | `Party::{Me, Other, Unknown}` with `actor_party` and `subject_party`; `ModeChanged::subject_party(&change)` gives it per member mode change |
 | Own sends could also arrive as message events | A correlated send resolves to `SendOutcome`; applications that log chat insert their own sends from that value |
-| `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
+| `Actor` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Actor::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
 | `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
 | `Reacted::message` and `removed: bool` | `reacts_to` and `ReactionAction::{Added, Removed}` |
 | `Redacted::message` | `redacts` |

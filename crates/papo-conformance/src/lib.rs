@@ -53,7 +53,7 @@ impl PartialEq<Option<&str>> for SourceNickValue {
     }
 }
 
-impl SourceNick for papo::Source {
+impl SourceNick for papo::Actor {
     fn source_nick(&self) -> Option<papo::Nick> {
         self.nick()
     }

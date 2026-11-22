@@ -343,7 +343,7 @@ fn historical_tagmsg(
     );
     let actor = user_from_line(message, &envelope, mapping, client.origin())?;
     let mut receipt = crate::message_ref::Receipt::new(
-        crate::Source::User(actor.clone()),
+        crate::Actor::User(actor.clone()),
         &conversation,
         None,
         crate::event_impl::return_address(message, &conversation),
@@ -375,9 +375,9 @@ fn actor_from_line(
     envelope: &crate::event_impl::EventEnvelope,
     mapping: crate::Casemapping,
     origin: crate::Origin,
-) -> Option<crate::Source> {
-    crate::event_impl::source::from_line(
-        crate::event_impl::source::LinePrefix::Raw(message.raw_source()?),
+) -> Option<crate::Actor> {
+    crate::event_impl::actor::from_line(
+        crate::event_impl::actor::LinePrefix::Raw(message.raw_source()?),
         envelope,
         mapping,
         origin,
@@ -391,8 +391,8 @@ fn user_from_line(
     origin: crate::Origin,
 ) -> Option<crate::UserHandle> {
     match actor_from_line(message, envelope, mapping, origin)? {
-        crate::Source::User(user) => Some(user),
-        crate::Source::Server(_) => None,
+        crate::Actor::User(user) => Some(user),
+        crate::Actor::Server(_) => None,
     }
 }
 
@@ -439,7 +439,7 @@ fn reaction(
     let return_address = crate::event_impl::return_address(message, &conversation);
     let actor = user_from_line(message, &envelope, mapping, origin)?;
     let receipt = crate::message_ref::Receipt::new(
-        crate::Source::User(actor.clone()),
+        crate::Actor::User(actor.clone()),
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,
@@ -634,12 +634,12 @@ fn kicked(
     );
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
-        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_history(
+        crate::Actor::User(user) => crate::Actor::User(crate::UserHandle::from_history(
             user.nick(),
             user.account().clone(),
             Some(&client.state),
         )),
-        crate::Source::Server(server) => crate::Source::Server(server),
+        crate::Actor::Server(server) => crate::Actor::Server(server),
     };
     Some(Event::Kicked(Kicked {
         actor_account: envelope.tagged_account(),
@@ -776,12 +776,12 @@ fn mode_changed(
     .collect();
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
-        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_history(
+        crate::Actor::User(user) => crate::Actor::User(crate::UserHandle::from_history(
             user.nick(),
             user.account().clone(),
             Some(&client.state),
         )),
-        crate::Source::Server(server) => crate::Source::Server(server),
+        crate::Actor::Server(server) => crate::Actor::Server(server),
     };
     Some(Event::ModeChanged(ModeChanged {
         actor_account: envelope.tagged_account(),
@@ -2349,7 +2349,7 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
-                    && matches!(event.actor, crate::Source::Server(ref name) if name == "irc.example")
+                    && matches!(event.actor, crate::Actor::Server(ref name) if name == "irc.example")
                     && event.subject_party == crate::Party::Unknown
         ));
 

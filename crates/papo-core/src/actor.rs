@@ -7,7 +7,7 @@ use crate::Names;
 /// The source of an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum Source {
+pub enum Actor {
     /// A user prefix.
     #[non_exhaustive]
     User {
@@ -26,7 +26,7 @@ pub enum Source {
     },
 }
 
-impl Source {
+impl Actor {
     /// Returns the nickname for a user source.
     #[must_use]
     pub const fn nick(&self) -> Option<&Nick> {
@@ -81,7 +81,7 @@ impl Source {
     }
 }
 
-impl fmt::Display for Source {
+impl fmt::Display for Actor {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::User { nick, .. } => nick.fmt(formatter),
@@ -90,7 +90,7 @@ impl fmt::Display for Source {
     }
 }
 
-impl MaskSource for Source {
+impl MaskSource for Actor {
     fn mask_parts(&self) -> Option<(&Nick, &str, &str)> {
         match self {
             Self::User {
@@ -107,27 +107,27 @@ impl MaskSource for Source {
 mod tests {
     use papo_proto::Casemapping;
 
-    use super::Source;
+    use super::Actor;
 
-    fn source(prefix: &str, mapping: Casemapping) -> Source {
-        Source::from_prefix_with_names(prefix, crate::Names::new(mapping, papo_proto::Origin::NONE))
+    fn source(prefix: &str, mapping: Casemapping) -> Actor {
+        Actor::from_prefix_with_names(prefix, crate::Names::new(mapping, papo_proto::Origin::NONE))
     }
 
     #[test]
     fn returns_only_user_nicknames() {
         let nick = Casemapping::Rfc1459.nick("Alice[bot]");
-        let user = Source::from_proto(
+        let user = Actor::from_proto(
             papo_proto::Source::__user("Alice[bot]", Some("~alice"), Some("staff.example")),
             Casemapping::Rfc1459,
         );
-        let server = Source::from_proto(
+        let server = Actor::from_proto(
             papo_proto::Source::Server("irc.example.net"),
             Casemapping::Rfc1459,
         );
 
         assert_eq!(user.nick(), Some(&nick));
         assert_eq!(server.nick(), None);
-        assert!(matches!(server, Source::Server { name } if name == "IRC.EXAMPLE.NET"));
+        assert!(matches!(server, Actor::Server { name } if name == "IRC.EXAMPLE.NET"));
     }
 
     #[test]

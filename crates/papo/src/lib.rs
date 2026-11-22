@@ -363,7 +363,7 @@ pub use conversation::Conversation;
 pub use driver::{Driver, Events};
 pub use error::*;
 pub use event_impl::{
-    Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Source, Tags,
+    Actor, Event, Incomplete, Message, MessageKind, Party, Restricted, RestrictedLine, Tags,
     TagsIter,
 };
 pub use ext::accounts::{AccountOutcome, NewAccount};

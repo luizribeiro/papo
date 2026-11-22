@@ -1,6 +1,6 @@
 use papo::{
-    AccountStatus, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Rank, Refusal,
-    Source, isupport::LimitValue,
+    AccountStatus, Actor, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Rank,
+    Refusal, isupport::LimitValue,
 };
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
@@ -1379,7 +1379,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         synchronized
             .topic_set_by()
-            .and_then(papo::Source::nick)
+            .and_then(papo::Actor::nick)
             .is_some_and(|nick| nick.as_str() == alice_nick.as_str())
     );
     assert!(synchronized.topic_set_at().is_some());
@@ -1834,10 +1834,10 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     Ok(())
 }
 
-fn assert_actor_or_server(source: &Source, actor: &str) {
+fn assert_actor_or_server(source: &Actor, actor: &str) {
     match source {
-        Source::User(user) => assert_eq!(user.nick(), actor),
-        Source::Server(name) => assert!(!name.is_empty()),
+        Actor::User(user) => assert_eq!(user.nick(), actor),
+        Actor::Server(name) => assert!(!name.is_empty()),
         _ => panic!("mode source is neither a user nor a server"),
     }
 }

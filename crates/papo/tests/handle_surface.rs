@@ -25,7 +25,7 @@ const IDENTITY_FIELDS: &[&str] = &[
 const IDENTITY_TYPES: &[&str] = &[
     "papo::ChannelHandle",
     "papo::Conversation",
-    "papo::Source",
+    "papo::Actor",
     "papo::Subject",
     "papo::UserHandle",
     "alloc::vec::Vec<papo::ChannelHandle>",

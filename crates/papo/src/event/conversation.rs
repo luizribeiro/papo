@@ -4,7 +4,7 @@ use crate::ServerTime;
 
 use crate::{Conversation, Mask, MessageId, Prefix, Typing};
 
-use super::{Party, Source, Tags, TypingReason};
+use super::{Actor, Party, Tags, TypingReason};
 
 /// A server-wide audience addressed by `*` or a server mask.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -150,7 +150,7 @@ pub struct Redacted {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user or server that removed the message.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

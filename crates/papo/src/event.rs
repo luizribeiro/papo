@@ -14,6 +14,12 @@ use papo_proto::{
 
 use crate::{Client, Conversation, Disconnected, ModeAction, ModeChange, ServerTime};
 
+#[path = "event/actor.rs"]
+#[allow(
+    clippy::expect_used,
+    reason = "owned source lines are constructed only after a source was parsed"
+)]
+pub(crate) mod actor;
 #[path = "event/channel.rs"]
 mod channel;
 #[path = "event/connection.rs"]
@@ -24,17 +30,12 @@ mod conversation;
 mod restricted;
 #[path = "event/server.rs"]
 mod server;
-#[path = "event/source.rs"]
-#[allow(
-    clippy::expect_used,
-    reason = "owned source lines are constructed only after a source was parsed"
-)]
-pub(crate) mod source;
 #[path = "event/tags.rs"]
 mod tags;
 #[path = "event/user.rs"]
 mod user;
 
+pub use actor::Actor;
 pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, MembersRefreshed, ModeChanged, Parted,
     TopicChanged,
@@ -54,7 +55,6 @@ pub use restricted::{Restricted, RestrictedLine};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;
 pub use server::{AutoJoinFailed, MetadataChanged, Warning};
-pub use source::Source;
 pub use tags::{Tags, TagsIter};
 pub use user::{
     AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, NickChanged, Quit,
@@ -471,7 +471,7 @@ impl Incomplete {
 #[non_exhaustive]
 pub struct ServerNotice {
     /// The server or operator that sent the notice.
-    pub actor: Source,
+    pub actor: Actor,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
@@ -529,7 +529,7 @@ impl std::ops::Deref for Other {
 
 struct MessageMetadata {
     actor_account: AccountStatus,
-    actor: Source,
+    actor: Actor,
     actor_party: Party,
     conversation: Conversation,
     status: Option<Prefix>,
@@ -572,7 +572,7 @@ fn ctcp_from_line(
     ) else {
         return Err(raw);
     };
-    let Source::User(actor) = metadata.actor else {
+    let Actor::User(actor) = metadata.actor else {
         return Err(raw);
     };
     if reply {
@@ -651,8 +651,8 @@ fn broadcast_from_line(
         account_tag_enabled,
         received_at,
     );
-    let Some(Source::User(actor)) = source::from_line(
-        source::LinePrefix::Raw(message.raw_source().ok_or_else(|| raw.clone())?),
+    let Some(Actor::User(actor)) = actor::from_line(
+        actor::LinePrefix::Raw(message.raw_source().ok_or_else(|| raw.clone())?),
         &envelope,
         isupport.casemapping(),
         origin,
@@ -960,7 +960,7 @@ impl Message {
         ) else {
             return Err(raw);
         };
-        let Source::User(actor) = metadata.actor else {
+        let Actor::User(actor) = metadata.actor else {
             return Err(raw);
         };
         metadata
@@ -1098,7 +1098,7 @@ impl Notice {
         ) else {
             return Err(raw);
         };
-        let Source::User(actor) = metadata.actor else {
+        let Actor::User(actor) = metadata.actor else {
             return Err(raw);
         };
         metadata
@@ -1220,8 +1220,8 @@ impl ServerNotice {
             account_tag_enabled,
             received_at,
         );
-        let Some(actor) = source::from_line(
-            source::LinePrefix::Raw(prefix),
+        let Some(actor) = actor::from_line(
+            actor::LinePrefix::Raw(prefix),
             &envelope,
             isupport.casemapping(),
             origin,
@@ -1470,8 +1470,8 @@ fn message_metadata(
         account_tag_enabled,
         received_at,
     );
-    let actor = source::from_line(
-        source::LinePrefix::Raw(message.raw_source()?),
+    let actor = actor::from_line(
+        actor::LinePrefix::Raw(message.raw_source()?),
         &envelope,
         isupport.casemapping(),
         origin,
@@ -1607,13 +1607,13 @@ pub(crate) fn joined_from_line(
         line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at);
     let actor_account = envelope.tagged_account();
     let envelope = envelope.with_account(account);
-    let actor = source::from_line(
-        source::LinePrefix::Raw(line.raw_source()?),
+    let actor = actor::from_line(
+        actor::LinePrefix::Raw(line.raw_source()?),
         &envelope,
         casemapping,
         origin,
     )?;
-    let Source::User(actor) = actor else {
+    let Actor::User(actor) = actor else {
         return None;
     };
     Some(Joined {
@@ -2104,7 +2104,7 @@ fn attach_user_message_handle(
     if let Conversation::Private(peer) = conversation {
         *peer = private_peer_handle(actor, actor_party, peer, tokens, state, historical);
     }
-    receipt.update_event_actor(Source::User(actor.clone()), conversation);
+    receipt.update_event_actor(Actor::User(actor.clone()), conversation);
 }
 
 fn private_peer_handle(
@@ -2157,7 +2157,7 @@ pub(crate) fn attach_message_handles(
         Event::Reacted(event) => user_event!(event),
         Event::TypingChanged(event) => user_event!(event),
         Event::Redacted(event) => {
-            if let Source::User(actor) = &mut event.actor {
+            if let Actor::User(actor) = &mut event.actor {
                 attach_user_message_handle(
                     actor,
                     event.actor_party,
@@ -2170,7 +2170,7 @@ pub(crate) fn attach_message_handles(
             }
         }
         Event::ServerNotice(event) => {
-            if let Source::User(actor) = &mut event.actor {
+            if let Actor::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
                 let conversation = match &event.to {
                     Audience::Channel(channel) => Conversation::Channel(channel.clone()),
@@ -2178,7 +2178,7 @@ pub(crate) fn attach_message_handles(
                 };
                 event
                     .receipt
-                    .update_event_actor(Source::User(actor.clone()), &conversation);
+                    .update_event_actor(Actor::User(actor.clone()), &conversation);
             }
         }
         Event::BroadcastCtcp(event) => {
@@ -2343,8 +2343,8 @@ pub(crate) fn from_core_with_receipt(
         )
     };
     let actor_from_raw = |prefix: &str, envelope: &EventEnvelope| {
-        source::from_line(
-            source::LinePrefix::Raw(prefix),
+        actor::from_line(
+            actor::LinePrefix::Raw(prefix),
             envelope,
             casemapping,
             origin,
@@ -2353,10 +2353,10 @@ pub(crate) fn from_core_with_receipt(
     let user_at_arrival =
         |nick, account, token| crate::UserHandle::at_arrival(nick, account, token, handle_state);
     let source_at_arrival = |source, token| match source {
-        Source::User(user) => {
-            Source::User(user_at_arrival(user.nick(), user.account().clone(), token))
+        Actor::User(user) => {
+            Actor::User(user_at_arrival(user.nick(), user.account().clone(), token))
         }
-        Source::Server(server) => Source::Server(server),
+        Actor::Server(server) => Actor::Server(server),
     };
     let channel_handle = |channel: ChannelName| {
         let channel = origin.__channel(channel.casemapping(), channel.into_string());
@@ -2378,8 +2378,8 @@ pub(crate) fn from_core_with_receipt(
     };
     let handle_from_raw =
         |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
-            Some(Source::User(user)) => Some(user),
-            Some(Source::Server(_)) | None => None,
+            Some(Actor::User(user)) => Some(user),
+            Some(Actor::Server(_)) | None => None,
         };
     let mut actor_token = None;
     let mut peer_token = None;
@@ -2417,7 +2417,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor_party = Party::from_core(change.actor_party);
             let receipt = crate::message_ref::Receipt::new(
-                Source::User(actor.clone()),
+                Actor::User(actor.clone()),
                 &conversation,
                 reply_token,
                 return_address,
@@ -2448,7 +2448,7 @@ pub(crate) fn from_core_with_receipt(
             let actor_party = Party::from_core(message.actor_party);
             let conversation = conversation_handle(message.conversation, message.peer_token);
             let mut receipt = crate::message_ref::Receipt::new(
-                Source::User(actor.clone()),
+                Actor::User(actor.clone()),
                 &conversation,
                 reply_token,
                 return_address,
@@ -2774,8 +2774,8 @@ pub(crate) fn from_core_with_receipt(
         } => {
             let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_line(
-                source::LinePrefix::Core(actor),
+            let Some(actor) = actor::from_line(
+                actor::LinePrefix::Core(actor),
                 &envelope,
                 casemapping,
                 origin,
@@ -3020,8 +3020,8 @@ pub(crate) fn from_core_with_receipt(
         } => {
             let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_line(
-                source::LinePrefix::Core(actor),
+            let Some(actor) = actor::from_line(
+                actor::LinePrefix::Core(actor),
                 &envelope,
                 casemapping,
                 origin,
@@ -3069,8 +3069,8 @@ pub(crate) fn from_core_with_receipt(
         } => {
             let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_line(
-                source::LinePrefix::Core(actor),
+            let Some(actor) = actor::from_line(
+                actor::LinePrefix::Core(actor),
                 &envelope,
                 casemapping,
                 origin,
@@ -3095,7 +3095,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::MonitorOnline { nick, token, .. } => {
             let subject = user_at_arrival(nick, AccountStatus::Unknown, token);
             let receipt = crate::message_ref::Receipt::without_recipient(
-                Source::User(subject.clone()),
+                Actor::User(subject.clone()),
                 Some(token),
                 subject.nick().to_string(),
                 origin,
@@ -3166,9 +3166,9 @@ mod tests {
     };
 
     use super::{
-        Audience, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent, Event,
+        Actor, Audience, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent, Event,
         Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
-        ModeChange, Party, RequestEnd, ServerNoticeKind, Source, StandardReplyKind, Tags, Warning,
+        ModeChange, Party, RequestEnd, ServerNoticeKind, StandardReplyKind, Tags, Warning,
         ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
         message_event_from_line,
     };
@@ -3275,8 +3275,8 @@ mod tests {
             false,
             UNIX_EPOCH,
         );
-        let Some(Source::User(actor)) = super::source::from_line(
-            super::source::LinePrefix::Raw("oper!staff@staff.example"),
+        let Some(Actor::User(actor)) = super::actor::from_line(
+            super::actor::LinePrefix::Raw("oper!staff@staff.example"),
             &envelope,
             mapping,
             origin,
@@ -4631,7 +4631,7 @@ mod tests {
             Casemapping::default().nick("alice"),
             papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
             None,
-            papo_core::Source::from_proto(
+            papo_core::Actor::from_proto(
                 papo_proto::Source::Server("ergo.test"),
                 Casemapping::default(),
             ),
@@ -4668,7 +4668,7 @@ mod tests {
             papo_core::LineEnvelope::default(),
             Casemapping::default().channel("#papo"),
             Some(payload.into()),
-            papo_core::Source::from_proto(
+            papo_core::Actor::from_proto(
                 papo_proto::Source::Server("ergo.test"),
                 Casemapping::default(),
             ),
@@ -5324,7 +5324,7 @@ mod tests {
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
         assert_eq!(invited.subject.nick(), "papo");
-        assert!(matches!(&invited.actor, Source::User(user) if user.nick() == "emily"));
+        assert!(matches!(&invited.actor, Actor::User(user) if user.nick() == "emily"));
         assert_eq!(invited.subject_party, Party::Me);
     }
 
@@ -5650,7 +5650,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
-                if matches!(mapped.actor, Source::User(ref user) if user.nick() == "alice")
+                if matches!(mapped.actor, Actor::User(ref user) if user.nick() == "alice")
                     && mapped.conversation == map_conversation(
                         redacted.conversation.clone(),
                         crate::Origin::NONE,
@@ -5855,7 +5855,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "ergo.test".into(), papo_core::Party::Other, None)),
             Event::ChannelRenamed(renamed)
-                if matches!(renamed.actor, Source::Server(ref name) if name == "ergo.test")
+                if matches!(renamed.actor, Actor::Server(ref name) if name == "ergo.test")
                     && renamed.reason.is_none()
         ));
     }
@@ -6124,7 +6124,7 @@ mod tests {
                 let (mut event, state) = live_message_handle_event(line);
                 if let Event::Redacted(redacted) = &mut event {
                     let actor = user_handle(redacted.actor.user().unwrap().nick());
-                    redacted.actor = Source::User(actor);
+                    redacted.actor = Actor::User(actor);
                     redacted.conversation =
                         Conversation::Private(user_handle(Casemapping::default().nick("mallory")));
                 }
@@ -6350,7 +6350,7 @@ mod tests {
                 Casemapping::default().nick("emily"),
                 papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
                 None,
-                papo_core::Source::from_proto(
+                papo_core::Actor::from_proto(
                     papo_proto::Source::__user(
                         "alice",
                         Some("~alice"),
@@ -6544,7 +6544,7 @@ mod tests {
             )),
         )];
         assert!(matches!(
-            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Party::Other, papo_core::Party::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
+            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Actor::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Party::Other, papo_core::Party::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
@@ -6769,7 +6769,7 @@ mod tests {
     #[test]
     fn maps_topic_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(crate::Origin::NONE), papo_core::Party::Other)),
+            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Actor::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(crate::Origin::NONE), papo_core::Party::Other)),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
@@ -6811,7 +6811,7 @@ mod tests {
         use super::*;
         use crate::event_impl::LineView;
 
-        fn source_person(source: &Source) -> Vec<crate::UserHandle> {
+        fn source_person(source: &Actor) -> Vec<crate::UserHandle> {
             source.user().cloned().into_iter().collect()
         }
 
@@ -7601,7 +7601,7 @@ mod tests {
             }
         }
 
-        fn user_source(source: &crate::Source) -> Option<UserHandle> {
+        fn user_source(source: &crate::Actor) -> Option<UserHandle> {
             source.user().cloned()
         }
 

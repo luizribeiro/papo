@@ -22,18 +22,18 @@ use papo_proto::{
 
 #[cfg(test)]
 use crate::monitor::presence_nicks;
-#[cfg(feature = "unstable")]
-use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 use crate::{
-    Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode, MetadataValue, ModeArg,
-    ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox, Party, ReadMarker, Secret,
-    Source, StateLimit, Subject, WhoOnJoin,
+    Actor, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode, MetadataValue,
+    ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox, Party, ReadMarker,
+    Secret, StateLimit, Subject, WhoOnJoin,
     bounded::BoundedCollection,
     cap,
     conversation::{LineTarget, classify_target_with_names},
     monitor::Monitor,
     typing::{Typers, TypingTable},
 };
+#[cfg(feature = "unstable")]
+use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 
 pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
@@ -219,7 +219,7 @@ pub struct Channel {
     created_at: Option<ServerTime>,
     epoch: u64,
     topic: Option<String>,
-    topic_set_by: Option<Source>,
+    topic_set_by: Option<Actor>,
     topic_set_at: Option<ServerTime>,
     names_reply_seen: bool,
     synced: bool,
@@ -1143,7 +1143,7 @@ impl State {
                 subject: mapping.nick(nick),
                 token,
                 facts,
-                actor: Source::from_proto_with_names(source, mapping),
+                actor: Actor::from_proto_with_names(source, mapping),
                 actor_token: self.source_token(message),
                 actor_party,
                 subject_party,
@@ -1362,7 +1362,7 @@ impl State {
                 Subject::User(self.casemapping.nick(target))
             },
             subject_token: self.__reply_token_for(target),
-            actor: Source::from_proto_with_names(actor, self.casemapping),
+            actor: Actor::from_proto_with_names(actor, self.casemapping),
             actor_token: self.source_token(message),
             actor_party: self.source_party(message),
             subject_party: match message.source() {
@@ -1463,7 +1463,7 @@ impl State {
                 };
                 channel.topic_set_by = message
                     .param(2)
-                    .map(|setter| Source::from_prefix_with_names(setter, mapping));
+                    .map(|setter| Actor::from_prefix_with_names(setter, mapping));
                 channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
@@ -1477,7 +1477,7 @@ impl State {
                 envelope,
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
-                actor: Source::from_proto_with_names(actor, self.casemapping),
+                actor: Actor::from_proto_with_names(actor, self.casemapping),
                 actor_token: self.source_token(message),
                 actor_party: self.source_party(message),
             });
@@ -1489,7 +1489,7 @@ impl State {
         channel.topic_set_by = if live {
             message
                 .source()
-                .map(|source| Source::from_proto_with_names(source, mapping))
+                .map(|source| Actor::from_proto_with_names(source, mapping))
         } else {
             None
         };
@@ -2028,7 +2028,7 @@ impl Channel {
         let mut overflowed = false;
         let actor = message
             .source()
-            .map(|source| Source::from_proto_with_names(source, self.casemapping));
+            .map(|source| Actor::from_proto_with_names(source, self.casemapping));
         let set_at = crate::LineEnvelope::from_line(message).server_time();
         for change in ModeChanges::parse(modestring, message.params().skip(2), isupport) {
             let mode = match (change.kind, change.mode) {
@@ -2078,7 +2078,7 @@ impl Channel {
 
     /// Returns who set the current topic when known.
     #[must_use]
-    pub const fn topic_set_by(&self) -> Option<&Source> {
+    pub const fn topic_set_by(&self) -> Option<&Actor> {
         self.topic_set_by.as_ref()
     }
 

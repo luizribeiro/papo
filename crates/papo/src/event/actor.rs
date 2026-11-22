@@ -5,14 +5,14 @@ use crate::{AccountStatus, Casemapping, Nick};
 /// The user or server that caused an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum Source {
+pub enum Actor {
     /// A user identity whose mutable facts are available from the event's paired state.
     User(crate::UserHandle),
     /// A server name.
     Server(crate::ServerName),
 }
 
-impl Source {
+impl Actor {
     /// Returns the nickname for a user source.
     #[must_use]
     pub fn nick(&self) -> Option<Nick> {
@@ -32,7 +32,7 @@ impl Source {
     }
 }
 
-impl fmt::Display for Source {
+impl fmt::Display for Actor {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::User(user) => user.fmt(formatter),
@@ -43,7 +43,7 @@ impl fmt::Display for Source {
 
 pub(crate) enum LinePrefix<'a> {
     Raw(&'a str),
-    Core(papo_core::Source),
+    Core(papo_core::Actor),
 }
 
 pub(crate) fn from_line(
@@ -51,7 +51,7 @@ pub(crate) fn from_line(
     envelope: &super::EventEnvelope,
     casemapping: Casemapping,
     origin: crate::Origin,
-) -> Option<Source> {
+) -> Option<Actor> {
     let nick = match prefix {
         LinePrefix::Raw(prefix) => {
             let line = papo_proto::Line::new("TAGMSG")
@@ -60,33 +60,33 @@ pub(crate) fn from_line(
             match line.as_ref().source()? {
                 papo_proto::Source::User { nick, .. } => nick.to_owned(),
                 papo_proto::Source::Server(server) => {
-                    return Some(Source::Server(server.into()));
+                    return Some(Actor::Server(server.into()));
                 }
             }
         }
         LinePrefix::Core(source) => match source {
-            papo_core::Source::User { nick, .. } => nick.into_string(),
-            papo_core::Source::Server { name, .. } => {
-                return Some(Source::Server(name));
+            papo_core::Actor::User { nick, .. } => nick.into_string(),
+            papo_core::Actor::Server { name, .. } => {
+                return Some(Actor::Server(name));
             }
             _ => return None,
         },
     };
-    Some(Source::User(crate::UserHandle::from_past_line(
+    Some(Actor::User(crate::UserHandle::from_past_line(
         origin.__nick(casemapping, nick),
         envelope.account.clone(),
     )))
 }
 
-pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
+pub(crate) fn from_core(source: papo_core::Actor, origin: crate::Origin) -> Option<Actor> {
     match source {
-        papo_core::Source::User { nick, .. } => {
-            Some(Source::User(crate::UserHandle::from_past_line(
+        papo_core::Actor::User { nick, .. } => {
+            Some(Actor::User(crate::UserHandle::from_past_line(
                 origin.__nick(nick.casemapping(), nick.as_str()),
                 AccountStatus::Unknown,
             )))
         }
-        papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
+        papo_core::Actor::Server { name, .. } => Some(Actor::Server(name)),
         _ => None,
     }
 }
@@ -125,7 +125,7 @@ mod tests {
             account: crate::AccountStatus::LoggedIn(origin.__account(mapping, "alice-account")),
         };
         let core = || {
-            papo_core::Source::from_proto(
+            papo_core::Actor::from_proto(
                 papo_proto::Source::__user("alice", Some("~alice"), Some("cloak.example")),
                 mapping,
             )
@@ -146,7 +146,7 @@ mod tests {
                 .iter()
                 .zip([&envelope.account, &envelope.account, &unknown])
         {
-            let user = source.as_ref().and_then(super::Source::user).unwrap();
+            let user = source.as_ref().and_then(super::Actor::user).unwrap();
             assert_eq!(user.nick().as_str(), "alice");
             assert_eq!(user.account(), account, "{source:?}");
             assert!(user.is_unproven_history(), "{source:?}");

@@ -305,6 +305,32 @@ impl core::marker::Unpin for papo_core::AccountStatus
 impl core::marker::UnsafeUnpin for papo_core::AccountStatus
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::AccountStatus
 impl core::panic::unwind_safe::UnwindSafe for papo_core::AccountStatus
+#[non_exhaustive] pub enum papo_core::Actor
+#[non_exhaustive] pub papo_core::Actor::Server
+pub papo_core::Actor::Server::name: papo::ServerName
+#[non_exhaustive] pub papo_core::Actor::User
+pub papo_core::Actor::User::host: core::option::Option<alloc::string::String>
+pub papo_core::Actor::User::nick: papo::Nick
+pub papo_core::Actor::User::username: core::option::Option<alloc::string::String>
+impl papo_core::Actor
+pub const fn papo_core::Actor::nick(&self) -> core::option::Option<&papo::Nick>
+impl core::clone::Clone for papo_core::Actor
+pub fn papo_core::Actor::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::Actor
+impl core::cmp::PartialEq for papo_core::Actor
+pub fn papo_core::Actor::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::Actor
+pub fn papo_core::Actor::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_core::Actor
+pub fn papo_core::Actor::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::Actor
+impl core::marker::Freeze for papo_core::Actor
+impl core::marker::Send for papo_core::Actor
+impl core::marker::Sync for papo_core::Actor
+impl core::marker::Unpin for papo_core::Actor
+impl core::marker::UnsafeUnpin for papo_core::Actor
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Actor
+impl core::panic::unwind_safe::UnwindSafe for papo_core::Actor
 #[non_exhaustive] pub enum papo_core::AwayOnConnect
 pub papo_core::AwayOnConnect::Hidden
 pub papo_core::AwayOnConnect::Message(alloc::string::String)
@@ -567,7 +593,7 @@ pub papo_core::Event::Joined::nick: papo::Nick
 pub papo_core::Event::Joined::realname: core::option::Option<alloc::string::String>
 pub papo_core::Event::Joined::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Kicked
-pub papo_core::Event::Kicked::actor: papo_core::Source
+pub papo_core::Event::Kicked::actor: papo_core::Actor
 pub papo_core::Event::Kicked::actor_party: papo_core::Party
 pub papo_core::Event::Kicked::actor_token: ReplyToken
 pub papo_core::Event::Kicked::channel: papo::ChannelName
@@ -591,7 +617,7 @@ pub papo_core::Event::MetadataChanged::value: core::option::Option<papo_core::Me
 pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::ModeChanged
-pub papo_core::Event::ModeChanged::actor: papo_core::Source
+pub papo_core::Event::ModeChanged::actor: papo_core::Actor
 pub papo_core::Event::ModeChanged::actor_party: papo_core::Party
 pub papo_core::Event::ModeChanged::actor_token: ReplyToken
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::ModeChange>
@@ -672,7 +698,7 @@ pub papo_core::Event::StsPolicy(papo::sts::StsAction)
 pub papo_core::Event::StsUpgrade::port: u16
 pub papo_core::Event::TagMessage(papo_core::TagMessage)
 #[non_exhaustive] pub papo_core::Event::TopicChanged
-pub papo_core::Event::TopicChanged::actor: papo_core::Source
+pub papo_core::Event::TopicChanged::actor: papo_core::Actor
 pub papo_core::Event::TopicChanged::actor_party: papo_core::Party
 pub papo_core::Event::TopicChanged::actor_token: ReplyToken
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
@@ -1312,32 +1338,6 @@ impl core::marker::Unpin for papo_core::ServerError
 impl core::marker::UnsafeUnpin for papo_core::ServerError
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ServerError
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ServerError
-#[non_exhaustive] pub enum papo_core::Source
-#[non_exhaustive] pub papo_core::Source::Server
-pub papo_core::Source::Server::name: papo::ServerName
-#[non_exhaustive] pub papo_core::Source::User
-pub papo_core::Source::User::host: core::option::Option<alloc::string::String>
-pub papo_core::Source::User::nick: papo::Nick
-pub papo_core::Source::User::username: core::option::Option<alloc::string::String>
-impl papo_core::Source
-pub const fn papo_core::Source::nick(&self) -> core::option::Option<&papo::Nick>
-impl core::clone::Clone for papo_core::Source
-pub fn papo_core::Source::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::Source
-impl core::cmp::PartialEq for papo_core::Source
-pub fn papo_core::Source::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo_core::Source
-pub fn papo_core::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo_core::Source
-pub fn papo_core::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_core::Source
-impl core::marker::Freeze for papo_core::Source
-impl core::marker::Send for papo_core::Source
-impl core::marker::Sync for papo_core::Source
-impl core::marker::Unpin for papo_core::Source
-impl core::marker::UnsafeUnpin for papo_core::Source
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Source
-impl core::panic::unwind_safe::UnwindSafe for papo_core::Source
 #[non_exhaustive] pub enum papo_core::StateLimit
 pub papo_core::StateLimit::BouncerNetworks
 pub papo_core::StateLimit::Channels
@@ -1581,7 +1581,7 @@ pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::It
 pub fn papo_core::Channel::name(&self) -> &papo::ChannelName
 pub fn papo_core::Channel::topic(&self) -> core::option::Option<&str>
 pub const fn papo_core::Channel::topic_set_at(&self) -> core::option::Option<papo_proto::time::ServerTime>
-pub const fn papo_core::Channel::topic_set_by(&self) -> core::option::Option<&papo_core::Source>
+pub const fn papo_core::Channel::topic_set_by(&self) -> core::option::Option<&papo_core::Actor>
 impl core::clone::Clone for papo_core::Channel
 pub fn papo_core::Channel::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Channel
@@ -1933,7 +1933,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeChange
 pub papo_core::ModeListEntry::mask: papo::Mask
 pub papo_core::ModeListEntry::set_at: core::option::Option<papo_proto::time::ServerTime>
 impl papo_core::ModeListEntry
-pub const fn papo_core::ModeListEntry::actor(&self) -> core::option::Option<&papo_core::Source>
+pub const fn papo_core::ModeListEntry::actor(&self) -> core::option::Option<&papo_core::Actor>
 impl core::clone::Clone for papo_core::ModeListEntry
 pub fn papo_core::ModeListEntry::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ModeListEntry

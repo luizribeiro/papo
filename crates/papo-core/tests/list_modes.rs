@@ -430,7 +430,7 @@ fn live_mode_changes_update_only_a_completed_list() {
     assert_eq!(entries[1].mask, "carol");
     assert!(matches!(
         entries[1].actor().unwrap(),
-        papo_core::Source::User {
+        papo_core::Actor::User {
             nick,
             username: Some(username),
             host: Some(host),

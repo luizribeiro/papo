@@ -135,6 +135,11 @@ pub fn deadline(
 ) -> Option<web_time::Instant> {
     now.checked_add(duration)
 }
+#[allow(
+    clippy::expect_used,
+    reason = "owned source lines are constructed only after a source was parsed"
+)]
+mod actor;
 mod refusal;
 #[cfg(feature = "unstable")]
 #[path = "unstable/relaymsg.rs"]
@@ -150,11 +155,6 @@ mod secret_echo;
 mod server_clock;
 #[doc(hidden)]
 pub mod server_url;
-#[allow(
-    clippy::expect_used,
-    reason = "owned source lines are constructed only after a source was parsed"
-)]
-mod source;
 #[allow(
     clippy::expect_used,
     reason = "state transitions preserve the own-user and parsed-user-source invariants"
@@ -176,11 +176,11 @@ mod welcome;
 #[cfg(feature = "unstable")]
 include!("unstable/persistence_types.rs");
 
+pub use actor::Actor;
 pub use papo_proto::{
     BatchId, BatchType, InvalidServerTime, Prefix, Rank, Secret, ServerTime, WireLine,
 };
 pub use server_url::InvalidUrl;
-pub use source::Source;
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -565,7 +565,7 @@ impl CtcpReplies {
 /// Builds the private `NOTICE` used to answer a CTCP query.
 #[doc(hidden)]
 #[must_use]
-pub fn __ctcp_reply(actor: &Source, command: &str, text: &str) -> Option<Line> {
+pub fn __ctcp_reply(actor: &Actor, command: &str, text: &str) -> Option<Line> {
     let nick = actor.nick()?;
     let body = Ctcp::build(command, (!text.is_empty()).then_some(text))?;
     Some(Line::notice(nick.as_str(), body))
@@ -1312,7 +1312,7 @@ pub struct ModeListEntry {
     /// Mask stored by the server.
     pub mask: Mask,
     /// Actor that set the entry, when reported.
-    actor: Option<Source>,
+    actor: Option<Actor>,
     /// Time at which the entry was set, when reported and valid.
     pub set_at: Option<papo_proto::ServerTime>,
 }
@@ -1320,7 +1320,7 @@ pub struct ModeListEntry {
 impl ModeListEntry {
     /// Returns the actor that set the entry, when reported.
     #[must_use]
-    pub const fn actor(&self) -> Option<&Source> {
+    pub const fn actor(&self) -> Option<&Actor> {
         self.actor.as_ref()
     }
 }
@@ -2956,7 +2956,7 @@ pub enum Event {
         /// User facts removed by this transition, when the user is no longer known.
         facts: Option<User>,
         /// The user or server that issued the kick.
-        actor: Source,
+        actor: Actor,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Who the actor is relative to this session's user.
@@ -3124,7 +3124,7 @@ pub enum Event {
         /// Identity of a user subject when the line arrived.
         subject_token: ReplyToken,
         /// The user or server that changed the modes.
-        actor: Source,
+        actor: Actor,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Who the actor is relative to this session's user.
@@ -3146,7 +3146,7 @@ pub enum Event {
         /// The new topic, or `None` when it was cleared.
         topic: Option<String>,
         /// The user or server that changed the topic.
-        actor: Source,
+        actor: Actor,
         /// Identity of a user actor when the line arrived.
         actor_token: ReplyToken,
         /// Who the actor is relative to this session's user.
@@ -3181,15 +3181,15 @@ hidden_event_constructors! {
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, actor_party: Party) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, reason: Option<String>) => Kicked;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Actor, actor_token: ReplyToken, actor_party: Party, subject_party: Party, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, actor_party: Party, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, token: ReplyToken, channels: Vec<ChannelName>, actor_party: Party) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: AccountStatus, token: ReplyToken, actor_party: Party) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: AwayStatus, token: ReplyToken, actor_party: Party) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, token: ReplyToken, actor_party: Party) => HostChanged;
     __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, token: ReplyToken, actor_party: Party) => RealnameChanged;
-    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Source, actor_token: ReplyToken, actor_party: Party, subject_party: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
-    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, actor_token: ReplyToken, actor_party: Party) => TopicChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, subject_token: ReplyToken, actor: Actor, actor_token: ReplyToken, actor_party: Party, subject_party: Party, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
+    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Actor, actor_token: ReplyToken, actor_party: Party) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
     __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;
@@ -6327,7 +6327,7 @@ impl Session {
             self.ctcp_sources.pop_front();
         }
         self.ctcp_sources.push_back((nick.to_owned(), now));
-        let actor = Source::from_proto_with_names(source, self.names());
+        let actor = Actor::from_proto_with_names(source, self.names());
         if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default())
             && let Ok(line) = reply.encode()
         {
@@ -6561,7 +6561,7 @@ impl Session {
                     mask: mapping.mask(line.param(2 + offset)?),
                     actor: line
                         .param(3 + offset)
-                        .map(|actor| Source::from_prefix_with_names(actor, mapping)),
+                        .map(|actor| Actor::from_prefix_with_names(actor, mapping)),
                     set_at: line
                         .param(4 + offset)
                         .and_then(|value| value.parse::<i64>().ok())

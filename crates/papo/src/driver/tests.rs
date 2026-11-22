@@ -1493,7 +1493,7 @@ async fn list_modes_returns_entries_and_updates_joined_channel_state() {
     let entries = within(request).await.unwrap().unwrap();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].mask, "*!*@gateway.example");
-    let actor: &crate::Source = entries[0].actor().unwrap();
+    let actor: &crate::Actor = entries[0].actor().unwrap();
     let expected = client.state().name_rules().unwrap().nick("oper");
     assert!(
         actor
@@ -1966,7 +1966,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel_handle("#systems"),
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
-            actor: crate::Source::User(crate::UserHandle::from_nick(test_nick("oper"))),
+            actor: crate::Actor::User(crate::UserHandle::from_nick(test_nick("oper"))),
             actor_party: crate::Party::Other,
             reason: Some("Community renamed".into()),
         }),
@@ -10561,7 +10561,7 @@ async fn every_state_change_replaces_the_snapshot() {
         previous.channel_local("#papo").unwrap().topic(),
         Some("Release planning")
     );
-    let actor: &crate::Source = previous
+    let actor: &crate::Actor = previous
         .channel_local("#papo")
         .unwrap()
         .topic_set_by()
