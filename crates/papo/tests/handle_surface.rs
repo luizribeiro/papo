@@ -23,13 +23,13 @@ const IDENTITY_FIELDS: &[&str] = &[
 ];
 
 const IDENTITY_TYPES: &[&str] = &[
-    "papo::ChannelHandle",
+    "papo::ChannelRef",
     "papo::Conversation",
     "papo::Actor",
     "papo::Subject",
     "papo::UserRef",
-    "alloc::vec::Vec<papo::ChannelHandle>",
-    "core::option::Option<papo::ChannelHandle>",
+    "alloc::vec::Vec<papo::ChannelRef>",
+    "core::option::Option<papo::ChannelRef>",
     "core::option::Option<papo::Conversation>",
 ];
 

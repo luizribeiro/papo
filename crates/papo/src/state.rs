@@ -246,7 +246,7 @@ pub struct State {
     connected: bool,
     generation: u64,
     typing_generation: u64,
-    watch_registry: Arc<crate::handle::WatchRegistry>,
+    watch_registry: Arc<crate::reference::WatchRegistry>,
 }
 
 impl State {
@@ -424,7 +424,7 @@ impl State {
         }
     }
 
-    pub(crate) fn watch_registry(&self) -> Arc<crate::handle::WatchRegistry> {
+    pub(crate) fn watch_registry(&self) -> Arc<crate::reference::WatchRegistry> {
         Arc::clone(&self.watch_registry)
     }
 
@@ -996,7 +996,7 @@ mod name_tests {
 
         session.handle_line(now, b":papo!p@localhost PART #review :Review complete");
         let parted = State::from_session(&session, true);
-        let stale = crate::ChannelHandle::from_parts(channel, Some(guard), None);
+        let stale = crate::ChannelRef::from_parts(channel, Some(guard), None);
         assert!(parted.channel(stale).unwrap().is_none());
     }
 

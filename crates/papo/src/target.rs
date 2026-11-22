@@ -74,7 +74,7 @@ impl Role {
 /// A destination accepted by message-sending operations.
 ///
 /// Plain text names a channel if it starts with a server-advertised channel prefix. A nickname
-/// in text or as a [`crate::Nick`] addresses whoever holds it. Typed names, user references, channel handles, and message
+/// in text or as a [`crate::Nick`] addresses whoever holds it. Typed names and user, channel, and message
 /// references retain the client that produced them and are refused by another client.
 /// A single status prefix such as `@#ops` is preserved; stacked prefixes such as `+@#ops` are
 /// refused because servers disagree on their audience. [`crate::Client::send_raw`] is the explicit
@@ -99,7 +99,7 @@ pub trait AsNick: sealed::Sealed {
 
 /// A channel accepted by channel-oriented operations.
 ///
-/// Text identifies the channel currently using that name. Live channel handles retain the
+/// Text identifies the channel currently using that name. Live channel references retain the
 /// channel lifecycle captured by the client.
 pub trait AsChannel: sealed::Sealed {
     /// Returns the channel and its safety metadata.

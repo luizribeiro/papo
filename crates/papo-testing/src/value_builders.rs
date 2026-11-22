@@ -14,9 +14,9 @@ pub fn channel(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::C
     papo::__testing::channel_name(casemapping, text.as_ref())
 }
 
-/// Builds a channel handle for the supplied client and its current channel state.
+/// Builds a channel reference for the supplied client and its current channel state.
 ///
-/// The handle represents the whole channel. See [`papo::Conversation`] for ops-only lines.
+/// The reference represents the whole channel. See [`papo::Conversation`] for ops-only lines.
 ///
 /// # Errors
 /// Returns an error if the client's name rules are unknown or reject the channel, or if the
@@ -24,7 +24,7 @@ pub fn channel(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::C
 pub fn channel_handle(
     client: &papo::Client,
     channel: impl papo::AsChannel,
-) -> Result<papo::ChannelHandle, Error> {
+) -> Result<papo::ChannelRef, Error> {
     papo::__testing::channel_handle(client, channel)
 }
 

@@ -431,8 +431,8 @@ impl KickbanNick {
 reason_step!(KickbanRequest, "kick");
 
 impl IntoFuture for JoinChannel {
-    type Output = Result<crate::ChannelHandle, Error>;
-    type IntoFuture = crate::RequestFuture<crate::ChannelHandle>;
+    type Output = Result<crate::ChannelRef, Error>;
+    type IntoFuture = crate::RequestFuture<crate::ChannelRef>;
 
     fn into_future(self) -> Self::IntoFuture {
         crate::RequestFuture::new(async move {
@@ -1688,7 +1688,7 @@ impl Client {
         })
     }
 
-    /// Joins a channel and returns its handle after the topic and member list synchronize.
+    /// Joins a channel and returns its channel reference after the topic and member list synchronize.
     ///
     /// # Errors
     ///
@@ -1718,7 +1718,7 @@ impl Client {
         &self,
         channel: crate::ChannelName,
         key: Option<crate::Secret>,
-    ) -> Result<crate::ChannelHandle, Error> {
+    ) -> Result<crate::ChannelRef, Error> {
         channel
             .check(self.state().isupport().inner())
             .map_err(|reason| InvalidInput::invalid_name(channel.to_string(), reason))?;
@@ -1753,7 +1753,7 @@ impl Client {
                 .map_err(|_| Error::connection_lost())?;
             receiver.await.map_err(|_| Error::connection_lost())??;
         }
-        Ok(crate::ChannelHandle::new(self, channel, true))
+        Ok(crate::ChannelRef::new(self, channel, true))
     }
 
     /// Leaves a channel and resolves to the server's echo of our `PART`.

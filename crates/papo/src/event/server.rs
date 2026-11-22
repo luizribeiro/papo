@@ -33,7 +33,7 @@ pub struct MetadataChanged {
 pub struct AutoJoinFailed {
     /// The channel papo tried to join. See [`crate::Conversation`] for status-prefixed line
     /// guidance.
-    pub channel: crate::ChannelHandle,
+    pub channel: crate::ChannelRef,
     /// The server's typed refusal.
     pub error: crate::ServerError,
 }
@@ -69,7 +69,7 @@ pub enum Warning {
     ChannelRecreated {
         /// The channel that was rejoined. See [`crate::Conversation`] for status-prefixed line
         /// guidance.
-        channel: crate::ChannelHandle,
+        channel: crate::ChannelRef,
         /// Creation time observed before reconnecting.
         previous_created_at: crate::ServerTime,
         /// Creation time reported after rejoining.
@@ -152,7 +152,7 @@ mod tests {
                 reason: "SASL mechanism unavailable".to_owned(),
             },
             Warning::ChannelRecreated {
-                channel: crate::ChannelHandle::from_parts(
+                channel: crate::ChannelRef::from_parts(
                     crate::Casemapping::default().channel("#release"),
                     None,
                     None,

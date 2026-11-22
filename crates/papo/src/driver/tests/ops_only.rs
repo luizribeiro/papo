@@ -4,7 +4,7 @@ struct OpsChannel {
     server: DuplexStream,
     client: crate::Client,
     events: crate::Events,
-    joined: crate::ChannelHandle,
+    joined: crate::ChannelRef,
     task: tokio::task::JoinHandle<Result<(), Error>>,
 }
 

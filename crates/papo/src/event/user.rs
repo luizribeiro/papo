@@ -21,7 +21,7 @@ pub struct Quit {
     /// The optional quit reason.
     pub reason: Option<String>,
     /// Shared channels where papo knows the user is a member.
-    pub channels: Vec<crate::ChannelHandle>,
+    pub channels: Vec<crate::ChannelRef>,
     /// Who the disconnected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: Box<AccountStatus>,
@@ -48,7 +48,7 @@ pub struct NickChanged {
     /// The new nickname.
     pub new: Nick,
     /// Shared channels where papo knows the user is a member.
-    pub channels: Vec<crate::ChannelHandle>,
+    pub channels: Vec<crate::ChannelRef>,
     /// Who the renamed user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

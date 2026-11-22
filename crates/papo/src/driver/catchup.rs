@@ -287,7 +287,7 @@ mod tests {
     fn live_reaction(msgid: &str) -> crate::Event {
         let mapping = papo_proto::Casemapping::default();
         let actor = crate::__testing::user_handle(mapping.nick("emily"));
-        let conversation = crate::Conversation::Channel(crate::ChannelHandle::from_parts(
+        let conversation = crate::Conversation::Channel(crate::ChannelRef::from_parts(
             mapping.channel("#papo"),
             None,
             None,

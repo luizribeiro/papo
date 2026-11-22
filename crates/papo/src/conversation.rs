@@ -20,7 +20,7 @@ use std::fmt;
 /// [`crate::Client::mark_read`] without an explicit boundary marks through the newest line,
 /// restricted or not. Ergo stores no ops-only lines in history; soju stores and replays them.
 ///
-/// To send to everyone in `#ops`, pass the plain name `"#ops"` or the conversation's channel handle.
+/// To send to everyone in `#ops`, pass the plain name `"#ops"` or the conversation's channel reference.
 ///
 /// A server can also hide an audience without a sign (Ergo's `+U`, Solanum's `+z`): such a line
 /// arrives as plain `#ops` and no client can tell.
@@ -28,7 +28,7 @@ use std::fmt;
 #[non_exhaustive]
 pub enum Conversation {
     /// Messages addressed to a channel.
-    Channel(crate::ChannelHandle),
+    Channel(crate::ChannelRef),
     /// Messages exchanged with a user. Equality follows [`crate::UserRef`].
     Private(crate::UserRef),
 }
@@ -77,7 +77,7 @@ impl Conversation {
     ) -> Self {
         match value {
             papo_core::Conversation::Channel(channel) => {
-                Self::Channel(crate::ChannelHandle::from_parts(
+                Self::Channel(crate::ChannelRef::from_parts(
                     origin.__channel(channel.casemapping(), channel.into_string()),
                     guard,
                     state,

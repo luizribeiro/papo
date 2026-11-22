@@ -8,7 +8,7 @@ fn inspect_event(event: papo::Event) {
             let _: Option<&papo::Conversation> = message.channel_context();
         }
         papo::Event::Joined(joined) => {
-            let _: &papo::ChannelHandle = &joined.channel;
+            let _: &papo::ChannelRef = &joined.channel;
             let _: &papo::UserRef = &joined.actor;
             let _: papo::Nick = joined.actor.nick();
         }

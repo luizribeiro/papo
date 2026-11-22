@@ -107,8 +107,8 @@ fn test_channel(value: &str) -> crate::ChannelName {
     crate::Casemapping::default().channel(value)
 }
 
-fn test_channel_handle(value: &str) -> crate::ChannelHandle {
-    crate::ChannelHandle::from_parts(test_channel(value), None, None)
+fn test_channel_handle(value: &str) -> crate::ChannelRef {
+    crate::ChannelRef::from_parts(test_channel(value), None, None)
 }
 
 fn test_mask(value: &str) -> crate::Mask {
@@ -3030,7 +3030,7 @@ async fn a_renamed_channel_keeps_its_status_audience() {
     session.handle_line(now, b":papo-driver!p@localhost JOIN #review");
     let name = session.state().channel("#review").unwrap().name().clone();
     let guard = session.state().__channel_guard(&name);
-    let channel = crate::ChannelHandle::from_parts(name, Some(guard), None);
+    let channel = crate::ChannelRef::from_parts(name, Some(guard), None);
     session.handle_line(
         now,
         b":alice!~alice@cloak.example RENAME #review #release :Review completed",
@@ -8363,7 +8363,7 @@ async fn send_text_retains_an_injected_channel_guard() {
     );
     let channel = session.isupport().casemapping().channel("#review");
     let guard = session.state().__channel_guard(&channel);
-    let expected = crate::ChannelHandle::from_parts(
+    let expected = crate::ChannelRef::from_parts(
         session
             .state()
             .nick()

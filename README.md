@@ -61,7 +61,7 @@ For an account check, compare the account you expect with the received message's
 
 **Multiple connections.** With bouncers you can have channels with the same name in different networks, same nicknames, etc, and it's easy to mix them up accidentally. Typed values remember which client they came from, so passing one to another client gets you a `ForeignReference` error, and #papo on one network isn't equal to #papo on another. If you're on soju, with the `unstable` feature, `client.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
 
-Channel events carry `ChannelHandle`, which follows a joined channel across `RENAME`. Send to the whole channel with `client.privmsg("#ops", text)` or by passing its handle to `privmsg`. A line sent to `@#ops` files under the plain `#ops` conversation. Use `client.reply`, `client.react`, or `return_address()` on the line to address its ops-only audience.
+Channel events carry `ChannelRef`, which follows a joined channel across `RENAME`. Send to the whole channel with `client.privmsg("#ops", text)` or by passing its reference to `privmsg`. A line sent to `@#ops` files under the plain `#ops` conversation. Use `client.reply`, `client.react`, or `return_address()` on the line to address its ops-only audience.
 
 Ops-only lines get their own arm. A line sent to `@#ops` (or `+#ops`) arrives only as `Event::Restricted`, never as `Event::Message`, so a bot whose handler announces to `#ops` cannot repeat an ops-only command to the whole channel just because it never thought about them. Handle the arm when you want those lines:
 

@@ -71,7 +71,7 @@ impl Typer {
                 let guard = state.__channel_guard(channel);
                 (
                     None,
-                    Some(crate::ChannelHandle::from_parts(
+                    Some(crate::ChannelRef::from_parts(
                         channel.clone(),
                         Some(guard),
                         None,
@@ -84,10 +84,7 @@ impl Typer {
             conversation.clone(),
             state.nick().origin(),
             None,
-            channel
-                .as_ref()
-                .and_then(crate::ChannelHandle::guard)
-                .cloned(),
+            channel.as_ref().and_then(crate::ChannelRef::guard).cloned(),
         );
         Self {
             core: core.clone(),

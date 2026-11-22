@@ -105,7 +105,7 @@ pub enum NoticeTarget {
     /// This client.
     Me,
     /// A channel.
-    Channel(crate::ChannelHandle),
+    Channel(crate::ChannelRef),
     /// A server-wide audience.
     Broadcast(Broadcast),
 }
@@ -810,7 +810,7 @@ fn channel_context_handle(
     channel: ChannelName,
     origin: crate::Origin,
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
-) -> crate::ChannelHandle {
+) -> crate::ChannelRef {
     let channel = origin.__channel(channel.casemapping(), channel.into_string());
     let guard = handle_state.map(|state| {
         state
@@ -819,7 +819,7 @@ fn channel_context_handle(
             .core
             .__channel_guard(&channel)
     });
-    crate::ChannelHandle::from_parts(channel, guard, handle_state)
+    crate::ChannelRef::from_parts(channel, guard, handle_state)
 }
 
 pub(crate) fn mark_incomplete(event: Event) -> Option<Event> {
@@ -925,7 +925,7 @@ impl Message {
         actor_party: Party,
         conversation: Conversation,
         status: Option<Prefix>,
-        channel_context: Option<crate::ChannelHandle>,
+        channel_context: Option<crate::ChannelRef>,
         isupport: &Isupport,
         account_tag_enabled: bool,
         received_at: SystemTime,
@@ -1063,7 +1063,7 @@ impl Notice {
         actor_party: Party,
         conversation: Conversation,
         status: Option<Prefix>,
-        channel_context: Option<crate::ChannelHandle>,
+        channel_context: Option<crate::ChannelRef>,
         isupport: &Isupport,
         account_tag_enabled: bool,
         received_at: SystemTime,
@@ -1202,7 +1202,7 @@ impl ServerNotice {
             .param(0)
             .filter(|target| isupport.is_channel(target))
         {
-            NoticeTarget::Channel(crate::ChannelHandle::from_parts(
+            NoticeTarget::Channel(crate::ChannelRef::from_parts(
                 origin.__channel(isupport.casemapping(), target),
                 None,
                 None,
@@ -1276,7 +1276,7 @@ fn message_event_from_line(
     actor_party: Party,
     conversation: Conversation,
     status: Option<Prefix>,
-    channel_context: Option<crate::ChannelHandle>,
+    channel_context: Option<crate::ChannelRef>,
     isupport: &Isupport,
     account_tag_enabled: bool,
     received_at: SystemTime,
@@ -1621,7 +1621,7 @@ pub(crate) fn joined_from_line(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        channel: crate::ChannelHandle::from_parts(
+        channel: crate::ChannelRef::from_parts(
             origin.__channel(casemapping, join.channel),
             None,
             None,
@@ -2365,7 +2365,7 @@ pub(crate) fn from_core_with_receipt(
                 .channel(&channel)
                 .map(|_| state.__channel_guard(&channel))
         });
-        crate::ChannelHandle::from_parts(channel, guard, handle_state)
+        crate::ChannelRef::from_parts(channel, guard, handle_state)
     };
     let conversation_handle = |conversation, peer_token| match conversation {
         papo_core::Conversation::Channel(channel) => Conversation::Channel(channel_handle(channel)),
@@ -3200,12 +3200,12 @@ mod tests {
         Conversation::from_core(value, origin, None, None)
     }
 
-    fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None)
+    fn channel(value: crate::ChannelName) -> crate::ChannelRef {
+        crate::ChannelRef::from_parts(value, None, None)
     }
 
-    fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None)
+    fn channel_handle(value: crate::ChannelName) -> crate::ChannelRef {
+        crate::ChannelRef::from_parts(value, None, None)
     }
 
     fn user_handle(value: crate::Nick) -> crate::UserRef {

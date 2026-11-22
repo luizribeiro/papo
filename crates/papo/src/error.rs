@@ -400,7 +400,7 @@ impl std::error::Error for DisconnectCause {
     }
 }
 
-/// An operation received a handle or reference from another client.
+/// An operation received a reference from another client.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Error)]
 #[error("the value belongs to another client")]
 pub struct ForeignReference;
@@ -449,7 +449,7 @@ pub enum Error {
     /// An input value is invalid.
     #[error(transparent)]
     InvalidInput(#[from] InvalidInput),
-    /// A handle or reference belongs to another client.
+    /// A reference belongs to another client.
     #[error(transparent)]
     ForeignReference(#[from] ForeignReference),
     /// Opening the connection or completing its login failed.

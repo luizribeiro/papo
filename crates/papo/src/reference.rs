@@ -511,10 +511,10 @@ impl Hash for UserRef {
 
 /// A live identity for one joined-channel lifecycle.
 ///
-/// A handle names the whole channel and never carries a status sign: sending to it reaches
+/// A reference names the whole channel and never carries a status sign: sending to it reaches
 /// everyone. See [`crate::Conversation`] for answering ops-only lines.
 #[derive(Clone)]
-pub struct ChannelHandle(Arc<ChannelInner>);
+pub struct ChannelRef(Arc<ChannelInner>);
 
 struct ChannelInner {
     channel: crate::ChannelName,
@@ -522,7 +522,7 @@ struct ChannelInner {
     state: Option<Arc<RwLock<Arc<crate::State>>>>,
 }
 
-impl ChannelHandle {
+impl ChannelRef {
     pub(crate) fn new(client: &crate::Client, channel: crate::ChannelName, joined: bool) -> Self {
         let guard = joined.then(|| client.state().core.__channel_guard(&channel));
         Self::from_parts(channel, guard, Some(&client.state))
@@ -565,22 +565,22 @@ impl ChannelHandle {
     }
 }
 
-impl std::fmt::Debug for ChannelHandle {
+impl std::fmt::Debug for ChannelRef {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("ChannelHandle")
+            .debug_struct("ChannelRef")
             .field("name", &self.name())
             .finish_non_exhaustive()
     }
 }
 
-impl std::fmt::Display for ChannelHandle {
+impl std::fmt::Display for ChannelRef {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.name().fmt(formatter)
     }
 }
 
-impl PartialEq for ChannelHandle {
+impl PartialEq for ChannelRef {
     fn eq(&self, other: &Self) -> bool {
         match (&self.0.guard, &other.0.guard) {
             (Some(left), Some(right)) => left == right,
@@ -590,21 +590,21 @@ impl PartialEq for ChannelHandle {
     }
 }
 
-impl Eq for ChannelHandle {}
+impl Eq for ChannelRef {}
 
-impl PartialEq<str> for ChannelHandle {
+impl PartialEq<str> for ChannelRef {
     fn eq(&self, other: &str) -> bool {
         self.name() == other
     }
 }
 
-impl PartialEq<&str> for ChannelHandle {
+impl PartialEq<&str> for ChannelRef {
     fn eq(&self, other: &&str) -> bool {
         self == *other
     }
 }
 
-impl Hash for ChannelHandle {
+impl Hash for ChannelRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.0.guard.hash(state);
         if self.0.guard.is_none() {
@@ -638,20 +638,20 @@ impl crate::Client {
             .acquire_target(WatchIdentity::Name(nick.as_ref().to_owned()), None)
     }
 
-    /// Creates a channel handle without sending an IRC command.
+    /// Creates a channel reference without sending an IRC command.
     ///
-    /// A handle names the whole channel. A status-prefixed address such as `@#ops` is a line's
+    /// A reference names the whole channel. A status-prefixed address such as `@#ops` is a line's
     /// audience, not a channel, so it is refused; see [`crate::Conversation`] for ops-only
     /// guidance.
     /// # Errors
     /// Returns [`crate::Error::InvalidInput`] when name rules are unknown or reject the channel,
     /// including a `STATUSMSG` prefix such as `@#ops`,
     /// [`crate::Error::ForeignReference`] when `channel` belongs to another client, and
-    /// [`crate::Error::TargetGone`] when `channel` is a handle to a channel this client has left.
+    /// [`crate::Error::TargetGone`] when `channel` is a reference to a channel this client has left.
     pub(crate) fn channel(
         &self,
         channel: impl crate::AsChannel,
-    ) -> Result<ChannelHandle, crate::Error> {
+    ) -> Result<ChannelRef, crate::Error> {
         let parts = crate::AsChannel::__parts(&channel).into_owned();
         let state = self.state();
         crate::ForeignReference::require_local(parts.origin, self.origin)?;
@@ -686,7 +686,7 @@ impl crate::Client {
                 crate::InvalidInput::invalid_argument("channel: channel", text, reason).into(),
             );
         };
-        Ok(ChannelHandle::new(
+        Ok(ChannelRef::new(
             self,
             channel.clone(),
             state.channel_local(&channel).is_some(),
@@ -694,9 +694,9 @@ impl crate::Client {
     }
 }
 
-impl crate::target::sealed::Sealed for ChannelHandle {}
+impl crate::target::sealed::Sealed for ChannelRef {}
 
-impl crate::AsChannel for ChannelHandle {
+impl crate::AsChannel for ChannelRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
             send_name: None,
@@ -734,13 +734,13 @@ impl crate::AsConversation for UserRef {
     }
 }
 
-impl crate::Target for ChannelHandle {
+impl crate::Target for ChannelRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         <Self as crate::AsChannel>::__parts(self)
     }
 }
 
-impl crate::AsConversation for ChannelHandle {
+impl crate::AsConversation for ChannelRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         <Self as crate::AsChannel>::__parts(self)
     }
@@ -1030,7 +1030,7 @@ mod tests {
         );
         assert_eq!(
             format!("{release:?}"),
-            format!("ChannelHandle {{ name: {:?}, .. }}", release.name())
+            format!("ChannelRef {{ name: {:?}, .. }}", release.name())
         );
         for debug in [format!("{alice:?}"), format!("{release:?}")] {
             assert!(!debug.contains("alice-account"));

@@ -1701,7 +1701,7 @@ where
                     if let PendingRequest::AutoJoin { channel } = result {
                         if let Some(error) = response.error() {
                             let event = Event::AutoJoinFailed(crate::event::AutoJoinFailed {
-                                channel: crate::ChannelHandle::from_parts(
+                                channel: crate::ChannelRef::from_parts(
                                     channel,
                                     None,
                                     Some(&events.state),

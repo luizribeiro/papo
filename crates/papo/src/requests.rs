@@ -114,7 +114,7 @@ impl WhoisChannel {
 #[non_exhaustive]
 pub struct WhoEntry {
     /// Channel associated with this reply, when present.
-    pub channel: Option<crate::ChannelHandle>,
+    pub channel: Option<crate::ChannelRef>,
     /// User reported by the reply.
     ///
     /// It stands for the person the row described when it arrived, as does [`Whois::user`]. It
@@ -390,7 +390,7 @@ pub(crate) fn who(
                 });
                 Some(WhoEntry {
                     channel: reply.channel.map(|channel| {
-                        crate::ChannelHandle::new(client, origin.__channel(mapping, channel), false)
+                        crate::ChannelRef::new(client, origin.__channel(mapping, channel), false)
                     }),
                     user: reply_user(client, mapping, reply.nick?, token, account.clone()),
                     username: reply.user?.to_owned(),
@@ -435,7 +435,7 @@ fn plain_who(
             .param(1)
             .filter(|value| *value != "*")
             .map(|channel| {
-                crate::ChannelHandle::new(
+                crate::ChannelRef::new(
                     client,
                     origin.__channel(isupport.casemapping(), channel),
                     false,
@@ -750,7 +750,7 @@ mod tests {
         assert_eq!(hidden.rank(), Some(crate::Rank::Op));
         assert_eq!(
             (
-                visible.channel.as_ref().map(crate::ChannelHandle::name),
+                visible.channel.as_ref().map(crate::ChannelRef::name),
                 visible.prefixes[0].symbol()
             ),
             (Some(client.channel("#rust").unwrap().name()), '+')

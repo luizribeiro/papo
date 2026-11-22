@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{ChannelHandle, ChannelName, MessageId, Nick, Party, Subject};
+use crate::{ChannelName, ChannelRef, MessageId, Nick, Party, Subject};
 
 use super::Actor;
 
@@ -17,7 +17,7 @@ pub struct Joined {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The joined channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
     /// The joining user.
     pub actor: crate::UserRef,
     /// Who the joining user is relative to you.
@@ -32,7 +32,7 @@ pub struct Joined {
 #[non_exhaustive]
 pub struct ChannelSynced {
     /// The synchronized channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
 }
 
 /// A channel's member facts were refreshed by a `WHO` sweep.
@@ -40,7 +40,7 @@ pub struct ChannelSynced {
 #[non_exhaustive]
 pub struct MembersRefreshed {
     /// The refreshed channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
 }
 
 /// A user left a shared channel with `PART`.
@@ -58,7 +58,7 @@ pub struct Parted {
     /// User facts removed by this event, or `None` when the paired state still knows the user.
     pub facts: Option<crate::User>,
     /// The departed channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
     /// The optional part reason.
     pub reason: Option<String>,
     /// Who the departing user is relative to you.
@@ -77,7 +77,7 @@ pub struct Kicked {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
     /// The removed user.
     pub subject: crate::UserRef,
     /// User facts removed by this event, or `None` when the paired state still knows the user.
@@ -104,7 +104,7 @@ pub struct Invited {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
     /// The invited user.
     pub subject: crate::UserRef,
     /// The user or server that sent the invitation.
@@ -128,7 +128,7 @@ pub struct TopicChanged {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
     /// The new topic, or `None` when it was cleared.
     pub topic: Option<String>,
     /// The user or server that changed the topic.
@@ -196,7 +196,7 @@ pub struct ChannelRenamed {
     pub received_at: SystemTime,
     /// The renamed channel lifecycle. See [`crate::Conversation`] for status-prefixed line
     /// guidance.
-    pub channel: ChannelHandle,
+    pub channel: ChannelRef,
     /// The previous channel name.
     pub old: ChannelName,
     /// The new channel name.

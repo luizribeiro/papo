@@ -653,7 +653,7 @@ async fn assert_no_wire(first: &mut Wire, second: &mut Wire) {
 struct ForeignValues {
     first: ClientPair,
     second: ClientPair,
-    channel: papo::ChannelHandle,
+    channel: papo::ChannelRef,
     alice: papo::UserRef,
     nick: papo::Nick,
     account: papo::AccountName,
@@ -2540,7 +2540,7 @@ async fn joined_channel_handle(
     client: &papo::Client,
     events: &mut Events,
     wire: &mut Wire,
-) -> papo::ChannelHandle {
+) -> papo::ChannelRef {
     wire.server(":papo-wire!~u@localhost JOIN #papo").await;
     assert!(matches!(
         next_active_event(events).await,
@@ -2552,7 +2552,7 @@ async fn joined_channel_handle(
 async fn assert_stale_channel_requests_fail(
     client: &papo::Client,
     wire: &mut Wire,
-    stale: &papo::ChannelHandle,
+    stale: &papo::ChannelRef,
 ) {
     let avatar = || papo::MetadataKey::new("avatar");
     let metadata = client.metadata();

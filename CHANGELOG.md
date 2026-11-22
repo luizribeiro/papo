@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `ChannelRef` for a reference to a channel.
+
 Use `UserRef` for a reference to a user.
 
 Use `event::NoticeTarget` for the destination of a server notice.
@@ -140,7 +142,7 @@ compile.
 `Client::rename_channel` can be awaited only after `.to(..)`; a rename without its destination does
 not compile.
 
-`Client::query` and `Client::channel` now return `Result<_, Error>`, so a handle whose user or
+`Client::query` and `Client::channel` now return `Result<_, Error>`, so a reference whose user or
 channel has gone fails with `Error::TargetGone` instead of a foreign-reference error.
 
 `InvalidInput::ForeignReference` is removed: every request given a value from another client fails
@@ -150,9 +152,9 @@ with `Error::ForeignReference`.
 you as its own typed `Error` or `InvalidInput` variant, never as text.
 
 `Client::channel` refuses a status-prefixed name such as `@#ops` with `InvalidInput::InvalidName`:
-a channel handle names the whole channel, never a line's ops-only audience.
+a channel reference names the whole channel, never a line's ops-only audience.
 
-`ChannelHandle::status` is removed and a channel handle never carries a status sign: an `@#ops`
+`ChannelRef::status` is removed and a channel reference never carries a status sign: an `@#ops`
 line and a `#ops` line have equal conversations whose channel sends to `#ops`. Answer an ops-only
 line through `reply`, `react`, `redact` or its `return_address()`, which keep `@#ops`.
 
@@ -160,7 +162,7 @@ Sending to a target with stacked status prefixes such as `+@#ops` fails with
 `InvalidInput::InvalidName` before anything is written; Ergo refuses such a target and Solanum
 widens it. A single prefix such as `@#ops` is still sent as written.
 
-`MessageRef` can no longer be built from text, a channel handle or another reference paired with a
+`MessageRef` can no longer be built from text, a channel reference or another reference paired with a
 message identifier (`("#papo", id)`, `(&channel, id)`): a reference comes from a received line or a
 `SendOutcome`, so a public reaction, reply or redaction cannot point at an ops-only message by its
 id.
@@ -186,7 +188,7 @@ It also ignores every message from a history page, whatever its stamp.
 the line's own audience. `papo_bot::BotCommand::private_notice` no longer threads its notice.
 
 `Message::channel_context()` and `Notice::channel_context` are a `Conversation` to file a private
-line under, not a sendable `ChannelHandle`, so answering a DM cannot reach the whole channel.
+line under, not a sendable `ChannelRef`, so answering a DM cannot reach the whole channel.
 
 papo remembers the ids of the last 1024 status-prefixed lines each connection received, including
 echoes of its own, and refuses a reply, reaction or `REDACT` that points at one of them with
@@ -253,7 +255,7 @@ missing topic. A `322` reply without a topic parameter is now listed instead of 
 `Client::relay` (unstable) resolves to a `RelayOutcome` with the `Confirmation` of the relayed
 `PRIVMSG` echo.
 
-Awaiting a `RenameChannelRequest` resolves to a `ChannelHandle` for the channel under the name the
+Awaiting a `RenameChannelRequest` resolves to a `ChannelRef` for the channel under the name the
 server echoed in `RENAME`.
 
 `Metadata::set` and `Metadata::set_on` resolve to the `MetadataValue` the server stored, and
@@ -313,7 +315,7 @@ Private history messages and notices now carry `channel_context` from a valid co
 
 `Feature::from_name` resolves exact stable feature names back to their typed values.
 
-`Client::query` and `Client::channel` create connection-bound user and channel handles without sending an IRC command.
+`Client::query` and `Client::channel` create connection-bound user and channel references without sending an IRC command.
 
 The first guarded use of a `UserRef` proves its identity with WHO, follows nickname changes, and refuses foreign or departed identities before writing the target command.
 
@@ -347,20 +349,20 @@ Channel member lookups now report foreign references instead of treating them as
 Privilege-granting mode helpers now require a `UserRef` and recheck its person identity at the final write.
 Metadata operations on a person now prove and recheck that identity before transmission.
 
-`Client::join` now resolves to the synchronized `ChannelHandle` for the joined channel.
-Mode and metadata requests on a channel handle the client has since left now fail with `Error::TargetGone` instead of panicking.
+`Client::join` now resolves to the synchronized `ChannelRef` for the joined channel.
+Mode and metadata requests on a channel reference the client has since left now fail with `Error::TargetGone` instead of panicking.
 
-`UserRef` and `ChannelHandle` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
+`UserRef` and `ChannelRef` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
 
-Channel-bearing events and conversations now expose `ChannelHandle` values, so held channel identities follow `RENAME` without losing the old and new event facts.
+Channel-bearing events and conversations now expose `ChannelRef` values, so held channel identities follow `RENAME` without losing the old and new event facts.
 
-`State::channel` now returns `Result<Option<&Channel>, ForeignReference>` to distinguish a channel that is not joined from a handle owned by another client.
+`State::channel` now returns `Result<Option<&Channel>, ForeignReference>` to distinguish a channel that is not joined from a reference owned by another client.
 
-Channel message and notice references now retain channel handles; a `STATUSMSG` handle keeps its prefix for replies while channel commands and saved names stay bare.
+Channel message and notice references now retain channel references; a `STATUSMSG` reference keeps its prefix for replies while channel commands and saved names stay bare.
 
 Message-like events now expose `UserRef` actors, and private `Conversation` values hold the same identity; mutable account, host, away, and bot facts come from the event's paired `State`.
 
-`WhoEntry` now exposes user and channel handles and reports the WHO operator flag as `is_oper`.
+`WhoEntry` now exposes user and channel references and reports the WHO operator flag as `is_oper`.
 
 `papo_proto::time::parse` is removed: `ServerTime::from_stored` is the one way to read text as a server time.
 
@@ -380,7 +382,7 @@ straight to `SetModes::op`; mode changes now compare members by identity, like `
 
 `Joined` events now carry a `UserRef`; joined-user facts are read from the paired `State`.
 
-`NickChanged` now carries a `UserRef`, the old and new nickname facts, and channel handles.
+`NickChanged` now carries a `UserRef`, the old and new nickname facts, and channel references.
 
 Account, away, host, and real-name change events now identify the affected user with a `UserRef`; mutable facts come from the paired `State`.
 
@@ -392,7 +394,7 @@ MONITOR online and offline events now carry a `UserRef`; online facts are read f
 
 PART events now carry a `UserRef` and preserve user facts only when the paired state forgets the departing user.
 
-QUIT events now carry user and channel handles and preserve departed user facts.
+QUIT events now carry user and channel references and preserve departed user facts.
 
 `Actor::User` now contains a `UserRef`; `UserSource` and its `Oper` fact type are removed, and historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 

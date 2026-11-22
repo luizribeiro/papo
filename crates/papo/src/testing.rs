@@ -106,7 +106,7 @@ pub fn channel_name(casemapping: Casemapping, text: impl Into<String>) -> Channe
     crate::Origin::NONE.__channel(casemapping, text)
 }
 
-/// Builds a handle using the client's current channel state and name rules.
+/// Builds a channel reference using the client's current channel state and name rules.
 ///
 /// See [`crate::Conversation`] for ops-only audiences.
 ///
@@ -115,7 +115,7 @@ pub fn channel_name(casemapping: Casemapping, text: impl Into<String>) -> Channe
 pub fn channel_handle(
     client: &crate::Client,
     channel: impl crate::AsChannel,
-) -> Result<crate::ChannelHandle, crate::Error> {
+) -> Result<crate::ChannelRef, crate::Error> {
     client.channel(channel)
 }
 
@@ -237,7 +237,7 @@ pub fn message(
             other,
         )))
     } else {
-        crate::Conversation::Channel(crate::ChannelHandle::from_parts(
+        crate::Conversation::Channel(crate::ChannelRef::from_parts(
             channel_name(Casemapping::default(), &target),
             None,
             None,
@@ -344,7 +344,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        channel: crate::ChannelHandle::from_parts(channel.into(), None, None),
+        channel: crate::ChannelRef::from_parts(channel.into(), None, None),
         actor: user_handle(nick),
         actor_party: if own { Party::Me } else { Party::Other },
         netjoin: None,
@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn a_message_reference_keeps_the_channel_context_through_later_setters() {
         let mapping = crate::Casemapping::default();
-        let ops = crate::ChannelHandle::from_parts(mapping.channel("#ops"), None, None);
+        let ops = crate::ChannelRef::from_parts(mapping.channel("#ops"), None, None);
         let mut message = message(
             Some(user_handle(mapping.nick("ChanServ"))),
             "papo",

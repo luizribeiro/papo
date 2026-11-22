@@ -140,7 +140,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
 #[non_exhaustive] pub enum papo::event::NoticeTarget
 pub papo::event::NoticeTarget::Broadcast(papo::event::Broadcast)
-pub papo::event::NoticeTarget::Channel(papo::ChannelHandle)
+pub papo::event::NoticeTarget::Channel(papo::ChannelRef)
 pub papo::event::NoticeTarget::Me
 impl core::clone::Clone for papo::event::NoticeTarget
 pub fn papo::event::NoticeTarget::clone(&self) -> Self
@@ -232,7 +232,7 @@ pub papo::event::Warning::BatchAbandoned::batch_type: papo::BatchType
 pub papo::event::Warning::BatchAbandoned::id: papo::BatchId
 pub papo::event::Warning::BatchAbandoned::reason: papo::BatchAbandonReason
 #[non_exhaustive] pub papo::event::Warning::ChannelRecreated
-pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelHandle
+pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelRef
 pub papo::event::Warning::ChannelRecreated::created_at: papo_proto::time::ServerTime
 pub papo::event::Warning::ChannelRecreated::previous_created_at: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo::event::Warning::Malformed
@@ -285,7 +285,7 @@ impl core::marker::UnsafeUnpin for papo::event::AccountChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 #[non_exhaustive] pub struct papo::event::AutoJoinFailed
-pub papo::event::AutoJoinFailed::channel: papo::ChannelHandle
+pub papo::event::AutoJoinFailed::channel: papo::ChannelRef
 pub papo::event::AutoJoinFailed::error: papo::ServerError
 impl core::clone::Clone for papo::event::AutoJoinFailed
 pub fn papo::event::AutoJoinFailed::clone(&self) -> Self
@@ -439,7 +439,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::CasemappingChanged
 #[non_exhaustive] pub struct papo::event::ChannelRenamed
 pub papo::event::ChannelRenamed::actor: papo::Actor
 pub papo::event::ChannelRenamed::actor_party: papo::Party
-pub papo::event::ChannelRenamed::channel: papo::ChannelHandle
+pub papo::event::ChannelRenamed::channel: papo::ChannelRef
 pub papo::event::ChannelRenamed::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ChannelRenamed::new: papo::ChannelName
 pub papo::event::ChannelRenamed::old: papo::ChannelName
@@ -464,7 +464,7 @@ impl core::marker::UnsafeUnpin for papo::event::ChannelRenamed
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ChannelRenamed
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ChannelRenamed
 #[non_exhaustive] pub struct papo::event::ChannelSynced
-pub papo::event::ChannelSynced::channel: papo::ChannelHandle
+pub papo::event::ChannelSynced::channel: papo::ChannelRef
 impl core::clone::Clone for papo::event::ChannelSynced
 pub fn papo::event::ChannelSynced::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ChannelSynced
@@ -628,7 +628,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::HostChanged
 #[non_exhaustive] pub struct papo::event::Invited
 pub papo::event::Invited::actor: papo::Actor
 pub papo::event::Invited::actor_party: papo::Party
-pub papo::event::Invited::channel: papo::ChannelHandle
+pub papo::event::Invited::channel: papo::ChannelRef
 pub papo::event::Invited::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Invited::received_at: std::time::SystemTime
 pub papo::event::Invited::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -654,7 +654,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
 pub papo::event::Joined::actor: papo::UserRef
 pub papo::event::Joined::actor_party: papo::Party
-pub papo::event::Joined::channel: papo::ChannelHandle
+pub papo::event::Joined::channel: papo::ChannelRef
 pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Joined::netjoin: core::option::Option<papo::event::SplitServers>
 pub papo::event::Joined::received_at: std::time::SystemTime
@@ -679,7 +679,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Joined
 #[non_exhaustive] pub struct papo::event::Kicked
 pub papo::event::Kicked::actor: papo::Actor
 pub papo::event::Kicked::actor_party: papo::Party
-pub papo::event::Kicked::channel: papo::ChannelHandle
+pub papo::event::Kicked::channel: papo::ChannelRef
 pub papo::event::Kicked::facts: core::option::Option<papo::User>
 pub papo::event::Kicked::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
@@ -723,7 +723,7 @@ impl core::marker::UnsafeUnpin for papo::event::Lagged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Lagged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Lagged
 #[non_exhaustive] pub struct papo::event::MembersRefreshed
-pub papo::event::MembersRefreshed::channel: papo::ChannelHandle
+pub papo::event::MembersRefreshed::channel: papo::ChannelRef
 impl core::clone::Clone for papo::event::MembersRefreshed
 pub fn papo::event::MembersRefreshed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::MembersRefreshed
@@ -862,7 +862,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Motd
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::actor: papo::UserRef
 pub papo::event::NickChanged::actor_party: papo::Party
-pub papo::event::NickChanged::channels: alloc::vec::Vec<papo::ChannelHandle>
+pub papo::event::NickChanged::channels: alloc::vec::Vec<papo::ChannelRef>
 pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
@@ -944,7 +944,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Other
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::actor: papo::UserRef
 pub papo::event::Parted::actor_party: papo::Party
-pub papo::event::Parted::channel: papo::ChannelHandle
+pub papo::event::Parted::channel: papo::ChannelRef
 pub papo::event::Parted::facts: core::option::Option<papo::User>
 pub papo::event::Parted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
@@ -970,7 +970,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::actor: papo::UserRef
 pub papo::event::Quit::actor_party: papo::Party
-pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelHandle>
+pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelRef>
 pub papo::event::Quit::facts: core::option::Option<papo::User>
 pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Quit::netsplit: core::option::Option<papo::event::SplitServers>
@@ -1202,7 +1202,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::TagMsg
 #[non_exhaustive] pub struct papo::event::TopicChanged
 pub papo::event::TopicChanged::actor: papo::Actor
 pub papo::event::TopicChanged::actor_party: papo::Party
-pub papo::event::TopicChanged::channel: papo::ChannelHandle
+pub papo::event::TopicChanged::channel: papo::ChannelRef
 pub papo::event::TopicChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::TopicChanged::received_at: std::time::SystemTime
 pub papo::event::TopicChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -1521,7 +1521,7 @@ impl core::marker::UnsafeUnpin for papo::ConnectErrorKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectErrorKind
 impl core::panic::unwind_safe::UnwindSafe for papo::ConnectErrorKind
 #[non_exhaustive] pub enum papo::Conversation
-pub papo::Conversation::Channel(papo::ChannelHandle)
+pub papo::Conversation::Channel(papo::ChannelRef)
 pub papo::Conversation::Private(papo::UserRef)
 impl core::clone::Clone for papo::Conversation
 pub fn papo::Conversation::clone(&self) -> Self
@@ -2175,10 +2175,10 @@ impl core::marker::UnsafeUnpin for papo::StreamSecurity
 impl core::panic::unwind_safe::RefUnwindSafe for papo::StreamSecurity
 impl core::panic::unwind_safe::UnwindSafe for papo::StreamSecurity
 #[non_exhaustive] pub enum papo::Subject
-pub papo::Subject::Channel(papo::ChannelHandle)
+pub papo::Subject::Channel(papo::ChannelRef)
 pub papo::Subject::User(papo::UserRef)
 impl papo::Subject
-pub const fn papo::Subject::channel(&self) -> core::option::Option<&papo::ChannelHandle>
+pub const fn papo::Subject::channel(&self) -> core::option::Option<&papo::ChannelRef>
 pub fn papo::Subject::nick(&self) -> core::option::Option<papo::Nick>
 pub const fn papo::Subject::user(&self) -> core::option::Option<&papo::UserRef>
 impl core::clone::Clone for papo::Subject
@@ -2428,34 +2428,34 @@ impl core::marker::Unpin for papo::Channel
 impl core::marker::UnsafeUnpin for papo::Channel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Channel
 impl core::panic::unwind_safe::UnwindSafe for papo::Channel
-pub struct papo::ChannelHandle(_)
-impl papo::ChannelHandle
-pub fn papo::ChannelHandle::name(&self) -> papo::ChannelName
-impl core::clone::Clone for papo::ChannelHandle
-pub fn papo::ChannelHandle::clone(&self) -> Self
-impl core::cmp::Eq for papo::ChannelHandle
-impl core::cmp::PartialEq for papo::ChannelHandle
-pub fn papo::ChannelHandle::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo::ChannelHandle
-pub fn papo::ChannelHandle::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo::ChannelHandle
-pub fn papo::ChannelHandle::eq(&self, &str) -> bool
-impl core::fmt::Debug for papo::ChannelHandle
-pub fn papo::ChannelHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::ChannelHandle
-pub fn papo::ChannelHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::ChannelHandle
-pub fn papo::ChannelHandle::hash<H: core::hash::Hasher>(&self, &mut H)
-impl papo::AsChannel for papo::ChannelHandle
-impl papo::AsConversation for papo::ChannelHandle
-impl papo::Target for papo::ChannelHandle
-impl core::marker::Freeze for papo::ChannelHandle
-impl core::marker::Send for papo::ChannelHandle
-impl core::marker::Sync for papo::ChannelHandle
-impl core::marker::Unpin for papo::ChannelHandle
-impl core::marker::UnsafeUnpin for papo::ChannelHandle
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ChannelHandle
-impl core::panic::unwind_safe::UnwindSafe for papo::ChannelHandle
+pub struct papo::ChannelRef(_)
+impl papo::ChannelRef
+pub fn papo::ChannelRef::name(&self) -> papo::ChannelName
+impl core::clone::Clone for papo::ChannelRef
+pub fn papo::ChannelRef::clone(&self) -> Self
+impl core::cmp::Eq for papo::ChannelRef
+impl core::cmp::PartialEq for papo::ChannelRef
+pub fn papo::ChannelRef::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::ChannelRef
+pub fn papo::ChannelRef::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::ChannelRef
+pub fn papo::ChannelRef::eq(&self, &str) -> bool
+impl core::fmt::Debug for papo::ChannelRef
+pub fn papo::ChannelRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::ChannelRef
+pub fn papo::ChannelRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ChannelRef
+pub fn papo::ChannelRef::hash<H: core::hash::Hasher>(&self, &mut H)
+impl papo::AsChannel for papo::ChannelRef
+impl papo::AsConversation for papo::ChannelRef
+impl papo::Target for papo::ChannelRef
+impl core::marker::Freeze for papo::ChannelRef
+impl core::marker::Send for papo::ChannelRef
+impl core::marker::Sync for papo::ChannelRef
+impl core::marker::Unpin for papo::ChannelRef
+impl core::marker::UnsafeUnpin for papo::ChannelRef
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ChannelRef
+impl core::panic::unwind_safe::UnwindSafe for papo::ChannelRef
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
@@ -2857,8 +2857,8 @@ pub fn papo::JoinChannel::key(self, papo::Secret) -> Self
 impl core::fmt::Debug for papo::JoinChannel
 pub fn papo::JoinChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::JoinChannel
-pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<papo::ChannelHandle>
-pub type papo::JoinChannel::Output = core::result::Result<papo::ChannelHandle, papo::Error>
+pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<papo::ChannelRef>
+pub type papo::JoinChannel::Output = core::result::Result<papo::ChannelRef, papo::Error>
 pub fn papo::JoinChannel::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::JoinChannel
 impl core::marker::Send for papo::JoinChannel
@@ -3545,8 +3545,8 @@ pub fn papo::RenameChannelRequest::reason(self, impl core::convert::Into<alloc::
 impl core::fmt::Debug for papo::RenameChannelRequest
 pub fn papo::RenameChannelRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::RenameChannelRequest
-pub type papo::RenameChannelRequest::IntoFuture = papo::RequestFuture<papo::ChannelHandle>
-pub type papo::RenameChannelRequest::Output = core::result::Result<papo::ChannelHandle, papo::Error>
+pub type papo::RenameChannelRequest::IntoFuture = papo::RequestFuture<papo::ChannelRef>
+pub type papo::RenameChannelRequest::Output = core::result::Result<papo::ChannelRef, papo::Error>
 pub fn papo::RenameChannelRequest::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::RenameChannelRequest
 impl core::marker::Send for papo::RenameChannelRequest
@@ -3989,7 +3989,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::WebPush
 #[non_exhaustive] pub struct papo::WhoEntry
 pub papo::WhoEntry::account: papo::AccountStatus
 pub papo::WhoEntry::away: papo::AwayStatus
-pub papo::WhoEntry::channel: core::option::Option<papo::ChannelHandle>
+pub papo::WhoEntry::channel: core::option::Option<papo::ChannelRef>
 pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: core::option::Option<bool>
 pub papo::WhoEntry::is_oper: bool
@@ -4067,7 +4067,7 @@ impl papo::AsChannel for alloc::borrow::Cow<'_, str>
 impl papo::AsChannel for alloc::boxed::Box<str>
 impl papo::AsChannel for alloc::rcs::arc::Arc<str>
 impl papo::AsChannel for alloc::string::String
-impl papo::AsChannel for papo::ChannelHandle
+impl papo::AsChannel for papo::ChannelRef
 impl papo::AsChannel for papo::ChannelName
 impl papo::AsChannel for str
 impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
@@ -4076,7 +4076,7 @@ impl papo::AsConversation for alloc::borrow::Cow<'_, str>
 impl papo::AsConversation for alloc::boxed::Box<str>
 impl papo::AsConversation for alloc::rcs::arc::Arc<str>
 impl papo::AsConversation for alloc::string::String
-impl papo::AsConversation for papo::ChannelHandle
+impl papo::AsConversation for papo::ChannelRef
 impl papo::AsConversation for papo::Conversation
 impl papo::AsConversation for papo::UserRef
 impl papo::AsConversation for papo::ChannelName
@@ -4112,7 +4112,7 @@ impl papo::Target for alloc::borrow::Cow<'_, str>
 impl papo::Target for alloc::boxed::Box<str>
 impl papo::Target for alloc::rcs::arc::Arc<str>
 impl papo::Target for alloc::string::String
-impl papo::Target for papo::ChannelHandle
+impl papo::Target for papo::ChannelRef
 impl papo::Target for papo::MessageRef
 impl papo::Target for papo::NoticeRef
 impl papo::Target for papo::UserRef

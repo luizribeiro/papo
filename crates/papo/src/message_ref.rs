@@ -21,10 +21,10 @@ struct ReceiptIdentity {
     actor: Actor,
     token: Option<papo_core::ReplyToken>,
     recipient: Option<crate::UserRef>,
-    channel: Option<crate::ChannelHandle>,
+    channel: Option<crate::ChannelRef>,
     archived_private: bool,
     msgids: Vec<MessageId>,
-    channel_context: Option<crate::ChannelHandle>,
+    channel_context: Option<crate::ChannelRef>,
 }
 
 impl Receipt {
@@ -109,7 +109,7 @@ impl Receipt {
     pub(crate) fn set_reference(
         &mut self,
         msgids: impl IntoIterator<Item = MessageId>,
-        channel_context: Option<crate::ChannelHandle>,
+        channel_context: Option<crate::ChannelRef>,
     ) {
         self.identity.msgids = msgids.into_iter().collect();
         self.identity.channel_context = channel_context;
@@ -162,7 +162,7 @@ pub(crate) trait ReplyReference {
 /// ```
 ///
 /// ```compile_fail,E0277
-/// # fn example(client: &papo::Client, channel: &papo::ChannelHandle) {
+/// # fn example(client: &papo::Client, channel: &papo::ChannelRef) {
 /// let _ = client.redact((channel, "RfcBTzyxY120004"), "spam");
 /// # }
 /// ```
@@ -189,10 +189,10 @@ pub struct MessageRef {
     address: String,
     msgids: Vec<MessageId>,
     origin: crate::Origin,
-    channel_context: Option<crate::ChannelHandle>,
+    channel_context: Option<crate::ChannelRef>,
     recipient: Option<crate::UserRef>,
     send_name: Option<SendName>,
-    channel: Option<crate::ChannelHandle>,
+    channel: Option<crate::ChannelRef>,
     conversation: Option<Conversation>,
     server_time: Option<crate::ServerTime>,
 }
@@ -216,9 +216,9 @@ impl MessageRef {
         address: String,
         msgids: Vec<MessageId>,
         origin: crate::Origin,
-        channel_context: Option<crate::ChannelHandle>,
+        channel_context: Option<crate::ChannelRef>,
         recipient: Option<crate::UserRef>,
-        channel: Option<crate::ChannelHandle>,
+        channel: Option<crate::ChannelRef>,
     ) -> Self {
         Self {
             address,
@@ -266,7 +266,7 @@ impl MessageRef {
         self.origin
     }
 
-    pub(crate) fn channel_context(&self) -> Option<&crate::ChannelHandle> {
+    pub(crate) fn channel_context(&self) -> Option<&crate::ChannelRef> {
         self.channel_context.as_ref()
     }
 
@@ -318,7 +318,7 @@ impl crate::Target for MessageRef {
             channel: self
                 .channel
                 .as_ref()
-                .and_then(crate::ChannelHandle::guard)
+                .and_then(crate::ChannelRef::guard)
                 .cloned()
                 .map(Box::new),
             user: self
@@ -341,7 +341,7 @@ pub struct NoticeRef {
     address: String,
     origin: crate::Origin,
     recipient: Option<crate::UserRef>,
-    channel: Option<crate::ChannelHandle>,
+    channel: Option<crate::ChannelRef>,
 }
 
 impl fmt::Display for NoticeRef {
@@ -379,7 +379,7 @@ impl crate::Target for NoticeRef {
             channel: self
                 .channel
                 .as_ref()
-                .and_then(crate::ChannelHandle::guard)
+                .and_then(crate::ChannelRef::guard)
                 .cloned()
                 .map(Box::new),
             user: self.recipient.clone(),
@@ -502,8 +502,8 @@ mod tests {
 
     use super::*;
 
-    fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
-        crate::ChannelHandle::from_parts(value, None, None)
+    fn channel_handle(value: crate::ChannelName) -> crate::ChannelRef {
+        crate::ChannelRef::from_parts(value, None, None)
     }
 
     fn user_handle(value: crate::Nick) -> crate::UserRef {
@@ -712,7 +712,7 @@ mod tests {
             .__channel_guard(session.state().channel("#ops").unwrap().name());
         let actor = crate::Actor::User(user_handle(mapping.nick("alice")));
         let mut receipt = Receipt::new(actor.clone(), &channel, None, "@#ops".into());
-        receipt.identity.channel = Some(crate::ChannelHandle::from_parts(
+        receipt.identity.channel = Some(crate::ChannelRef::from_parts(
             mapping.channel("#ops"),
             Some(guard),
             None,

@@ -53,8 +53,8 @@ impl RenameChannel {
 crate::client::reason_step!(RenameChannelRequest, "rename");
 
 impl IntoFuture for RenameChannelRequest {
-    type Output = Result<crate::ChannelHandle, crate::Error>;
-    type IntoFuture = crate::RequestFuture<crate::ChannelHandle>;
+    type Output = Result<crate::ChannelRef, crate::Error>;
+    type IntoFuture = crate::RequestFuture<crate::ChannelRef>;
 
     fn into_future(self) -> Self::IntoFuture {
         self.client
@@ -63,7 +63,7 @@ impl IntoFuture for RenameChannelRequest {
 }
 
 impl Client {
-    /// Requests a channel rename and resolves to a handle for the channel under the name the
+    /// Requests a channel rename and resolves to a reference to the channel under the name the
     /// server echoed.
     ///
     /// Name the destination with [`RenameChannel::to`]; only the resulting
@@ -92,7 +92,7 @@ impl Client {
         old: crate::target::sealed::Parts<'static>,
         new: crate::target::sealed::Parts<'static>,
         reason: String,
-    ) -> crate::RequestFuture<crate::ChannelHandle> {
+    ) -> crate::RequestFuture<crate::ChannelRef> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let old = client.resolve(crate::target::Role::Channel("rename_channel: old"), old)?;

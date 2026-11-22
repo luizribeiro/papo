@@ -83,7 +83,7 @@ const PLAIN_RESULTS: &[(&str, Plain)] = &[
     ("core::option::Option<papo::Event>", Plain::Value),
     ("core::option::Option<papo::Whois>", Plain::Value),
     ("core::time::Duration", Plain::Value),
-    ("papo::ChannelHandle", Plain::Handle),
+    ("papo::ChannelRef", Plain::Handle),
     ("papo::HistoryPage", Plain::Page),
     ("papo::MetadataValue", Plain::Value),
     ("papo::NetworkId", Plain::Value),
