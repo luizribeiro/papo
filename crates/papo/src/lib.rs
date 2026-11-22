@@ -260,38 +260,6 @@
 #[cfg(all(test, browser))]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-macro_rules! variant_accessors {
-    ($type:ident;) => {};
-    ($type:ident; (field $variant:ident, $field:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
-        impl $type {
-            #[doc = concat!("Returns the payload when this is [`", stringify!($type), "::", stringify!($variant), "`].")]
-            #[must_use]
-            pub const fn $method(&self) -> Option<&$payload> {
-                if let Self::$variant { $field, .. } = self {
-                    Some($field)
-                } else {
-                    None
-                }
-            }
-        }
-        variant_accessors! { $type; $($rest)* }
-    };
-    ($type:ident; ($variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {
-        impl $type {
-            #[doc = concat!("Returns the payload when this is [`", stringify!($type), "::", stringify!($variant), "`].")]
-            #[must_use]
-            pub const fn $method(&self) -> Option<&$payload> {
-                if let Self::$variant(payload) = self {
-                    Some(payload)
-                } else {
-                    None
-                }
-            }
-        }
-        variant_accessors! { $type; $($rest)* }
-    };
-}
-
 pub(crate) fn opaque_debug(
     name: &str,
     formatter: &mut std::fmt::Formatter<'_>,

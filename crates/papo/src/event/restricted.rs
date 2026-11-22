@@ -224,17 +224,3 @@ impl<'a> LineView<'a> {
         }
     }
 }
-
-variant_accessors! { RestrictedLine;
-    (Message, as_message, Message),
-    (Notice, as_notice, Notice),
-    (Incomplete, as_incomplete, Incomplete),
-    (ServerNotice, as_server_notice, ServerNotice),
-    (CtcpQuery, as_ctcp_query, CtcpQuery),
-    (CtcpReply, as_ctcp_reply, CtcpReply),
-    (TagMsg, as_tag_msg, TagMsg),
-    (Reacted, as_reacted, Reacted),
-    (Redacted, as_redacted, Redacted),
-    (TypingChanged, as_typing_changed, TypingChanged),
-    (Other, as_other, Other),
-}

@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Match event variants in application code. Event shortcut accessors are available through `papo-testing`.
+
 Use `ChannelRef` for a reference to a channel.
 
 Use `UserRef` for a reference to a user.

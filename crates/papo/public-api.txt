@@ -1648,98 +1648,6 @@ pub papo::Event::TopicChanged(papo::event::TopicChanged)
 pub papo::Event::TypingChanged(papo::event::TypingChanged)
 pub papo::Event::Warning(papo::event::Warning)
 impl papo::Event
-pub const fn papo::Event::as_account_changed(&self) -> core::option::Option<&papo::event::AccountChanged>
-impl papo::Event
-pub const fn papo::Event::as_account_creation(&self) -> core::option::Option<&papo::AccountOutcome>
-impl papo::Event
-pub const fn papo::Event::as_auto_join_failed(&self) -> core::option::Option<&papo::event::AutoJoinFailed>
-impl papo::Event
-pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
-impl papo::Event
-pub const fn papo::Event::as_broadcast_ctcp(&self) -> core::option::Option<&papo::event::BroadcastCtcp>
-impl papo::Event
-pub const fn papo::Event::as_broadcast_tag_msg(&self) -> core::option::Option<&papo::event::BroadcastTagMsg>
-impl papo::Event
-pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
-impl papo::Event
-pub const fn papo::Event::as_casemapping_changed(&self) -> core::option::Option<&papo::event::CasemappingChanged>
-impl papo::Event
-pub const fn papo::Event::as_channel_renamed(&self) -> core::option::Option<&papo::event::ChannelRenamed>
-impl papo::Event
-pub const fn papo::Event::as_channel_synced(&self) -> core::option::Option<&papo::event::ChannelSynced>
-impl papo::Event
-pub const fn papo::Event::as_connected(&self) -> core::option::Option<&papo::event::Connected>
-impl papo::Event
-pub const fn papo::Event::as_connecting(&self) -> core::option::Option<&papo::event::Connecting>
-impl papo::Event
-pub const fn papo::Event::as_ctcp_query(&self) -> core::option::Option<&papo::event::CtcpQuery>
-impl papo::Event
-pub const fn papo::Event::as_ctcp_reply(&self) -> core::option::Option<&papo::event::CtcpReply>
-impl papo::Event
-pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::Disconnected>
-impl papo::Event
-pub const fn papo::Event::as_features_changed(&self) -> core::option::Option<&papo::event::FeaturesChanged>
-impl papo::Event
-pub const fn papo::Event::as_history(&self) -> core::option::Option<&papo::HistoryPage>
-impl papo::Event
-pub const fn papo::Event::as_host_changed(&self) -> core::option::Option<&papo::event::HostChanged>
-impl papo::Event
-pub const fn papo::Event::as_incomplete(&self) -> core::option::Option<&papo::Incomplete>
-impl papo::Event
-pub const fn papo::Event::as_invited(&self) -> core::option::Option<&papo::event::Invited>
-impl papo::Event
-pub const fn papo::Event::as_joined(&self) -> core::option::Option<&papo::event::Joined>
-impl papo::Event
-pub const fn papo::Event::as_kicked(&self) -> core::option::Option<&papo::event::Kicked>
-impl papo::Event
-pub const fn papo::Event::as_lagged(&self) -> core::option::Option<&papo::event::Lagged>
-impl papo::Event
-pub const fn papo::Event::as_members_refreshed(&self) -> core::option::Option<&papo::event::MembersRefreshed>
-impl papo::Event
-pub const fn papo::Event::as_message(&self) -> core::option::Option<&papo::Message>
-impl papo::Event
-pub const fn papo::Event::as_metadata_changed(&self) -> core::option::Option<&papo::event::MetadataChanged>
-impl papo::Event
-pub const fn papo::Event::as_mode_changed(&self) -> core::option::Option<&papo::event::ModeChanged>
-impl papo::Event
-pub const fn papo::Event::as_monitor_offline(&self) -> core::option::Option<&papo::event::MonitorOffline>
-impl papo::Event
-pub const fn papo::Event::as_monitor_online(&self) -> core::option::Option<&papo::event::MonitorOnline>
-impl papo::Event
-pub const fn papo::Event::as_motd(&self) -> core::option::Option<&papo::event::Motd>
-impl papo::Event
-pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
-impl papo::Event
-pub const fn papo::Event::as_notice(&self) -> core::option::Option<&papo::event::Notice>
-impl papo::Event
-pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::event::Other>
-impl papo::Event
-pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
-impl papo::Event
-pub const fn papo::Event::as_quit(&self) -> core::option::Option<&papo::event::Quit>
-impl papo::Event
-pub const fn papo::Event::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
-impl papo::Event
-pub const fn papo::Event::as_read_marker_changed(&self) -> core::option::Option<&papo::event::ReadMarkerChanged>
-impl papo::Event
-pub const fn papo::Event::as_realname_changed(&self) -> core::option::Option<&papo::event::RealnameChanged>
-impl papo::Event
-pub const fn papo::Event::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
-impl papo::Event
-pub const fn papo::Event::as_restricted(&self) -> core::option::Option<&papo::Restricted>
-impl papo::Event
-pub const fn papo::Event::as_server_notice(&self) -> core::option::Option<&papo::event::ServerNotice>
-impl papo::Event
-pub const fn papo::Event::as_standard_reply(&self) -> core::option::Option<&papo::event::StandardReply>
-impl papo::Event
-pub const fn papo::Event::as_tag_msg(&self) -> core::option::Option<&papo::event::TagMsg>
-impl papo::Event
-pub const fn papo::Event::as_topic_changed(&self) -> core::option::Option<&papo::event::TopicChanged>
-impl papo::Event
-pub const fn papo::Event::as_typing_changed(&self) -> core::option::Option<&papo::event::TypingChanged>
-impl papo::Event
-pub const fn papo::Event::as_warning(&self) -> core::option::Option<&papo::event::Warning>
-impl papo::Event
 pub fn papo::Event::conversation(&self) -> core::option::Option<papo::Conversation>
 pub fn papo::Event::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Event::received_at(&self) -> core::option::Option<std::time::SystemTime>
@@ -1808,8 +1716,6 @@ pub papo::Incomplete::Message(papo::Message)
 pub papo::Incomplete::Notice(papo::event::Notice)
 impl papo::Incomplete
 pub const fn papo::Incomplete::actor_account(&self) -> &papo::AccountStatus
-pub const fn papo::Incomplete::as_message(&self) -> core::option::Option<&papo::Message>
-pub const fn papo::Incomplete::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 pub fn papo::Incomplete::conversation(&self) -> &papo::Conversation
 impl core::clone::Clone for papo::Incomplete
 pub fn papo::Incomplete::clone(&self) -> Self
@@ -2063,28 +1969,6 @@ pub papo::RestrictedLine::Redacted(papo::event::Redacted)
 pub papo::RestrictedLine::ServerNotice(papo::event::ServerNotice)
 pub papo::RestrictedLine::TagMsg(papo::event::TagMsg)
 pub papo::RestrictedLine::TypingChanged(papo::event::TypingChanged)
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_ctcp_query(&self) -> core::option::Option<&papo::event::CtcpQuery>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_ctcp_reply(&self) -> core::option::Option<&papo::event::CtcpReply>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_incomplete(&self) -> core::option::Option<&papo::Incomplete>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_message(&self) -> core::option::Option<&papo::Message>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_notice(&self) -> core::option::Option<&papo::event::Notice>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_other(&self) -> core::option::Option<&papo::event::Other>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_server_notice(&self) -> core::option::Option<&papo::event::ServerNotice>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_tag_msg(&self) -> core::option::Option<&papo::event::TagMsg>
-impl papo::RestrictedLine
-pub const fn papo::RestrictedLine::as_typing_changed(&self) -> core::option::Option<&papo::event::TypingChanged>
 impl core::clone::Clone for papo::RestrictedLine
 pub fn papo::RestrictedLine::clone(&self) -> Self
 impl core::cmp::Eq for papo::RestrictedLine

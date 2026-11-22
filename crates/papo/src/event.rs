@@ -32,6 +32,7 @@ mod restricted;
 mod server;
 #[path = "event/tags.rs"]
 mod tags;
+#[cfg(any(test, feature = "__testing"))]
 #[path = "event/test_accessors.rs"]
 mod test_accessors;
 #[path = "event/user.rs"]
@@ -434,26 +435,6 @@ impl Incomplete {
         match self {
             Self::Message(message) => message.actor_account(),
             Self::Notice(notice) => notice.actor_account(),
-        }
-    }
-
-    /// Returns the message when this is [`Self::Message`].
-    #[must_use]
-    pub const fn as_message(&self) -> Option<&Message> {
-        if let Self::Message(message) = self {
-            Some(message)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the notice when this is [`Self::Notice`].
-    #[must_use]
-    pub const fn as_notice(&self) -> Option<&Notice> {
-        if let Self::Notice(notice) = self {
-            Some(notice)
-        } else {
-            None
         }
     }
 
@@ -2150,29 +2131,6 @@ fn tagged_from_tags(tags: &Tags) -> Option<ServerTime> {
     tags.get("time")
         .or_else(|| tags.get("znc.in/server-time-iso"))
         .and_then(|value| ServerTime::from_stored(value).ok())
-}
-
-#[cfg(feature = "unstable")]
-impl Event {
-    /// Returns the payload when this is [`Event::PersistenceChanged`].
-    #[must_use]
-    pub const fn as_persistence_changed(&self) -> Option<&crate::PersistenceStatus> {
-        if let Self::PersistenceChanged(payload) = self {
-            Some(payload)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the payload when this is [`Event::BouncerNetworkChanged`].
-    #[must_use]
-    pub const fn as_bouncer_network_changed(&self) -> Option<&BouncerNetworkChanged> {
-        if let Self::BouncerNetworkChanged(payload) = self {
-            Some(payload)
-        } else {
-            None
-        }
-    }
 }
 
 // This transient mapping keeps forwarding allocation-free for every event kind.

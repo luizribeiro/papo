@@ -4,9 +4,27 @@ use super::{
     Disconnected, Event, FeaturesChanged, HostChanged, Incomplete, Invited, Joined, Kicked, Lagged,
     MembersRefreshed, Message, MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline, Motd,
     NickChanged, Notice, Other, Parted, Quit, Reacted, ReadMarkerChanged, RealnameChanged,
-    Redacted, Restricted, ServerNotice, StandardReply, TagMsg, TopicChanged, TypingChanged,
-    Warning,
+    Redacted, Restricted, RestrictedLine, ServerNotice, StandardReply, TagMsg, TopicChanged,
+    TypingChanged, Warning,
 };
+
+macro_rules! variant_accessors {
+    ($type:ident; $(($variant:ident, $method:ident, $payload:ty)),+ $(,)?) => {
+        impl $type {
+            $(
+                #[doc = concat!("Returns the payload when this is [`", stringify!($type), "::", stringify!($variant), "`].")]
+                #[must_use]
+                pub const fn $method(&self) -> Option<&$payload> {
+                    if let Self::$variant(payload) = self {
+                        Some(payload)
+                    } else {
+                        None
+                    }
+                }
+            )+
+        }
+    };
+}
 
 variant_accessors! { Event;
     (Message, as_message, Message),
@@ -55,4 +73,29 @@ variant_accessors! { Event;
     (AccountCreation, as_account_creation, crate::AccountOutcome),
     (Warning, as_warning, Warning),
     (Other, as_other, Other),
+}
+
+#[cfg(feature = "unstable")]
+variant_accessors! { Event;
+    (PersistenceChanged, as_persistence_changed, crate::PersistenceStatus),
+    (BouncerNetworkChanged, as_bouncer_network_changed, super::BouncerNetworkChanged),
+}
+
+variant_accessors! { RestrictedLine;
+    (Message, as_message, Message),
+    (Notice, as_notice, Notice),
+    (Incomplete, as_incomplete, Incomplete),
+    (ServerNotice, as_server_notice, ServerNotice),
+    (CtcpQuery, as_ctcp_query, CtcpQuery),
+    (CtcpReply, as_ctcp_reply, CtcpReply),
+    (TagMsg, as_tag_msg, TagMsg),
+    (Reacted, as_reacted, Reacted),
+    (Redacted, as_redacted, Redacted),
+    (TypingChanged, as_typing_changed, TypingChanged),
+    (Other, as_other, Other),
+}
+
+variant_accessors! { Incomplete;
+    (Message, as_message, Message),
+    (Notice, as_notice, Notice),
 }
