@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Saved direct-message identities are removed. Compare the expected account with the message's `actor_account()` or the account returned by `state.user(nick)`.
+
 The first release of papo provides an asynchronous IRC client for applications and bots, broad
 IRCv3 support, deterministic protocol state, and native, WASI, and browser transports. `papo` is
 the supported application API; see the [IRCv3 support table](docs/ircv3-support.md) for the full
@@ -280,21 +282,17 @@ finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported i
 `Isupport::monitor` now reads `MONITOR=0` as `LimitValue::Limited(0)`, a list that accepts no
 targets, instead of `LimitValue::Unlimited`; a bare `MONITOR` still means no limit.
 
-`Error::MonitorFull` is removed: opening a direct reference or watching a user never fails for a full `MONITOR` list; `Watch::is_live` reports it instead.
+`Error::MonitorFull` is removed: watching a user never fails for a full `MONITOR` list; `Watch::is_live` reports it instead.
 
 `DirectSource` and `Client::direct_to` are removed; send to a received event's `UserHandle` sender instead.
 
-`Client::direct_pinned`, `PeerPinMismatch`, and `Error::PeerPinMismatch` are removed; `Client::open` returns `Error::NotSamePerson` with the same reason and current key.
-
-`DirectRef` and `Client::direct` are removed; `Client::query` creates a `UserHandle` without sending a command, and `UserHandle::key` captures the persistable key.
+`DirectRef` and `Client::direct` are removed; `Client::query` creates a `UserHandle` without sending a command.
 
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.
 Privilege-granting mode helpers now require a `UserHandle` and recheck its person identity at the final write.
 Metadata operations on a person now prove and recheck that identity before transmission.
-
-`UserHandle::key` captures a persistable peer key, and `Client::open` returns `NotSamePerson` with the current key when a saved identity does not match.
 
 `Client::join` now resolves to the synchronized `ChannelHandle` for the joined channel.
 Mode and metadata requests on a channel handle the client has since left now fail with `Error::TargetGone` instead of panicking.
@@ -329,7 +327,7 @@ straight to `SetModes::op`; mode changes now compare members by identity, like `
 
 `Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
 
-`NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.
+`NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles.
 
 Account, away, host, and real-name change events now identify the affected user with a `UserHandle`; mutable facts come from the paired `State`.
 
@@ -344,8 +342,6 @@ PART events now carry a `UserHandle` and preserve user facts only when the paire
 QUIT events now carry user and channel handles and preserve departed user facts.
 
 `Source::User` now contains a `UserHandle`; `UserSource` and its `Oper` fact type are removed, and historical actors without account proof cannot authorize a send to a later holder of the same nickname.
-
-`PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.
 
 `Client::mark_read(conversation)` now uses the newest server time papo observed, supports
 `.up_to(&message)`, counts incomplete multiline events only for the implicit newest boundary, and
@@ -374,15 +370,8 @@ connection, so after a reconnect a new handle does not equal an old one.
 Person-targeted core writes now require opaque proof minted from session state and recheck that
 proof at the final wire write; recipient guards can no longer be assembled by downstream code.
 
-`PeerKey` pins an identity to a nickname-addressed direct thread. Account pins use a readable,
-versioned persisted form scoped by a TLS-authenticated server, or by the complete authenticated
-bouncer and TLS-upstream scope. Continuity pins are unverified and connection-local. Applications
-compare pins with `PeerKey::check`, and `Client::open` refuses a typed mismatch with
-`Error::NotSamePerson`. Private message, notice, TAGMSG, rename, and history events expose applicable pins.
-An upstream bouncer disconnect now ends Continuity pins and live direct targets for that network,
-including stable builds that only observe soju's notice or self-JOIN resync.
-Browser `wss://` connections produce hostname-scoped Account pins; browser `ws://` remains
-Continuity-only.
+An upstream bouncer disconnect ends live direct targets for that network, including stable
+builds that only observe soju's notice or self-JOIN resync.
 
 `Events::next` and the `Events` stream now yield `(Event, Arc<State>)`. The state is captured
 immediately after the event was applied, so later server lines cannot change the state an event
@@ -845,7 +834,7 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` (requires the
   `unstable` feature) for the validated upload endpoint. Raw advertised values remain available
   through `State::isupport()`.
-- The `WHO nick %na` proof behind `Client::open` and first sends to a `UserHandle` matches the
+- The `WHO nick %na` proof for first sends to a `UserHandle` matches the
   reply's nickname under the server's casemapping, so `Alice` or `{bot}` (for `[bot]` under
   rfc1459) is proven instead of failing with `Error::TargetGone`.
 - With `account-tag`, another user's line without an `account` tag marks them logged out, as the
