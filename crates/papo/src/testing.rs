@@ -91,6 +91,9 @@ pub fn exercise_session_mapping_invariants(input: &[u8]) -> usize {
     input.len()
 }
 
+#[doc(hidden)]
+pub use crate::message_ref::saved::{encode as encode_saved_message, parse as parse_saved_message};
+
 /// Constructs an origin-free nickname for test fixtures.
 #[must_use]
 pub fn nickname(casemapping: Casemapping, text: impl Into<String>) -> Nick {

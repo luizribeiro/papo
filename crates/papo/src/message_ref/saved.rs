@@ -4,7 +4,9 @@ const HEADER: &str = "papo-ref:1;to=";
 const MAX_BYTES: usize = 1024 * 1024;
 const MAX_IDS: usize = 10_000;
 
-pub(super) fn encode(address: &str, ids: &[MessageId]) -> String {
+/// Encodes an address and its identifiers in saved-message format.
+#[must_use]
+pub fn encode(address: &str, ids: &[MessageId]) -> String {
     let mut text = HEADER.to_owned();
     escape(&mut text, address);
     for id in ids {
@@ -45,7 +47,9 @@ fn unescape(mut value: &str) -> Option<String> {
     Some(decoded)
 }
 
-pub(crate) fn parse(text: &str) -> Option<(String, Vec<MessageId>)> {
+/// Decodes a bounded saved message reference.
+#[must_use]
+pub fn parse(text: &str) -> Option<(String, Vec<MessageId>)> {
     if text.len() > MAX_BYTES {
         return None;
     }

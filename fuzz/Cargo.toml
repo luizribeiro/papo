@@ -49,5 +49,12 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "saved_message"
+path = "fuzz_targets/saved_message.rs"
+test = false
+doc = false
+bench = false
+
 [workspace]
 members = ["."]

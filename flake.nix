@@ -571,6 +571,7 @@
               RUSTC=${nightlyToolchain}/bin/rustc ${nightlyToolchain}/bin/cargo fuzz run line -- -max_total_time=30 -verbosity=0
               RUSTC=${nightlyToolchain}/bin/rustc ${nightlyToolchain}/bin/cargo fuzz run construction -- -max_total_time=30 -verbosity=0
               RUSTC=${nightlyToolchain}/bin/rustc ${nightlyToolchain}/bin/cargo fuzz run outgoing_text -- -max_total_time=30 -verbosity=0
+              RUSTC=${nightlyToolchain}/bin/rustc ${nightlyToolchain}/bin/cargo fuzz run saved_message -- -max_total_time=30 -verbosity=0
             '';
             stages = [ "pre-push" ];
           };
