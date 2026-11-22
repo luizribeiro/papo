@@ -359,6 +359,23 @@ mod tests {
 
     #[test]
     fn registry_and_feature_capabilities_agree_in_both_directions() {
+        let exceptions = [
+            (
+                "ergo.chat/nope",
+                "Ergo provides this capability to test request refusals.",
+            ),
+            (
+                "metadata-notify",
+                "an older metadata specification's capability; nothing an app can act on",
+            ),
+        ];
+        for (name, reason) in exceptions {
+            assert!(!reason.is_empty(), "{name} needs an exception reason");
+            assert!(
+                cap::ALL.iter().any(|info| info.name == name),
+                "{name} is missing from the registry"
+            );
+        }
         for feature in Feature::ALL {
             for required in feature.caps().iter().flatten() {
                 let info = cap::ALL
@@ -369,6 +386,12 @@ mod tests {
             }
         }
         for info in cap::ALL {
+            assert_eq!(
+                info.features.is_empty(),
+                exceptions.iter().any(|(name, _)| *name == info.name),
+                "{} must have either a Feature or a listed exception",
+                info.name
+            );
             for feature in info.features {
                 assert!(
                     feature
