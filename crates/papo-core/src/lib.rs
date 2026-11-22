@@ -1361,6 +1361,8 @@ impl ModeArg {
 }
 
 /// The stored value of a channel mode.
+///
+/// A set mode either has an argument or has none.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ModeValue<'a> {
     /// The mode is set without an argument.

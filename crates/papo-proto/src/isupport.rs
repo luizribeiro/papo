@@ -3,6 +3,8 @@ use std::{borrow::Cow, collections::HashMap};
 use crate::{Casemapping, Command, LineRef, Numeric, UnknownCasemapping, canonical};
 
 /// Whether an ISUPPORT token is absent, bare, or carries a value.
+///
+/// A token can only be absent, present without an equals sign, or present with one.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Advertised<'a> {
     /// The server has not advertised the token.
@@ -99,6 +101,8 @@ pub struct Limit<'a> {
 }
 
 /// A numeric server limit that may explicitly be unlimited.
+///
+/// An advertised limit is either a numeric maximum or unbounded.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LimitValue {
     /// No maximum applies.

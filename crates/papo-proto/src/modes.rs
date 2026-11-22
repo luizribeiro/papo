@@ -34,6 +34,8 @@ pub struct ModeChange<'a> {
 }
 
 /// The operation applied to an IRC mode.
+///
+/// A mode change can only add (`+`) or remove (`-`) a mode.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ModeAction {
     /// Add or enable the mode.

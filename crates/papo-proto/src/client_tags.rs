@@ -1,6 +1,8 @@
 use crate::LineRef;
 
 /// A sender's current typing state.
+///
+/// The `+typing` specification defines exactly three states.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Typing {
     /// The sender is actively typing.
