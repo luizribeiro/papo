@@ -2886,10 +2886,6 @@ pub fn papo::MessageRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::MessageRef
 impl core::cmp::PartialEq for papo::MessageRef
 pub fn papo::MessageRef::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo::MessageRef
-pub fn papo::MessageRef::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo::MessageRef
-pub fn papo::MessageRef::eq(&self, &str) -> bool
 impl core::convert::AsRef<str> for papo::MessageRef
 pub fn papo::MessageRef::as_ref(&self) -> &str
 impl core::fmt::Debug for papo::MessageRef
@@ -3054,10 +3050,6 @@ pub fn papo::NoticeRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::NoticeRef
 impl core::cmp::PartialEq for papo::NoticeRef
 pub fn papo::NoticeRef::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo::NoticeRef
-pub fn papo::NoticeRef::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo::NoticeRef
-pub fn papo::NoticeRef::eq(&self, &str) -> bool
 impl core::convert::AsRef<str> for papo::NoticeRef
 pub fn papo::NoticeRef::as_ref(&self) -> &str
 impl core::fmt::Debug for papo::NoticeRef

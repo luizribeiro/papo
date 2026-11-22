@@ -185,6 +185,18 @@ pub(crate) trait ReplyReference {
 /// context, private routing rules, and channel guard. The attached conversation and server time
 /// do not participate: they are read-marker metadata, not part of the routing or message identity
 /// represented by a reference.
+///
+/// ```compile_fail,E0308
+/// fn matches_text(reference: papo::MessageRef) -> bool {
+///     reference == "@#ops"
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// fn matches_text(reference: &papo::MessageRef) -> bool {
+///     reference == "@#ops"
+/// }
+/// ```
 #[derive(Clone, Debug)]
 pub struct MessageRef {
     address: String,
@@ -296,18 +308,6 @@ impl AsRef<str> for MessageRef {
     }
 }
 
-impl PartialEq<str> for MessageRef {
-    fn eq(&self, other: &str) -> bool {
-        self.address == other
-    }
-}
-
-impl PartialEq<&str> for MessageRef {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
-    }
-}
-
 impl crate::target::sealed::Sealed for MessageRef {}
 
 impl crate::Target for MessageRef {
@@ -337,6 +337,18 @@ impl crate::Target for MessageRef {
 /// passed to [`crate::Client::notice`]. It deliberately cannot be converted into a [`MessageRef`],
 /// so it cannot be passed to reply, reaction, or redaction methods. See [`Conversation`] for
 /// status-prefixed audience guidance.
+///
+/// ```compile_fail,E0308
+/// fn matches_text(reference: papo::NoticeRef) -> bool {
+///     reference == "@#ops"
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// fn matches_text(reference: &papo::NoticeRef) -> bool {
+///     reference == "@#ops"
+/// }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NoticeRef {
     address: String,
@@ -354,18 +366,6 @@ impl fmt::Display for NoticeRef {
 impl AsRef<str> for NoticeRef {
     fn as_ref(&self) -> &str {
         &self.address
-    }
-}
-
-impl PartialEq<str> for NoticeRef {
-    fn eq(&self, other: &str) -> bool {
-        self.address == other
-    }
-}
-
-impl PartialEq<&str> for NoticeRef {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
     }
 }
 

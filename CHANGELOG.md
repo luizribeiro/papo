@@ -425,6 +425,9 @@ tests using `papo-testing`. Match the variants in application code.
 Direct text comparisons were removed from `ChannelRef`, `Conversation`, and `Subject`. Compare a
 channel with `channel.name()` or match a conversation or subject to get its channel name or nickname.
 
+Direct text comparisons were removed from `MessageRef` and `NoticeRef`. Use `reference.as_ref()`
+to compare the exact return address, including any status prefix.
+
 `Client::query` was removed. Send to the nickname.
 
 Sends using a user reference no longer run a WHO lookup.
