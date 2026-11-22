@@ -354,10 +354,15 @@ fn soju_connected_network<'event>(
     event: &'event papo::Event,
     network: &str,
 ) -> Option<&'event papo::event::Notice> {
-    event.as_notice().filter(|notice| {
-        notice.actor.nick().as_str() == "BouncerServ"
-            && notice.raw_text.strip_prefix("connected to ") == Some(network)
-    })
+    match event {
+        papo::Event::Notice(notice)
+            if notice.actor.nick().as_str() == "BouncerServ"
+                && notice.raw_text.strip_prefix("connected to ") == Some(network) =>
+        {
+            Some(notice)
+        }
+        _ => None,
+    }
 }
 
 fn unique_name(label: &str) -> String {

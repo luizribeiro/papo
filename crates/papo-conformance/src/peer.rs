@@ -48,7 +48,7 @@ impl Peer {
         let (known, _) = self
             .wait_until(|event, state| {
                 held.push_back((event.clone(), Arc::clone(state)));
-                let known = event.as_casemapping_changed().is_some();
+                let known = matches!(event, Event::CasemappingChanged(_));
                 (known || held.len() == HELD_EVENTS).then_some(known)
             })
             .await?;
@@ -98,7 +98,7 @@ impl Peer {
                 if let Some(found) = accept(&event, &state) {
                     return Ok((found, state));
                 }
-                if let Some(disconnected) = event.as_disconnected() {
+                if let Event::Disconnected(disconnected) = &event {
                     return Err(self.failure(disconnected));
                 }
             }
@@ -142,7 +142,7 @@ impl Peer {
                         if extract(&event).is_some() {
                             return Err(self.failure("unexpected event before the PING fence"));
                         }
-                        if let Some(disconnected) = event.as_disconnected() {
+                        if let Event::Disconnected(disconnected) = &event {
                             return Err(self.failure(disconnected));
                         }
                     }
