@@ -479,9 +479,11 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let alice_nick = alice.snapshot().nick().clone();
     let state = bob.snapshot();
-    let mapping = state.casemapping();
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
     let expected_bot = state.isupport().bot_mode().map(|_| false);
-    let channel_name = mapping.channel(&channel);
+    let channel_name = rules.channel(&channel);
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     let away = "reading WHO reply fields";
@@ -526,7 +528,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         })
         .unwrap();
     assert_eq!(
-        mapping.channel(row.get(1).expect("352 includes the channel")),
+        rules.channel(row.get(1).expect("352 includes the channel")),
         channel_name
     );
     assert!(row.get(2).is_some_and(|user| !user.is_empty()));
@@ -542,7 +544,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         line.numeric() == Some(315)
             && line
                 .get(1)
-                .is_some_and(|name| mapping.channel(name) == channel_name)
+                .is_some_and(|name| rules.channel(name) == channel_name)
     }));
 
     let whois = bob
@@ -729,7 +731,10 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
 async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let alice_nick = alice.snapshot().nick().clone();
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
 
     // The host and certificate numerics have no richer public result type.
     let lines = alice
@@ -743,7 +748,7 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
     };
 
     assert_eq!(
-        mapping
+        rules
             .nick(detail.get(1).expect("WHOIS detail includes the nickname"))
             .as_str(),
         alice_nick.as_str()
@@ -753,7 +758,7 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
         line.numeric() == Some(318)
             && line
                 .get(1)
-                .is_some_and(|nick| mapping.nick(nick) == alice_nick.as_str())
+                .is_some_and(|nick| rules.nick(nick) == alice_nick.as_str())
     }));
     Ok(())
 }

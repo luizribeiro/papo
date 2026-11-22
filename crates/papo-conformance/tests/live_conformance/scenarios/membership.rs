@@ -202,17 +202,18 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
 
     // NAMES numerics and their channel parameters are the behavior under test.
     let targets = format!("{first},{second}");
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let channel_rules = name_rules(&state);
     let names = alice
         .request_raw(papo::Line::new("NAMES").with_params([&targets]))
         .await?;
     for channel in [&first, &second] {
-        let channel_name = mapping.channel(channel);
+        let channel_name = channel_rules.channel(channel);
         if !names.iter().any(|line| {
             line.numeric() == Some(353)
                 && line
                     .get(2)
-                    .is_some_and(|name| mapping.channel(name) == channel_name)
+                    .is_some_and(|name| channel_rules.channel(name) == channel_name)
         }) {
             return Err(std::io::Error::other(format!(
                 "missing names row for {channel}: {names:?}"
@@ -225,7 +226,7 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
                     && line.get(1).is_some_and(|targets| {
                         targets
                             .split(',')
-                            .any(|target| mapping.channel(target) == channel_name)
+                            .any(|target| channel_rules.channel(target) == channel_name)
                     })
             }),
             "missing names terminator for {channel}: {names:?}"
@@ -242,8 +243,9 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let mapping = bob.snapshot().casemapping();
-    let channel_name = mapping.channel(&channel);
+    let state = bob.snapshot();
+    let channel_rules = name_rules(&state);
+    let channel_name = channel_rules.channel(&channel);
     alice.join(&channel).await?;
     alice.mode(&channel).add('s').await?;
 
@@ -256,7 +258,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
             line.numeric() == Some(353)
                 && line
                     .get(2)
-                    .is_some_and(|name| mapping.channel(name) == channel_name)
+                    .is_some_and(|name| channel_rules.channel(name) == channel_name)
         }),
         "secret channel leaked through NAMES: {hidden:?}"
     );
@@ -265,7 +267,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
             line.numeric() == Some(366)
                 && line
                     .get(1)
-                    .is_some_and(|name| mapping.channel(name) == channel_name)
+                    .is_some_and(|name| channel_rules.channel(name) == channel_name)
         }),
         "missing hidden-channel terminator: {hidden:?}"
     );
@@ -484,7 +486,8 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
 
     // A single JOIN command must still apply its valid target before reporting the bad one.
     let targets = format!("{channel},{invalid}");
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let channel_rules = name_rules(&state);
     alice
         .send_raw(papo::Line::new("JOIN").with_params([&targets]))
         .await?;
@@ -495,12 +498,12 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
                     .is_some_and(|numeric| (400..=599).contains(&numeric))
                     && line
                         .get(1)
-                        .is_some_and(|target| mapping.channel(target) == invalid.as_str())
+                        .is_some_and(|target| channel_rules.channel(target) == invalid.as_str())
             })
         })
         .await?;
     assert_eq!(
-        mapping.channel(refusal.get(1).expect("JOIN refusal names its target")),
+        channel_rules.channel(refusal.get(1).expect("JOIN refusal names its target")),
         invalid.as_str()
     );
     if !alice
@@ -548,7 +551,8 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     }
     let channels = (0..=limit).map(|_| s.channel_name()).collect::<Vec<_>>();
     let targets = channels.join(",");
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let channel_rules = name_rules(&state);
 
     // The server numeric is the behavior under test, so retain its raw response.
     alice
@@ -559,7 +563,7 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(refusal.numeric(), Some(405));
     assert_eq!(
-        mapping.channel(refusal.get(1).expect("405 includes the refused channel")),
+        channel_rules.channel(refusal.get(1).expect("405 includes the refused channel")),
         channels[limit].as_str()
     );
     assert_eq!(alice.snapshot().channels().count(), limit);
@@ -759,12 +763,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     alice
         .mode(&channel)
-        .ban(
-            alice
-                .snapshot()
-                .casemapping()
-                .mask(format!("{carol_nick}!*@*")),
-        )
+        .ban(name_rules(&alice.snapshot()).mask(format!("{carol_nick}!*@*")))
         .add('i')
         .await?;
 
@@ -1306,14 +1305,11 @@ async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
     let claimed = format!("race-{}", alice.snapshot().nick().clone());
     let alice_client = papo::Client::clone(&alice);
     let bob_client = papo::Client::clone(&bob);
-    let mapping = alice.snapshot().casemapping();
-    let alice_claim = claimed.clone();
-    let bob_claim = claimed.clone();
+    let alice_claim = name_rules(&alice.snapshot()).nick(claimed.clone());
+    let bob_claim = name_rules(&bob.snapshot()).nick(claimed.as_str());
 
-    let alice_result =
-        tokio::task::spawn(async move { alice_client.set_nick(mapping.nick(alice_claim)).await });
-    let bob_result =
-        tokio::task::spawn(async move { bob_client.set_nick(mapping.nick(bob_claim)).await });
+    let alice_result = tokio::task::spawn(async move { alice_client.set_nick(alice_claim).await });
+    let bob_result = tokio::task::spawn(async move { bob_client.set_nick(bob_claim).await });
     let results = [alice_result.await?, bob_result.await?];
     assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
     let error = results
@@ -1453,10 +1449,10 @@ async fn protected_topic(s: Scenario) -> papo_testing::Result<()> {
 async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let mapping = alice.snapshot().casemapping();
-    let channel_name = mapping.channel(&channel);
     let state = alice.snapshot();
-    let mask = name_rules(&state).mask("troublesome!*@gateway.example");
+    let names = name_rules(&state);
+    let channel_name = names.channel(&channel);
+    let mask = names.mask("troublesome!*@gateway.example");
     alice.join(&channel).await?;
     alice.mode(&channel).ban(&mask).await?;
 
@@ -1469,7 +1465,7 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
         .find(|line| line.numeric() == Some(324))
         .expect("channel mode query must include 324");
     assert_eq!(
-        mapping.channel(current.get(1).expect("324 includes the channel")),
+        names.channel(current.get(1).expect("324 includes the channel")),
         channel_name
     );
     assert!(current.get(2).is_some_and(|value| value.starts_with('+')));
