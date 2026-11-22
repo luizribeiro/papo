@@ -248,29 +248,46 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
 async fn statusmsg_reaction_ops(s: Scenario) -> papo_testing::Result<()> {
     let mut peers = statusmsg_peers(&s).await?;
     let question = ops_question(&mut peers).await?;
+    reaction_or_skip(peers.bob.react(&question, "🛡️").await)?;
+    expect_ops_reaction(&mut peers, &question).await
+}
+
+/// preserves an operators-only audience when reacting to a saved message reference
+#[scenario(
+    requires(
+        caps = ["echo-message", "labeled-response", "message-tags"],
+        isupport = ["STATUSMSG"]
+    ),
+    covers = ["security.statusmsg.saved-reference"]
+)]
+async fn statusmsg_saved_reaction_ops(s: Scenario) -> papo_testing::Result<()> {
+    let mut peers = statusmsg_peers(&s).await?;
+    let question = ops_question(&mut peers).await?;
+    let saved = question.return_address().to_saved();
+    let restored = peers.bob.saved_message(&saved)?;
+    reaction_or_skip(peers.bob.react(restored, "🛡️").await)?;
+    expect_ops_reaction(&mut peers, &question).await
+}
+
+async fn expect_ops_reaction(
+    peers: &mut StatusmsgPeers,
+    question: &papo::Message,
+) -> papo_testing::Result<()> {
     let question_id = question
         .msgid()
-        .expect("operators-only message has an identifier")
-        .clone();
-
-    reaction_or_skip(peers.bob.react(&question, "🛡️").await)?;
+        .expect("operators-only message has an identifier");
     let reaction = peers
         .alice
         .wait_for(|event| {
             restricted_line(event, |line| {
                 line.as_reacted().filter(|reaction| {
-                    reaction.reacts_to == question_id && reaction.reaction == "🛡️"
+                    &reaction.reacts_to == question_id && reaction.reaction == "🛡️"
                 })
             })
         })
         .await?;
     assert_eq!(reaction.audience.symbol(), '@');
-    unseen_by_non_operators(
-        &mut peers,
-        papo::RestrictedLine::as_reacted,
-        Event::as_reacted,
-    )
-    .await
+    unseen_by_non_operators(peers, papo::RestrictedLine::as_reacted, Event::as_reacted).await
 }
 
 /// preserves an operators-only audience when typing in answer to a status message
