@@ -11,16 +11,6 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::{Feature, RequestError, RequestId, Secret, Session, state::StateGrowth};
 
-impl Session {
-    /// Returns the successfully authenticated SASL identity configured by the client.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __sasl_identity(&self) -> Option<&str> {
-        self.sasl.is_authenticated().then_some(())?;
-        self.config.sasl.as_ref()?.authentication_identity()
-    }
-}
-
 /// Stable identifier assigned to a network by a bouncer.
 ///
 /// Equality, ordering, and hashing use the exact received bytes.
@@ -393,24 +383,6 @@ mod tests {
     use papo_proto::LineRef;
 
     use super::{BouncerNetwork, NetworkState, NetworkUpdate};
-
-    #[test]
-    fn sasl_identity_is_exposed_only_after_authentication() {
-        let now = std::time::Instant::now();
-        let mut session =
-            crate::Session::new(crate::Config::default().allow_insecure_auth(true).sasl(
-                crate::Sasl::plain("alice", crate::Secret::new("correct horse battery staple")),
-            ));
-        assert_eq!(session.__sasl_identity(), None);
-
-        session.handle_connected(now);
-        session.handle_line(now, b"CAP * LS :sasl=PLAIN");
-        session.handle_line(now, b"CAP * ACK :sasl");
-        session.handle_line(now, b"AUTHENTICATE +");
-        session.handle_line(now, b":ergo.test 903 alice :SASL authentication successful");
-
-        assert_eq!(session.__sasl_identity(), Some("alice"));
-    }
 
     #[test]
     fn network_states_display_as_protocol_words() {

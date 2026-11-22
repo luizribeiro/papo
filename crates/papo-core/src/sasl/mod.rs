@@ -1,5 +1,3 @@
-#[cfg(feature = "unstable")]
-mod identity;
 pub(crate) mod scram;
 
 use std::{collections::VecDeque, time::Duration};
