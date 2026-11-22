@@ -97,7 +97,7 @@ pub struct AccountChanged {
     /// The account state after the change.
     ///
     /// This is retained because it describes the change itself.
-    pub new: AccountStatus,
+    pub account: AccountStatus,
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

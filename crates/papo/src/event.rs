@@ -2941,7 +2941,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                new: account,
+                account,
                 actor_party: Party::from_core(actor_party),
             })
         }
@@ -6463,7 +6463,7 @@ mod tests {
                 papo_core::Party::Other,
             )),
             Event::AccountChanged(changed)
-                if changed.actor.nick() == "emily" && changed.new.name().is_some_and(|account| account == "emily")
+                if changed.actor.nick() == "emily" && changed.account.name().is_some_and(|account| account == "emily")
         ));
     }
 

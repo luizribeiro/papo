@@ -252,9 +252,9 @@ impl core::marker::UnsafeUnpin for papo::event::Warning
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Warning
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 #[non_exhaustive] pub struct papo::event::AccountChanged
+pub papo::event::AccountChanged::account: papo::AccountStatus
 pub papo::event::AccountChanged::actor: papo::UserHandle
 pub papo::event::AccountChanged::actor_party: papo::Party
-pub papo::event::AccountChanged::new: papo::AccountStatus
 pub papo::event::AccountChanged::received_at: std::time::SystemTime
 pub papo::event::AccountChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::AccountChanged

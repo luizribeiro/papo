@@ -101,7 +101,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(changed.actor.nick(), alice_nick.as_str());
     assert_eq!(
-        changed.new.name().map(papo::AccountName::as_str),
+        changed.account.name().map(papo::AccountName::as_str),
         Some(account.as_str())
     );
     assert_eq!(

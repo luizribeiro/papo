@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Read the account change from `AccountChanged::account`.
+
 Use `AccountStatus` and `AwayStatus` for account and away state.
 
 Use `papo_bot::BotCommand` in place of `papo_bot::Command`.
@@ -705,7 +707,7 @@ User lifecycle payloads were normalized as follows:
 |---|---|
 | `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
 | `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `new: AwayStatus`, `actor_party`, and timestamps |
-| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `new: AccountStatus`, `actor_party`, and timestamps |
+| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `account: AccountStatus`, `actor_party`, and timestamps |
 | `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `new_username`, `new_host`, `actor_party`, and timestamps |
 | `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `actor_party`, and timestamps |
 | `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserHandle`; offline facts are retained when removed from state |
