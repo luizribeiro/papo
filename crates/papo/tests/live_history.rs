@@ -156,7 +156,7 @@ async fn latest_after_returns_the_newest_page_and_preserves_the_end_marker() {
                 .collect::<Vec<_>>(),
             &texts[3..]
         );
-        assert!(!newest.end);
+        assert!(!newest.exhausted);
 
         let complete = client
             .history(&channel)
@@ -171,7 +171,7 @@ async fn latest_after_returns_the_newest_page_and_preserves_the_end_marker() {
                 .collect::<Vec<_>>(),
             &texts[2..]
         );
-        assert!(complete.end);
+        assert!(complete.exhausted);
         client.quit().await.unwrap();
     })
     .await;
@@ -227,7 +227,7 @@ async fn cursor_pages_every_message_once() {
                     .map(|message| message.text.clone())
                     .collect::<Vec<_>>(),
             );
-            if page.end {
+            if page.exhausted {
                 break;
             }
             page = client

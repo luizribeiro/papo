@@ -308,7 +308,7 @@ fn assembles_deduplicated_context_aware_pages() {
     };
     let page = response.history.unwrap();
     assert!(matches!(&page.conversation, Conversation::Channel(channel) if channel == "#papo"));
-    assert!(page.end);
+    assert!(page.exhausted);
     assert_eq!(
         page.items[0].as_message().unwrap().as_ref().param(1),
         Some("earlier")
@@ -420,7 +420,7 @@ fn history_end_marker_has_the_same_meaning_for_every_page_request() {
         HistoryQuery::__around(target.into(), reference.clone(), 10),
         HistoryQuery::__between(target.into(), reference, later, 10),
     ] {
-        for (tagged, has_item, end) in [
+        for (tagged, has_item, exhausted) in [
             (false, false, true),
             (false, true, false),
             (true, true, true),
@@ -453,7 +453,7 @@ fn history_end_marker_has_the_same_meaning_for_every_page_request() {
                 .expect("history page");
             assert_eq!(page.items.len(), usize::from(has_item));
             assert_eq!(
-                page.end, end,
+                page.exhausted, exhausted,
                 "{query:?}, tagged: {tagged}, has item: {has_item}"
             );
         }

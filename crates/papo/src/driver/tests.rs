@@ -567,7 +567,7 @@ async fn message_fields_use_captured_session_facts() {
     };
     assert_eq!(page.reason, crate::HistoryReason::Replay);
     assert_eq!(page.conversation, crate::Conversation::Channel(channel));
-    assert!(!page.end);
+    assert!(!page.exhausted);
     assert_eq!(page.chat_messages().next().unwrap().text, "earlier");
     assert!(matches!(
         next_event(&mut events).await,
@@ -2522,7 +2522,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
             .map(|message| message.text.as_str()),
         Some("missed 1000")
     );
-    assert!(!history.end);
+    assert!(!history.exhausted);
     abort_task(driver).await;
 }
 

@@ -29,7 +29,7 @@ struct OpenBatch {
     label: Option<String>,
     parent: Option<String>,
     params: Vec<String>,
-    end: bool,
+    exhausted: bool,
     messages: Vec<Line>,
     incomplete: Vec<usize>,
     completed: Vec<BatchEvent>,
@@ -77,7 +77,7 @@ pub(crate) enum BatchEvent {
     History {
         target: String,
         items: Vec<HistoryItem>,
-        end: bool,
+        exhausted: bool,
     },
     HistoryTargets(Vec<(String, papo_proto::ServerTime)>),
     Netsplit {
@@ -210,7 +210,7 @@ impl Batches {
                 label,
                 parent,
                 params: message.params().skip(2).map(str::to_owned).collect(),
-                end: message
+                exhausted: message
                     .tags()
                     .any(|(key, _)| key == "draft/chathistory-end"),
                 messages: Vec::new(),
@@ -556,7 +556,7 @@ impl Batches {
             vec![BatchEvent::History {
                 target,
                 items: history_items_with_incomplete(messages, history_incomplete),
-                end: false,
+                exhausted: false,
             }]
         } else {
             incomplete_events.extend(messages.into_iter().map(|line| {
@@ -781,7 +781,7 @@ fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
             );
             return vec![BatchEvent::History {
                 target: batch.params.first().cloned().unwrap_or_default(),
-                end: batch.end || items.is_empty(),
+                exhausted: batch.exhausted || items.is_empty(),
                 items,
             }];
         }
@@ -862,10 +862,15 @@ fn multiline(batch: &OpenBatch) -> Option<Line> {
 }
 
 fn history_from_event(event: BatchEvent) -> Option<(String, Vec<HistoryItem>, bool)> {
-    let BatchEvent::History { target, items, end } = event else {
+    let BatchEvent::History {
+        target,
+        items,
+        exhausted,
+    } = event
+    else {
         return None;
     };
-    Some((target, items, end))
+    Some((target, items, exhausted))
 }
 
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {

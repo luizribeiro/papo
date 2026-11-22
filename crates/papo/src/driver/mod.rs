@@ -1639,7 +1639,7 @@ where
             event::CoreEvent::History {
                 conversation,
                 items,
-                end,
+                exhausted,
             } => {
                 let Some(commands) = events.commands.upgrade() else {
                     continue;
@@ -1673,7 +1673,7 @@ where
                 let event = Event::History(crate::HistoryPage {
                     conversation,
                     items,
-                    end,
+                    exhausted,
                     reason: crate::HistoryReason::Replay,
                 });
                 enqueue_event(events, pending_events, event);

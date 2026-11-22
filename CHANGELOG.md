@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `HistoryPage::exhausted` for the history end marker.
+
 Read the changed address from `HostChanged::host` and `HostChanged::username`.
 
 Read the away change from `AwayChanged::away`.

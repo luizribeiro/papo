@@ -3364,7 +3364,7 @@ fn links_nested_chathistory_to_its_response() {
     let history = response.history.expect("history reference");
     assert!(matches!(history.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(history.items.len(), 1);
-    assert!(history.end);
+    assert!(history.exhausted);
     assert_eq!(session.poll_event(), None);
 }
 

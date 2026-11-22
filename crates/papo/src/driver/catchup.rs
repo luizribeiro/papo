@@ -77,10 +77,10 @@ pub(super) fn advance_catchup(
 ) -> Option<Event> {
     let page = response.history?;
     let core_conversation = page.conversation;
-    let page_end = page.end;
+    let exhausted = page.exhausted;
     let previous_len = catchup.items.len();
     let next = extend_catchup(&mut catchup, page.items);
-    if !page_end
+    if !exhausted
         && catchup.items.len() > previous_len
         && catchup.items.len() < CATCHUP_ITEM_LIMIT
         && let Some(next) = next
@@ -138,7 +138,7 @@ pub(super) fn advance_catchup(
     Some(Event::History(crate::HistoryPage {
         conversation,
         items,
-        end: page_end,
+        exhausted,
         reason: crate::HistoryReason::Catchup,
     }))
 }

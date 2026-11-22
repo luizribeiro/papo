@@ -2617,7 +2617,7 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::History
 impl !core::panic::unwind_safe::UnwindSafe for papo::History
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::conversation: papo::Conversation
-pub papo::HistoryPage::end: bool
+pub papo::HistoryPage::exhausted: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::Event>
 pub papo::HistoryPage::reason: papo::HistoryReason
 impl papo::HistoryPage

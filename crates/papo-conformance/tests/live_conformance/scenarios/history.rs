@@ -40,7 +40,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     let (writer, mut reader, channel, sent) = history_peers(&s, &texts).await?;
     let page = latest_history_with(&reader, &channel, texts[2]).await?;
     assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
-    assert!(page.end);
+    assert!(page.exhausted);
     let messages = page
         .chat_messages()
         .filter(|message| texts.contains(&message.text.as_str()))
@@ -267,9 +267,9 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         let start = remaining.saturating_sub(10);
         assert_eq!(page_texts, texts[start..remaining]);
         if start == 0 {
-            assert!(page.end, "the final history page must report the end");
+            assert!(page.exhausted, "the final history page must report the end");
         }
-        if page.end {
+        if page.exhausted {
             assert_eq!(start, 0, "history ended while older messages remained");
             break;
         }
@@ -375,7 +375,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
 
     let page = alice.history("BouncerServ").latest().limit(10).await?;
     assert!(page.items.is_empty());
-    assert!(page.end);
+    assert!(page.exhausted);
     let targets = alice
         .recent_conversations(
             papo::ServerTime::from_stored("0000-01-01T00:00:00.000Z").unwrap(),

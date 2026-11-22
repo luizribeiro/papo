@@ -2241,7 +2241,7 @@ pub(crate) enum CoreEvent {
     History {
         conversation: papo_core::Conversation,
         items: Vec<papo_core::HistoryItem>,
-        end: bool,
+        exhausted: bool,
     },
     Close {
         kind: papo_core::CloseKind,
@@ -2642,13 +2642,13 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::History {
             conversation,
             items,
-            end,
+            exhausted,
             ..
         } => {
             return CoreEvent::History {
                 conversation,
                 items,
-                end,
+                exhausted,
             };
         }
         papo_core::Event::ReadMarkerChanged(marker) => {
@@ -7217,7 +7217,7 @@ mod tests {
         let CoreEvent::History {
             conversation: mapped,
             items,
-            end,
+            exhausted,
         } = from_core(papo_core::Event::__history(
             core_conversation.clone(),
             vec![
@@ -7247,7 +7247,7 @@ mod tests {
                 if item.line == message && !item.context
         ));
         assert!(matches!(items[1], papo_core::HistoryItem::Other(_)));
-        assert!(end);
+        assert!(exhausted);
     }
 
     #[test]

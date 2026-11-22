@@ -2268,7 +2268,7 @@ pub struct HistoryPage {
     /// Whether this page was empty or the server marked the end of history.
     ///
     /// A page shorter than the requested limit does not imply the end.
-    pub end: bool,
+    pub exhausted: bool,
 }
 
 impl HistoryPage {
@@ -2769,7 +2769,7 @@ pub enum Event {
         /// The server is allowed to use a different order; papo does not sort the items.
         items: Vec<HistoryItem>,
         /// Whether this page was empty or the server marked the end of history.
-        end: bool,
+        exhausted: bool,
     },
     /// Targets that received messages during a requested time range.
     HistoryTargets(Vec<(Conversation, papo_proto::ServerTime)>),
@@ -3194,7 +3194,7 @@ hidden_event_constructors! {
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>, token: ReplyToken) => MonitorOnline;
     __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
-    __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
+    __history(conversation: Conversation, items: Vec<HistoryItem>, exhausted: bool) => History;
     __batch_abandoned(reference: BatchId, batch_type: BatchType, reason: BatchAbandonReason) => BatchAbandoned;
 }
 
@@ -6343,7 +6343,7 @@ impl Session {
             BatchEvent::History {
                 target,
                 mut items,
-                end,
+                exhausted,
             } => {
                 if let Some(conversation) = self.history_conversation(&target) {
                     self.remember_history_server_time(&target, &items);
@@ -6351,7 +6351,7 @@ impl Session {
                     self.outbox.event(Event::History {
                         conversation,
                         items,
-                        end,
+                        exhausted,
                     });
                 }
             }
@@ -6714,11 +6714,11 @@ impl Session {
                 } else {
                     None
                 },
-                history: history.and_then(|(target, items, end)| {
+                history: history.and_then(|(target, items, exhausted)| {
                     Some(HistoryPage {
                         conversation: self.history_conversation(&target)?,
                         items,
-                        end,
+                        exhausted,
                     })
                 }),
                 history_targets: history_targets.map(|targets| self.history_targets(targets)),

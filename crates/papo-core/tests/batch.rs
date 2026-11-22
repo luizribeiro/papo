@@ -248,7 +248,10 @@ fn cut_off_multiline_history_is_an_incomplete_history_item() {
         session.handle_line(now, line.as_bytes());
     }
 
-    let Some(Event::History { items, end, .. }) = session.poll_event() else {
+    let Some(Event::History {
+        items, exhausted, ..
+    }) = session.poll_event()
+    else {
         panic!("expected an incomplete replay page")
     };
     let [
@@ -258,7 +261,7 @@ fn cut_off_multiline_history_is_an_incomplete_history_item() {
     else {
         panic!("expected an older message and one incomplete history item: {items:?}")
     };
-    assert!(!end);
+    assert!(!exhausted);
     assert_eq!(older.line.as_ref().param(1), Some("deployment started"));
     assert_eq!(
         message.line.as_ref().param(1),
@@ -572,14 +575,14 @@ fn recorded_ergo_latest_batch_becomes_history() {
     let Some(Event::History {
         conversation,
         items,
-        end,
+        exhausted,
         ..
     }) = session.poll_event()
     else {
         panic!("expected history")
     };
     assert!(matches!(conversation, Conversation::Channel(channel) if channel == "#papo"));
-    assert!(end);
+    assert!(exhausted);
     assert_eq!(items.len(), 3);
     assert_eq!(
         items[0]
@@ -831,7 +834,7 @@ fn nested_multiline_history_handles_empty_unclosed_and_bounded_children() {
     unclosed.handle_timeout(now + Duration::from_secs(2));
     assert!(matches!(
         unclosed.poll_event(),
-        Some(Event::History { items, end: false, .. })
+        Some(Event::History { items, exhausted: false, .. })
             if items.len() == 1
                 && items[0].as_incomplete().unwrap().line.as_ref().param(1) == Some("unfinished")
     ));
@@ -971,7 +974,7 @@ fn empty_and_draft_history_types_complete() {
         session.handle_line(now, b"BATCH -h");
         assert!(matches!(
             session.poll_event(),
-            Some(Event::History { conversation: Conversation::Channel(channel), items, end: true, .. })
+            Some(Event::History { conversation: Conversation::Channel(channel), items, exhausted: true, .. })
                 if channel == "#papo" && items.is_empty()
         ));
     }
@@ -1236,7 +1239,7 @@ fn abandons_history_on_the_first_line_beyond_its_limit() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { items, end: false, .. })
+        Some(Event::History { items, exhausted: false, .. })
             if matches!(items.as_slice(), [
                 HistoryItem::Joined(_),
                 HistoryItem::Parted(_),
@@ -1440,7 +1443,7 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::History { items, end: false, .. })
+        Some(Event::History { items, exhausted: false, .. })
             if items.first().and_then(HistoryItem::as_message)
                 .and_then(|item| item.line.as_ref().param(1)) == Some("remembered")
     ));

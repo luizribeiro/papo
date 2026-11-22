@@ -878,7 +878,7 @@ pub struct HistoryPage {
     ///
     /// A nonempty page shorter than the requested limit may still have more history, since the
     /// server may cap or vary the number of returned items.
-    pub end: bool,
+    pub exhausted: bool,
 }
 
 /// A conversation with the timestamp of its newest available history entry.
@@ -982,7 +982,7 @@ impl History {
     /// Requests the newest messages strictly after `reference`, at most the requested limit.
     ///
     /// If more messages exist, the server can skip the oldest ones between `reference` and this
-    /// page. [`HistoryPage::end`] reports an empty page or the server's end marker. For contiguous
+    /// page. [`HistoryPage::exhausted`] reports an empty page or the server's end marker. For contiguous
     /// pagination from `reference`, use [`History::after`].
     pub fn latest_after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         self.reference_query(reference, CursorEdge::After, |target, after, limit| {
@@ -1255,7 +1255,7 @@ impl Client {
         let papo_core::HistoryPage {
             conversation,
             items,
-            end,
+            exhausted,
         } = page;
         let conversation = {
             let state = self.state();
@@ -1273,7 +1273,7 @@ impl Client {
         Ok(crate::HistoryPage {
             conversation,
             items,
-            end,
+            exhausted,
             reason: HistoryReason::Requested,
         })
     }
@@ -1828,7 +1828,7 @@ mod tests {
             )),
             items: vec![Event::Message(oldest), Event::Message(newest)],
             reason: HistoryReason::Requested,
-            end: false,
+            exhausted: false,
         };
         let cursor = page.cursor().unwrap();
         assert_eq!(cursor.origin, Some(origin));
@@ -1853,7 +1853,7 @@ mod tests {
                 UNIX_EPOCH,
             )],
             reason: HistoryReason::Replay,
-            end: false,
+            exhausted: false,
         };
 
         assert!(matches!(
@@ -1945,7 +1945,7 @@ mod tests {
             ),
             items: Vec::new(),
             reason: HistoryReason::Requested,
-            end: false,
+            exhausted: false,
         };
         let recent = RecentConversation {
             conversation: crate::Conversation::Private(user(
@@ -1981,7 +1981,7 @@ mod tests {
             conversation: event.conversation.clone(),
             items: vec![Event::Message(event)],
             reason: HistoryReason::Requested,
-            end: false,
+            exhausted: false,
         };
         assert_eq!(
             page.cursor(),
@@ -2001,7 +2001,7 @@ mod tests {
             conversation: event.conversation.clone(),
             items: vec![Event::Message(event)],
             reason: HistoryReason::Replay,
-            end: false,
+            exhausted: false,
         };
 
         assert_eq!(page.cursor(), None);
@@ -2105,7 +2105,7 @@ mod tests {
             conversation: message.conversation.clone(),
             items: vec![Event::Message(message)],
             reason: HistoryReason::Requested,
-            end: false,
+            exhausted: false,
         };
         let cursor = page.cursor().unwrap();
         assert!(matches!(&cursor.value, MsgRef::Timestamp(time) if *time == server_time));
@@ -2647,7 +2647,7 @@ mod tests {
             page.conversation,
             crate::Conversation::Channel(channel.clone())
         );
-        assert!(page.end);
+        assert!(page.exhausted);
         assert_eq!(page.items.len(), 6);
         assert!(matches!(page.items[1], Event::Reacted(_)));
         assert!(matches!(page.items[2], Event::Joined(_)));
