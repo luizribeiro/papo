@@ -1375,7 +1375,7 @@ pub(crate) fn historical_message_event(
         conversation,
         history_conversation,
         snapshot.nick(),
-        snapshot.casemapping(),
+        snapshot.working_casemapping(),
     ) else {
         return other_from_line(raw, received_at);
     };

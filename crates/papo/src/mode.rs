@@ -640,7 +640,7 @@ impl Change {
             mode,
             self.arg.as_ref().map(Argument::text),
             mode_kind(state.isupport().inner(), mode),
-            state.casemapping(),
+            state.working_casemapping(),
             state.nick().origin(),
             |nick| {
                 let proof = match &self.arg {
@@ -857,7 +857,7 @@ fn confirmed(
                 change.mode,
                 change.arg,
                 change.kind,
-                state.casemapping(),
+                state.working_casemapping(),
                 state.nick().origin(),
                 crate::UserHandle::from_nick,
             );
@@ -874,7 +874,7 @@ fn confirmed(
 
 fn same_target(state: &crate::State, left: &str, right: &str) -> bool {
     if state.isupport().is_channel(left) {
-        state.casemapping().channel(left) == right
+        state.working_casemapping().channel(left) == right
     } else {
         state
             .known_name_rules()

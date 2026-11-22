@@ -287,11 +287,12 @@ impl State {
         )
     }
 
-    /// Returns builders and checks once the server's name rules are known.
+    /// Returns builders and checks using papo's current known name rules.
     ///
-    /// This is `None` until the server advertises `CASEMAPPING` in `005`, unless
-    /// [`crate::Builder::casemapping`] seeded the rules before connecting. Waiting avoids
-    /// creating names under guessed rules that cannot compare equal to names created later.
+    /// The rules come from a supported server advertisement or a seed supplied through
+    /// [`crate::Builder::casemapping`]. This returns `None` while the rules are unknown.
+    /// The last known rules can remain in use after their advertisement is withdrawn.
+    /// For the server's current advertisement, use [`Isupport::casemapping`].
     ///
     /// When [`crate::event::CasemappingChanged`] arrives, rebuild saved names and
     /// maps or sets keyed by them using the current rules.
@@ -731,12 +732,7 @@ impl State {
             })
     }
 
-    /// Returns the server-defined name comparison rules.
-    ///
-    /// While disconnected, these are the last advertised rules or the builder's seed if no
-    /// connection has advertised rules yet.
-    #[must_use]
-    pub fn casemapping(&self) -> Casemapping {
+    pub(crate) fn working_casemapping(&self) -> Casemapping {
         self.core.casemapping()
     }
 
@@ -917,7 +913,7 @@ mod name_tests {
             1
         );
         assert_eq!(changed.typing("@#papo").count(), 0);
-        let foreign = crate::Origin::__new(91).__channel(changed.casemapping(), "#papo");
+        let foreign = crate::Origin::__new(91).__channel(changed.working_casemapping(), "#papo");
         assert_eq!(changed.typing(foreign).count(), 0);
     }
 
@@ -936,10 +932,10 @@ mod name_tests {
         assert!(state.metadata("ALICE").is_some());
         assert!(
             state
-                .metadata(local.__nick(state.casemapping(), "alice"))
+                .metadata(local.__nick(state.working_casemapping(), "alice"))
                 .is_some()
         );
-        let foreign = crate::Origin::__new(91).__nick(state.casemapping(), "alice");
+        let foreign = crate::Origin::__new(91).__nick(state.working_casemapping(), "alice");
         assert!(state.metadata(foreign).is_none());
         assert!(state.metadata("@#papo").is_none());
     }
@@ -958,20 +954,20 @@ mod name_tests {
         assert_eq!(state.user("ALICE").unwrap().unwrap().nick(), "alice");
         assert_eq!(
             state
-                .user(local.__nick(state.casemapping(), "alice"))
+                .user(local.__nick(state.working_casemapping(), "alice"))
                 .unwrap()
                 .unwrap()
                 .nick(),
             "alice"
         );
         assert_eq!(
-            state.user(crate::Origin::__new(91).__nick(state.casemapping(), "alice")),
+            state.user(crate::Origin::__new(91).__nick(state.working_casemapping(), "alice")),
             Err(crate::ForeignReference)
         );
         let channel = state.channel("#review").unwrap().unwrap();
         assert_eq!(channel.member("ALICE").unwrap().unwrap().nick(), "alice");
         assert_eq!(
-            channel.member(crate::Origin::__new(91).__nick(state.casemapping(), "alice")),
+            channel.member(crate::Origin::__new(91).__nick(state.working_casemapping(), "alice")),
             Err(crate::ForeignReference)
         );
     }
@@ -994,13 +990,13 @@ mod name_tests {
         );
         assert_eq!(
             joined
-                .channel(local.__channel(joined.casemapping(), "#review"))
+                .channel(local.__channel(joined.working_casemapping(), "#review"))
                 .unwrap()
                 .unwrap()
                 .name(),
             "#review"
         );
-        let foreign = crate::Origin::__new(91).__channel(joined.casemapping(), "#review");
+        let foreign = crate::Origin::__new(91).__channel(joined.working_casemapping(), "#review");
         assert!(matches!(
             joined.channel(foreign),
             Err(crate::ForeignReference)

@@ -120,7 +120,7 @@ impl Client {
             account_registration_result(
                 &response,
                 "REGISTER",
-                client.state().casemapping(),
+                client.state().working_casemapping(),
                 client.origin(),
             )
         })
@@ -153,7 +153,7 @@ impl Client {
             account_registration_result(
                 &response,
                 "VERIFY",
-                client.state().casemapping(),
+                client.state().working_casemapping(),
                 client.origin(),
             )
         })
@@ -255,7 +255,7 @@ mod tests {
         let verify = tokio::spawn({
             let client = client.clone();
             async move {
-                let account = client.state().casemapping().account("alice");
+                let account = client.state().working_casemapping().account("alice");
                 client.verify_account(account, secret("392814")).await
             }
         });
@@ -272,7 +272,7 @@ mod tests {
         let verify = tokio::spawn({
             let client = client.clone();
             async move {
-                let account = client.state().casemapping().account("alice");
+                let account = client.state().working_casemapping().account("alice");
                 client.verify_account(account, secret("expired-code")).await
             }
         });
@@ -290,7 +290,7 @@ mod tests {
         let verify = tokio::spawn({
             let client = client.clone();
             async move {
-                let account = client.state().casemapping().account("alice");
+                let account = client.state().working_casemapping().account("alice");
                 client.verify_account(account, secret("392814")).await
             }
         });

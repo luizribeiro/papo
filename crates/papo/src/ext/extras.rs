@@ -139,7 +139,7 @@ mod tests {
         )
         .await;
 
-        let mapping = client.state().casemapping();
+        let mapping = client.state().working_casemapping();
         let rename = tokio::spawn({
             let client = client.clone();
             let old = mapping.channel("#rust");

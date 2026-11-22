@@ -795,7 +795,8 @@ mod tests {
             let user = crate::UserHandle::from_current_state(name, Some(&client.state));
             assert_eq!(state.presence(&user), Ok(expected), "{nick}");
         }
-        let foreign = crate::Origin::__new(73).__nick(client.state().casemapping(), "alice");
+        let foreign =
+            crate::Origin::__new(73).__nick(client.state().working_casemapping(), "alice");
         assert_eq!(
             client.state().presence(foreign),
             Err(crate::ForeignReference)
@@ -1048,7 +1049,7 @@ mod tests {
     fn historical_proof_rests_only_on_the_lines_account_tag() {
         let client = client_with_joined_users();
         let alice = client.query("Alice").unwrap();
-        let mapping = client.state().casemapping();
+        let mapping = client.state().working_casemapping();
         for (account, linked) in [
             (
                 crate::Account::LoggedIn(mapping.account("alice-account")),
@@ -1077,7 +1078,7 @@ mod tests {
         let client = client_with_joined_users();
         let evidence_free_token = client.state().core.__reply_token_for("carol");
         let event = |nick: &str, historical| {
-            let nick = client.state().casemapping().nick(nick);
+            let nick = client.state().working_casemapping().nick(nick);
             if historical {
                 crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state))
             } else {

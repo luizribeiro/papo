@@ -159,7 +159,7 @@ pub(crate) fn history_item(
     received_at: SystemTime,
 ) -> Event {
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let origin = client.origin();
     let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
     let mut event = match item {
@@ -317,7 +317,7 @@ fn historical_tagmsg(
         return None;
     }
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let (status, conversation) =
         papo_core::classify_conversation(message, state.nick().as_str(), state.isupport().inner())
             .ok()?;
@@ -531,7 +531,7 @@ fn joined(
     received_at: SystemTime,
 ) -> Option<Event> {
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     crate::event_impl::joined_from_line(
         message,
         actor_party,
@@ -550,7 +550,7 @@ fn parted(
     received_at: SystemTime,
 ) -> Option<Event> {
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
@@ -585,7 +585,7 @@ fn quit(
     received_at: SystemTime,
 ) -> Option<Event> {
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let origin = client.origin();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
@@ -624,7 +624,7 @@ fn kicked(
 ) -> Option<Event> {
     let nick = message.param(1)?.to_owned();
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
@@ -671,7 +671,7 @@ fn nick_changed(
     received_at: SystemTime,
 ) -> Option<Event> {
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
@@ -743,7 +743,7 @@ fn mode_changed(
     received_at: SystemTime,
 ) -> Option<Event> {
     let state = client.state();
-    let mapping = state.casemapping();
+    let mapping = state.working_casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
@@ -2977,8 +2977,9 @@ mod tests {
         while client.state().isupport().statusmsg() != Some("~&@%+") {
             tokio::task::yield_now().await;
         }
-        let conversation =
-            crate::Conversation::Channel(channel(client.state().casemapping().channel("#ops")));
+        let conversation = crate::Conversation::Channel(channel(
+            client.state().working_casemapping().channel("#ops"),
+        ));
         for (template, item, is_line, is_event) in cases {
             for to in ["@#ops", "#ops"] {
                 let line = template.replace("{to}", to);
@@ -3505,7 +3506,8 @@ mod tests {
             assert_eq!(client.state().read_marker("#PAPO"), Some(expected));
         }
         assert_marker_changed(&mut events, expected).await;
-        let foreign = crate::Origin::__new(91).__channel(client.state().casemapping(), "#papo");
+        let foreign =
+            crate::Origin::__new(91).__channel(client.state().working_casemapping(), "#papo");
         assert_eq!(client.state().read_marker(foreign), None);
         assert_eq!(client.state().read_marker("@#papo"), None);
 

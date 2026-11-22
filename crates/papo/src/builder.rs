@@ -1075,7 +1075,8 @@ mod tests {
 
         let state = client.state();
         assert!(!state.is_connected());
-        assert_eq!(state.casemapping(), crate::Casemapping::Ascii);
+        let names = state.name_rules().expect("builder seeded the name rules");
+        assert_eq!(names.nick("papo").casemapping(), crate::Casemapping::Ascii);
         assert_eq!(state.nick().casemapping(), crate::Casemapping::Ascii);
         assert_eq!(
             state

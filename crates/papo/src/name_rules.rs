@@ -20,10 +20,10 @@ pub enum NameCheck {
 
 /// Builds and checks names using one [`State`]'s current rules and identity.
 ///
-/// This value exists only after `CASEMAPPING` arrives in `005` or the application seeds the
-/// rules with [`crate::Builder::casemapping`]. [`State::name_rules`] returns `None` before then
-/// because names retain their casemapping and a name built from guessed rules would remain a
-/// distinct map key after the real rules arrive.
+/// [`State::name_rules`] provides these builders when papo has learned a supported mapping
+/// or the application has seeded one with [`crate::Builder::casemapping`]. Names retain their
+/// casemapping, so a name built from guessed rules would remain a distinct map key after the
+/// real rules arrive.
 ///
 /// If a [`crate::event::CasemappingChanged`] event arrives, applications must rebuild maps and
 /// sets keyed by names. Existing names deliberately retain the rules used to create them.
@@ -31,8 +31,9 @@ pub enum NameCheck {
 /// Name values are useful as keys in sets and maps because they retain both the server's
 /// casemapping and the client that produced them. Builders do not validate and never fail:
 /// server-specific rules arrive only after connecting. Use [`Self::check_nick`] and
-/// [`Self::check_channel`] for configuration or user input. When a build without the `precis`
-/// feature meets `UTF8MAPPING=rfc8265`, these rules fall back to ASCII folding and emit [`crate::event::Warning::Utf8CasemappingUnsupported`] once for that connection.
+/// [`Self::check_channel`] for configuration or user input. A build without the `precis`
+/// feature can use ASCII rules when the server advertises them alongside `UTF8MAPPING=rfc8265`.
+/// In that case papo emits [`crate::event::Warning::Utf8CasemappingUnsupported`] once for the connection.
 ///
 /// ```
 /// # fn example(state: &papo::State) {
@@ -64,7 +65,7 @@ impl NameRules<'_> {
         self.state
             .nick()
             .origin()
-            .__nick(self.state.casemapping(), text)
+            .__nick(self.state.working_casemapping(), text)
     }
 
     /// Builds a channel name for comparisons or keyed collections.
@@ -85,7 +86,7 @@ impl NameRules<'_> {
         self.state
             .nick()
             .origin()
-            .__channel(self.state.casemapping(), text)
+            .__channel(self.state.working_casemapping(), text)
     }
 
     /// Builds an account name for trust decisions and comparisons.
@@ -105,7 +106,7 @@ impl NameRules<'_> {
         self.state
             .nick()
             .origin()
-            .__account(self.state.casemapping(), text)
+            .__account(self.state.working_casemapping(), text)
     }
 
     /// Builds an ignore-list mask for comparisons.
@@ -125,6 +126,6 @@ impl NameRules<'_> {
         self.state
             .nick()
             .origin()
-            .__mask(self.state.casemapping(), text)
+            .__mask(self.state.working_casemapping(), text)
     }
 }

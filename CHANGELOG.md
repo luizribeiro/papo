@@ -38,6 +38,7 @@ and its three configuration errors have been removed.
 `Sasl::device` is removed.
 
 `Isupport::casemapping` reports only a currently advertised and supported casemapping.
+Use `State::name_rules` for the rules papo uses to build names. `State::casemapping` is removed.
 
 The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
 

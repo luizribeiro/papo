@@ -10482,7 +10482,7 @@ async fn public_state_accessors_report_the_registered_session() {
     );
     assert_eq!(
         state
-            .user_local(state.casemapping().nick("ALICE"))
+            .user_local(state.working_casemapping().nick("ALICE"))
             .unwrap()
             .username(),
         Some("~alice")
