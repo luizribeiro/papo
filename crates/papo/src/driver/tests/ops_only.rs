@@ -272,6 +272,89 @@ async fn every_path_from_an_ops_only_line_reaches_the_audience_it_names() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn saved_references_preserve_ops_only_audiences() {
+    use crate::InvalidInput;
+
+    fn discard<T: 'static>(
+        request: impl std::future::IntoFuture<Output = Result<T, Error>, IntoFuture: Send + 'static>,
+    ) -> Answer {
+        let future = request.into_future();
+        Box::pin(async move { future.await.map(drop) })
+    }
+
+    let mut ops = OpsChannel::joined_with([
+        crate::cap::LABELED_RESPONSE,
+        crate::cap::MESSAGE_TAGS,
+        crate::cap::MESSAGE_REDACTION,
+    ])
+    .await;
+    let line = ops.receive_restricted(OPS_ONLY).await;
+    let saved = line.return_address().to_saved();
+    let reference = ops.client.saved_message(&saved).unwrap();
+    assert_eq!(reference, "@#ops");
+    assert_eq!(reference.msgid(), line.msgid());
+
+    let widened = ops
+        .client
+        .saved_message(&saved.replace("@#ops", "#ops"))
+        .unwrap();
+    assert!(matches!(
+        within(ops.client.react(widened, "👀")).await,
+        Err(Error::InvalidInput(InvalidInput::WiderThanReferenced { referenced }))
+            if referenced.symbol() == '@'
+    ));
+
+    for (send, expected) in [
+        (
+            discard(ops.client.react(reference.clone(), "👀")),
+            "@+reply=RfcBTzyxY120004;+draft/react=👀 TAGMSG @#ops\r\n",
+        ),
+        (
+            discard(ops.client.unreact(reference.clone(), "👀")),
+            "@+reply=RfcBTzyxY120004;+draft/unreact=👀 TAGMSG @#ops\r\n",
+        ),
+        (
+            discard(ops.client.redact(reference.clone(), "key rotated")),
+            "REDACT @#ops RfcBTzyxY120004 :key rotated\r\n",
+        ),
+        (
+            discard(ops.client.reply(reference, "key rotated")),
+            "@+reply=RfcBTzyxY120004 PRIVMSG @#ops :key rotated\r\n",
+        ),
+    ] {
+        let sending = tokio::spawn(send);
+        assert_eq!(
+            without_label(&next_client_line(&mut ops.server).await),
+            expected
+        );
+        sending.abort();
+    }
+    ops.finish().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn restored_private_replies_send_to_the_saved_nickname_without_a_lookup() {
+    let mut ops = OpsChannel::joined().await;
+    let received = ops.receive(
+        b"@msgid=RfcBTzyxY120006 :emily!~u@cloak.example PRIVMSG papo-driver :deployment complete\r\n",
+    ).await;
+    let reference = ops
+        .client
+        .saved_message(&received.return_address().to_saved())
+        .unwrap();
+    assert_eq!(reference, "emily");
+    assert_eq!(reference.msgid(), received.msgid());
+
+    within(ops.client.reply(reference, "thanks")).await.unwrap();
+    client_line(
+        &mut ops.server,
+        b"@+reply=RfcBTzyxY120006 PRIVMSG emily thanks\r\n",
+    )
+    .await;
+    ops.finish().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn a_loop_matching_only_messages_never_sees_an_ops_only_line() {
     let mut ops = OpsChannel::joined().await;
     server_line(&mut ops.server, OPS_ONLY).await;

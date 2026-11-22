@@ -8077,7 +8077,13 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
         ]
     );
     let sender = client.clone();
-    let redacted = tokio::spawn(async move { sender.redact(&split, "superseded").await });
+    let saved = split.return_address().to_saved();
+    assert_eq!(
+        saved,
+        "papo-ref:1;to=#papo;id=RfcBTzyxY120005;id=RfcBTzyxY120006"
+    );
+    let restored = client.saved_message(&saved).unwrap();
+    let redacted = tokio::spawn(async move { sender.redact(restored, "superseded").await });
     client_line(
         &mut server,
         b"@label=2 REDACT #papo RfcBTzyxY120005 superseded\r\n",

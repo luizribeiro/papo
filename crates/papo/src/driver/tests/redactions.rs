@@ -5,6 +5,7 @@ const ECHO_CAPS: &str = "draft/message-redaction echo-message labeled-response m
 const NO_ECHO_CAPS: &str = "draft/message-redaction labeled-response message-tags";
 const OWN_ECHO: &str = "@msgid=iig2yutustdze2rgdzcpe2k3rs;time=2026-11-17T12:28:35.330Z :papo-driver!~u@ff48uiw4dhhiy.irc REDACT #papo vb45bjkdx6ue3qeirv4yx886uw :superseded";
 const UNIDENTIFIED_ECHO: &str = "@time=2026-11-17T12:28:35.330Z :papo-driver!~u@ff48uiw4dhhiy.irc REDACT #papo vb45bjkdx6ue3qeirv4yx886uw :superseded";
+const UNKNOWN_MSGID: &str = "@label=0;time=2026-11-17T12:28:36.333Z :ergo.test FAIL REDACT UNKNOWN_MSGID #papo vb45bjkdx6ue3qeirv4yx886uw :This message does not exist or is too old";
 const ACK: &str = "@label=0;time=2026-11-17T12:28:35.330Z :ergo.test ACK";
 
 async fn redact(caps: &str, replies: &[&str]) -> Result<RedactOutcome, Error> {
@@ -12,6 +13,7 @@ async fn redact(caps: &str, replies: &[&str]) -> Result<RedactOutcome, Error> {
     let task = tokio::spawn(driver);
     complete_connect_caps(&mut server, &mut events, caps, caps).await;
     let message = line_reference("#papo", "vb45bjkdx6ue3qeirv4yx886uw");
+    let message = client.saved_message(&message.to_saved()).unwrap();
     let redacted = tokio::spawn(client.redact(message, "superseded"));
     client_line(
         &mut server,
@@ -87,12 +89,8 @@ async fn an_ack_without_the_owed_echo_does_not_verify_the_redaction() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn a_refused_redaction_is_a_server_error() {
-    let failed = redact(
-        ECHO_CAPS,
-        &["@label=0;time=2026-11-17T12:28:36.333Z :ergo.test FAIL REDACT UNKNOWN_MSGID #papo vb45bjkdx6ue3qeirv4yx886uw :This message does not exist or is too old"],
-    )
-    .await;
+async fn redacting_a_saved_reference_to_an_unknown_message_returns_the_server_error() {
+    let failed = redact(ECHO_CAPS, &[UNKNOWN_MSGID]).await;
     assert!(
         matches!(failed, Err(Error::Server(ref error)) if error.code() == "UNKNOWN_MSGID"),
         "{failed:?}"
