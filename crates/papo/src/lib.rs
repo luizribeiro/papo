@@ -378,8 +378,6 @@ pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 #[doc(inline)]
 pub use papo_core::{ListMode, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
-#[doc(hidden)]
-pub use papo_proto::MaskSource;
 #[doc(inline)]
 pub use papo_proto::Prefix;
 #[doc(inline)]

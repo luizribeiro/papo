@@ -404,6 +404,9 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 
 ### Removed
 
+`Mask::exact`, `Mask::for_host`, `Mask::for_user_host`, and `MaskSource` were removed. Build a
+mask from text with `NameRules::mask`.
+
 The `as_*` shortcuts on `Event`, `RestrictedLine`, and `Incomplete` are available only to
 tests using `papo-testing`. Match the variants in application code.
 

@@ -49,7 +49,6 @@ pub struct papo::sts::StsPolicy
 #[non_exhaustive] pub enum papo::Error
 pub struct papo::Client
 pub async fn papo::Client::op(&self, impl papo::AsChannel, impl papo::AsNick) -> core::result::Result<(), papo::Error>
-pub fn papo::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
 EOF
 {
   cat "$fixture/crates/papo/public-api.txt"
@@ -77,12 +76,10 @@ expect_rejected 'let nick = papo::Casemapping::default().nick("luiz");' \
   "Casemapping::default()"
 expect_rejected 'let fold = Casemapping::default;' \
   "Casemapping::default()"
-expect_rejected 'fn exact(source: &impl papo::MaskSource) {}' \
-  "'MaskSource', which is not declared in crates/papo/public-api.txt"
 expect_rejected 'fn nick(nick: impl papo::AsNick) {}' \
   "'AsNick', which is not declared in crates/papo/public-api.txt"
-expect_rejected $'use papo::{\n    Client,\n    MaskSource,\n};' \
-  "'MaskSource', which is not declared in crates/papo/public-api.txt"
+expect_rejected $'use papo::{\n    Client,\n    AsNick,\n};' \
+  "'AsNick', which is not declared in crates/papo/public-api.txt"
 expect_rejected 'use papo::{Client, sts::StsStore};' \
   "'StsStore', which is not declared in crates/papo/public-api.txt"
 expect_rejected 'fn show(network: &papo::BouncerNetwork) {}' \

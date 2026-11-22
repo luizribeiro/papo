@@ -4524,10 +4524,7 @@ pub fn papo::Mask::into_string(self) -> alloc::string::String
 pub fn papo::Mask::key(&self) -> &str
 pub const fn papo::Mask::origin(&self) -> papo::Origin
 impl papo::Mask
-pub fn papo::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
-pub fn papo::Mask::for_host(&impl MaskSource) -> core::option::Option<Self>
 pub fn papo::Mask::for_nick(&papo::Nick) -> Self
-pub fn papo::Mask::for_user_host(&impl MaskSource) -> core::option::Option<Self>
 impl core::clone::Clone for papo::Mask
 pub fn papo::Mask::clone(&self) -> Self
 impl core::cmp::Eq for papo::Mask

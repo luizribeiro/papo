@@ -40,7 +40,7 @@ pub use command::Command;
 pub use ctcp::Ctcp;
 pub use id::{
     AccountName, Address, AsAccount, AsChannel, AsNick, BatchId, BatchType, ChannelName,
-    InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,
+    InvalidIdentifier, Mask, MessageId, MetadataKey, NameParts, Nick, Origin,
 };
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Isupport, KnownLimit, Limit, LimitValue,
