@@ -521,6 +521,18 @@ impl Hash for UserRef {
 ///
 /// A reference names the whole channel and never carries a status sign: sending to it reaches
 /// everyone. See [`crate::Conversation`] for answering ops-only lines.
+///
+/// ```compile_fail,E0308
+/// fn matches_text(reference: papo::ChannelRef) -> bool {
+///     reference == "#rust"
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// fn matches_text(reference: &papo::ChannelRef) -> bool {
+///     reference == "#rust"
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ChannelRef(Arc<ChannelInner>);
 
@@ -599,18 +611,6 @@ impl PartialEq for ChannelRef {
 }
 
 impl Eq for ChannelRef {}
-
-impl PartialEq<str> for ChannelRef {
-    fn eq(&self, other: &str) -> bool {
-        self.name() == other
-    }
-}
-
-impl PartialEq<&str> for ChannelRef {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
-    }
-}
 
 impl Hash for ChannelRef {
     fn hash<H: Hasher>(&self, state: &mut H) {

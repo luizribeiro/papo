@@ -422,6 +422,9 @@ tests using `papo-testing`. Match the variants in application code.
 
 `UserRef` no longer compares directly with text. Use `user.nick() == "alice"`.
 
+Direct text comparisons were removed from `ChannelRef`, `Conversation`, and `Subject`. Compare a
+channel with `channel.name()` or match a conversation or subject to get its channel name or nickname.
+
 `Client::query` was removed. Send to the nickname.
 
 Sends using a user reference no longer run a WHO lookup.

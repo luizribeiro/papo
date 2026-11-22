@@ -1676,10 +1676,6 @@ pub fn papo::Conversation::clone(&self) -> Self
 impl core::cmp::Eq for papo::Conversation
 impl core::cmp::PartialEq for papo::Conversation
 pub fn papo::Conversation::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo::Conversation
-pub fn papo::Conversation::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo::Conversation
-pub fn papo::Conversation::eq(&self, &str) -> bool
 impl core::fmt::Debug for papo::Conversation
 pub fn papo::Conversation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::Conversation
@@ -2167,10 +2163,6 @@ pub fn papo::Subject::clone(&self) -> Self
 impl core::cmp::Eq for papo::Subject
 impl core::cmp::PartialEq for papo::Subject
 pub fn papo::Subject::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo::Subject
-pub fn papo::Subject::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo::Subject
-pub fn papo::Subject::eq(&self, &str) -> bool
 impl core::fmt::Debug for papo::Subject
 pub fn papo::Subject::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::Subject
@@ -2441,10 +2433,6 @@ pub fn papo::ChannelRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::ChannelRef
 impl core::cmp::PartialEq for papo::ChannelRef
 pub fn papo::ChannelRef::eq(&self, &Self) -> bool
-impl core::cmp::PartialEq<&str> for papo::ChannelRef
-pub fn papo::ChannelRef::eq(&self, &&str) -> bool
-impl core::cmp::PartialEq<str> for papo::ChannelRef
-pub fn papo::ChannelRef::eq(&self, &str) -> bool
 impl core::fmt::Debug for papo::ChannelRef
 pub fn papo::ChannelRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::ChannelRef

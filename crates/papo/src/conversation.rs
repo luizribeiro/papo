@@ -23,6 +23,18 @@ use std::fmt;
 ///
 /// A server can also hide an audience without a sign (Ergo's `+U`, Solanum's `+z`): such a line
 /// arrives as plain `#ops` and no client can tell.
+///
+/// ```compile_fail,E0308
+/// fn matches_text(reference: papo::Conversation) -> bool {
+///     reference == "#rust"
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// fn matches_text(reference: &papo::Conversation) -> bool {
+///     reference == "#rust"
+/// }
+/// ```
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Conversation {
@@ -99,20 +111,5 @@ impl fmt::Display for Conversation {
             Self::Channel(channel) => channel.name().fmt(formatter),
             Self::Private(user) => user.nick().fmt(formatter),
         }
-    }
-}
-
-impl PartialEq<str> for Conversation {
-    fn eq(&self, other: &str) -> bool {
-        match self {
-            Self::Channel(channel) => channel.name() == other,
-            Self::Private(user) => user.nick() == other,
-        }
-    }
-}
-
-impl PartialEq<&str> for Conversation {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
     }
 }

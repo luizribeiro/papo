@@ -405,6 +405,18 @@ pub use typing::{Typer, Typers};
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.
+///
+/// ```compile_fail,E0308
+/// fn matches_text(reference: papo::Subject) -> bool {
+///     reference == "alice"
+/// }
+/// ```
+///
+/// ```compile_fail,E0277
+/// fn matches_text(reference: &papo::Subject) -> bool {
+///     reference == "alice"
+/// }
+/// ```
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Subject {
@@ -440,21 +452,6 @@ impl Subject {
             Self::Channel(channel) => Some(channel),
             Self::User(_) => None,
         }
-    }
-}
-
-impl PartialEq<str> for Subject {
-    fn eq(&self, other: &str) -> bool {
-        match self {
-            Self::Channel(channel) => channel.name() == other,
-            Self::User(user) => user.nick() == other,
-        }
-    }
-}
-
-impl PartialEq<&str> for Subject {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
     }
 }
 
