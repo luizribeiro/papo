@@ -537,6 +537,22 @@ async fn advertise_monitor(client: &papo::Client, wire: &mut Wire, nick: &str) {
 }
 
 #[tokio::test]
+async fn observed_user_watch_add_stays_on_its_own_wire() {
+    let ((first, mut first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+    advertise_monitor(&first, &mut first_wire, "papo-first").await;
+    advertise_monitor(&second, &mut second_wire, "papo-second").await;
+    first_wire
+        .server(":alice!~alice@cloak.example PRIVMSG papo-first :release is ready")
+        .await;
+    let (message, _) = next_private_message(&mut first_events).await;
+
+    let _watch = message.actor.watch();
+    assert_eq!(first_wire.next_sent().await, "MONITOR + alice");
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
+#[tokio::test]
 async fn foreign_watch_remove_never_reaches_either_wire() {
     let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
         client_pair(&[]).await;
