@@ -12,7 +12,7 @@ fn duplicate_own_join_is_a_stable_bouncer_resync_signal() {
     let mut upstream_disabled = false;
     for raw in include_str!("data/soju-upstream-drop-stable.irc").lines() {
         if raw == "# upstream disabled" {
-            original = Some(session.state().__peer_token_for("alice"));
+            original = Some(session.state().__reply_token_for("alice"));
             upstream_disabled = true;
             continue;
         }
@@ -32,7 +32,10 @@ fn duplicate_own_join_is_a_stable_bouncer_resync_signal() {
         }
     }
     assert!(session.state().user("alice").is_none());
-    assert_ne!(session.state().__peer_token_for("alice"), original.unwrap());
+    assert_ne!(
+        session.state().__reply_token_for("alice"),
+        original.unwrap()
+    );
 }
 
 #[test]
@@ -66,9 +69,9 @@ fn nearby_notices_and_ordinary_duplicate_joins_preserve_identity() {
         ] {
             session.handle_line(now, line.as_bytes());
         }
-        let original = session.state().__peer_token_for("alice");
+        let original = session.state().__reply_token_for("alice");
         session.handle_line(now, signal.as_bytes());
-        assert_eq!(session.state().__peer_token_for("alice"), original);
+        assert_eq!(session.state().__reply_token_for("alice"), original);
     }
 }
 
@@ -92,9 +95,9 @@ fn one_resync_with_multiple_channels_only_ends_identity_once() {
     assert!(session.state().user("alice").is_some());
 
     session.handle_line(now, b":bouncer.papo.test 324 papo-bouncer #review +Cnt");
-    let current = session.state().__peer_token_for("alice");
+    let current = session.state().__reply_token_for("alice");
     session.handle_line(now, b":papo-bouncer!~u@later.example JOIN #review");
-    assert_ne!(session.state().__peer_token_for("alice"), current);
+    assert_ne!(session.state().__reply_token_for("alice"), current);
 }
 
 #[test]
@@ -115,10 +118,10 @@ fn only_selected_network_states_outside_connected_end_identity() {
         ] {
             session.handle_line(now, setup.as_bytes());
         }
-        let original = session.state().__peer_token_for("alice");
+        let original = session.state().__reply_token_for("alice");
         session.handle_line(now, line.as_bytes());
         assert_eq!(
-            session.state().__peer_token_for("alice") != original,
+            session.state().__reply_token_for("alice") != original,
             changes,
             "{line}"
         );

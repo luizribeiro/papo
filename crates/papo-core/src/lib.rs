@@ -3326,23 +3326,6 @@ impl ReplyToken {
     }
 }
 
-/// Opaque identity of one peer while the session can prove continuity.
-#[doc(hidden)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct PeerToken {
-    origin: papo_proto::Origin,
-    identity: Option<ReplyIdentity>,
-}
-
-impl PeerToken {
-    /// Reports whether state currently tracks a concrete IRC user.
-    #[doc(hidden)]
-    #[must_use]
-    pub const fn __is_known(self) -> bool {
-        self.identity.is_some()
-    }
-}
-
 /// Captured proof of a private recipient's identity.
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -7043,9 +7026,9 @@ mod tests {
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
-        CloseKind, Config, Connection, Event, ListMode, MultilineMessage, NameKey, Outbox, Party,
-        ReceivedLine, ReplyToken, RequestId, ResponseBoundary, ResponseMatcher, SentEcho, Session,
-        State, UnlabelledRequest,
+        CloseKind, Config, Event, ListMode, MultilineMessage, NameKey, Outbox, Party, ReceivedLine,
+        ReplyToken, RequestId, ResponseBoundary, ResponseMatcher, SentEcho, Session, State,
+        UnlabelledRequest,
     };
 
     fn unmarked_received_mode() -> ReceivedLine {
@@ -7134,25 +7117,6 @@ mod tests {
             Some(std::cmp::Ordering::Equal)
         );
         assert_eq!(papo.partial_cmp(&rust), Some(std::cmp::Ordering::Less));
-    }
-
-    #[test]
-    fn peer_proof_accessor_reports_exact_state() {
-        let now = std::time::Instant::now();
-        let mut session = Session::new(Config::default().nick("papo"));
-        assert!(!session.state().__peer_token_for("alice").__is_known());
-
-        session.handle_connected_with(
-            now,
-            Connection {
-                host: "irc.example".into(),
-                security: crate::sts::ConnectionSecurity::Secure,
-            },
-        );
-        session.handle_line(now, b":papo!p@localhost JOIN #release");
-        session.handle_line(now, b":alice!~alice@cloak.example JOIN #release");
-
-        assert!(session.state().__peer_token_for("alice").__is_known());
     }
 
     #[test]

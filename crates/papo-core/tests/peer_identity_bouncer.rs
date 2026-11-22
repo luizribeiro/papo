@@ -15,7 +15,7 @@ fn replay(session: &mut Session, trace: &str) {
     let mut dropped = false;
     for raw in trace.lines() {
         if raw == "# upstream disabled" {
-            let token = session.state().__peer_token_for("alice");
+            let token = session.state().__reply_token_for("alice");
             assert!(token.__is_known());
             original = Some(token);
             guard = session.state().__capture_recipient(
@@ -32,7 +32,7 @@ fn replay(session: &mut Session, trace: &str) {
         {
             dropped = true;
             assert!(session.state().user("alice").is_none());
-            assert!(!session.state().__peer_token_for("alice").__is_known());
+            assert!(!session.state().__reply_token_for("alice").__is_known());
             let remaining = session
                 .state()
                 .channel("#review")
@@ -48,7 +48,7 @@ fn replay(session: &mut Session, trace: &str) {
         }
     }
     assert!(dropped);
-    let replacement = session.state().__peer_token_for("alice");
+    let replacement = session.state().__reply_token_for("alice");
     assert!(replacement.__is_known());
     assert_ne!(replacement, original.unwrap());
     assert_eq!(

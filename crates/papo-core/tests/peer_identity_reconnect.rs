@@ -9,7 +9,7 @@ fn server(session: &mut Session, now: Instant, line: &str) {
 }
 
 #[test]
-fn peer_proof_changes_after_departure_and_reconnect() {
+fn reply_identity_changes_after_departure_and_reconnect() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
     server(&mut session, now, ":papo!~papo@localhost JOIN #review");
@@ -18,7 +18,7 @@ fn peer_proof_changes_after_departure_and_reconnect() {
         now + Duration::from_millis(1),
         ":alice!~alice@cloak.example JOIN #review",
     );
-    let original = session.state().__peer_token_for("alice");
+    let original = session.state().__reply_token_for("alice");
     server(
         &mut session,
         now + Duration::from_millis(2),
@@ -29,9 +29,9 @@ fn peer_proof_changes_after_departure_and_reconnect() {
         now + Duration::from_millis(3),
         ":alice!~mallory@visitor.example JOIN #review",
     );
-    assert_ne!(session.state().__peer_token_for("alice"), original);
+    assert_ne!(session.state().__reply_token_for("alice"), original);
 
-    let replacement = session.state().__peer_token_for("alice");
+    let replacement = session.state().__reply_token_for("alice");
     session.handle_disconnected(now + Duration::from_millis(4));
     session.handle_connected(now + Duration::from_millis(5));
     server(
@@ -39,7 +39,7 @@ fn peer_proof_changes_after_departure_and_reconnect() {
         now + Duration::from_millis(6),
         ":alice!~alice@new-cloak.example JOIN #review",
     );
-    assert_ne!(session.state().__peer_token_for("alice"), replacement);
+    assert_ne!(session.state().__reply_token_for("alice"), replacement);
 }
 
 #[test]
@@ -53,10 +53,10 @@ fn soju_upstream_drop_ends_the_identity_session() {
         ] {
             server(&mut session, now, line);
         }
-        let original = session.state().__peer_token_for("alice");
+        let original = session.state().__reply_token_for("alice");
         server(&mut session, now, signal);
         assert!(session.state().user("alice").is_none());
-        assert_ne!(session.state().__peer_token_for("alice"), original);
+        assert_ne!(session.state().__reply_token_for("alice"), original);
     };
     dropped(
         Session::new(Config::default().nick("papo")),

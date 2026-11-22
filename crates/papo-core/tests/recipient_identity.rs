@@ -2,15 +2,15 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Account, Config, Event, PeerToken, ProofFailure, RecipientStatus, Session};
+use papo_core::{Account, Config, Event, ProofFailure, RecipientStatus, ReplyToken, Session};
 use papo_proto::{Line, Origin};
 
 fn server(session: &mut Session, now: Instant, line: &str) {
     session.handle_line(now, line.as_bytes());
 }
 
-fn peer(session: &Session, nick: &str) -> PeerToken {
-    session.state().__peer_token_for(nick)
+fn peer(session: &Session, nick: &str) -> ReplyToken {
+    session.state().__reply_token_for(nick)
 }
 
 fn session_with_origin(origin: u64) -> Session {
@@ -40,7 +40,7 @@ fn alice_event(session: &mut Session, now: Instant) -> papo_core::ReplyToken {
 }
 
 #[test]
-fn peer_proof_follows_nick_and_account_knowledge() {
+fn reply_identity_follows_nick_and_account_knowledge() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
     server(&mut session, now, ":papo!~papo@localhost JOIN #review");

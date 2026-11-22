@@ -727,19 +727,6 @@ impl State {
         }
     }
 
-    /// Returns the peer-proof identity for the current holder of `target`.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __peer_token_for(&self, target: &str) -> crate::PeerToken {
-        crate::PeerToken {
-            origin: self.casemapping.origin(),
-            identity: self.user(target).map(|user| crate::ReplyIdentity {
-                epoch: user.reply_epoch,
-                sequence: user.departure_sequence,
-            }),
-        }
-    }
-
     /// Resolves the current nickname for a captured private-recipient identity.
     #[doc(hidden)]
     #[must_use]
