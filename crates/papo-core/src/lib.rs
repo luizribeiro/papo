@@ -6325,8 +6325,8 @@ impl Session {
             self.ctcp_sources.pop_front();
         }
         self.ctcp_sources.push_back((nick.to_owned(), now));
-        let actor = Actor::from_proto_with_names(source, self.names());
-        if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default())
+        if let Some(actor) = Actor::from_proto_with_names(source, self.names())
+            && let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default())
             && let Ok(line) = reply.encode()
         {
             self.outbox.transmit_raw(line);
@@ -6559,7 +6559,7 @@ impl Session {
                     mask: mapping.mask(line.param(2 + offset)?),
                     actor: line
                         .param(3 + offset)
-                        .map(|actor| Actor::from_prefix_with_names(actor, mapping)),
+                        .and_then(|actor| Actor::from_prefix_with_names(actor, mapping)),
                     set_at: line
                         .param(4 + offset)
                         .and_then(|value| value.parse::<i64>().ok())

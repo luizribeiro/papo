@@ -1125,9 +1125,13 @@ impl State {
             return Handled::Yes;
         }
         if message.command() == Command::Kick {
-            let (Some(source), Some(channel), Some(nick)) =
-                (message.source(), message.param(0), message.param(1))
-            else {
+            let (Some(source), Some(channel), Some(nick)) = (
+                message
+                    .source()
+                    .and_then(|source| Actor::from_proto_with_names(source, mapping)),
+                message.param(0),
+                message.param(1),
+            ) else {
                 return Handled::No;
             };
             let actor_party = self.source_party(message);
@@ -1143,7 +1147,7 @@ impl State {
                 subject: mapping.nick(nick),
                 token,
                 facts,
-                actor: Actor::from_proto_with_names(source, mapping),
+                actor: source,
                 actor_token: self.source_token(message),
                 actor_party,
                 subject_party,
@@ -1340,7 +1344,9 @@ impl State {
                 .param(0)
                 .filter(|_| message.command() == Command::Mode),
             message.param(1),
-            message.source(),
+            message
+                .source()
+                .and_then(|source| Actor::from_proto_with_names(source, self.casemapping)),
         ) else {
             return false;
         };
@@ -1362,7 +1368,7 @@ impl State {
                 Subject::User(self.casemapping.nick(target))
             },
             subject_token: self.__reply_token_for(target),
-            actor: Actor::from_proto_with_names(actor, self.casemapping),
+            actor,
             actor_token: self.source_token(message),
             actor_party: self.source_party(message),
             subject_party: match message.source() {
@@ -1463,21 +1469,26 @@ impl State {
                 };
                 channel.topic_set_by = message
                     .param(2)
-                    .map(|setter| Actor::from_prefix_with_names(setter, mapping));
+                    .and_then(|setter| Actor::from_prefix_with_names(setter, mapping));
                 channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
             _ => return false,
         };
         let live_envelope = live.then(|| crate::LineEnvelope::from_line(message));
+        let actor = live_envelope.as_ref().and_then(|_| {
+            message
+                .source()
+                .and_then(|source| Actor::from_proto_with_names(source, mapping))
+        });
         if let (Some(envelope), Some(channel), Some(actor)) =
-            (live_envelope.clone(), channel_name, message.source())
+            (live_envelope.clone(), channel_name, actor.clone())
         {
             outbox.event(Event::TopicChanged {
                 envelope,
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
-                actor: Actor::from_proto_with_names(actor, self.casemapping),
+                actor,
                 actor_token: self.source_token(message),
                 actor_party: self.source_party(message),
             });
@@ -1486,13 +1497,7 @@ impl State {
             return false;
         };
         channel.topic = topic.filter(|topic| !topic.is_empty()).map(str::to_owned);
-        channel.topic_set_by = if live {
-            message
-                .source()
-                .map(|source| Actor::from_proto_with_names(source, mapping))
-        } else {
-            None
-        };
+        channel.topic_set_by = actor;
         channel.topic_set_at = live_envelope.and_then(|envelope| envelope.server_time());
         true
     }
@@ -2028,7 +2033,7 @@ impl Channel {
         let mut overflowed = false;
         let actor = message
             .source()
-            .map(|source| Actor::from_proto_with_names(source, self.casemapping));
+            .and_then(|source| Actor::from_proto_with_names(source, self.casemapping));
         let set_at = crate::LineEnvelope::from_line(message).server_time();
         for change in ModeChanges::parse(modestring, message.params().skip(2), isupport) {
             let mode = match (change.kind, change.mode) {

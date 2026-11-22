@@ -369,7 +369,6 @@ fn missing_reexported_surfaces(snapshot: &str) -> Vec<&str> {
         .lines()
         .filter_map(|line| line.strip_prefix("pub use "))
         .filter(|path| !path.contains(" as "))
-        .filter(|path| *path != "papo::LineSource")
         .filter(|path| !path.starts_with("papo::cap::"))
         .filter(|path| {
             path.rsplit("::")

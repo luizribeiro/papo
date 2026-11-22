@@ -62,6 +62,7 @@ pub(crate) fn from_line(
                 papo_proto::Source::Server(server) => {
                     return Some(Actor::Server(server.into()));
                 }
+                _ => return None,
             }
         }
         LinePrefix::Core(source) => match source {

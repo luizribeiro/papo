@@ -37,13 +37,20 @@ impl Actor {
     }
 
     /// Builds an owned source from a parsed protocol prefix.
+    ///
+    /// # Panics
+    /// Panics if the source kind cannot be represented as an actor.
     #[doc(hidden)]
     #[must_use]
     pub fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Self {
         Self::from_proto_with_names(source, Names::new(casemapping, papo_proto::Origin::NONE))
+            .expect("source kind must be representable as an actor")
     }
 
     /// Builds an owned source associated with one client.
+    ///
+    /// # Panics
+    /// Panics if the source kind cannot be represented as an actor.
     #[doc(hidden)]
     #[must_use]
     pub fn __from_proto(
@@ -52,10 +59,14 @@ impl Actor {
         origin: papo_proto::Origin,
     ) -> Self {
         Self::from_proto_with_names(source, Names::new(casemapping, origin))
+            .expect("source kind must be representable as an actor")
     }
 
-    pub(crate) fn from_proto_with_names(source: papo_proto::Source<'_>, names: Names) -> Self {
-        match source {
+    pub(crate) fn from_proto_with_names(
+        source: papo_proto::Source<'_>,
+        names: Names,
+    ) -> Option<Self> {
+        Some(match source {
             papo_proto::Source::Server(name) => Self::Server { name: name.into() },
             papo_proto::Source::User {
                 nick,
@@ -67,17 +78,15 @@ impl Actor {
                 username: username.map(str::to_owned),
                 host: host.map(str::to_owned),
             },
-        }
+            _ => return None,
+        })
     }
 
-    pub(crate) fn from_prefix_with_names(prefix: &str, names: Names) -> Self {
+    pub(crate) fn from_prefix_with_names(prefix: &str, names: Names) -> Option<Self> {
         let line = papo_proto::Line::new("NOTICE")
             .param("*")
             .with_source(prefix);
-        Self::from_proto_with_names(
-            line.as_ref().source().expect("owned source is present"),
-            names,
-        )
+        Self::from_proto_with_names(line.as_ref().source()?, names)
     }
 }
 
@@ -98,6 +107,7 @@ mod tests {
 
     fn source(prefix: &str, mapping: Casemapping) -> Actor {
         Actor::from_prefix_with_names(prefix, crate::Names::new(mapping, papo_proto::Origin::NONE))
+            .unwrap()
     }
 
     #[test]

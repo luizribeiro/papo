@@ -4473,6 +4473,25 @@ pub papo::InvalidUrl::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidUrl::Userinfo
 pub papo::InvalidUrl::Whitespace
 pub papo::InvalidUrl::ZoneIdentifier(alloc::string::String)
+#[non_exhaustive] pub enum papo::LineSource<'a>
+pub papo::LineSource::Server(&'a str)
+#[non_exhaustive] pub papo::LineSource::User
+pub papo::LineSource::User::host: core::option::Option<&'a str>
+pub papo::LineSource::User::nick: &'a str
+pub papo::LineSource::User::username: core::option::Option<&'a str>
+impl<'a> core::clone::Clone for papo::LineSource<'a>
+impl<'a> core::cmp::Eq for papo::LineSource<'a>
+impl<'a> core::cmp::PartialEq for papo::LineSource<'a>
+impl<'a> core::fmt::Debug for papo::LineSource<'a>
+impl<'a> core::marker::Copy for papo::LineSource<'a>
+impl<'a> core::marker::StructuralPartialEq for papo::LineSource<'a>
+impl<'a> core::marker::Freeze for papo::LineSource<'a>
+impl<'a> core::marker::Send for papo::LineSource<'a>
+impl<'a> core::marker::Sync for papo::LineSource<'a>
+impl<'a> core::marker::Unpin for papo::LineSource<'a>
+impl<'a> core::marker::UnsafeUnpin for papo::LineSource<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::LineSource<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo::LineSource<'a>
 #[non_exhaustive] pub enum papo::ListMode
 pub papo::ListMode::Ban
 pub papo::ListMode::Except

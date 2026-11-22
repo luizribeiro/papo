@@ -1,5 +1,8 @@
 /// The source of an IRC line.
+///
+/// Future variants may represent prefixes that cannot be classified as a server or user.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Source<'a> {
     /// A server name.
     Server(&'a str),

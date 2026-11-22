@@ -99,22 +99,24 @@ END {
   preferred["papo::Cap"] = "papo_core::Cap"
   preferred["papo::InvalidUrl"] = "papo_core::InvalidUrl"
   preferred["papo::InvalidServerTime"] = "papo_proto::time::InvalidServerTime"
+  preferred["papo::LineSource"] = "papo_proto::Source"
   preferred["papo::ModeChange"] = "papo_core::ModeChange"
   preferred["papo::ServerTime"] = "papo_proto::time::ServerTime"
 
   for (name in target_for) {
     target = target_for[name]
+    source_name = target in preferred ? terminal_name(preferred[target]) : name
     chosen = ""
-    for (candidate_index = 1; candidate_index <= candidate_count[name]; candidate_index++) {
-      source = candidate[name, candidate_index]
+    for (candidate_index = 1; candidate_index <= candidate_count[source_name]; candidate_index++) {
+      source = candidate[source_name, candidate_index]
       if (source == target || source == preferred[target]) {
         chosen = source
       }
     }
-    if (chosen == "" && candidate_count[name] == 1) {
-      chosen = candidate[name, 1]
+    if (chosen == "" && candidate_count[source_name] == 1) {
+      chosen = candidate[source_name, 1]
     }
-    if (chosen == "" && candidate_count[name] > 1) {
+    if (chosen == "" && candidate_count[source_name] > 1) {
       print "ambiguous public API source for " target > "/dev/stderr"
       failed = 1
     } else if (chosen != "") {

@@ -46,6 +46,8 @@ Import `Message` from `papo::event`.
 
 `Capabilities` is read-only. Use `get`, `contains`, or `iter` to read negotiated capabilities.
 
+`LineSource` is non-exhaustive. Match it with a fallback for future source kinds.
+
 `ChannelHandle` is now `ChannelRef`.
 
 `UserHandle` is now `UserRef`.

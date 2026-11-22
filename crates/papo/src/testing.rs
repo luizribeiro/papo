@@ -200,6 +200,9 @@ pub fn user_handle(nick: impl Into<Nick>) -> crate::UserRef {
 }
 
 /// Constructs an event source from a parsed protocol prefix without line tags.
+///
+/// # Panics
+/// Panics if the source kind cannot be represented as an actor.
 #[must_use]
 pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate::Actor {
     match source {
@@ -210,6 +213,7 @@ pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate
             None,
         )),
         papo_proto::Source::Server(server) => crate::Actor::Server(server.into()),
+        _ => panic!("source kind must be representable as an actor"),
     }
 }
 

@@ -811,7 +811,7 @@ fn mode_changed(
 fn source_nick(message: &papo_proto::LineRef<'_>) -> Option<String> {
     match message.source()? {
         papo_proto::Source::User { nick, .. } => Some(nick.to_owned()),
-        papo_proto::Source::Server(_) => None,
+        _ => None,
     }
 }
 
@@ -2250,6 +2250,17 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(item, PageEvent::Other(line) if line.command() == "REDACT"));
+    }
+
+    #[test]
+    fn history_source_nick_requires_a_user_prefix() {
+        for (raw, nick) in [
+            (":emily!~e@localhost NICK emily_", Some("emily")),
+            (":ergo.test NICK emily_", None),
+        ] {
+            let line = papo_proto::LineRef::parse(raw).unwrap();
+            assert_eq!(super::source_nick(&line).as_deref(), nick, "{raw}");
+        }
     }
 
     #[test]
