@@ -83,7 +83,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | --- | --- | :---: | --- | :---: |
 | [Account extended ban](https://ircv3.net/specs/extensions/account-extban) | `ACCOUNTEXTBAN` | Yes | [`Extban::account`](https://docs.rs/papo/latest/papo/struct.Extban.html#method.account) | [Yes](conformance-matrix.md) |
 | [Bot mode](https://ircv3.net/specs/extensions/bot-mode) | `BOT, bot` | Opt-in | [`Builder::bot_mode`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.bot_mode) | [Yes](conformance-matrix.md) |
-| [Monitor](https://ircv3.net/specs/extensions/monitor) | `MONITOR` | Yes | [`UserHandle::watch`](https://docs.rs/papo/latest/papo/struct.UserHandle.html#method.watch) | [Yes](conformance-matrix.md) |
+| [Monitor](https://ircv3.net/specs/extensions/monitor) | `MONITOR` | Yes | [`UserRef::watch`](https://docs.rs/papo/latest/papo/struct.UserRef.html#method.watch) | [Yes](conformance-matrix.md) |
 | [Network icon](https://ircv3.net/specs/extensions/network-icon) | `draft/ICON` | Yes | [`Isupport::icon_url`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.icon_url) | [Yes](conformance-matrix.md) |
 | [WHOX](https://ircv3.net/specs/extensions/whox) | `WHOX` | Yes | [`Client::who`](https://docs.rs/papo/latest/papo/struct.Client.html#method.who) | [Yes](conformance-matrix.md) |
 | [UTF8ONLY](https://ircv3.net/specs/extensions/utf8-only) | `UTF8ONLY` | Yes | [`Isupport::utf8only`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.utf8only) | [Yes](conformance-matrix.md) |

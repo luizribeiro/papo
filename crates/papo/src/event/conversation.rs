@@ -21,7 +21,7 @@ pub enum Broadcast {
 #[non_exhaustive]
 pub struct BroadcastCtcp {
     /// The user or server that sent the CTCP message.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -48,7 +48,7 @@ super::actor_account_accessor!(BroadcastCtcp);
 #[non_exhaustive]
 pub struct BroadcastTagMsg {
     /// The user or server that sent the message.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -63,7 +63,7 @@ pub struct BroadcastTagMsg {
 
 super::actor_account_accessor!(BroadcastTagMsg);
 
-fn broadcast_origin(to: &Broadcast, actor: &crate::UserHandle) -> crate::Origin {
+fn broadcast_origin(to: &Broadcast, actor: &crate::UserRef) -> crate::Origin {
     match to {
         Broadcast::Mask(mask) => mask.origin(),
         Broadcast::Everyone => actor.origin(),
@@ -115,7 +115,7 @@ pub struct Reacted {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user that changed the reaction.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -184,7 +184,7 @@ pub struct TypingChanged {
     /// Time from this device's clock at which the line was received or a local timeout was observed.
     pub received_at: SystemTime,
     /// The user or server that sent the notification.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -212,7 +212,7 @@ pub struct TagMsg {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user or server that sent the message.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,

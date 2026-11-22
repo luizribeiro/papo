@@ -1,4 +1,4 @@
-use crate::{ModeAction, Prefix, Secret, UserHandle};
+use crate::{ModeAction, Prefix, Secret, UserRef};
 
 /// One operation from an IRC mode string.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -26,7 +26,7 @@ pub enum ModeArg {
         /// their later nickname changes, and refuses whoever takes the nickname after they
         /// leave. From history it proves nothing about who holds the nickname now, so member
         /// helpers refuse it with [`crate::Error::TargetGone`].
-        user: UserHandle,
+        user: UserRef,
         /// The membership prefix corresponding to the mode.
         prefix: Prefix,
     },
@@ -45,7 +45,7 @@ impl ModeChange {
 
     pub(crate) fn from_core(
         change: papo_core::ModeChange,
-        member: impl FnOnce(crate::Nick, papo_core::ReplyToken) -> UserHandle,
+        member: impl FnOnce(crate::Nick, papo_core::ReplyToken) -> UserRef,
     ) -> Self {
         let arg = change.arg.map(|arg| match arg {
             papo_core::ModeArg::Member {

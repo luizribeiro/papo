@@ -14,7 +14,7 @@ use papo::Reconnect;
 use papo_testing::wire;
 use support::direct::{connected, join, next_active_event};
 
-fn handle_hash(user: &papo::UserHandle) -> u64 {
+fn handle_hash(user: &papo::UserRef) -> u64 {
     let mut hasher = DefaultHasher::new();
     user.hash(&mut hasher);
     hasher.finish()
@@ -117,7 +117,7 @@ async fn user_handle_follows_rename_and_refuses_a_nickname_takeover() {
 
 #[tokio::test]
 async fn user_handles_from_separate_clients_are_distinct() {
-    async fn observe_alice() -> (papo::Client, papo::UserHandle) {
+    async fn observe_alice() -> (papo::Client, papo::UserRef) {
         let (client, mut events, mut wire) =
             wire(papo::Client::builder("irc://offline.test", "papo").reconnect(Reconnect::never()));
         wire.register(&[]).await;
@@ -190,7 +190,7 @@ async fn user_handles_identify_users_not_accounts() {
     assert_ne!(bob, carol);
     assert_eq!(desktop.to_string(), "alice");
     let debug = format!("{desktop:?}");
-    assert!(debug.starts_with("UserHandle { nick: Nick"));
+    assert!(debug.starts_with("UserRef { nick: Nick"));
     assert!(debug.contains("\"alice\""));
 
     assert_ne!(handle_hash(&desktop), handle_hash(&phone));

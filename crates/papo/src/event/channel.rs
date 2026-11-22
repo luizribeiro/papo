@@ -19,7 +19,7 @@ pub struct Joined {
     /// The joined channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The joining user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the joining user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
@@ -54,7 +54,7 @@ pub struct Parted {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The departing user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// User facts removed by this event, or `None` when the paired state still knows the user.
     pub facts: Option<crate::User>,
     /// The departed channel. See [`crate::Conversation`] for status-prefixed line guidance.
@@ -79,7 +79,7 @@ pub struct Kicked {
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The removed user.
-    pub subject: crate::UserHandle,
+    pub subject: crate::UserRef,
     /// User facts removed by this event, or `None` when the paired state still knows the user.
     pub facts: Option<crate::User>,
     /// The user or server that issued the kick.
@@ -106,7 +106,7 @@ pub struct Invited {
     /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The invited user.
-    pub subject: crate::UserHandle,
+    pub subject: crate::UserRef,
     /// The user or server that sent the invitation.
     pub actor: Actor,
     /// Who the actor is relative to you.

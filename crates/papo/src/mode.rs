@@ -238,7 +238,7 @@ impl SetModes {
     /// Adds a mode with its required argument.
     ///
     /// To grant a server-specific rank, pass its mode letter from the server's
-    /// `PREFIX` advertisement and a nickname or [`crate::UserHandle`].
+    /// `PREFIX` advertisement and a nickname or [`crate::UserRef`].
     /// papo makes no claim about what the letter means.
     /// Text supplies the parameter for other modes.
     /// Channel key mode `k` requires [`Self::key`].
@@ -257,7 +257,7 @@ impl SetModes {
     /// Removes a mode with its required argument.
     ///
     /// To remove a server-specific rank, pass its mode letter from the server's
-    /// `PREFIX` advertisement and a nickname or [`crate::UserHandle`].
+    /// `PREFIX` advertisement and a nickname or [`crate::UserRef`].
     /// papo makes no claim about what the letter means.
     /// Text supplies the parameter for other modes.
     /// Channel key mode `k` requires [`Self::remove_key`].
@@ -323,7 +323,7 @@ impl SetModes {
 
     /// Grants channel-operator privileges to `nick`.
     ///
-    /// A [`crate::UserHandle`] follows its proven identity. Text and [`crate::Nick`] address
+    /// A [`crate::UserRef`] follows its proven identity. Text and [`crate::Nick`] address
     /// the current holder.
     pub fn op(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(true, 'o', nick)
@@ -331,7 +331,7 @@ impl SetModes {
 
     /// Removes channel-operator privileges from `nick`.
     ///
-    /// A [`crate::UserHandle`] follows its proven identity; text addresses the current holder.
+    /// A [`crate::UserRef`] follows its proven identity; text addresses the current holder.
     pub fn deop(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'o', nick)
     }
@@ -345,7 +345,7 @@ impl SetModes {
 
     /// Removes voice privileges from `nick`.
     ///
-    /// A [`crate::UserHandle`] follows its proven identity; text addresses the current holder.
+    /// A [`crate::UserRef`] follows its proven identity; text addresses the current holder.
     pub fn devoice(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'v', nick)
     }
@@ -637,7 +637,7 @@ impl Change {
                     Some(Argument::ProvenNick(_, proof)) => Some(proof.clone()),
                     _ => None,
                 };
-                crate::UserHandle::current_name(
+                crate::UserRef::current_name(
                     nick,
                     crate::AccountStatus::Unknown,
                     proof,
@@ -860,7 +860,7 @@ fn confirmed(
                 change.kind,
                 state.working_casemapping(),
                 state.nick().origin(),
-                crate::UserHandle::from_nick,
+                crate::UserRef::from_nick,
             );
             if let Some(index) = remaining
                 .iter()
@@ -1137,7 +1137,7 @@ mod tests {
         }
         let client = crate::driver::test_support::client_with_commands(&session).0;
         let state = client.state();
-        let alice = crate::UserHandle::from_current_state(
+        let alice = crate::UserRef::from_current_state(
             state.name_rules().unwrap().nick("alice"),
             Some(&client.state),
         );

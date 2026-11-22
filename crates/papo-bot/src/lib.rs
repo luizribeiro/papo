@@ -59,7 +59,7 @@ use web_time::Instant;
 
 use papo::{
     AccountName, AccountStatus, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, Prefix, Restricted, RestrictedLine, State, UserHandle,
+    MessageKind, Prefix, Restricted, RestrictedLine, State, UserRef,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -266,7 +266,7 @@ pub enum ReplyStatus {
 #[derive(Clone, Debug)]
 pub struct BotCommand {
     /// The user that sent the command.
-    pub actor: UserHandle,
+    pub actor: UserRef,
     client: Client,
     message: ChatMessage,
     name: String,

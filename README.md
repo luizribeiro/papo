@@ -50,7 +50,7 @@ We put a lot of effort into making papo hard to misuse. Not just by someone host
 client.privmsg("alice", "deploy finished").await?;
 ```
 
-A user handle from a live event follows observed nick changes. When papo sees the user leave or the nickname change hands, a send through that handle returns `Error::TargetGone`. Without a shared channel or other presence information, papo can miss a handoff.
+A user reference from a live event follows observed nick changes. When papo sees the user leave or the nickname change hands, a send through that reference returns `Error::TargetGone`. Without a shared channel or other presence information, papo can miss a handoff.
 
 For an account check, compare the account you expect with the received message's
 `actor_account()`. To check the account papo currently knows for a nickname, call

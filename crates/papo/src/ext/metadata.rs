@@ -57,7 +57,7 @@ impl Metadata {
         &self,
         target: impl crate::AsConversation,
         argument: &'static str,
-    ) -> (Result<String, Error>, Option<crate::UserHandle>) {
+    ) -> (Result<String, Error>, Option<crate::UserRef>) {
         let parts = crate::AsConversation::__parts(&target).into_owned();
         let user = parts.user.clone();
         let target = self
@@ -83,7 +83,7 @@ impl Metadata {
     fn prove_target(
         &self,
         target: &str,
-        user: Option<crate::UserHandle>,
+        user: Option<crate::UserRef>,
         argument: &'static str,
     ) -> Result<Option<papo_core::Proven>, Error> {
         if target == "*" || self.client.state().isupport().is_channel(target) {
@@ -108,7 +108,7 @@ impl Metadata {
     fn set_target(
         &self,
         target: Result<String, Error>,
-        user: Option<crate::UserHandle>,
+        user: Option<crate::UserRef>,
         key: crate::MetadataKey,
         value: Option<String>,
     ) -> impl Future<Output = Result<papo_core::Response, Error>> + Send + 'static {
@@ -131,7 +131,7 @@ impl Metadata {
     fn store(
         &self,
         target: Result<String, Error>,
-        user: Option<crate::UserHandle>,
+        user: Option<crate::UserRef>,
         key: crate::MetadataKey,
         value: String,
     ) -> crate::RequestFuture<MetadataValue> {
@@ -149,7 +149,7 @@ impl Metadata {
     fn unset(
         &self,
         target: Result<String, Error>,
-        user: Option<crate::UserHandle>,
+        user: Option<crate::UserRef>,
         key: crate::MetadataKey,
     ) -> crate::RequestFuture<()> {
         let response = self.set_target(target, user, key, None);
@@ -159,7 +159,7 @@ impl Metadata {
     fn clear_target(
         &self,
         target: Result<String, Error>,
-        user: Option<crate::UserHandle>,
+        user: Option<crate::UserRef>,
     ) -> crate::RequestFuture<Vec<crate::MetadataKey>> {
         let metadata = Self {
             client: self.client.clone(),

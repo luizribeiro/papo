@@ -58,7 +58,7 @@ impl Typer {
                     )
                     .ok();
                 (
-                    Some(crate::UserHandle::current_name(
+                    Some(crate::UserRef::current_name(
                         nick.clone(),
                         account,
                         proof,

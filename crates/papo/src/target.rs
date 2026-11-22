@@ -18,7 +18,7 @@ pub(crate) mod sealed {
         pub(crate) origin: crate::Origin,
         pub(crate) send_name: Option<SendName>,
         pub(crate) channel: Option<Box<papo_core::ChannelGuard>>,
-        pub(crate) user: Option<crate::UserHandle>,
+        pub(crate) user: Option<crate::UserRef>,
     }
 
     impl Parts<'_> {
@@ -74,7 +74,7 @@ impl Role {
 /// A destination accepted by message-sending operations.
 ///
 /// Plain text names a channel if it starts with a server-advertised channel prefix. A nickname
-/// in text or as a [`crate::Nick`] addresses whoever holds it. Typed names, handles, and message
+/// in text or as a [`crate::Nick`] addresses whoever holds it. Typed names, user references, channel handles, and message
 /// references retain the client that produced them and are refused by another client.
 /// A single status prefix such as `@#ops` is preserved; stacked prefixes such as `+@#ops` are
 /// refused because servers disagree on their audience. [`crate::Client::send_raw`] is the explicit
@@ -88,7 +88,7 @@ pub trait Target: sealed::Sealed {
 
 /// A nickname accepted by user-oriented operations.
 ///
-/// A [`crate::UserHandle`] retains the recipient identity so operations can refuse a nickname
+/// A [`crate::UserRef`] retains the recipient identity so operations can refuse a nickname
 /// handoff.
 /// Plain text and [`crate::Nick`] identify whoever currently holds that nickname.
 pub trait AsNick: sealed::Sealed {

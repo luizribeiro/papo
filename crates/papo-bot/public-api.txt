@@ -21,7 +21,7 @@ impl core::marker::UnsafeUnpin for papo_bot::ReplyStatus
 impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::ReplyStatus
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::ReplyStatus
 pub struct papo_bot::BotCommand
-pub papo_bot::BotCommand::actor: papo::handle::UserHandle
+pub papo_bot::BotCommand::actor: papo::handle::UserRef
 impl papo_bot::BotCommand
 pub const fn papo_bot::BotCommand::account(&self) -> core::option::Option<&papo::AccountName>
 pub fn papo_bot::BotCommand::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>

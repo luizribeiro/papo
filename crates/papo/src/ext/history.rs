@@ -389,7 +389,7 @@ fn user_from_line(
     envelope: &crate::event_impl::EventEnvelope,
     mapping: crate::Casemapping,
     origin: crate::Origin,
-) -> Option<crate::UserHandle> {
+) -> Option<crate::UserRef> {
     match actor_from_line(message, envelope, mapping, origin)? {
         crate::Actor::User(user) => Some(user),
         crate::Actor::Server(_) => None,
@@ -560,7 +560,7 @@ fn parted(
     );
     let actor = user_from_line(message, &envelope, mapping, client.origin())?;
     let actor =
-        crate::UserHandle::from_history(actor.nick(), actor.account().clone(), Some(&client.state));
+        crate::UserRef::from_history(actor.nick(), actor.account().clone(), Some(&client.state));
     Some(Event::Parted(Parted {
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
@@ -634,7 +634,7 @@ fn kicked(
     );
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
-        crate::Actor::User(user) => crate::Actor::User(crate::UserHandle::from_history(
+        crate::Actor::User(user) => crate::Actor::User(crate::UserRef::from_history(
             user.nick(),
             user.account().clone(),
             Some(&client.state),
@@ -649,7 +649,7 @@ fn kicked(
         channel: client.channel(message.param(0)?).ok()?,
         actor_party,
         subject_party,
-        subject: crate::UserHandle::from_history(
+        subject: crate::UserRef::from_history(
             state.known_name_rules()?.nick(nick),
             crate::AccountStatus::Unknown,
             Some(&client.state),
@@ -683,7 +683,7 @@ fn nick_changed(
     let new = state.known_name_rules()?.nick(message.param(0)?);
     let source = user_from_line(message, &envelope, mapping, client.origin())?;
     let actor =
-        crate::UserHandle::from_history(new.clone(), source.account().clone(), Some(&client.state));
+        crate::UserRef::from_history(new.clone(), source.account().clone(), Some(&client.state));
     Some(Event::NickChanged(NickChanged {
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
@@ -765,7 +765,7 @@ fn mode_changed(
             mapping,
             client.origin(),
             |nick| {
-                crate::UserHandle::from_history(
+                crate::UserRef::from_history(
                     nick,
                     crate::AccountStatus::Unknown,
                     Some(&client.state),
@@ -776,7 +776,7 @@ fn mode_changed(
     .collect();
     let actor = actor_from_line(message, &envelope, mapping, client.origin())?;
     let actor = match actor {
-        crate::Actor::User(user) => crate::Actor::User(crate::UserHandle::from_history(
+        crate::Actor::User(user) => crate::Actor::User(crate::UserRef::from_history(
             user.nick(),
             user.account().clone(),
             Some(&client.state),
@@ -795,7 +795,7 @@ fn mode_changed(
             let rules = state.known_name_rules()?;
             let nick = rules.nick(subject);
             nick.check(state.isupport().inner()).ok()?;
-            crate::Subject::User(crate::UserHandle::from_past_line(
+            crate::Subject::User(crate::UserRef::from_past_line(
                 nick,
                 crate::AccountStatus::Unknown,
             ))
@@ -1426,8 +1426,8 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None)
     }
 
-    fn user(value: crate::Nick) -> crate::UserHandle {
-        crate::UserHandle::from_nick(value)
+    fn user(value: crate::Nick) -> crate::UserRef {
+        crate::UserRef::from_nick(value)
     }
 
     #[test]
@@ -1524,7 +1524,7 @@ mod tests {
             session.handle_line(now, line);
         }
         let (client, _) = client_with_commands(&session);
-        let live = crate::UserHandle::from_current_state(
+        let live = crate::UserRef::from_current_state(
             client.state().name_rules().unwrap().nick("writer"),
             Some(&client.state),
         );
@@ -1568,12 +1568,12 @@ mod tests {
             session.handle_line(now, line);
         }
         let (client, _) = client_with_commands(&session);
-        let live = crate::UserHandle::from_current_state(
+        let live = crate::UserRef::from_current_state(
             client.state().name_rules().unwrap().nick("alice"),
             Some(&client.state),
         );
         let page = |nick| {
-            crate::Conversation::Private(crate::UserHandle::from_nick(
+            crate::Conversation::Private(crate::UserRef::from_nick(
                 client.state().name_rules().unwrap().nick(nick),
             ))
         };

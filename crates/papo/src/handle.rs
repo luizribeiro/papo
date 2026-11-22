@@ -44,11 +44,9 @@ impl WatchEntry {
     fn nick(&self, identity: &WatchIdentity) -> Option<String> {
         match identity {
             WatchIdentity::Name(nick) => Some(nick.clone()),
-            WatchIdentity::User(_) => Some(
-                UserHandle(self.user.as_ref()?.upgrade()?)
-                    .nick()
-                    .to_string(),
-            ),
+            WatchIdentity::User(_) => {
+                Some(UserRef(self.user.as_ref()?.upgrade()?).nick().to_string())
+            }
         }
     }
 }
@@ -67,7 +65,7 @@ impl WatchRegistry {
         *lock(&self.commands) = Some(commands);
     }
 
-    fn acquire(self: &Arc<Self>, user: &UserHandle) -> Watch {
+    fn acquire(self: &Arc<Self>, user: &UserRef) -> Watch {
         self.acquire_target(WatchIdentity::User(user.0.identity.clone()), Some(&user.0))
     }
 
@@ -194,25 +192,25 @@ impl Drop for WatchLease {
     }
 }
 
-/// An IRC user reported by the server.
+/// A reference to an IRC user reported by the server.
 ///
-/// For a handle carried by an event, read mutable user facts from that event's paired
+/// For a reference carried by an event, read mutable user facts from that event's paired
 /// [`crate::State`] with [`crate::State::user`]. To answer a private history item, pass
 /// the item to [`crate::Client::reply`]. Sending to its actor returns [`crate::Error::TargetGone`].
 ///
 /// Equality and hashing use the tracked user identity on this client, which follows observed
-/// nickname changes. Handles from stored lines and handles without a tracked identity only
+/// nickname changes. References from stored lines and references without a tracked identity only
 /// compare equal to their own clones.
 ///
 /// Compare nickname text through [`Self::nick`].
 ///
 /// ```compile_fail,E0308
-/// fn is_luiz(handle: papo::UserHandle) -> bool {
+/// fn is_luiz(handle: papo::UserRef) -> bool {
 ///     handle == "luiz"
 /// }
 /// ```
 #[derive(Clone)]
-pub struct UserHandle(Arc<UserInner>);
+pub struct UserRef(Arc<UserInner>);
 
 #[allow(dead_code)]
 struct UserInner {
@@ -239,7 +237,7 @@ enum HandleIdentity {
 }
 
 #[allow(dead_code)]
-impl UserHandle {
+impl UserRef {
     fn comparison_identity(&self) -> HandleIdentity {
         match (
             self.0.history,
@@ -256,7 +254,7 @@ impl UserHandle {
         Self::current_name(nick, crate::AccountStatus::Unknown, None, None)
     }
 
-    /// Builds the handle for a name that stands for its holder now: one the application named,
+    /// Builds the reference for a name that stands for its holder now: one the application named,
     /// the client's own nick, or a person papo-core proves present. A line naming a person in
     /// the past goes through [`Self::from_past_line`].
     pub(crate) fn current_name(
@@ -268,8 +266,8 @@ impl UserHandle {
         Self::from_parts_kind(nick, account, proof, state, History::Live, None)
     }
 
-    /// Builds the handle for a person a line names in the past: an archived line, a topic
-    /// setter, or the setter of a list-mode entry. A send through this handle returns
+    /// Builds the reference for a person a line names in the past: an archived line, a topic
+    /// setter, or the setter of a list-mode entry. A send through this reference returns
     /// [`crate::Error::TargetGone`].
     pub(crate) fn from_past_line(nick: crate::Nick, account: crate::AccountStatus) -> Self {
         Self::from_parts_kind(nick, account, None, None, History::Archived, None)
@@ -323,7 +321,7 @@ impl UserHandle {
         Self::current_name(nick, account, proof, Some(shared))
     }
 
-    /// Builds the handle for a person a live event names from the identity papo-core recorded
+    /// Builds the reference for a person a live event names from the identity papo-core recorded
     /// when the event's line arrived, so a later holder of the nickname is never adopted.
     pub(crate) fn at_arrival(
         nick: crate::Nick,
@@ -409,7 +407,7 @@ impl UserHandle {
         self.0.nick.origin()
     }
 
-    /// The nickname the line that created this handle named, which a mode echo or an
+    /// The nickname the line that created this reference named, which a mode echo or an
     /// party check must compare even after the person renames.
     pub(crate) fn reported_nick(&self) -> &crate::Nick {
         &self.0.nick
@@ -446,7 +444,7 @@ impl UserHandle {
             .unwrap_or_else(|| self.0.nick.clone())
     }
 
-    /// Acquires a server-side presence watch for the user this handle represents.
+    /// Acquires a server-side presence watch for the user this reference represents.
     ///
     /// It follows nickname changes the client observes for that user. Use [`crate::Client::watch`]
     /// to watch a fixed nickname.
@@ -482,30 +480,30 @@ fn historical_token(
         .then(|| snapshot.core.__reply_token_for(nick.as_str()))
 }
 
-impl std::fmt::Debug for UserHandle {
+impl std::fmt::Debug for UserRef {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("UserHandle")
+            .debug_struct("UserRef")
             .field("nick", &self.nick())
             .finish_non_exhaustive()
     }
 }
 
-impl PartialEq for UserHandle {
+impl PartialEq for UserRef {
     fn eq(&self, other: &Self) -> bool {
         self.comparison_identity() == other.comparison_identity()
     }
 }
 
-impl Eq for UserHandle {}
+impl Eq for UserRef {}
 
-impl std::fmt::Display for UserHandle {
+impl std::fmt::Display for UserRef {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.nick().fmt(formatter)
     }
 }
 
-impl Hash for UserHandle {
+impl Hash for UserRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.comparison_identity().hash(state);
     }
@@ -631,7 +629,7 @@ impl crate::Client {
     /// Acquires a server-side presence watch for the supplied nickname.
     ///
     /// The spelling is interpreted by this client's server. The watch stays on that name when
-    /// its holder renames. Use [`UserHandle::watch`] to watch a user the client observed.
+    /// its holder renames. Use [`UserRef::watch`] to watch a user the client observed.
     /// An invalid nickname or unavailable monitor slot leaves the watch inactive.
     #[must_use]
     pub fn watch(&self, nick: impl AsRef<str>) -> Watch {
@@ -710,9 +708,9 @@ impl crate::AsChannel for ChannelHandle {
     }
 }
 
-impl crate::target::sealed::Sealed for UserHandle {}
+impl crate::target::sealed::Sealed for UserRef {}
 
-impl crate::Target for UserHandle {
+impl crate::Target for UserRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
             send_name: None,
@@ -724,13 +722,13 @@ impl crate::Target for UserHandle {
     }
 }
 
-impl crate::AsNick for UserHandle {
+impl crate::AsNick for UserRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         <Self as crate::Target>::__parts(self)
     }
 }
 
-impl crate::AsConversation for UserHandle {
+impl crate::AsConversation for UserRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         <Self as crate::Target>::__parts(self)
     }
@@ -783,7 +781,7 @@ mod tests {
             let name = state.name_rules().unwrap().nick(nick);
             assert_eq!(state.presence(nick), Ok(expected), "{nick}");
             assert_eq!(state.presence(&name), Ok(expected), "{nick}");
-            let user = crate::UserHandle::from_current_state(name, Some(&client.state));
+            let user = crate::UserRef::from_current_state(name, Some(&client.state));
             assert_eq!(state.presence(&user), Ok(expected), "{nick}");
         }
         let foreign =
@@ -1012,8 +1010,8 @@ mod tests {
         );
     }
 
-    fn observed_user(client: &crate::Client, nick: &str) -> crate::UserHandle {
-        crate::UserHandle::from_current_state(
+    fn observed_user(client: &crate::Client, nick: &str) -> crate::UserRef {
+        crate::UserRef::from_current_state(
             client.state().name_rules().unwrap().nick(nick),
             Some(&client.state),
         )
@@ -1028,7 +1026,7 @@ mod tests {
         assert!(alice.proof().is_some());
         assert_eq!(
             format!("{alice:?}"),
-            format!("UserHandle {{ nick: {:?}, .. }}", alice.nick())
+            format!("UserRef {{ nick: {:?}, .. }}", alice.nick())
         );
         assert_eq!(
             format!("{release:?}"),
@@ -1057,7 +1055,7 @@ mod tests {
             (crate::AccountStatus::LoggedOut, false),
             (crate::AccountStatus::Unknown, false),
         ] {
-            let historical = crate::UserHandle::from_history(
+            let historical = crate::UserRef::from_history(
                 alice.0.nick.clone(),
                 account.clone(),
                 Some(&client.state),
@@ -1070,7 +1068,7 @@ mod tests {
 
     #[test]
     fn untracked_handles_with_the_same_nick_have_distinct_identities() {
-        let from_nick = || crate::UserHandle::from_nick(crate::Casemapping::Rfc1459.nick("Alice"));
+        let from_nick = || crate::UserRef::from_nick(crate::Casemapping::Rfc1459.nick("Alice"));
         let handle = from_nick();
         assert_eq!(handle, handle.clone());
         assert_ne!(handle, from_nick());
@@ -1084,13 +1082,13 @@ mod tests {
         let event = |nick: &str, historical| {
             let nick = client.state().working_casemapping().nick(nick);
             if historical {
-                crate::UserHandle::from_history(
+                crate::UserRef::from_history(
                     nick,
                     crate::AccountStatus::Unknown,
                     Some(&client.state),
                 )
             } else {
-                crate::UserHandle::from_event(
+                crate::UserRef::from_event(
                     nick,
                     crate::AccountStatus::Unknown,
                     Some(evidence_free_token),

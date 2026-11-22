@@ -29,8 +29,8 @@ use std::fmt;
 pub enum Conversation {
     /// Messages addressed to a channel.
     Channel(crate::ChannelHandle),
-    /// Messages exchanged with a user. Equality follows [`crate::UserHandle`].
-    Private(crate::UserHandle),
+    /// Messages exchanged with a user. Equality follows [`crate::UserRef`].
+    Private(crate::UserRef),
 }
 
 impl Conversation {
@@ -59,7 +59,7 @@ impl Conversation {
         peer_token: papo_core::ReplyToken,
     ) -> Self {
         match value {
-            papo_core::Conversation::Private(nick) => Self::Private(crate::UserHandle::at_arrival(
+            papo_core::Conversation::Private(nick) => Self::Private(crate::UserRef::at_arrival(
                 origin.__nick(nick.casemapping(), nick.into_string()),
                 crate::AccountStatus::Unknown,
                 peer_token,
@@ -84,7 +84,7 @@ impl Conversation {
                 ))
             }
             papo_core::Conversation::Private(nick) => {
-                Self::Private(crate::UserHandle::from_current_state(
+                Self::Private(crate::UserRef::from_current_state(
                     origin.__nick(nick.casemapping(), nick.into_string()),
                     state,
                 ))

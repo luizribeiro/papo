@@ -654,7 +654,7 @@ struct ForeignValues {
     first: ClientPair,
     second: ClientPair,
     channel: papo::ChannelHandle,
-    alice: papo::UserHandle,
+    alice: papo::UserRef,
     nick: papo::Nick,
     account: papo::AccountName,
     message: papo::MessageRef,
@@ -1014,7 +1014,7 @@ async fn line_reference(
     (reference, event)
 }
 
-fn event_sender(event: &papo::Event) -> &papo::UserHandle {
+fn event_sender(event: &papo::Event) -> &papo::UserRef {
     match event {
         papo::Event::Message(event) => &event.actor,
         papo::Event::Notice(event) => &event.actor,
@@ -2627,7 +2627,7 @@ async fn next_private_message(events: &mut Events) -> (papo::Message, Arc<papo::
     }
 }
 
-fn state_account(state: &papo::State, actor: &papo::UserHandle) -> Option<papo::AccountStatus> {
+fn state_account(state: &papo::State, actor: &papo::UserRef) -> Option<papo::AccountStatus> {
     state
         .user(actor)
         .expect("an event actor belongs to its paired state")

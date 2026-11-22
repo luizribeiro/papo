@@ -244,15 +244,15 @@
 //!
 //! # Client-bound values
 //!
-//! Typed names, user and channel handles, message references, and history cursors retain the [`Client`]
+//! Typed names, user references, channel handles, message references, and history cursors retain the [`Client`]
 //! that produced them. Passing one to another client fails with [`Error::ForeignReference`];
 //! local state lookups return the same [`ForeignReference`] directly.
 //! Same-named channels from two clients therefore compare unequal, although each compares equal
 //! to the same plain string. Converting a typed name into a string explicitly discards this
 //! protection.
 //!
-//! The sealed [`Target`] trait accepts nicknames, channel names, handles, and return addresses.
-//! A nickname in text or as a [`Nick`] addresses its current holder. A [`UserHandle`] addresses
+//! The sealed [`Target`] trait accepts nicknames, channel names, user references, channel handles, and return addresses.
+//! A nickname in text or as a [`Nick`] addresses its current holder. A [`UserRef`] addresses
 //! the person the client observed.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -380,7 +380,7 @@ pub use ext::{
     relay::RelayOutcome,
     webpush::{PushKeys, RegisterOutcome, WebPush},
 };
-pub use handle::{ChannelHandle, UserHandle, Watch};
+pub use handle::{ChannelHandle, UserRef, Watch};
 pub use isupport_impl::Isupport;
 pub use line::Line;
 pub use message_ref::{MessageRef, NoticeRef};
@@ -440,7 +440,7 @@ pub enum Subject {
     /// A channel acted on by the event. See [`Conversation`] for status-prefixed line guidance.
     Channel(ChannelHandle),
     /// A user acted on by the event.
-    User(UserHandle),
+    User(UserRef),
 }
 
 impl Subject {
@@ -453,9 +453,9 @@ impl Subject {
         }
     }
 
-    /// Returns the user handle when this subject is a user.
+    /// Returns the user reference when this subject is a user.
     #[must_use]
-    pub const fn user(&self) -> Option<&UserHandle> {
+    pub const fn user(&self) -> Option<&UserRef> {
         match self {
             Self::User(user) => Some(user),
             Self::Channel(_) => None,

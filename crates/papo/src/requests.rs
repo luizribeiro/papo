@@ -64,7 +64,7 @@ pub struct Whois {
     ///
     /// Like [`WhoEntry::user`], it stands for the person the reply described; read facts the
     /// reply does not carry from [`crate::State::user`].
-    pub user: crate::UserHandle,
+    pub user: crate::UserRef,
     /// Username reported by `RPL_WHOISUSER`; it may start with `~`.
     pub username: Option<String>,
     /// Hostname reported by `RPL_WHOISUSER`.
@@ -125,7 +125,7 @@ pub struct WhoEntry {
     /// server with `WHO` and fails with [`Error::TargetGone`] unless the nickname's holder is
     /// logged in to the account the reply showed. A reply that shows no account, such as a plain
     /// `WHO` row or a logged-out user, leaves only the nickname to check.
-    pub user: crate::UserHandle,
+    pub user: crate::UserRef,
     /// Username from `nick!user@host`; it may start with `~`.
     pub username: String,
     /// Visible hostname of the user.
@@ -296,13 +296,13 @@ pub(crate) fn whois(
     Ok(Some(result))
 }
 
-/// Builds the handle for the person a WHO or WHOIS row described, from the identity papo-core
+/// Builds the reference for the person a WHO or WHOIS row described, from the identity papo-core
 /// recorded when the row arrived, so a later holder of the nickname is never adopted. A WHOIS
 /// reply without `RPL_WHOISUSER` has no such row and names the requested user's current holder.
 ///
 /// A person papo can prove is followed by that identity alone: the state often knows no
-/// account for them, and a guard naming one would refuse them. The handle keeps the account the
-/// reply showed when the state has no associated identity. Sending through such a handle returns
+/// account for them, and a guard naming one would refuse them. The reference keeps the account the
+/// reply showed when the state has no associated identity. Sending through such a reference returns
 /// [`Error::TargetGone`].
 fn reply_user(
     client: &crate::Client,
@@ -310,10 +310,10 @@ fn reply_user(
     nick: &str,
     token: Option<papo_core::ReplyToken>,
     account: AccountStatus,
-) -> crate::UserHandle {
+) -> crate::UserRef {
     let nick = client.origin().__nick(mapping, nick);
     let build =
-        |account| crate::UserHandle::from_event(nick.clone(), account, token, Some(&client.state));
+        |account| crate::UserRef::from_event(nick.clone(), account, token, Some(&client.state));
     let proven = build(AccountStatus::Unknown);
     if proven.proof().is_some() {
         proven
@@ -619,7 +619,7 @@ mod tests {
         session
     }
 
-    fn whois_user(session: &mut Session, lines: &[&str]) -> (crate::Client, crate::UserHandle) {
+    fn whois_user(session: &mut Session, lines: &[&str]) -> (crate::Client, crate::UserRef) {
         let response = whois_response(session, lines);
         let client = crate::driver::test_support::client_with_commands(session).0;
         let user = whois(response, "alice", session.isupport(), &client)
@@ -788,7 +788,7 @@ mod tests {
         request: &'static [&'static str],
         row: &'static str,
         end: &'static str,
-        user: fn(Response, &crate::Client) -> crate::UserHandle,
+        user: fn(Response, &crate::Client) -> crate::UserRef,
     }
 
     #[test]

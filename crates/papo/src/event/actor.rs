@@ -7,7 +7,7 @@ use crate::{AccountStatus, Casemapping, Nick};
 #[non_exhaustive]
 pub enum Actor {
     /// A user identity whose mutable facts are available from the event's paired state.
-    User(crate::UserHandle),
+    User(crate::UserRef),
     /// A server name.
     Server(crate::ServerName),
 }
@@ -24,7 +24,7 @@ impl Actor {
 
     /// Returns the user source when the actor is a user.
     #[must_use]
-    pub const fn user(&self) -> Option<&crate::UserHandle> {
+    pub const fn user(&self) -> Option<&crate::UserRef> {
         match self {
             Self::User(user) => Some(user),
             Self::Server(_) => None,
@@ -72,7 +72,7 @@ pub(crate) fn from_line(
             _ => return None,
         },
     };
-    Some(Actor::User(crate::UserHandle::from_past_line(
+    Some(Actor::User(crate::UserRef::from_past_line(
         origin.__nick(casemapping, nick),
         envelope.account.clone(),
     )))
@@ -80,12 +80,10 @@ pub(crate) fn from_line(
 
 pub(crate) fn from_core(source: papo_core::Actor, origin: crate::Origin) -> Option<Actor> {
     match source {
-        papo_core::Actor::User { nick, .. } => {
-            Some(Actor::User(crate::UserHandle::from_past_line(
-                origin.__nick(nick.casemapping(), nick.as_str()),
-                AccountStatus::Unknown,
-            )))
-        }
+        papo_core::Actor::User { nick, .. } => Some(Actor::User(crate::UserRef::from_past_line(
+            origin.__nick(nick.casemapping(), nick.as_str()),
+            AccountStatus::Unknown,
+        ))),
         papo_core::Actor::Server { name, .. } => Some(Actor::Server(name)),
         _ => None,
     }

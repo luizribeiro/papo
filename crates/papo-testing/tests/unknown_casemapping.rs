@@ -16,7 +16,7 @@ async fn next_message(events: &mut papo::Events) -> papo::Message {
     }
 }
 
-async fn joined(events: &mut papo::Events, nick: &str) -> papo::UserHandle {
+async fn joined(events: &mut papo::Events, nick: &str) -> papo::UserRef {
     loop {
         if let Event::Joined(joined) = next_active_event(events).await
             && joined.actor.nick().as_str() == nick

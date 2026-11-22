@@ -115,7 +115,7 @@ pub enum NoticeTarget {
 #[non_exhaustive]
 pub struct CtcpQuery {
     /// The user that sent the CTCP message.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
@@ -149,7 +149,7 @@ pub struct CtcpQuery {
 #[non_exhaustive]
 pub struct CtcpReply {
     /// The user that sent the CTCP reply.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
@@ -312,7 +312,7 @@ impl Party {
 #[non_exhaustive]
 pub struct Message {
     /// The user that sent the message.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
@@ -358,7 +358,7 @@ pub struct Message {
 #[non_exhaustive]
 pub struct Notice {
     /// The user that sent the notice.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
@@ -1417,7 +1417,7 @@ pub(crate) fn historical_conversation(
         _ => None,
     };
     let peer = archived_private_peer(message, page_peer, own_nick, mapping)?;
-    Some(Conversation::Private(crate::UserHandle::from_past_line(
+    Some(Conversation::Private(crate::UserRef::from_past_line(
         peer,
         AccountStatus::Unknown,
     )))
@@ -2068,15 +2068,15 @@ impl Event {
 }
 
 fn event_handle(
-    handle: &crate::UserHandle,
+    handle: &crate::UserRef,
     token: Option<papo_core::ReplyToken>,
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
-) -> crate::UserHandle {
+) -> crate::UserRef {
     if historical {
-        crate::UserHandle::from_history(handle.nick(), handle.account().clone(), state)
+        crate::UserRef::from_history(handle.nick(), handle.account().clone(), state)
     } else {
-        crate::UserHandle::from_event(handle.nick(), handle.account().clone(), token, state)
+        crate::UserRef::from_event(handle.nick(), handle.account().clone(), token, state)
     }
 }
 
@@ -2088,7 +2088,7 @@ pub(crate) struct LineTokens {
 }
 
 fn attach_user_message_handle(
-    actor: &mut crate::UserHandle,
+    actor: &mut crate::UserRef,
     actor_party: Party,
     conversation: &mut Conversation,
     receipt: &mut crate::message_ref::Receipt,
@@ -2097,7 +2097,7 @@ fn attach_user_message_handle(
     historical: bool,
 ) {
     *actor = if historical && matches!(conversation, Conversation::Private(_)) {
-        crate::UserHandle::from_private_history(actor.nick(), actor.account().clone(), state)
+        crate::UserRef::from_private_history(actor.nick(), actor.account().clone(), state)
     } else {
         event_handle(actor, tokens.actor, state, historical)
     };
@@ -2108,13 +2108,13 @@ fn attach_user_message_handle(
 }
 
 fn private_peer_handle(
-    actor: &crate::UserHandle,
+    actor: &crate::UserRef,
     actor_party: Party,
-    peer: &crate::UserHandle,
+    peer: &crate::UserRef,
     tokens: LineTokens,
     state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
     historical: bool,
-) -> crate::UserHandle {
+) -> crate::UserRef {
     let sent_by_peer =
         actor_party != Party::Me && (!historical || peer.reported_nick() == actor.reported_nick());
     if sent_by_peer {
@@ -2351,7 +2351,7 @@ pub(crate) fn from_core_with_receipt(
         )
     };
     let user_at_arrival =
-        |nick, account, token| crate::UserHandle::at_arrival(nick, account, token, handle_state);
+        |nick, account, token| crate::UserRef::at_arrival(nick, account, token, handle_state);
     let source_at_arrival = |source, token| match source {
         Actor::User(user) => {
             Actor::User(user_at_arrival(user.nick(), user.account().clone(), token))
@@ -3144,7 +3144,7 @@ pub(crate) fn typed_mode_change(
     kind: papo_proto::ModeKind,
     casemapping: Casemapping,
     origin: crate::Origin,
-    member: impl FnOnce(crate::Nick) -> crate::UserHandle,
+    member: impl FnOnce(crate::Nick) -> crate::UserRef,
 ) -> ModeChange {
     let arg = arg.map(|arg| match (mode, kind) {
         ('k', _) => crate::ModeArg::Key(crate::Secret::new(arg)),
@@ -3208,8 +3208,8 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None)
     }
 
-    fn user_handle(value: crate::Nick) -> crate::UserHandle {
-        crate::UserHandle::from_nick(value)
+    fn user_handle(value: crate::Nick) -> crate::UserRef {
+        crate::UserRef::from_nick(value)
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -5002,7 +5002,7 @@ mod tests {
                     assert!(!event.actor.nick().as_str().is_empty());
                 }
                 Event::Other(_) => {}
-                _ => panic!("unexpected event without a person-handle assertion"),
+                _ => panic!("unexpected event without a user reference assertion"),
             }
             assert_eq!(
                 event.msgid().map(AsRef::as_ref),
@@ -6040,7 +6040,7 @@ mod tests {
 
     fn message_handle_actor(
         event: &Event,
-    ) -> (&'static str, &crate::UserHandle, Option<&Conversation>) {
+    ) -> (&'static str, &crate::UserRef, Option<&Conversation>) {
         match event {
             Event::Message(event) => ("Message", &event.actor, Some(&event.conversation)),
             Event::Incomplete(Incomplete::Message(event)) => {
@@ -6222,9 +6222,7 @@ mod tests {
         assert_eq!(joined.netjoin, None);
     }
 
-    fn departure_actor(
-        event: &Event,
-    ) -> Option<(&'static str, &crate::UserHandle, &papo_core::User)> {
+    fn departure_actor(event: &Event) -> Option<(&'static str, &crate::UserRef, &papo_core::User)> {
         match event {
             Event::Parted(event) => Some(("Parted", &event.actor, event.facts.as_ref()?)),
             _ => None,
@@ -6752,7 +6750,7 @@ mod tests {
                 kind,
                 Casemapping::default(),
                 origin,
-                crate::UserHandle::from_nick,
+                crate::UserRef::from_nick,
             );
             match (expected, change.arg) {
                 ("nick", Some(ModeArg::Member { user, .. })) => {
@@ -6811,26 +6809,26 @@ mod tests {
         use super::*;
         use crate::event_impl::LineView;
 
-        fn source_person(source: &Actor) -> Vec<crate::UserHandle> {
+        fn source_person(source: &Actor) -> Vec<crate::UserRef> {
             source.user().cloned().into_iter().collect()
         }
 
-        fn conversation_person(conversation: &Conversation) -> Vec<crate::UserHandle> {
+        fn conversation_person(conversation: &Conversation) -> Vec<crate::UserRef> {
             match conversation {
                 Conversation::Private(peer) => vec![peer.clone()],
                 Conversation::Channel(_) => Vec::new(),
             }
         }
 
-        fn subject_person(subject: &crate::Subject) -> Vec<crate::UserHandle> {
+        fn subject_person(subject: &crate::Subject) -> Vec<crate::UserRef> {
             match subject {
                 crate::Subject::User(user) => vec![user.clone()],
                 _ => Vec::new(),
             }
         }
 
-        fn line_people(line: LineView<'_>) -> Vec<crate::UserHandle> {
-            let message = |actor: &crate::UserHandle, conversation: &Conversation| {
+        fn line_people(line: LineView<'_>) -> Vec<crate::UserRef> {
+            let message = |actor: &crate::UserRef, conversation: &Conversation| {
                 [vec![actor.clone()], conversation_person(conversation)].concat()
             };
             match line {
@@ -6859,7 +6857,7 @@ mod tests {
         // fails to build here until it says which people it names, and every person a live
         // event names must be built from the identity recorded when its line arrived, which
         // the table below checks after a nickname handoff.
-        fn people(event: &Event) -> Vec<crate::UserHandle> {
+        fn people(event: &Event) -> Vec<crate::UserRef> {
             match event {
                 Event::Message(_)
                 | Event::Notice(_)
@@ -6913,7 +6911,7 @@ mod tests {
                     .iter()
                     .flat_map(|gap| conversation_person(&gap.conversation))
                     .collect(),
-                // Replayed history names people as they were then; its handles are unproven
+                // Replayed history names people as they were then; its user references are unproven
                 // by design, not built from a live arrival.
                 Event::History(_)
                 | Event::Connecting(_)
@@ -6962,7 +6960,7 @@ mod tests {
             ] {
                 let (mut session, shared) = joined_review();
                 let current = |nick: &str| {
-                    crate::UserHandle::from_current_state(
+                    crate::UserRef::from_current_state(
                         session.state().casemapping().nick(nick),
                         Some(&shared),
                     )
@@ -7005,7 +7003,7 @@ mod tests {
                 &shared,
                 "@msgid=RfcBTzyxY120010 :alice!~alice@cloak.example PRIVMSG papo :can you review 142?",
             );
-            let alice = crate::UserHandle::from_current_state(
+            let alice = crate::UserRef::from_current_state(
                 session.state().casemapping().nick("alice"),
                 Some(&shared),
             );
@@ -7439,13 +7437,13 @@ mod tests {
         use papo_core::{Config, Session};
 
         use super::super::{CoreEvent, Event, from_core_with_receipt};
-        use crate::UserHandle;
+        use crate::UserRef;
 
         struct Case {
             name: &'static str,
             line: &'static str,
             subject: &'static str,
-            person: fn(&Event) -> Option<UserHandle>,
+            person: fn(&Event) -> Option<UserRef>,
         }
 
         pub(super) type Shared = Arc<RwLock<Arc<crate::State>>>;
@@ -7506,7 +7504,7 @@ mod tests {
         fn assert_person_at_arrival(case: &Case) {
             let (mut session, shared) = joined_review();
             server(&mut session, &shared, case.line);
-            let at_arrival = UserHandle::from_current_state(
+            let at_arrival = UserRef::from_current_state(
                 session.state().casemapping().nick(case.subject),
                 Some(&shared),
             );
@@ -7520,7 +7518,7 @@ mod tests {
                 &shared,
                 &format!(":mallory!~mallory@users.example NICK {}", case.subject),
             );
-            let newcomer = UserHandle::from_current_state(
+            let newcomer = UserRef::from_current_state(
                 session.state().casemapping().nick(case.subject),
                 Some(&shared),
             );
@@ -7601,7 +7599,7 @@ mod tests {
             }
         }
 
-        fn user_source(source: &crate::Actor) -> Option<UserHandle> {
+        fn user_source(source: &crate::Actor) -> Option<UserRef> {
             source.user().cloned()
         }
 
@@ -7743,7 +7741,7 @@ mod tests {
             }
         }
 
-        fn private_peer(conversation: &crate::Conversation) -> Option<UserHandle> {
+        fn private_peer(conversation: &crate::Conversation) -> Option<UserRef> {
             match conversation {
                 crate::Conversation::Private(peer) => Some(peer.clone()),
                 crate::Conversation::Channel(_) => None,
@@ -7817,7 +7815,7 @@ mod tests {
                 &shared,
                 "@msgid=RfcBTzyxY120011 :papo!~papo@localhost PRIVMSG alice :looking now",
             );
-            let own = UserHandle::from_current_state(session.state().nick().clone(), Some(&shared));
+            let own = UserRef::from_current_state(session.state().nick().clone(), Some(&shared));
             let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
             let message = events
                 .into_iter()

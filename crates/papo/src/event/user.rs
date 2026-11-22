@@ -15,7 +15,7 @@ pub struct Quit {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The disconnected user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// User facts removed by this event.
     pub facts: Option<crate::User>,
     /// The optional quit reason.
@@ -42,7 +42,7 @@ pub struct NickChanged {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The renamed user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// The previous nickname.
     pub old: Nick,
     /// The new nickname.
@@ -71,7 +71,7 @@ pub struct AwayChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// The user's new presence state.
     pub away: AwayStatus,
     /// Who the affected user is relative to you.
@@ -93,7 +93,7 @@ pub struct AccountChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// The account state after the change.
     ///
     /// This is retained because it describes the change itself.
@@ -117,7 +117,7 @@ pub struct HostChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// The new username from `nick!user@host`; it may start with `~`.
     pub username: String,
     /// The user's new hostname.
@@ -138,7 +138,7 @@ pub struct RealnameChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: crate::UserHandle,
+    pub actor: crate::UserRef,
     /// The user's new real name.
     pub new: String,
     /// Who the affected user is relative to you.
@@ -153,7 +153,7 @@ super::actor_account_accessor!(RealnameChanged);
 #[non_exhaustive]
 pub struct MonitorOnline {
     /// The monitored user reported online.
-    pub subject: crate::UserHandle,
+    pub subject: crate::UserRef,
     pub(crate) receipt: crate::message_ref::Receipt,
 }
 
@@ -162,7 +162,7 @@ pub struct MonitorOnline {
 #[non_exhaustive]
 pub struct MonitorOffline {
     /// The monitored user reported offline.
-    pub subject: crate::UserHandle,
+    pub subject: crate::UserRef,
     /// User facts removed by this event, or `None` when the paired state still knows the user.
     pub facts: Option<crate::User>,
 }

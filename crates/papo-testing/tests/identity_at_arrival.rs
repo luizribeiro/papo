@@ -3,7 +3,7 @@
 //! A labeled-response batch is dispatched when it closes, so every line in it has been applied
 //! before papo maps the first of its events.
 
-use papo::{Event, Events, Reconnect, UserHandle};
+use papo::{Event, Events, Reconnect, UserRef};
 use papo_testing::wire;
 
 async fn next_event(events: &mut Events) -> Event {
@@ -16,7 +16,7 @@ async fn next_event(events: &mut Events) -> Event {
     }
 }
 
-fn person(event: &Event) -> Option<(&'static str, UserHandle)> {
+fn person(event: &Event) -> Option<(&'static str, UserRef)> {
     let user = |source: &papo::Actor| source.user().cloned();
     match event {
         Event::AccountChanged(changed) => Some(("ACCOUNT", changed.actor.clone())),

@@ -7,7 +7,7 @@ mod support {
 
 use std::{sync::Arc, time::Duration};
 
-use papo::{Event, Reconnect, UserHandle};
+use papo::{Event, Reconnect, UserRef};
 use papo_testing::{Wire, wire};
 use support::direct::connected;
 
@@ -50,7 +50,7 @@ async fn joined_with_topic(events: &mut papo::Events, wire: &mut Wire) -> Arc<pa
     }
 }
 
-async fn ban_setter(client: &papo::Client, wire: &mut Wire) -> UserHandle {
+async fn ban_setter(client: &papo::Client, wire: &mut Wire) -> UserRef {
     let request = tokio::spawn({
         let client = client.clone();
         async move { client.list_modes("#release", papo::ListMode::Ban).await }
@@ -70,10 +70,7 @@ async fn ban_setter(client: &papo::Client, wire: &mut Wire) -> UserHandle {
     setter.cloned().unwrap()
 }
 
-async fn archived_actors(
-    client: &papo::Client,
-    wire: &mut Wire,
-) -> Vec<(&'static str, UserHandle)> {
+async fn archived_actors(client: &papo::Client, wire: &mut Wire) -> Vec<(&'static str, UserRef)> {
     let request = tokio::spawn({
         let client = client.clone();
         async move { client.history("#release").latest().limit(10).await }
@@ -103,7 +100,7 @@ async fn archived_actors(
         .collect()
 }
 
-async fn send_is_refused(client: &papo::Client, wire: &mut Wire, kind: &str, target: UserHandle) {
+async fn send_is_refused(client: &papo::Client, wire: &mut Wire, kind: &str, target: UserRef) {
     let result = tokio::select! {
         result = client.privmsg(target, "the deploy token is hunter2") => result,
         line = wire.next_sent() => panic!("{kind}: sent {line}"),

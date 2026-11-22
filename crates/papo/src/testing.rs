@@ -14,7 +14,7 @@ pub mod wrapped;
 
 use crate::{
     AccountName, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind, Nick, Party,
-    State, Tags, UserHandle,
+    State, Tags, UserRef,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -192,24 +192,22 @@ pub async fn client_line(server: &mut tokio::io::DuplexStream, expected: &[u8]) 
     assert_eq!(actual, expected);
 }
 
-/// Constructs a user handle without network I/O.
+/// Constructs a user reference without network I/O.
 #[must_use]
-pub fn user_handle(nick: impl Into<Nick>) -> crate::UserHandle {
-    crate::UserHandle::from_nick(nick.into())
+pub fn user_handle(nick: impl Into<Nick>) -> crate::UserRef {
+    crate::UserRef::from_nick(nick.into())
 }
 
 /// Constructs an event source from a parsed protocol prefix without line tags.
 #[must_use]
 pub fn source(source: papo_proto::Source<'_>, casemapping: Casemapping) -> crate::Actor {
     match source {
-        papo_proto::Source::User { nick, .. } => {
-            crate::Actor::User(crate::UserHandle::current_name(
-                crate::Origin::NONE.__nick(casemapping, nick),
-                crate::AccountStatus::Unknown,
-                None,
-                None,
-            ))
-        }
+        papo_proto::Source::User { nick, .. } => crate::Actor::User(crate::UserRef::current_name(
+            crate::Origin::NONE.__nick(casemapping, nick),
+            crate::AccountStatus::Unknown,
+            None,
+            None,
+        )),
         papo_proto::Source::Server(server) => crate::Actor::Server(server.into()),
     }
 }
@@ -223,7 +221,7 @@ pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {
 /// Constructs the minimal message payload extended by `papo-testing`.
 #[must_use]
 pub fn message(
-    actor: Option<UserHandle>,
+    actor: Option<UserRef>,
     target: impl Into<String>,
     text: impl Into<String>,
     private: bool,
@@ -234,7 +232,7 @@ pub fn message(
         let other = actor
             .as_ref()
             .map_or_else(|| target.clone(), |actor| actor.nick().to_string());
-        crate::Conversation::Private(crate::UserHandle::from_nick(nickname(
+        crate::Conversation::Private(crate::UserRef::from_nick(nickname(
             Casemapping::default(),
             other,
         )))
@@ -271,7 +269,7 @@ pub fn message(
 /// Sets the account fact on a test message actor.
 pub fn set_message_account(message: &mut Message, account: crate::AccountStatus) {
     message.actor_account = account.clone();
-    message.actor = crate::UserHandle::current_name(message.actor.nick(), account, None, None);
+    message.actor = crate::UserRef::current_name(message.actor.nick(), account, None, None);
     if let crate::Conversation::Private(user) = &mut message.conversation {
         *user = message.actor.clone();
     }
@@ -294,7 +292,7 @@ fn restamp(message: &mut Message) {
 }
 
 fn receipt(
-    actor: &UserHandle,
+    actor: &UserRef,
     conversation: &crate::Conversation,
     msgid: Option<crate::MessageId>,
     channel_context: Option<&crate::Conversation>,
@@ -316,7 +314,7 @@ fn receipt(
 }
 
 /// Sets the actor and matching private conversation on a test message.
-pub fn set_message_actor(message: &mut Message, actor: &crate::UserHandle) {
+pub fn set_message_actor(message: &mut Message, actor: &crate::UserRef) {
     let actor = actor.clone();
     if matches!(message.conversation, crate::Conversation::Private(_)) {
         message.conversation = crate::Conversation::Private(actor.clone());

@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Use `UserRef` for a reference to a user.
+
 Use `event::NoticeTarget` for the destination of a server notice.
 
 Read the typing notification prefix from `Typer::audience()`.
@@ -34,9 +36,9 @@ Use `papo_bot::BotCommand` in place of `papo_bot::Command`.
 
 `Client::channel` is crate-private. Pass channel names as text or `ChannelName` values.
 
-`UserHandle` no longer compares directly with text. Use `handle.nick() == "luiz"` to check a nickname.
+`UserRef` no longer compares directly with text. Use `handle.nick() == "luiz"` to check a nickname.
 
-Stored and untracked `UserHandle` values compare equal only to their own clones. Live tracked handles compare and hash by identity on the same client, including across observed renames.
+Stored and untracked `UserRef` values compare equal only to their own clones. Live tracked references compare and hash by identity on the same client, including across observed renames.
 
 `Client::query` and the first-send WHO lookup are removed. Send to the nickname and use `actor_account()` to check an incoming message’s account.
 
@@ -60,7 +62,7 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `SendOutcome::conversation()` and `SendOutcome::audience()` replace the corresponding fields.
 
-`SetModes::add_with` and `remove_with` accept nicknames and user handles for advertised membership modes.
+`SetModes::add_with` and `remove_with` accept nicknames and user references for advertised membership modes.
 
 `SetModes::halfop`, `SetModes::dehalfop`, and `Feature::Halfop` have been removed. Use `add_with('h', nick)` and `remove_with('h', nick)` when the server advertises that rank.
 
@@ -99,9 +101,9 @@ output tests. Their example binaries require TLS when sending credentials.
 
 `Client::set_typing` accepts plain text and `Nick` targets for the nickname's current holder.
 
-`Client::invite` and the `SetModes` privilege grants accept plain text and `Nick` in addition to `UserHandle`.
+`Client::invite` and the `SetModes` privilege grants accept plain text and `Nick` in addition to `UserRef`.
 
-`Client::watch` acquires a presence watch on a fixed nickname. `UserHandle::watch` follows observed renames.
+`Client::watch` acquires a presence watch on a fixed nickname. `UserRef::watch` follows observed renames.
 
 `State::presence` accepts plain text and `Nick` to check presence by nickname.
 
@@ -129,7 +131,7 @@ Initial away statuses learned in a channel refresh are included in `MembersRefre
 the line arrives, from the nick and account you held then, and a replayed history line is `Me` or
 `Other` only when its `account` tag proves it.
 
-A history actor's handle can receive a guarded send only when the line's own `account` tag names
+A history actor's reference can receive a guarded send only when the line's own `account` tag names
 the account that a current member is logged into. A matching `nick!user@host` alone never links them.
 
 `Client::kickban` can be awaited only after `.nick(..)` and `.ban(..)`; an incomplete kickban does not
@@ -313,17 +315,17 @@ Private history messages and notices now carry `channel_context` from a valid co
 
 `Client::query` and `Client::channel` create connection-bound user and channel handles without sending an IRC command.
 
-The first guarded use of a `UserHandle` proves its identity with WHO, follows nickname changes, and refuses foreign or departed identities before writing the target command.
+The first guarded use of a `UserRef` proves its identity with WHO, follows nickname changes, and refuses foreign or departed identities before writing the target command.
 
 All private chat operations now recheck that proof at the final wire write, rewrite a renamed recipient, and refuse a nickname that changed hands.
 
-User state lookups now return a typed `ForeignReference` error and preserve handle identity across nickname changes and handoffs.
+User state lookups now return a typed `ForeignReference` error and preserve reference identity across nickname changes and handoffs.
 
-Every `UserHandle` a live event carries, including the peer of a private conversation, names the person the line was about, even when the event is mapped after later lines moved that nickname to someone else.
+Every `UserRef` a live event carries, including the peer of a private conversation, names the person the line was about, even when the event is mapped after later lines moved that nickname to someone else.
 
 `WhoEntry::user` and `Whois::user` name the person the reply's row described when it arrived; without a shared channel, a send through them requires the account the reply showed.
 
-`State::presence` reports online, offline, or unknown evidence for a `UserHandle` without allocating a monitor slot.
+`State::presence` reports online, offline, or unknown evidence for a `UserRef` without allocating a monitor slot.
 
 A synchronous `Watch` lease reports whether the server accepted its `MONITOR` entry.
 
@@ -335,20 +337,20 @@ targets, instead of `LimitValue::Unlimited`; a bare `MONITOR` still means no lim
 
 `Error::MonitorFull` is removed: watching a user never fails for a full `MONITOR` list; `Watch::is_live` reports it instead.
 
-`DirectSource` and `Client::direct_to` are removed; send to a received event's `UserHandle` sender instead.
+`DirectSource` and `Client::direct_to` are removed; send to a received event's `UserRef` sender instead.
 
-`DirectRef` and `Client::direct` are removed; `Client::query` creates a `UserHandle` without sending a command.
+`DirectRef` and `Client::direct` are removed; `Client::query` creates a `UserRef` without sending a command.
 
-KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
+KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserRef` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.
-Privilege-granting mode helpers now require a `UserHandle` and recheck its person identity at the final write.
+Privilege-granting mode helpers now require a `UserRef` and recheck its person identity at the final write.
 Metadata operations on a person now prove and recheck that identity before transmission.
 
 `Client::join` now resolves to the synchronized `ChannelHandle` for the joined channel.
 Mode and metadata requests on a channel handle the client has since left now fail with `Error::TargetGone` instead of panicking.
 
-`UserHandle` and `ChannelHandle` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
+`UserRef` and `ChannelHandle` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
 
 Channel-bearing events and conversations now expose `ChannelHandle` values, so held channel identities follow `RENAME` without losing the old and new event facts.
 
@@ -356,7 +358,7 @@ Channel-bearing events and conversations now expose `ChannelHandle` values, so h
 
 Channel message and notice references now retain channel handles; a `STATUSMSG` handle keeps its prefix for replies while channel commands and saved names stay bare.
 
-Message-like events now expose `UserHandle` actors, and private `Conversation` values hold the same identity; mutable account, host, away, and bot facts come from the event's paired `State`.
+Message-like events now expose `UserRef` actors, and private `Conversation` values hold the same identity; mutable account, host, away, and bot facts come from the event's paired `State`.
 
 `WhoEntry` now exposes user and channel handles and reports the WHO operator flag as `is_oper`.
 
@@ -371,28 +373,28 @@ Use `papo_testing::ErrorBuilder` to build disconnect and server-refusal fixtures
 
 The hidden `Actor::from_proto` constructor is removed; sources come only from received lines.
 
-`Whois::nick` is now `Whois::user`, a `UserHandle` for the person the reply describes.
+`Whois::nick` is now `Whois::user`, a `UserRef` for the person the reply describes.
 
-`ModeArg::Member` now carries `user: UserHandle` instead of `nick`, so the subject of `+o bob` can be passed
-straight to `SetModes::op`; mode changes now compare members by identity, like `UserHandle`.
+`ModeArg::Member` now carries `user: UserRef` instead of `nick`, so the subject of `+o bob` can be passed
+straight to `SetModes::op`; mode changes now compare members by identity, like `UserRef`.
 
-`Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
+`Joined` events now carry a `UserRef`; joined-user facts are read from the paired `State`.
 
-`NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles.
+`NickChanged` now carries a `UserRef`, the old and new nickname facts, and channel handles.
 
-Account, away, host, and real-name change events now identify the affected user with a `UserHandle`; mutable facts come from the paired `State`.
+Account, away, host, and real-name change events now identify the affected user with a `UserRef`; mutable facts come from the paired `State`.
 
-`Subject::User` and user-originated mode actors now carry `UserHandle` identities.
+`Subject::User` and user-originated mode actors now carry `UserRef` identities.
 
-KICK and INVITE events now identify their affected user with a `UserHandle`; KICK preserves user facts only when the paired state forgets the removed user.
+KICK and INVITE events now identify their affected user with a `UserRef`; KICK preserves user facts only when the paired state forgets the removed user.
 
-MONITOR online and offline events now carry a `UserHandle`; online facts are read from the paired `State`, while offline preserves facts only when that state forgets the user.
+MONITOR online and offline events now carry a `UserRef`; online facts are read from the paired `State`, while offline preserves facts only when that state forgets the user.
 
-PART events now carry a `UserHandle` and preserve user facts only when the paired state forgets the departing user.
+PART events now carry a `UserRef` and preserve user facts only when the paired state forgets the departing user.
 
 QUIT events now carry user and channel handles and preserve departed user facts.
 
-`Actor::User` now contains a `UserHandle`; `UserSource` and its `Oper` fact type are removed, and historical actors without account proof cannot authorize a send to a later holder of the same nickname.
+`Actor::User` now contains a `UserRef`; `UserSource` and its `Oper` fact type are removed, and historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `Client::mark_read(conversation)` now uses the newest server time papo observed, supports
 `.up_to(&message)`, counts incomplete multiline events only for the implicit newest boundary, and
@@ -413,10 +415,10 @@ Format one with its `Display` impl; `papo::time::format` and `papo_proto::time::
 `InvalidInput::{InvalidRelayNickname, InvalidWebPushEndpoint, InvalidWebPushKey}` exist only with
 the `unstable` feature, like the operations that return them.
 
-`UserHandle` equality and hashing identify only the tracked IRC user on one connection. Handles
+`UserRef` equality and hashing identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per
-connection, so after a reconnect a new handle does not equal an old one.
+connection, so after a reconnect a new reference does not equal an old one.
 
 Person-targeted core writes now require opaque proof minted from session state and recheck that
 proof at the final wire write; recipient guards can no longer be assembled by downstream code.
@@ -468,7 +470,7 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 - The setter from `Channel::topic_set_by` and `ModeListEntry::actor`, and the actor of an
   archived JOIN, QUIT or TOPIC, is a past name: sends through it fail with `Error::TargetGone`,
   as for an archived message's actor. They used to reach the nickname's current holder.
-- A send through a user's handle never reaches another nick logged into the same account. Once papo
+- A send through a user reference never reaches another nick logged into the same account. Once papo
   sees the user quit or part the last shared channel, it fails with `Error::TargetGone`, even when
   a new session takes the same nick and account; it used to go to any other tracked user on that
   account, chosen arbitrarily when there were several.
@@ -582,9 +584,9 @@ client.invite("alice", "#papo").await?;
 client.set_modes("#papo").op("alice").await?;
 ```
 
-`UserHandle` follows nickname changes and refuses with `Error::TargetGone` when the identity leaves
-or the nickname changes hands; `UserHandle::watch` holds a `MONITOR` entry only while its lease
-lives. A received event's `UserHandle` sender addresses its author from the immutable receipt.
+`UserRef` follows nickname changes and refuses with `Error::TargetGone` when the identity leaves
+or the nickname changes hands; `UserRef::watch` holds a `MONITOR` entry only while its lease
+lives. A received event's `UserRef` sender addresses its author from the immutable receipt.
 Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
 unguarded escape hatch. Concurrent guarded sends now wait for server-proven account state and
 cannot route through an expected account while its `WHO` proof is outstanding.
@@ -593,7 +595,7 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 |---|---|
 | `Chat::{Channel, Private}` plus `Conversation` | Only `Conversation`; event `conversation` fields use it |
 | One `Target` role accepted nicks, masks, channels, conversations, and swapped arguments | Sealed `AsChannel`, `AsNick`, `AsAccount`, `AsMask`, and `AsConversation` roles reject category mistakes and foreign-client typed names |
-| Nick text or `Nick` could be a private message target | Private sends require `UserHandle`, or a guarded `MessageRef`/`NoticeRef`; channels remain ordinary targets |
+| Nick text or `Nick` could be a private message target | Private sends require `UserRef`, or a guarded `MessageRef`/`NoticeRef`; channels remain ordinary targets |
 | `Conversation: Target` allowed `@#ops` replies to widen to `#ops` | Use `reply`, `react`, `redact`, or the event's `return_address()` so the original audience is retained |
 | `return_address() -> String` | Message-like events return guarded `MessageRef`; notices return `NoticeRef`; server notice addresses are `Option<NoticeRef>` |
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
@@ -706,7 +708,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Party::Me` |
 | The earlier actor-relation enum and its actor and subject fields on events and `Message` | `Party::{Me, Other, Unknown}` with `actor_party` and `subject_party`; `ModeChanged::subject_party(&change)` gives it per member mode change |
 | Own sends could also arrive as message events | A correlated send resolves to `SendOutcome`; applications that log chat insert their own sends from that value |
-| `Actor` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Actor::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
+| `Actor` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Actor::{User(UserRef), Server(ServerName)}`; mutable user facts live in the paired `State` |
 | `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
 | `Reacted::message` and `removed: bool` | `reacts_to` and `ReactionAction::{Added, Removed}` |
 | `Redacted::message` | `redacts` |
@@ -729,12 +731,12 @@ User lifecycle payloads were normalized as follows:
 
 | Earlier fields | 0.1.0 fields |
 |---|---|
-| `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
-| `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `away: AwayStatus`, `actor_party`, and timestamps |
-| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `account: AccountStatus`, `actor_party`, and timestamps |
-| `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `username`, `host`, `actor_party`, and timestamps |
-| `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `actor_party`, and timestamps |
-| `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserHandle`; offline facts are retained when removed from state |
+| `NickChanged { old, actor, account, ... }` | `actor: UserRef` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
+| `AwayChanged { nick, away, actor }` | `actor: UserRef`, `away: AwayStatus`, `actor_party`, and timestamps |
+| `AccountChanged { nick, account, actor }` | `actor: UserRef`, `account: AccountStatus`, `actor_party`, and timestamps |
+| `HostChanged { nick, username, host, actor }` | `actor: UserRef`, `username`, `host`, `actor_party`, and timestamps |
+| `RealnameChanged { nick, realname, actor }` | `actor: UserRef`, `new`, `actor_party`, and timestamps |
+| `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserRef`; offline facts are retained when removed from state |
 | A single subject flag on `ModeChanged` | `ModeChanged::subject_party(&change)` gives the `Party` of each member mode change |
 | String netsplit server names | `SplitServers` contains `ServerName` values |
 
@@ -884,15 +886,15 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` (requires the
   `unstable` feature) for the validated upload endpoint. Raw advertised values remain available
   through `State::isupport()`.
-- The `WHO nick %na` proof for first sends to a `UserHandle` matches the
+- The `WHO nick %na` proof for first sends to a `UserRef` matches the
   reply's nickname under the server's casemapping, so `Alice` or `{bot}` (for `[bot]` under
   rfc1459) is proven instead of failing with `Error::TargetGone`.
 - With `account-tag`, another user's line without an `account` tag marks them logged out, as the
   specification requires; `Event::AccountChanged` reports it when they were logged in. Our own
   account still follows the 900 and 901 numerics.
 - A person known only from private lines (no shared channel, no MONITOR) whose next line shows
-  another username, host or account is a new person: a new `UserHandle` identity, no inherited
-  account or facts, and guarded sends to the earlier handle fail with `Error::TargetGone`.
+  another username, host or account is a new person: a new `UserRef` identity, no inherited
+  account or facts, and guarded sends to the earlier reference fail with `Error::TargetGone`.
 - A `WHO` proof of a person papo shares no channel with ends when papo sees that nick arrive,
   quit, change nick or go offline in MONITOR, so a guarded send never reaches the next holder.
 - A WHO-proven person's first private line keeps their proof when it carries the account WHO

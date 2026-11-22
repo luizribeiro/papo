@@ -13,7 +13,7 @@ fn resolve_user_parts(
     parts: &crate::target::sealed::Parts<'_>,
 ) -> Result<Option<String>, crate::ForeignReference> {
     crate::ForeignReference::require_local(parts.origin, state.nick().origin())?;
-    let Some(proof) = parts.user.as_ref().and_then(crate::UserHandle::proof) else {
+    let Some(proof) = parts.user.as_ref().and_then(crate::UserRef::proof) else {
         return Ok(Some(parts.text().to_owned()));
     };
     match state.__resolve_proven(proof) {
@@ -275,7 +275,7 @@ impl State {
         conversation: &crate::Conversation,
         address: String,
     ) -> crate::message_ref::Receipt {
-        let actor = crate::Actor::User(crate::UserHandle::current_name(
+        let actor = crate::Actor::User(crate::UserRef::current_name(
             self.nick().clone(),
             self.account().clone(),
             None,
@@ -637,7 +637,7 @@ impl State {
 
     /// Returns presence known through a shared channel or explicit monitoring.
     ///
-    /// Plain text and [`Nick`] check whoever holds that nickname. A [`crate::UserHandle`]
+    /// Plain text and [`Nick`] check whoever holds that nickname. A [`crate::UserRef`]
     /// follows observed nickname changes.
     ///
     /// # Errors

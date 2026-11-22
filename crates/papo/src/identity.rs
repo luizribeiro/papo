@@ -5,7 +5,7 @@ pub(crate) struct ProvenUser {
 
 pub(crate) fn prove(
     client: &crate::Client,
-    handle: &crate::UserHandle,
+    handle: &crate::UserRef,
 ) -> Result<ProvenUser, crate::Error> {
     if handle.nick().origin() != client.origin() {
         return Err(crate::ForeignReference.into());
@@ -103,7 +103,7 @@ mod tests {
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
         let state = client.state();
         let names = state.name_rules().unwrap();
-        let actor = crate::UserHandle::from_past_line(
+        let actor = crate::UserRef::from_past_line(
             names.nick("alice"),
             AccountStatus::LoggedIn(names.account("alice-account")),
         );

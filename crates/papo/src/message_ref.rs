@@ -20,7 +20,7 @@ pub(crate) struct Receipt {
 struct ReceiptIdentity {
     actor: Actor,
     token: Option<papo_core::ReplyToken>,
-    recipient: Option<crate::UserHandle>,
+    recipient: Option<crate::UserRef>,
     channel: Option<crate::ChannelHandle>,
     archived_private: bool,
     msgids: Vec<MessageId>,
@@ -46,7 +46,7 @@ impl Receipt {
                 // Later actor attachment can associate a history item with a live user.
                 archived_private: recipient
                     .as_ref()
-                    .is_some_and(crate::UserHandle::__names_a_past_line),
+                    .is_some_and(crate::UserRef::__names_a_past_line),
                 recipient,
                 channel: match conversation {
                     Conversation::Channel(channel) => Some(channel.clone()),
@@ -116,7 +116,7 @@ impl Receipt {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn recipient(&self) -> Option<crate::UserHandle> {
+    pub(crate) fn recipient(&self) -> Option<crate::UserRef> {
         self.reference().recipient
     }
 
@@ -190,7 +190,7 @@ pub struct MessageRef {
     msgids: Vec<MessageId>,
     origin: crate::Origin,
     channel_context: Option<crate::ChannelHandle>,
-    recipient: Option<crate::UserHandle>,
+    recipient: Option<crate::UserRef>,
     send_name: Option<SendName>,
     channel: Option<crate::ChannelHandle>,
     conversation: Option<Conversation>,
@@ -217,7 +217,7 @@ impl MessageRef {
         msgids: Vec<MessageId>,
         origin: crate::Origin,
         channel_context: Option<crate::ChannelHandle>,
-        recipient: Option<crate::UserHandle>,
+        recipient: Option<crate::UserRef>,
         channel: Option<crate::ChannelHandle>,
     ) -> Self {
         Self {
@@ -340,7 +340,7 @@ impl crate::Target for MessageRef {
 pub struct NoticeRef {
     address: String,
     origin: crate::Origin,
-    recipient: Option<crate::UserHandle>,
+    recipient: Option<crate::UserRef>,
     channel: Option<crate::ChannelHandle>,
 }
 
@@ -489,7 +489,7 @@ pub(crate) fn stamp_conversation(
 ) -> Conversation {
     match conversation {
         Conversation::Channel(channel) => Conversation::Channel(channel),
-        Conversation::Private(user) => Conversation::Private(crate::UserHandle::from_past_line(
+        Conversation::Private(user) => Conversation::Private(crate::UserRef::from_past_line(
             origin.__nick(user.nick().casemapping(), user.nick().into_string()),
             user.account().clone(),
         )),
@@ -506,8 +506,8 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None)
     }
 
-    fn user_handle(value: crate::Nick) -> crate::UserHandle {
-        crate::UserHandle::from_nick(value)
+    fn user_handle(value: crate::Nick) -> crate::UserRef {
+        crate::UserRef::from_nick(value)
     }
 
     #[test]
@@ -602,7 +602,7 @@ mod tests {
         let mapping = crate::Casemapping::default();
         let actor = crate::__testing::user_handle(mapping.nick("alice"));
         let receipt = Receipt::new(
-            crate::Actor::User(crate::UserHandle::current_name(
+            crate::Actor::User(crate::UserRef::current_name(
                 actor.nick().clone(),
                 actor.account().clone(),
                 None,

@@ -59,7 +59,7 @@ impl SourceNick for papo::Actor {
     }
 }
 
-impl SourceNick for papo::UserHandle {
+impl SourceNick for papo::UserRef {
     fn source_nick(&self) -> Option<papo::Nick> {
         Some(self.nick())
     }

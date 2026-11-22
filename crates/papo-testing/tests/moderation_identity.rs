@@ -190,7 +190,7 @@ async fn whois_handle_refuses_handoff() {
 const UNSTABLE_API: &str = include_str!("../../papo/public-api-unstable.txt");
 
 const PERSON_ARGUMENTS: &[&str] = &[
-    "&papo::UserHandle",
+    "&papo::UserRef",
     "impl papo::AsConversation",
     "impl papo::AsNick",
     "impl papo::Target",

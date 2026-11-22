@@ -1966,7 +1966,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel_handle("#systems"),
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
-            actor: crate::Actor::User(crate::UserHandle::from_nick(test_nick("oper"))),
+            actor: crate::Actor::User(crate::UserRef::from_nick(test_nick("oper"))),
             actor_party: crate::Party::Other,
             reason: Some("Community renamed".into()),
         }),

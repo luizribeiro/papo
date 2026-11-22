@@ -904,7 +904,7 @@ mod tests {
             "release ready",
             true,
         );
-        private.conversation = crate::Conversation::Private(crate::UserHandle::from_nick(
+        private.conversation = crate::Conversation::Private(crate::UserRef::from_nick(
             first
                 .state()
                 .name_rules()
@@ -923,19 +923,15 @@ mod tests {
             Err(crate::Error::ForeignReference(crate::ForeignReference))
         ));
 
-        let conversation = crate::Conversation::Private(crate::UserHandle::from_nick(
+        let conversation = crate::Conversation::Private(crate::UserRef::from_nick(
             first
                 .state()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
         ));
-        let actor = crate::UserHandle::current_name(
-            actor.nick().clone(),
-            actor.account().clone(),
-            None,
-            None,
-        );
+        let actor =
+            crate::UserRef::current_name(actor.nick().clone(), actor.account().clone(), None, None);
         let receipt = crate::message_ref::Receipt::new(
             crate::Actor::User(actor.clone()),
             &conversation,

@@ -292,12 +292,8 @@ mod tests {
             None,
             None,
         ));
-        let actor = crate::UserHandle::current_name(
-            actor.nick().clone(),
-            actor.account().clone(),
-            None,
-            None,
-        );
+        let actor =
+            crate::UserRef::current_name(actor.nick().clone(), actor.account().clone(), None, None);
         let receipt = crate::message_ref::Receipt::new(
             crate::Actor::User(actor.clone()),
             &conversation,

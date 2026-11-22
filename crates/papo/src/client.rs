@@ -762,7 +762,7 @@ impl Client {
         let mut text =
             current_channel_text(&state, parts.text.into_owned(), parts.channel.as_deref())?;
         if matches!(role, crate::target::Role::Nick(_))
-            && let Some(proof) = parts.user.as_ref().and_then(crate::UserHandle::proof)
+            && let Some(proof) = parts.user.as_ref().and_then(crate::UserRef::proof)
         {
             text = state
                 .core
@@ -1161,7 +1161,7 @@ impl Client {
         receiver.await.map_err(|_| Error::connection_lost())?
     }
 
-    /// Sends a message to a channel, nickname, guarded [`crate::UserHandle`], or return address.
+    /// Sends a message to a channel, nickname, guarded [`crate::UserRef`], or return address.
     ///
     /// A nickname in text or as a [`crate::Nick`] addresses whoever holds that name.
     ///
@@ -1820,7 +1820,7 @@ impl Client {
 
     /// Removes `nick` from `channel` and resolves to the server's echo of our `KICK`.
     ///
-    /// A [`crate::UserHandle`] follows its proven identity; text or [`crate::Nick`] addresses
+    /// A [`crate::UserRef`] follows its proven identity; text or [`crate::Nick`] addresses
     /// whoever currently holds that nickname. Add a reason with [`KickRequest::reason`]:
     ///
     /// ```no_run
@@ -1878,7 +1878,7 @@ impl Client {
     /// Name the nickname with [`Kickban::nick`], then the ban with [`KickbanNick::ban`]; only the
     /// resulting [`KickbanRequest`] can be awaited.
     ///
-    /// A [`crate::UserHandle`] is checked again after ban confirmation. Text or [`crate::Nick`]
+    /// A [`crate::UserRef`] is checked again after ban confirmation. Text or [`crate::Nick`]
     /// deliberately addresses whoever currently holds that nickname.
     /// The ban remains set when the kick is refused. Leaving or changing nickname during ban
     /// confirmation produces [`Error::TargetGone`] in [`crate::KickbanOutcome::kick`].
@@ -1965,7 +1965,7 @@ impl Client {
 
     /// Invites `nick` to `channel`.
     ///
-    /// A [`crate::UserHandle`] retains the user's identity. Text and [`crate::Nick`] address the
+    /// A [`crate::UserRef`] retains the user's identity. Text and [`crate::Nick`] address the
     /// current holder.
     ///
     /// # Errors

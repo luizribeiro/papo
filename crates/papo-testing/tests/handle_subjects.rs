@@ -41,7 +41,7 @@ async fn server_until(events: &mut Events, wire: &mut Wire, line: &str) -> papo:
     }
 }
 
-async fn sends_op(client: &papo::Client, wire: &mut Wire, user: &papo::UserHandle) -> String {
+async fn sends_op(client: &papo::Client, wire: &mut Wire, user: &papo::UserRef) -> String {
     let request = tokio::spawn({
         let client = client.clone();
         let user = user.clone();
@@ -103,7 +103,7 @@ async fn whois_user_follows_the_reported_person() {
     ));
 }
 
-fn member(event: &papo::Event) -> papo::UserHandle {
+fn member(event: &papo::Event) -> papo::UserRef {
     let papo::Event::ModeChanged(changed) = event else {
         panic!("expected a mode change, got {event:?}")
     };

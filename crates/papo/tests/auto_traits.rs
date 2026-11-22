@@ -28,7 +28,7 @@ fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     assert_send_static(client.reply(message, "Acknowledged").into_future());
 }
 
-fn assert_guarded_request_futures(client: &Client, user: &papo::UserHandle) {
+fn assert_guarded_request_futures(client: &Client, user: &papo::UserRef) {
     assert_send_static(client.invite(user, "#papo"));
     assert_send_static(client.set_modes("#papo").op(user).into_future());
 }

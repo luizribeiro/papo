@@ -27,7 +27,7 @@ const IDENTITY_TYPES: &[&str] = &[
     "papo::Conversation",
     "papo::Actor",
     "papo::Subject",
-    "papo::UserHandle",
+    "papo::UserRef",
     "alloc::vec::Vec<papo::ChannelHandle>",
     "core::option::Option<papo::ChannelHandle>",
     "core::option::Option<papo::Conversation>",
