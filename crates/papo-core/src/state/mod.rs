@@ -248,7 +248,6 @@ pub struct User {
     host: Option<String>,
     account: Account,
     proven_account: Account,
-    account_id: Option<String>,
     away: Away,
     realname: Option<String>,
     is_bot: Option<bool>,
@@ -2334,7 +2333,6 @@ impl User {
             host: host.map(str::to_owned),
             account: Account::Unknown,
             proven_account: Account::Unknown,
-            account_id: None,
             away: Away::Unknown,
             realname: None,
             is_bot: None,
@@ -2357,9 +2355,6 @@ impl User {
     }
 
     fn update_account(&mut self, account: Account) {
-        if self.account != account {
-            self.account_id = None;
-        }
         self.account = account;
     }
 
@@ -2394,13 +2389,6 @@ impl User {
     #[must_use]
     pub const fn account(&self) -> &Account {
         &self.account
-    }
-
-    /// Returns the immutable account identifier asserted on a tagged message.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __account_id(&self) -> Option<&str> {
-        self.account_id.as_deref()
     }
 
     /// Returns the user's known presence state.

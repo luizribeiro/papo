@@ -67,13 +67,6 @@ impl State {
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let actor_party = self.source_party(message);
         let line_account = self.line_account(message, nick, enabled_caps);
-        // NONSTANDARD(inspircd): InspIRCd sends a never-reused account ID in this vendor tag next to
-        // `account`; it has no cap of its own, and without the tag pins fall back to the account name.
-        let account_id = message
-            .tag("account")
-            .zip(message.tag("inspircd.org/account-id"))
-            .map(|(_, id)| id.into_owned())
-            .filter(|id| !id.is_empty());
         let token = self.__reply_token_for(nick);
         let mut changed = false;
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
@@ -97,12 +90,6 @@ impl State {
             }
             if user.is_bot != Some(true) && message.tags().any(|(key, _)| key == "bot") {
                 user.is_bot = Some(true);
-                changed = true;
-            }
-            if let Some(account_id) = account_id
-                && user.account_id.as_deref() != Some(account_id.as_str())
-            {
-                user.account_id = Some(account_id);
                 changed = true;
             }
         }
