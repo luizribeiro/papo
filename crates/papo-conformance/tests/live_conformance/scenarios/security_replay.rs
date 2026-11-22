@@ -149,7 +149,7 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    alice.mode(&channel).add('m').await?;
+    alice.set_modes(&channel).add('m').await?;
     wait_channel_mode(&mut bob, &channel, 'm').await?;
 
     let (message, part) = tokio::join!(

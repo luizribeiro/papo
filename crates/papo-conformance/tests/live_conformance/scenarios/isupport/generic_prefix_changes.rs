@@ -28,10 +28,13 @@ async fn generic_prefix_changes(s: Scenario) -> papo_testing::Result<()> {
         .expect("server advertises the channel operator prefix");
     for prefix in &prefixes[operator..] {
         let letter = prefix.mode();
-        let grant = alice.mode(&channel).add_with(letter, &joined.actor).await?;
+        let grant = alice
+            .set_modes(&channel)
+            .add_with(letter, &joined.actor)
+            .await?;
         let granted = wait_channel_mode(&mut bob, &channel, letter).await?;
         let revoke = alice
-            .mode(&channel)
+            .set_modes(&channel)
             .remove_with(letter, bob_nick.as_str())
             .await?;
         let revoked = wait_channel_mode(&mut bob, &channel, letter).await?;

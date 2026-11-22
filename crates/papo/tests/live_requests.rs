@@ -56,7 +56,7 @@ async fn typed_requests_round_trip_against_ergo() {
                 .any(|entry| entry.user.nick() == nick.as_str())
         );
 
-        client.mode(&channel).add('t').await.unwrap();
+        client.set_modes(&channel).add('t').await.unwrap();
         client
             .set_topic(support::channel(&channel), "Typed requests on Ergo")
             .await

@@ -44,6 +44,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn op(client: &Client, channel: &str, nick: &str) -> Result<(), papo::Error> {
-    client.mode(channel).op(nick).await?;
+    client.set_modes(channel).op(nick).await?;
     Ok(())
 }

@@ -62,7 +62,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&bob, &mut alice, &channel).await?;
     join_seen_by(&carol, &mut alice, &channel).await?;
 
-    alice.mode(&channel).add_with(letter, &arg).await?;
+    alice.set_modes(&channel).add_with(letter, &arg).await?;
     if matches!(dialect, Dialect::ListMode) {
         assert!(
             alice
@@ -121,7 +121,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         assert!(member.prefixes().is_empty());
     }
 
-    alice.mode(&channel).remove_with(letter, arg).await?;
+    alice.set_modes(&channel).remove_with(letter, arg).await?;
     for peer in [&mut bob, &mut carol] {
         let removed = wait_channel_mode(peer, &channel, letter).await?;
         assert_eq!(

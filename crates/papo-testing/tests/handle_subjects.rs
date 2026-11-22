@@ -45,7 +45,7 @@ async fn sends_op(client: &papo::Client, wire: &mut Wire, user: &papo::UserHandl
     let request = tokio::spawn({
         let client = client.clone();
         let user = user.clone();
-        async move { client.mode("#review").op(&user).await }
+        async move { client.set_modes("#review").op(&user).await }
     });
     let sent = wire.next_sent().await;
     request.abort();
@@ -98,7 +98,7 @@ async fn whois_user_follows_the_reported_person() {
     )
     .await;
     assert!(matches!(
-        client.mode("#review").op(&user).await,
+        client.set_modes("#review").op(&user).await,
         Err(papo::Error::TargetGone)
     ));
 }
@@ -172,7 +172,7 @@ async fn member_mode_user_who_left_is_not_the_next_holder() {
     assert_eq!(user.nick().as_str(), "mallory");
     assert_ne!(user, replacement.actor);
     assert!(matches!(
-        client.mode("#review").op(&user).await,
+        client.set_modes("#review").op(&user).await,
         Err(papo::Error::TargetGone)
     ));
 }

@@ -37,7 +37,7 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     let request = masks
         .iter()
         .cloned()
-        .fold(alice.mode(&channel), papo::SetModes::ban);
+        .fold(alice.set_modes(&channel), papo::SetModes::ban);
     request.await?;
 
     let assert_ban_changes = |changed: &ModeChanged, expected: &[papo::Mask]| {

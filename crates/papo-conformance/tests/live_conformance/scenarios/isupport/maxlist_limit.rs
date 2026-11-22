@@ -38,7 +38,7 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
         .map(|index| rules.mask(format!("flood-{index}!*@gateway-{index}.example")))
         .collect::<Vec<_>>();
     for (chunk_index, chunk) in masks.chunks(chunk_size).enumerate() {
-        let mut request = alice.mode(&channel);
+        let mut request = alice.set_modes(&channel);
         for (offset, mask) in chunk.iter().enumerate() {
             request = if shared_quiet_list && chunk_index == 0 && offset == 0 {
                 request.add_with('q', mask.as_str())
@@ -52,7 +52,7 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let error = alice
-        .mode(&channel)
+        .set_modes(&channel)
         .ban("overflow!*@gateway.example")
         .await
         .unwrap_err();

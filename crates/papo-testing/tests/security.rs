@@ -804,10 +804,10 @@ async fn every_request_reports_a_foreign_value_as_foreign_reference() {
         ),
         ("clear_topic", done(second.clear_topic(channel).await)),
         ("whois", done(second.whois(nick).await)),
-        ("mode", done(second.mode(channel).add('m').await)),
+        ("mode", done(second.set_modes(channel).add('m').await)),
         (
             "mode op of a foreign user",
-            done(second.mode("#papo").op(alice).await),
+            done(second.set_modes("#papo").op(alice).await),
         ),
         (
             "list_modes",
@@ -2329,10 +2329,10 @@ async fn channel_keys_are_redacted_across_state_and_events() {
     ));
 
     let marker = "request-key-marker-9274";
-    let request = client.mode("#staff").key(papo::Secret::new(marker));
+    let request = client.set_modes("#staff").key(papo::Secret::new(marker));
     assert!(!format!("{request:?}").contains(marker));
     assert!(matches!(
-        client.mode("#staff").add_with('k', marker).await,
+        client.set_modes("#staff").add_with('k', marker).await,
         Err(papo::Error::InvalidInput(papo::InvalidInput::InvalidMode(
             _
         )))
@@ -2555,7 +2555,7 @@ async fn assert_stale_channel_requests_fail(
     let avatar = || papo::MetadataKey::new("avatar");
     let metadata = client.metadata();
     for (request, result) in [
-        ("mode", client.mode(stale).add('m').await.map(|_| ())),
+        ("mode", client.set_modes(stale).add('m').await.map(|_| ())),
         (
             "metadata.get",
             metadata.get(stale, [avatar()]).await.map(|_| ()),

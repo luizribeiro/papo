@@ -40,7 +40,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
             .is_some_and(|tokens| tokens.contains('@'))
     );
 
-    alice.mode(&channel).op(bob_nick.as_str()).await?;
+    alice.set_modes(&channel).op(bob_nick.as_str()).await?;
     for (name, peer) in [
         ("alice", &mut alice),
         ("bob", &mut bob),
@@ -74,7 +74,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         );
     }
 
-    alice.mode(&channel).voice(carol_nick.as_str()).await?;
+    alice.set_modes(&channel).voice(carol_nick.as_str()).await?;
     for (name, peer) in [
         ("alice", &mut alice),
         ("bob", &mut bob),

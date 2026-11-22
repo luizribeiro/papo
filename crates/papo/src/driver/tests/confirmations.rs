@@ -488,7 +488,7 @@ async fn a_mode_change_the_server_ignores_fails_as_not_verified() {
     for (caps, sent, replies) in cases {
         let outcome = answered(
             caps,
-            |client| client.mode("#papo").add('n').into_future(),
+            |client| client.set_modes("#papo").add('n').into_future(),
             sent,
             replies,
         )

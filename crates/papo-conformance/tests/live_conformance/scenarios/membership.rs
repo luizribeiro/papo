@@ -249,7 +249,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
     let channel_rules = name_rules(&state);
     let channel_name = channel_rules.channel(&channel);
     alice.join(&channel).await?;
-    alice.mode(&channel).add('s').await?;
+    alice.set_modes(&channel).add('s').await?;
 
     // The absence of a names row in this numeric response proves the visibility rule.
     let hidden = bob
@@ -384,11 +384,11 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&first).await?;
     alice.join(&second).await?;
     alice
-        .mode(&first)
+        .set_modes(&first)
         .key(papo::Secret::new("first-channel-key"))
         .await?;
     alice
-        .mode(&second)
+        .set_modes(&second)
         .key(papo::Secret::new("second-channel-key"))
         .await?;
 
@@ -616,7 +616,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let bob_nick = bob.snapshot().nick().clone();
     alice.join(&channel).await?;
 
-    alice.mode(&channel).voice(&alice_nick).await?;
+    alice.set_modes(&channel).voice(&alice_nick).await?;
     let changed = wait_channel_mode(&mut alice, &channel, 'v').await?;
 
     assert_eq!(subject_name(&changed.subject), channel);
@@ -687,7 +687,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    alice.mode(&channel).op(bob_nick.as_str()).await?;
+    alice.set_modes(&channel).op(bob_nick.as_str()).await?;
     let promoted = wait_channel_mode(&mut bob, &channel, 'o').await?;
 
     assert_eq!(subject_name(&promoted.subject), channel);
@@ -764,7 +764,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .ban(name_rules(&alice.snapshot()).mask(format!("{carol_nick}!*@*")))
         .add('i')
         .await?;
@@ -1055,7 +1055,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
             .iter()
             .any(|entry| alice.snapshot().same_list_entry(&entry.mask, &ban))
     );
-    alice.mode(&channel).unban(ban).await?;
+    alice.set_modes(&channel).unban(ban).await?;
     Ok(())
 }
 
@@ -1456,7 +1456,7 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let channel_name = names.channel(&channel);
     let mask = names.mask("troublesome!*@gateway.example");
     alice.join(&channel).await?;
-    alice.mode(&channel).ban(&mask).await?;
+    alice.set_modes(&channel).ban(&mask).await?;
 
     // MODE query numerics expose list entries that are not stored as channel flags.
     let modes = alice
@@ -1488,7 +1488,7 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(tracked, Some(1));
     }
 
-    alice.mode(&channel).unban(&mask).await?;
+    alice.set_modes(&channel).unban(&mask).await?;
     let cleared = alice.list_modes(&channel, papo::ListMode::Ban).await?;
     assert!(cleared.is_empty());
     let tracked = alice
@@ -1520,7 +1520,7 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     let mask = name_rules(&state).mask("reviewer!*@trusted.example");
     alice.join(&channel).await?;
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .ban_exception(&mask)
         .invite_exception(&mask)
         .await?;
@@ -1541,7 +1541,7 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     );
 
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .remove_ban_exception(&mask)
         .remove_invite_exception(&mask)
         .await?;
@@ -1572,7 +1572,7 @@ async fn account_extban(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .ban(papo::Extban::account(&account)?)
         .await?;
 
@@ -1596,7 +1596,7 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
     alice.join(&channel).await?;
-    alice.mode(&channel).add('n').await?;
+    alice.set_modes(&channel).add('n').await?;
     assert_eq!(
         alice
             .snapshot()
@@ -1660,7 +1660,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(initial.iter().any(|line| line.numeric() == Some(221)));
     if alice.snapshot().user_modes().any(|mode| mode == 'i') {
-        alice.mode(nick.clone()).remove('i').await?;
+        alice.set_modes(nick.clone()).remove('i').await?;
         let removed = alice
             .wait_for(|event| {
                 event.as_mode_changed().filter(|changed| {
@@ -1679,7 +1679,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
         }));
     }
 
-    alice.mode(nick.clone()).add('i').await?;
+    alice.set_modes(nick.clone()).add('i').await?;
     let added = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
@@ -1741,7 +1741,8 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    alice.mode(&channel).key(channel_key()).add('s').await?;
+    let settings = alice.set_modes(&channel);
+    settings.key(channel_key()).add('s').await?;
     let modes = wait_channel_mode(&mut bob, &channel, 'k').await?;
     assert_eq!(subject_name(&modes.subject), channel);
     assert_actor_or_server(&modes.actor, alice_nick.as_str());
@@ -1777,7 +1778,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::BadChannelKey,
         "475",
     );
-    alice.mode(&channel).add_with('l', "2").await?;
+    alice.set_modes(&channel).add_with('l', "2").await?;
     wait_channel_mode(&mut bob, &channel, 'l').await?;
     assert_refusal(
         carol.join(&channel).key(channel_key()).await.unwrap_err(),
@@ -1785,11 +1786,11 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         "471",
     );
 
-    alice.mode(&channel).remove('l').await?;
+    alice.set_modes(&channel).remove('l').await?;
     wait_channel_mode(&mut bob, &channel, 'l').await?;
     let mask = format!("{carol_nick}!*@*");
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .ban(name_rules(&alice.snapshot()).mask(&mask))
         .await?;
     wait_channel_mode(&mut bob, &channel, 'b').await?;
@@ -1800,7 +1801,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     );
 
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .unban(name_rules(&alice.snapshot()).mask(mask))
         .add('i')
         .await?;
@@ -1816,7 +1817,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     assert_eq!(invited.channel.name().as_str(), channel);
     carol.join(&channel).key(channel_key()).await?;
 
-    alice.mode(&channel).add('m').await?;
+    alice.set_modes(&channel).add('m').await?;
     wait_channel_mode(&mut bob, &channel, 'm').await?;
     assert_refusal(
         bob.privmsg(&channel, "blocked while unvoiced")
@@ -1825,7 +1826,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::CannotSendToChannel,
         "404",
     );
-    alice.mode(&channel).voice(bob_nick.as_str()).await?;
+    alice.set_modes(&channel).voice(bob_nick.as_str()).await?;
     wait_channel_mode(&mut bob, &channel, 'v').await?;
     bob.privmsg(&channel, "allowed after voice").await?;
     let delivered = carol.wait_for(Event::as_message).await?;

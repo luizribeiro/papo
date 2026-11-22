@@ -536,7 +536,7 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
 pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &super::Client) {
     let mode = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").add('t').await }
+        async move { client.set_modes("#papo").add('t').await }
     });
     client_line(server, b"@label=3 MODE #papo +t\r\n").await;
     server_line(

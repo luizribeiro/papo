@@ -32,7 +32,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
 
     for prefix in &above {
         let error = alice
-            .mode(&channel)
+            .set_modes(&channel)
             .add_with(prefix.mode(), bob_nick.as_str())
             .await
             .unwrap_err();
@@ -65,7 +65,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| channel_mode(event, &channel))
         .await?;
 
-    alice.mode(&channel).op(bob_nick.as_str()).await?;
+    alice.set_modes(&channel).op(bob_nick.as_str()).await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let promoted = wait_channel_mode(peer, &channel, 'o').await?;
         assert_eq!(

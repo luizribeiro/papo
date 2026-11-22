@@ -52,7 +52,7 @@ async fn call_person_method(
 ) -> Result<(), papo::Error> {
     let display_name = papo::metadata::keys::DISPLAY_NAME;
     let metadata = client.metadata();
-    let modes = client.mode("#review");
+    let modes = client.set_modes("#review");
     match method {
         "papo::Client::action" => client.action(alice, "waves").await.map(drop),
         "papo::Client::invite" => client.invite(alice, "#review").await,
@@ -208,7 +208,7 @@ const UNGATED_PERSON_INPUTS: &[(&str, &str)] = &[
         "papo::Client::mark_read",
         "the conversation's own read marker",
     ),
-    ("papo::Client::mode", "channel or own user modes"),
+    ("papo::Client::set_modes", "channel or own user modes"),
     ("papo::Client::relay", "relayed source label"),
     ("papo::Client::set_nick", "the client's own nickname"),
     ("papo::Client::watch", "fixed nickname presence lease"),

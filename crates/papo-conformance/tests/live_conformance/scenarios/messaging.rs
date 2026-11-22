@@ -565,7 +565,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .voice(bob.snapshot().nick().as_str())
         .await?;
     let sent = alice
@@ -618,11 +618,11 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     dave.join(channel.as_str()).await?;
 
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .op(bob.snapshot().nick().as_str())
         .await?;
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .voice(carol.snapshot().nick().as_str())
         .await?;
     let sent = carol
@@ -934,7 +934,7 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
     if !supports_no_ctcp {
         return s.skip("CHANMODES does not advertise no-CTCP mode C");
     }
-    alice.mode(&channel).add('C').await?;
+    alice.set_modes(&channel).add('C').await?;
     bob.send_raw(papo::Line::new("PRIVMSG").with_params([&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     alice
@@ -1165,7 +1165,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .op(bob.snapshot().nick().as_str())
         .await?;
 

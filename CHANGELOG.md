@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Build mode changes with `Client::set_modes`.
+
 Send typing notifications with `Client::set_typing`.
 
 Use `HistoryPage::exhausted` for the history end marker.
@@ -553,7 +555,7 @@ Before:
 let conversation: Chat = message.conversation.clone();
 client.privmsg(&conversation, "acknowledged").await?;
 client.invite("alice", "#papo").await?;
-client.mode("#papo").op("alice").await?;
+client.set_modes("#papo").op("alice").await?;
 ```
 
 After:
@@ -563,7 +565,7 @@ client.reply(&message, "acknowledged").await?;
 
 client.privmsg("alice", "private update").await?;
 client.invite("alice", "#papo").await?;
-client.mode("#papo").op("alice").await?;
+client.set_modes("#papo").op("alice").await?;
 ```
 
 `UserHandle` follows nickname changes and refuses with `Error::TargetGone` when the identity leaves

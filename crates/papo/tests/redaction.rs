@@ -109,7 +109,10 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
         format!("{:?}", client.quit().reason("Leaving")),
         "QuitRequest { .. }"
     );
-    assert_eq!(format!("{:?}", client.mode("#papo")), "SetModes { .. }");
+    assert_eq!(
+        format!("{:?}", client.set_modes("#papo")),
+        "SetModes { .. }"
+    );
     assert_eq!(
         format!(
             "{:?}",

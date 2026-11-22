@@ -246,7 +246,7 @@ impl SetModes {
     /// ```no_run
     /// # async fn change_rank(client: &papo::Client) -> Result<(), papo::Error> {
     /// // The server advertised h as a membership mode in PREFIX.
-    /// client.mode("#review").add_with('h', "alice").await?;
+    /// client.set_modes("#review").add_with('h', "alice").await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -265,7 +265,7 @@ impl SetModes {
     /// ```no_run
     /// # async fn change_rank(client: &papo::Client) -> Result<(), papo::Error> {
     /// // The server advertised h as a membership mode in PREFIX.
-    /// client.mode("#review").remove_with('h', "alice").await?;
+    /// client.set_modes("#review").remove_with('h', "alice").await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -496,7 +496,7 @@ impl IntoFuture for SetModes {
 
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
-    pub fn mode(&self, target: impl crate::AsConversation) -> SetModes {
+    pub fn set_modes(&self, target: impl crate::AsConversation) -> SetModes {
         SetModes {
             client: self.clone(),
             target: self.resolve(
@@ -986,11 +986,11 @@ mod tests {
         let state = first.state();
 
         assert!(matches!(
-            second.mode(channel).op(state.nick()).await,
+            second.set_modes(channel).op(state.nick()).await,
             Err(crate::Error::ForeignReference(_))
         ));
         assert!(matches!(
-            second.mode("@#papo").add('m').await,
+            second.set_modes("@#papo").add('m').await,
             Err(crate::Error::InvalidInput(
                 crate::InvalidInput::InvalidName {
                     argument: "mode: target",
@@ -1008,16 +1008,18 @@ mod tests {
             .build();
 
         for request in [
-            client.mode("#papo").key(crate::Secret::new(marker)),
-            client.mode("#papo").remove_key(crate::Secret::new(marker)),
+            client.set_modes("#papo").key(crate::Secret::new(marker)),
+            client
+                .set_modes("#papo")
+                .remove_key(crate::Secret::new(marker)),
         ] {
             let debug = format!("{request:?}");
             assert_eq!(debug, "SetModes { .. }");
             assert!(!debug.contains(marker));
         }
         for request in [
-            client.mode("#papo").add_with('k', marker),
-            client.mode("#papo").remove_with('k', marker),
+            client.set_modes("#papo").add_with('k', marker),
+            client.set_modes("#papo").remove_with('k', marker),
         ] {
             assert!(matches!(
                 request.await,
@@ -1027,8 +1029,8 @@ mod tests {
             ));
         }
         for request in [
-            client.mode("#papo").add_with('l', "25"),
-            client.mode("#papo").remove_with('l', "25"),
+            client.set_modes("#papo").add_with('l', "25"),
+            client.set_modes("#papo").remove_with('l', "25"),
         ] {
             assert!(!matches!(
                 request.await,

@@ -75,7 +75,7 @@ async fn keeps_running_after_action_refusals() {
         let refusal = wait_message_starting_with(&mut events, &prefix).await;
         assert!(refusal.text.len() > prefix.len());
 
-        admin.mode(&channels[0]).add('m').await.unwrap();
+        admin.set_modes(&channels[0]).add('m').await.unwrap();
         admin
             .privmsg(&channels[0], format!("!op {missing_nick}"))
             .await
@@ -84,7 +84,7 @@ async fn keeps_running_after_action_refusals() {
             bot.next_error()
                 .starts_with("could not reply: server refusal 404:")
         );
-        admin.mode(&channels[0]).remove('m').await.unwrap();
+        admin.set_modes(&channels[0]).remove('m').await.unwrap();
         // Reset the default limit of two replies per five-second window.
         sleep(Duration::from_millis(5_100)).await;
         admin

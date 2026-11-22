@@ -69,7 +69,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
 
     if has_halfop {
         alice
-            .mode(&channel)
+            .set_modes(&channel)
             .remove_with('h', bob_nick.as_str())
             .await?;
         let changed = wait_channel_mode(&mut bob, &channel, 'h').await?;
@@ -133,7 +133,7 @@ async fn grant_rank(
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
     alice
-        .mode(channel)
+        .set_modes(channel)
         .add_with(prefix.mode(), bob_nick.as_str())
         .await?;
     wait_channel_mode(alice, channel, prefix.mode()).await?;

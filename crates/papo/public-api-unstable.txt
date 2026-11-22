@@ -2505,7 +2505,7 @@ pub fn papo::Client::mark_read(&self, impl papo::AsConversation) -> papo::MarkRe
 pub fn papo::Client::recent_conversations(&self, papo_proto::time::ServerTime, papo_proto::time::ServerTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
 pub fn papo::Client::list_modes(&self, impl papo::AsChannel, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
-pub fn papo::Client::mode(&self, impl papo::AsConversation) -> papo::SetModes
+pub fn papo::Client::set_modes(&self, impl papo::AsConversation) -> papo::SetModes
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client

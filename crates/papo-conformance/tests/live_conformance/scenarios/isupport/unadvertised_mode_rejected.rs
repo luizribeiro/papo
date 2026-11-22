@@ -18,14 +18,14 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     let letter = unadvertised_mode_letter(alice.snapshot().isupport())
         .expect("CHANMODES and PREFIX leave at least one Latin letter unadvertised");
 
-    assert_invalid_message(&alice.mode(&channel).add(letter).await);
-    assert_invalid_message(&alice.mode(&channel).add_with(letter, "review").await);
-    assert_invalid_message(&alice.mode(&channel).add('k').await);
-    assert_invalid_message(&alice.mode(&channel).remove_with('l', "10").await);
-    assert_invalid_message(&alice.mode(&channel).add('b').await);
-    assert_invalid_message(&alice.mode(&channel).add_with('n', "x").await);
-    assert_invalid_message(&alice.mode(&channel).await);
-    assert_invalid_message(&alice.mode(&channel).add('m').add(letter).await);
+    assert_invalid_message(&alice.set_modes(&channel).add(letter).await);
+    assert_invalid_message(&alice.set_modes(&channel).add_with(letter, "review").await);
+    assert_invalid_message(&alice.set_modes(&channel).add('k').await);
+    assert_invalid_message(&alice.set_modes(&channel).remove_with('l', "10").await);
+    assert_invalid_message(&alice.set_modes(&channel).add('b').await);
+    assert_invalid_message(&alice.set_modes(&channel).add_with('n', "x").await);
+    assert_invalid_message(&alice.set_modes(&channel).await);
+    assert_invalid_message(&alice.set_modes(&channel).add('m').add(letter).await);
 
     bob.expect_none(|event| channel_mode(event, &channel))
         .await?;
@@ -50,7 +50,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     );
 
     let alice_nick = alice.snapshot().nick().clone();
-    alice.mode(&channel).add('m').await?;
+    alice.set_modes(&channel).add('m').await?;
     for peer in [&mut alice, &mut bob] {
         let changed = wait_channel_mode(peer, &channel, 'm').await?;
         assert_eq!(

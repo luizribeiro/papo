@@ -29,7 +29,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     assert!(groups.never.contains('n'));
 
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .ban(
             alice
                 .snapshot()
@@ -75,7 +75,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     }
 
     alice
-        .mode(&channel)
+        .set_modes(&channel)
         .unban(
             alice
                 .snapshot()

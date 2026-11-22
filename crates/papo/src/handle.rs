@@ -1205,11 +1205,14 @@ mod tests {
         let metadata = client.metadata();
         let avatar = || crate::MetadataKey::new("avatar");
         for (request, result) in [
-            ("mode", client.mode(&channel).add('m').await.map(|_| ())),
+            (
+                "mode",
+                client.set_modes(&channel).add('m').await.map(|_| ()),
+            ),
             (
                 "mode with a raw key",
                 client
-                    .mode(&channel)
+                    .set_modes(&channel)
                     .add_with('k', "hunter2")
                     .await
                     .map(|_| ()),

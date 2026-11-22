@@ -6394,7 +6394,7 @@ async fn typed_mode_refusals_reach_action_futures() {
     ] {
         assert_action_refusal(
             &mut server,
-            client.mode(target).add(mode).into_future(),
+            client.set_modes(target).add(mode).into_future(),
             &format!("MODE {target} +{mode}\r\nPING papo-mode-{id}\r\n"),
             &format!("{incoming}\r\n:ergo.test PONG ergo.test :papo-mode-{id}\r\n"),
             numeric,
@@ -6444,7 +6444,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         let client = client.clone();
         async move {
             client
-                .mode("#papo")
+                .set_modes("#papo")
                 .op("alice")
                 .voice("carol")
                 .ban("*!*@spam.example")
@@ -6482,7 +6482,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
 
     let refused = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").deop(test_nick("alice")).await }
+        async move { client.set_modes("#papo").deop(test_nick("alice")).await }
     });
     client_line(&mut server, b"@label=3 MODE #papo -o alice\r\n").await;
     server_line(
@@ -6526,7 +6526,9 @@ async fn channel_key_mode_results_are_typed_and_redacted() {
     })
     .await;
 
-    let request = client.mode("#staff").key(crate::Secret::new("hunter2"));
+    let request = client
+        .set_modes("#staff")
+        .key(crate::Secret::new("hunter2"));
     assert!(!format!("{request:?}").contains("hunter2"));
     let modes = tokio::spawn(async move { request.await });
     client_line(&mut server, b"@label=0 MODE #staff +k hunter2\r\n").await;
@@ -6566,7 +6568,7 @@ async fn mode_changes_report_an_applied_change_and_a_partial_refusal() {
         let client = client.clone();
         async move {
             client
-                .mode("#papo")
+                .set_modes("#papo")
                 .ban("alice!*@*")
                 .ban("spambot!*@gateway.example")
                 .await
@@ -6612,7 +6614,7 @@ async fn mode_changes_validate_every_chunk_before_sending() {
 
     assert!(matches!(
         client
-            .mode("#papo")
+            .set_modes("#papo")
             .add('m')
             .key(crate::Secret::new("bad\r\nOPER"))
             .await,
@@ -6644,7 +6646,7 @@ async fn dropped_mode_future_still_sends_later_chunks() {
     )
     .await;
 
-    let modes = tokio::spawn(async move { client.mode("#papo").add('m').add('n').await });
+    let modes = tokio::spawn(async move { client.set_modes("#papo").add('m').add('n').await });
     client_line(&mut server, b"@label=0 MODE #papo +m\r\n").await;
     abort_task(modes).await;
     server_line(
@@ -6670,7 +6672,7 @@ async fn mode_changes_return_confirmed_facts_after_a_later_disconnect() {
 
     let modes = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").add('m').add('n').await }
+        async move { client.set_modes("#papo").add('m').add('n').await }
     });
     client_line(&mut server, b"@label=0 MODE #papo +m\r\n").await;
     server_line(
@@ -6708,7 +6710,7 @@ async fn mode_changes_require_an_own_matching_mode_echo() {
 
     let other_actor = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").ban("alice!*@*").await }
+        async move { client.set_modes("#papo").ban("alice!*@*").await }
     });
     client_line(
         &mut server,
@@ -6731,7 +6733,7 @@ async fn mode_changes_require_an_own_matching_mode_echo() {
 
     let wrong_action = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").ban("alice!*@*").await }
+        async move { client.set_modes("#papo").ban("alice!*@*").await }
     });
     client_line(
         &mut server,
@@ -6770,7 +6772,7 @@ async fn an_unconfirmed_first_mode_chunk_returns_its_transport_error() {
     )
     .await;
 
-    let modes = tokio::spawn(async move { client.mode("#papo").add('m').await });
+    let modes = tokio::spawn(async move { client.set_modes("#papo").add('m').await });
     client_line(&mut server, b"MODE #papo +m\r\nPING papo-mode-0\r\n").await;
     within(server.shutdown()).await.unwrap();
 
@@ -6848,7 +6850,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let mode = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").add('t').await }
+        async move { client.set_modes("#papo").add('t').await }
     });
     client_line(&mut server, b"MODE #papo +t\r\nPING papo-mode-4\r\n").await;
     server_line(&mut server, b":ergo.test PONG ergo.test :papo-mode-4\r\n").await;
@@ -7092,7 +7094,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
 
     let mode = tokio::spawn({
         let client = client.clone();
-        async move { client.mode("#papo").add('t').await }
+        async move { client.set_modes("#papo").add('t').await }
     });
     client_line(&mut server, b"MODE #papo +t\r\nPING papo-mode-0\r\n").await;
     server_line(
@@ -7421,10 +7423,10 @@ async fn named_rank_modes_require_their_advertised_prefix() {
         client_line(&mut server, b"PONG prefix-fence\r\n").await;
 
         for (sign, mode, request) in [
-            ('+', 'o', client.mode("#review").op("alice")),
-            ('-', 'o', client.mode("#review").deop("alice")),
-            ('+', 'v', client.mode("#review").voice("alice")),
-            ('-', 'v', client.mode("#review").devoice("alice")),
+            ('+', 'o', client.set_modes("#review").op("alice")),
+            ('-', 'o', client.set_modes("#review").deop("alice")),
+            ('+', 'v', client.set_modes("#review").voice("alice")),
+            ('-', 'v', client.set_modes("#review").devoice("alice")),
         ] {
             if advertised == Some(mode) {
                 let pending = tokio::spawn(async move { request.await });
@@ -7492,8 +7494,10 @@ async fn generic_modes_round_trip_explicit_prefix_letters() {
                 break joined.actor;
             }
         };
-        let grant = client.mode("#review").add_with(letter, test_nick("alice"));
-        let revoke = client.mode("#review").remove_with(letter, &actor);
+        let grant = client
+            .set_modes("#review")
+            .add_with(letter, test_nick("alice"));
+        let revoke = client.set_modes("#review").remove_with(letter, &actor);
         for (label, sign, action, request) in [
             (0, '+', crate::ModeAction::Add, grant),
             (1, '-', crate::ModeAction::Remove, revoke),
@@ -7529,9 +7533,13 @@ async fn generic_modes_require_an_explicit_prefix_for_nickname_arguments() {
         server_line(&mut server, rules.as_bytes()).await;
         client_line(&mut server, b"PONG prefix-fence\r\n").await;
         for request in [
-            client.mode("#review").add_with('o', "alice"),
-            client.mode("#review").remove_with('o', test_nick("alice")),
-            client.mode("#review").remove_with('b', test_nick("alice")),
+            client.set_modes("#review").add_with('o', "alice"),
+            client
+                .set_modes("#review")
+                .remove_with('o', test_nick("alice")),
+            client
+                .set_modes("#review")
+                .remove_with('b', test_nick("alice")),
         ] {
             assert!(matches!(
                 within(request).await,
@@ -7571,7 +7579,7 @@ async fn invite_and_privilege_grants_accept_nicknames() {
     within(invite).await.unwrap().unwrap();
 
     let request = client
-        .mode("#review")
+        .set_modes("#review")
         .op("Alice")
         .add_with('h', test_nick("bob"))
         .voice("carol")
