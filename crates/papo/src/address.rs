@@ -80,6 +80,9 @@ pub enum InvalidInput {
         /// The supplied reaction length in bytes.
         actual: usize,
     },
+    /// A saved message reference is malformed, unsupported, or too large.
+    #[error("invalid saved message reference")]
+    InvalidSavedMessage,
     /// A message reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
     UnusableMessageReference,

@@ -8116,6 +8116,51 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn restoring_message_references_validates_locally() {
+    use crate::InvalidInput;
+
+    const SAVED: &str = "papo-ref:1;to=#ops;id=RfcBTzyxY120004";
+    let session = Session::new(Config::default().nick("papo"));
+    let (client, mut commands) = client_with_commands(&session);
+    assert!(matches!(
+        client.saved_message(SAVED),
+        Err(Error::InvalidInput(InvalidInput::NameRulesUnknown))
+    ));
+    assert!(matches!(
+        commands.try_recv(),
+        Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+    ));
+
+    let mut session = Session::new(config());
+    session.handle_line(
+        crate::rt::now_mono(),
+        b":ergo.test 005 papo-driver CHANTYPES=# PREFIX=(ov)@+ STATUSMSG=@+ :are supported by this server",
+    );
+    let (client, mut commands) = client_with_commands(&session);
+    let reference = client.saved_message(SAVED).unwrap();
+    assert_eq!(reference.origin(), client.origin());
+    assert_eq!(reference.to_saved(), SAVED);
+    for text in [
+        "papo-ref:2;to=#ops;id=RfcBTzyxY120004",
+        "papo-ref:1;to=bad target;id=RfcBTzyxY120004",
+        "papo-ref:1;to=#ops,#public;id=RfcBTzyxY120004",
+        "papo-ref:1;to=+@#ops;id=RfcBTzyxY120004",
+    ] {
+        assert!(
+            matches!(
+                client.saved_message(text),
+                Err(Error::InvalidInput(InvalidInput::InvalidSavedMessage))
+            ),
+            "{text}"
+        );
+    }
+    assert!(matches!(
+        commands.try_recv(),
+        Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn written_labelled_privmsg_is_interrupted_by_the_server_disconnect() {
     let config = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, _events, driver) = scripted(config);

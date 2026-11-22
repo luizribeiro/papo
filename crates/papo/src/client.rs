@@ -1251,6 +1251,40 @@ impl Client {
         }
     }
 
+    /// Restores an opaque reference saved by [`crate::MessageRef::to_saved`] for this network.
+    ///
+    /// This is a local operation and writes nothing to the server. A private reference addresses
+    /// whoever holds the saved nickname. Channel references retain the exact audience. See
+    /// [`crate::Conversation`] for status-prefixed audience guidance.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidInput::NameRulesUnknown`] before the server's name rules are known, or
+    /// [`InvalidInput::InvalidSavedMessage`] for invalid text, an unsupported version or
+    /// address, or more than 10,000 identifiers or 1 MiB of text.
+    pub fn saved_message(&self, text: &str) -> Result<crate::MessageRef, Error> {
+        let state = self.state();
+        state
+            .known_name_rules()
+            .ok_or(InvalidInput::NameRulesUnknown)?;
+        let (address, ids) =
+            crate::message_ref::saved::parse(text).ok_or(InvalidInput::InvalidSavedMessage)?;
+        let (status, target) = state
+            .parse_target_inner(&address)
+            .map_err(|_| InvalidInput::InvalidSavedMessage)?;
+        if status.is_some() {
+            refuse_stacked_status(&state, &address)
+                .map_err(|_| InvalidInput::InvalidSavedMessage)?;
+        }
+        let private = matches!(target, papo_core::Conversation::Private(_));
+        Ok(crate::MessageRef::restored(
+            address,
+            ids,
+            self.origin,
+            private,
+        ))
+    }
+
     /// Sends a private message threaded as a reply to `message` when supported.
     ///
     /// Passing the received line or [`SendOutcome`] preserves its return address. See

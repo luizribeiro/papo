@@ -5,7 +5,7 @@ pub(crate) mod sealed {
 
     pub trait Sealed {}
 
-    #[derive(Clone, Copy, Eq, PartialEq)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub(crate) enum SendName {
         Text,
         Nick,

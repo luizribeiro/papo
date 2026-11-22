@@ -1,7 +1,8 @@
 use std::fmt;
 
-#[cfg(test)]
-mod saved;
+pub(crate) mod saved;
+
+use crate::target::sealed::SendName;
 
 use crate::{
     Conversation, Message, MessageId, SendOutcome, Source,
@@ -89,7 +90,10 @@ impl Receipt {
             self.identity.recipient.clone(),
             self.identity.channel.clone(),
         );
-        reference.archived_private = self.identity.archived_private;
+        reference.send_name = self
+            .identity
+            .archived_private
+            .then_some(SendName::HistoryPeer);
         reference
     }
 
@@ -139,8 +143,8 @@ pub(crate) trait ReplyReference {
 ///
 /// A reference preserves the address exactly as it arrived, including a status prefix such as
 /// `@#ops`, together with the originating client and any evidence needed to detect a nickname
-/// changing hands. A reference comes only from a line: a received [`Message`] (or another
-/// received line's `return_address()`) or a [`SendOutcome`]. A channel, a conversation or a bare message
+/// changing hands. References come from received lines such as [`Message`], a [`SendOutcome`], or
+/// [`crate::Client::saved_message`]. A channel, a conversation or a bare message
 /// identifier is not a reference, so a reaction or reply cannot point a public line at an
 /// ops-only message; see [`Conversation`] for status-prefixed audience guidance.
 ///
@@ -187,7 +191,7 @@ pub struct MessageRef {
     origin: crate::Origin,
     channel_context: Option<crate::ChannelHandle>,
     recipient: Option<crate::UserHandle>,
-    archived_private: bool,
+    send_name: Option<SendName>,
     channel: Option<crate::ChannelHandle>,
     conversation: Option<Conversation>,
     server_time: Option<crate::ServerTime>,
@@ -200,7 +204,7 @@ impl PartialEq for MessageRef {
             && self.origin == other.origin
             && self.channel_context == other.channel_context
             && self.recipient == other.recipient
-            && self.archived_private == other.archived_private
+            && self.send_name == other.send_name
             && self.channel == other.channel
     }
 }
@@ -222,11 +226,32 @@ impl MessageRef {
             origin,
             channel_context,
             recipient,
-            archived_private: false,
+            send_name: None,
             channel,
             conversation: None,
             server_time: None,
         }
+    }
+
+    pub(crate) fn restored(
+        address: String,
+        ids: Vec<MessageId>,
+        origin: crate::Origin,
+        private: bool,
+    ) -> Self {
+        let mut reference = Self::new(address, ids, origin, None, None, None);
+        reference.send_name = private.then_some(SendName::Nick);
+        reference
+    }
+
+    /// Saves the exact return address and message identifiers as opaque text.
+    ///
+    /// Keep this text with the stored message and restore it with [`crate::Client::saved_message`].
+    /// Restoring requires at least one server message identifier. See [`Conversation`] for
+    /// status-prefixed audience guidance.
+    #[must_use]
+    pub fn to_saved(&self) -> String {
+        saved::encode(&self.address, &self.msgids)
     }
 
     /// Returns the first line's server-assigned identifier, when present.
@@ -287,9 +312,7 @@ impl crate::target::sealed::Sealed for MessageRef {}
 impl crate::Target for MessageRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
-            send_name: self
-                .archived_private
-                .then_some(crate::target::sealed::SendName::HistoryPeer),
+            send_name: self.send_name,
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             channel: self
@@ -301,7 +324,7 @@ impl crate::Target for MessageRef {
             user: self
                 .recipient
                 .as_ref()
-                .filter(|_| !self.archived_private)
+                .filter(|_| self.send_name != Some(SendName::HistoryPeer))
                 .cloned(),
         }
     }
@@ -500,7 +523,7 @@ mod tests {
             origin,
             channel_context: Some(channel_handle(origin.__channel(mapping, "#context"))),
             recipient: Some(user_handle(origin.__nick(mapping, "alice"))),
-            archived_private: false,
+            send_name: None,
             channel: Some(channel_handle(origin.__channel(mapping, "#ops"))),
             conversation: Some(Conversation::Channel(channel_handle(
                 origin.__channel(mapping, "#ops"),
@@ -525,7 +548,7 @@ mod tests {
         let mut recipient = base.clone();
         recipient.recipient = None;
         let mut archived_private = base.clone();
-        archived_private.archived_private = true;
+        archived_private.send_name = Some(SendName::HistoryPeer);
         let mut channel = base.clone();
         channel.channel = None;
         for (field, different) in [

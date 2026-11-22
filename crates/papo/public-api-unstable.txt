@@ -1869,6 +1869,7 @@ pub papo::InvalidInput::InvalidName::argument: &'static str
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidRelayNickname
+pub papo::InvalidInput::InvalidSavedMessage
 pub papo::InvalidInput::InvalidWebPushEndpoint
 pub papo::InvalidInput::InvalidWebPushKey
 #[non_exhaustive] pub papo::InvalidInput::KickReasonTooLong
@@ -2481,6 +2482,7 @@ pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, i
 pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
 pub fn papo::Client::resume_reconnect(&self) -> papo::RequestFuture<()>
+pub fn papo::Client::saved_message(&self, &str) -> core::result::Result<papo::MessageRef, papo::Error>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<papo::NickOutcome>
@@ -3084,6 +3086,7 @@ pub struct papo::MessageRef
 impl papo::MessageRef
 pub fn papo::MessageRef::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub const fn papo::MessageRef::origin(&self) -> papo::Origin
+pub fn papo::MessageRef::to_saved(&self) -> alloc::string::String
 impl core::clone::Clone for papo::MessageRef
 pub fn papo::MessageRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::MessageRef
