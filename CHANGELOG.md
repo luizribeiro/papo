@@ -503,13 +503,9 @@ but applications built against that revision need the following updates.
 
 #### Connecting and configuring
 
-The nickname is now required at the construction boundary. Known capabilities use typed features,
-while `request_caps` is reserved for capability names unknown to papo.
-
-Capability arguments use the sealed `AsCap` role, and capability-related configuration errors
-carry `Cap`.
-Known capability names are exported as typed constants such as `cap::CHATHISTORY`.
-`Capabilities` lookups now take `&Cap`, so draft and final spellings compare by capability identity.
+Pass the nickname to `Client::builder`. Configure capabilities through typed features.
+Known capability names are available as constants such as `cap::CHATHISTORY`.
+`Capabilities` takes `&Cap` for lookups and recognizes both draft and final spellings.
 
 Before:
 
@@ -525,21 +521,19 @@ After:
 ```rust,ignore
 let builder = Client::builder("ircs://irc.example.net", "alice")
     .disable(Feature::ReadMarkers)
-    .enable(Feature::Metadata)
-    .request_caps(["vendor.example/network-state"]);
+    .enable(Feature::Metadata);
 ```
 
 | Earlier API | 0.1.0 API |
 |---|---|
 | `Client::builder(endpoint)` plus optional `Builder::nick` | `Client::builder(endpoint, nick)`; there is no implicit `papo` nickname |
-| `without_caps(names)` and known names in `request_caps` | `disable(Feature)` / `enable(Feature)`; `request_caps` rejects known, managed, and unavailable unstable names |
+| `without_caps(names)` and known names in `request_caps` | `disable(Feature)` / `enable(Feature)` |
 | `Endpoint::websocket`, separate URL constructors, and no `FromStr` | Parse every scheme with `"ircs://…".parse::<Endpoint>()`; `plaintext` and `tls` remain host/port conveniences |
 | Browser builds exposed TCP endpoint constructors and failed only when connecting | TCP endpoint constructors are absent in browser builds; passing a TCP endpoint to `Client::builder` records `InvalidUrl::UnsupportedScheme` |
 | Missing TLS or WebSocket support failed during connection as `ConnectErrorKind::Unavailable` | Transport-specific setters and credential types are absent when their target or Cargo feature cannot use them; unsupported URL schemes are `InvalidUrl::UnsupportedScheme` |
 | Many URL-shaped `InvalidInput` variants and an unexported network URL error | `InvalidInput::Url(InvalidUrl)` and `Endpoint::Err = InvalidUrl` |
-| `InvalidInput::UnknownCapability(name)` for a `without_caps` name papo did not request | Removed with `without_caps`; `request_caps` refuses a known name as `InvalidInput::KnownCapability { capability, feature }`, one set by a typed builder method as `ManagedCapability(Cap)`, and an unstable one in a stable build as `UnstableCapability(Cap)` |
-| `Builder::device` | Removed |
-| No SASL authorization identity | `Sasl::authzid(...)`; PLAIN transmits it too |
+| `InvalidInput::UnknownCapability(name)` for a `without_caps` name papo did not request | Removed with `without_caps` |
+| `Sasl::device` | Removed |
 | Empty `away_on_connect("")` silently meant no away | Empty initial away text is `Error::InvalidInput`; omit the setting to stay present |
 | `Builder::stream(stream)` inferred security from the URL | `stream` is explicitly plaintext; use `stream_with_security(stream, StreamSecurity::Encrypted)` for an encrypted custom transport |
 | TLS certificate and key accepted interchangeable bytes | `tls_client_cert(CertificateChain, PrivateKey)` makes swaps fail and redacts the key |
@@ -605,35 +599,31 @@ client.invite("alice", "#papo").await?;
 client.set_modes("#papo").op("alice").await?;
 ```
 
-`UserRef` follows nickname changes and refuses with `Error::TargetGone` when the identity leaves
-or the nickname changes hands; `UserRef::watch` holds a `MONITOR` entry only while its lease
-lives. A received event's `UserRef` sender addresses its author from the immutable receipt.
-Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
-unguarded escape hatch. Concurrent guarded sends now wait for server-proven account state and
-cannot route through an expected account while its `WHO` proof is outstanding.
+`UserRef` follows nickname changes papo sees. Sending through it can fail with
+`Error::TargetGone` when papo sees a departure or nickname handoff. A live private message's
+return address uses the same observations. `UserRef::watch` holds a `MONITOR` entry while its
+lease lives.
 
 | Earlier API | 0.1.0 API |
 |---|---|
 | `Chat::{Channel, Private}` plus `Conversation` | Only `Conversation`; event `conversation` fields use it |
 | One `Target` role accepted nicks, masks, channels, conversations, and swapped arguments | Sealed `AsChannel`, `AsNick`, `AsAccount`, `AsMask`, and `AsConversation` roles reject category mistakes and foreign-client typed names |
-| Nick text or `Nick` could be a private message target | Private sends require `UserRef`, or a guarded `MessageRef`/`NoticeRef`; channels remain ordinary targets |
 | `Conversation: Target` allowed `@#ops` replies to widen to `#ops` | Use `reply`, `react`, `redact`, or the event's `return_address()` so the original audience is retained |
 | `return_address() -> String` | Message-like events return guarded `MessageRef`; notices return `NoticeRef`; server notice addresses are `Option<NoticeRef>` |
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
-| `SetModes::prefix` granted an advertised custom membership mode | Use `add_with` and `remove_with` with a nickname or user handle |
+| `SetModes::prefix` granted an advertised custom membership mode | Use `add_with` and `remove_with` with a nickname or `UserRef` |
 | `kickban(channel, nick, reason, ban)` | `kickban(channel).nick(nick).ban(ban).reason(reason)` names the nickname and ban roles; `ban` is typed as `BanTarget` |
 | `Client::nick()` | `client.snapshot().nick()`; the state snapshot is the one place the current nickname lives |
 | `quit(reason)` | `quit()` disconnects without a reason; add one with `.reason(reason)` |
 | `kick(channel, nick, reason)` | `kick(channel, nick)` removes without a reason; add one with `.reason(reason)` |
 | `part(channel, reason)` | `part(channel)` leaves without a reason; add one with `.reason(reason)` |
 | `rename_channel(old, new, reason)` | `rename_channel(old).to(new).reason(reason)` gives the two channel roles distinct positions |
-| Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, and `channel_context()` are read-only accessors backed by receipt evidence |
+| Public mutable message routing fields | Use `msgid()`, `conversation()`, `channel_context()`, and `return_address()`; `Restricted::audience` carries the ops-only prefix |
 | `Extban::Account(String)` | Opaque `Extban::account(impl AsAccount)` is the only account-extban constructor |
 | Parsed `Extban` values could not be inspected | `Extban::as_account()` returns the typed account name |
 | `metadata::keys` constants were strings | Constants are reusable `MetadataKey` values accepted directly by writes |
 | `MetadataView::get` accepted strings | Cached metadata lookups take `&MetadataKey` |
 | State source fields exposed `papo_core` details | `Channel::topic_set_by()` and `ModeListEntry::actor()` return the same `Actor` type as events |
-| Raw `Line` and `Mask` methods exposed unnameable protocol types | `LineRef`, `Param`, `LineSource`, `WireLine`, and `MaskSource` are available from `papo` |
 | Channel receipts were only text | Receipt-derived sends verify that a parted or recreated channel is still the same membership identity |
 | `HistoryReference: From<String/&str>` guessed that text was a message ID | Construct `HistoryReference` explicitly from a `MessageId` or time |
 | Matching the text of `InvalidInput::InvalidRequest(String)` | Match the typed variant the request fails with, such as `InvalidInput::EmptyText` or `Error::TooManyPendingRequests` |
@@ -725,7 +715,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | Earlier API | 0.1.0 API |
 |---|---|
 | Boxed `Event::{Message, Notice, ServerNotice, History}` payloads | Unboxed payloads; the Box-specific `MessageRef` conversions were removed |
-| Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` and `as_auto_join_failed()` |
+| Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` |
 | `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Party::Me` |
 | The earlier actor-relation enum and its actor and subject fields on events and `Message` | `Party::{Me, Other, Unknown}` with `actor_party` and `subject_party`; `ModeChanged::subject_party(&change)` gives it per member mode change |
 | Own sends could also arrive as message events | A correlated send resolves to `SendOutcome`; applications that log chat insert their own sends from that value |
@@ -738,7 +728,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | `ServerNoticeTarget` | `NoticeTarget::{Me, Channel, Broadcast}` plus `Broadcast::{Everyone, Mask}` |
 | Server-wide CTCP and tag messages were folded into unrelated events | `Event::BroadcastCtcp` and `Event::BroadcastTagMsg` carry explicit broadcast audiences |
 | `Event::Other(Line)` | `Event::Other(event::Other)` preserves the line plus msgid and timestamps and dereferences to `Line` |
-| `event::Unparsed` | `event::Other`, named like its `Event::Other` variant and `as_other()` accessor |
+| `event::Unparsed` | `event::Other`, named like its `Event::Other` variant |
 | `Event::msgid()` cloned an identifier | It returns `Option<&MessageId>` |
 | `HistoryPage::messages()` silently omitted notices | Use the page iterator for every item or `chat_messages()` when only `Message` values are wanted |
 
@@ -817,9 +807,7 @@ either operand order. `Error` gains `From<ServerError>`, `From<StateLimit>`, and
 `InvalidMode`, `InvalidMetadataKey`, and related variants) rather than the catch-all
 `InvalidMessage(String)`.
 
-`client.direct` can return `Error::MonitorFull` when an unshared private recipient cannot reserve
-a server `MONITOR` slot. `Error::NotVerified` reports a state-changing request whose wire outcome
-could not be proven.
+`Error::NotVerified` reports a state-changing request whose result papo could not verify.
 
 All request futures are lazy until first poll. After polling, dropping the future abandons the
 wait but does not cancel driver work. `Error::Timeout` means every line was written and the reply
@@ -898,7 +886,7 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - `Typing::Done` clears the active-send throttle, so a following active notification is not
   incorrectly suppressed.
 - `ModeChange` and other externally constructed protocol values are non-exhaustive where future
-  server vocabulary can add cases. `Typer` exposes `nick()`, `is_paused()`, `status()`, and its
+  server vocabulary can add cases. `Typer` exposes `nick()`, `is_paused()`, `audience()`, and its
   audience-preserving return address rather than mutable public fields; the impossible retained
   `Done` state and redundant conversation field are gone.
 - Channel mode lookup has one `ModeValue` representation. `User::is_bot` is optional where the
@@ -907,16 +895,9 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` (requires the
   `unstable` feature) for the validated upload endpoint. Raw advertised values remain available
   through `State::isupport()`.
-- The `WHO nick %na` proof for first sends to a `UserRef` matches the
-  reply's nickname under the server's casemapping, so `Alice` or `{bot}` (for `[bot]` under
-  rfc1459) is proven instead of failing with `Error::TargetGone`.
 - With `account-tag`, another user's line without an `account` tag marks them logged out, as the
   specification requires; `Event::AccountChanged` reports it when they were logged in. Our own
   account still follows the 900 and 901 numerics.
 - A person known only from private lines (no shared channel, no MONITOR) whose next line shows
   another username, host or account is a new person: a new `UserRef` identity, no inherited
   account or facts, and guarded sends to the earlier reference fail with `Error::TargetGone`.
-- A `WHO` proof of a person papo shares no channel with ends when papo sees that nick arrive,
-  quit, change nick or go offline in MONITOR, so a guarded send never reaches the next holder.
-- A WHO-proven person's first private line keeps their proof when it carries the account WHO
-  proved; any other first line ends it.
