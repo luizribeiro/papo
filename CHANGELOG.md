@@ -2,56 +2,6 @@
 
 ## 0.1.0 - Unreleased
 
-Read negotiated capabilities through the read-only `Capabilities` type.
-
-Build synthetic negotiated capabilities with `papo_testing::capabilities`.
-
-Match event variants in application code. Event shortcut accessors are available through `papo-testing`.
-
-Use `ChannelRef` for a reference to a channel.
-
-Use `UserRef` for a reference to a user.
-
-Use `event::NoticeTarget` for the destination of a server notice.
-
-Read the typing notification prefix from `Typer::audience()`.
-
-Read the sent message prefix from `SendOutcome::audience()`.
-
-Choose password-based SASL mechanisms with `Sasl::password`.
-
-Use `Actor` for an event actor.
-
-Request registration during connection with `Builder::create_account_on_connect`.
-
-Enable bot mode with `Builder::bot_mode`.
-
-Build mode changes with `Client::set_modes`.
-
-Send typing notifications with `Client::set_typing`.
-
-Use `HistoryPage::exhausted` for the history end marker.
-
-Read the changed address from `HostChanged::host` and `HostChanged::username`.
-
-Read the away change from `AwayChanged::away`.
-
-Read the account change from `AccountChanged::account`.
-
-Use `AccountStatus` and `AwayStatus` for account and away state.
-
-Use `papo_bot::BotCommand` in place of `papo_bot::Command`.
-
-`Client::channel` is crate-private. Pass channel names as text or `ChannelName` values.
-
-`UserRef` no longer compares directly with text. Use `handle.nick() == "luiz"` to check a nickname.
-
-Stored and untracked `UserRef` values compare equal only to their own clones. Live tracked references compare and hash by identity on the same client, including across observed renames.
-
-`Client::query` and the first-send WHO lookup are removed. Send to the nickname and use `actor_account()` to check an incoming message’s account.
-
-Saved direct-message identities are removed. Compare the expected account with the message's `actor_account()` or the account returned by `state.user(nick)`.
-
 The first release of papo provides an asynchronous IRC client for applications and bots, broad
 IRCv3 support, deterministic protocol state, and native, WASI, and browser transports. `papo` is
 the supported application API; see the [IRCv3 support table](docs/ircv3-support.md) for the full
@@ -59,8 +9,76 @@ protocol surface. The 0.1 release includes `papo-testing`, version-locked to `pa
 stability promise even between patch releases. `papo-bot` stays unpublished. `papo-core` and
 `papo-proto` are internal lockstep implementation crates without independent stability guarantees.
 
-IRC text formatting helpers now live in `papo-format`, with no stability promise. Use
+### Added
+
+Build negotiated capabilities for tests with `papo_testing::capabilities`.
+
+`papo-format` provides IRC text formatting with no stability promise. Use
 `papo_format::Formatted::new(&message.raw_text)` for styled runs from messages and notices.
+
+`Client::privmsg`, `Client::notice`, and `Client::action` accept plain-text nicknames.
+
+`Nick` implements `Target` for `Client::privmsg`, `Client::notice`, and `Client::action`.
+
+`Client::watch` acquires a presence watch on a fixed nickname. `UserRef::watch` follows observed renames.
+
+Save a message reference as opaque text with `MessageRef::to_saved` and restore it with
+`Client::saved_message`. Invalid saved text returns `InvalidInput::InvalidSavedMessage`.
+
+`actor_account()` reports the account on the received line, including messages, history, and
+other events caused by a user.
+
+`Event::CasemappingChanged` also fires when the connection first learns its name rules.
+
+`papo_testing::unsupported` builds unavailable-feature diagnostics.
+
+`papo_testing::ErrorBuilder` builds disconnect and server-refusal fixtures.
+
+### Changed
+
+`Capabilities` is read-only. Use `get`, `contains`, or `iter` to read negotiated capabilities.
+
+`ChannelHandle` is now `ChannelRef`.
+
+`UserHandle` is now `UserRef`.
+
+`event::Audience` is now `event::NoticeTarget`, the destination of a server notice.
+
+`Typer::status()` is now `Typer::audience()`.
+
+`SendOutcome::status()` is now `SendOutcome::audience()`.
+
+`Sasl::any` is now `Sasl::password`.
+
+`Source` is now `Actor`.
+
+`Builder::create_account` is now `Builder::create_account_on_connect`.
+
+`Builder::bot` is now `Builder::bot_mode`.
+
+`Client::mode` is now `Client::set_modes`.
+
+`Client::typing` is now `Client::set_typing`.
+
+`HistoryPage::end` is now `HistoryPage::exhausted`. It is true for an empty page or when the
+server marks the end, including for `latest_after`.
+
+`HostChanged::new_host` is now `HostChanged::host`.
+
+`HostChanged::new_username` is now `HostChanged::username`.
+
+`AwayChanged::new` is now `AwayChanged::away`.
+
+`AccountChanged::new` is now `AccountChanged::account`.
+
+`Account` is now `AccountStatus`.
+
+`Away` is now `AwayStatus`.
+
+`papo_bot::Command` is now `papo_bot::BotCommand`.
+
+Live `UserRef` values for the same tracked user on one client stay equal across observed
+nickname changes. Stored and untracked references compare equal only to their own clones.
 
 `Notice::conversation()` and `Notice::msgid()` replace the corresponding fields.
 
@@ -72,52 +90,23 @@ IRC text formatting helpers now live in `papo-format`, with no stability promise
 
 `SetModes::add_with` and `remove_with` accept nicknames and user references for advertised membership modes.
 
-`SetModes::halfop`, `SetModes::dehalfop`, and `Feature::Halfop` have been removed. Use `add_with('h', nick)` and `remove_with('h', nick)` when the server advertises that rank.
-
-`SetModes::quiet`, `SetModes::unquiet`, and `Feature::Quiet` have been removed. Use the list mode or extended ban supported by the server.
-
 The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
 provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
 and account comparison, and `unstable` exposes experimental extension APIs without semantic
 versioning guarantees.
 
-Read events with `Events::next()`. The `futures_core::Stream` implementation has been removed.
-
-The capability-name conversion trait `AsCap` has been removed.
-
-Configure capability-dependent behavior through typed features. `Builder::request_caps`,
-and its three configuration errors have been removed.
-
-`Sasl::authzid` is removed. PLAIN and EXTERNAL use an empty authorization identity.
-`Sasl::device` is removed.
-
-`Isupport::casemapping` reports only a currently advertised and supported casemapping.
-Use `State::name_rules` for the rules papo uses to build names. `State::casemapping` is removed.
-
-Construct names with `State::name_rules` and use `papo-testing` for standalone fixtures.
-
-The default in-memory STS policy store is internal. Use `StsStore` to supply a custom cache.
-
-`Line` keeps byte encoding. The public `LineRef`, `Line::as_ref`, and `Line::to_line` are removed.
+`Isupport::casemapping` reports only a currently advertised, supported casemapping.
 
 The account creation, catchup, and bouncer network examples use TLS for login in their live
 output tests. Their example binaries require TLS when sending credentials.
-
-`Client::privmsg`, `Client::notice`, and `Client::action` accept plain-text nicknames for the nickname's current holder.
-
-`Nick` implements `Target` for `Client::privmsg`, `Client::notice`, and `Client::action`.
 
 `Client::set_typing` accepts plain text and `Nick` targets for the nickname's current holder.
 
 `Client::invite` and the `SetModes` privilege grants accept plain text and `Nick` in addition to `UserRef`.
 
-`Client::watch` acquires a presence watch on a fixed nickname. `UserRef::watch` follows observed renames.
-
 `State::presence` accepts plain text and `Nick` to check presence by nickname.
 
 Replies, reactions, and redactions on private history items address the peer nickname.
-
-Save a message reference as opaque text with `MessageRef::to_saved` and restore it with `Client::saved_message`.
 
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
