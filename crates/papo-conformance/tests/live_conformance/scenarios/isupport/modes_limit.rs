@@ -27,9 +27,12 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     // Short enough that a chunk at InspIRCd's MODES=20, the largest among the
     // tested servers, still fits a 512-byte line alongside a full-length
     // generated channel name.
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
     let masks = (1..=count)
-        .map(|i| mapping.mask(format!("flood{i}!*@{i}")))
+        .map(|i| rules.mask(format!("flood{i}!*@{i}")))
         .collect::<Vec<_>>();
     let request = masks
         .iter()

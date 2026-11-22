@@ -27,11 +27,12 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
             .iter()
             .any(|limit| limit.name.contains('b') && limit.name.contains('q'));
     let chunk_size = state.isupport().modes().unwrap_or(8).clamp(1, 8);
-    let mapping = state.casemapping();
-    drop(state);
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
 
     let masks = (0..maximum)
-        .map(|index| mapping.mask(format!("flood-{index}!*@gateway-{index}.example")))
+        .map(|index| rules.mask(format!("flood-{index}!*@gateway-{index}.example")))
         .collect::<Vec<_>>();
     for (chunk_index, chunk) in masks.chunks(chunk_size).enumerate() {
         let mut request = alice.mode(&channel);

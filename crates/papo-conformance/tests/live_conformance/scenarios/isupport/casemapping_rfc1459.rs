@@ -26,7 +26,14 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     if support.get("CASEMAPPING") != Advertised::Value("rfc1459") {
         return s.skip("server casemapping is not rfc1459");
     }
-    assert_eq!(state.casemapping(), Casemapping::Rfc1459);
+    assert_eq!(
+        state
+            .name_rules()
+            .expect("server advertised its name rules")
+            .nick("alice")
+            .casemapping(),
+        Casemapping::Rfc1459
+    );
 
     let stem = papo_test_server::unique("bot");
     let square_nick = format!("[{stem}]");

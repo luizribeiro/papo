@@ -75,10 +75,10 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let host = upstream.ip().to_string();
     let name = papo_test_server::unique("managed-network");
     let endpoint = format!("irc://{upstream}");
-    let upstream_nick = alice
-        .snapshot()
-        .casemapping()
-        .nick(papo_test_server::unique("upstream-alice"));
+    let upstream_nick = papo_testing::nick(
+        papo::Casemapping::Ascii,
+        papo_test_server::unique("upstream-alice"),
+    );
     let id = alice
         .bouncer()
         .add(endpoint)
@@ -96,10 +96,10 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(network.port, Some(upstream.port()));
 
     let changed_name = papo_test_server::unique("renamed-network");
-    let upstream_nick = alice
-        .snapshot()
-        .casemapping()
-        .nick(papo_test_server::unique("upstream-bob"));
+    let upstream_nick = papo_testing::nick(
+        papo::Casemapping::Ascii,
+        papo_test_server::unique("upstream-bob"),
+    );
     alice
         .bouncer()
         .change(&id)

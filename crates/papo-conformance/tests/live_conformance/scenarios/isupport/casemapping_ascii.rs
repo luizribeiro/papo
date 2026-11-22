@@ -26,10 +26,14 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
 
-    if alice.snapshot().isupport().get("CASEMAPPING") != Advertised::Value("ascii") {
+    let state = alice.snapshot();
+    if state.isupport().get("CASEMAPPING") != Advertised::Value("ascii") {
         return s.skip("server casemapping is not ascii");
     }
-    assert_eq!(alice.snapshot().casemapping(), Casemapping::Ascii);
+    assert_eq!(
+        alice.snapshot().isupport().casemapping(),
+        Some(Casemapping::Ascii)
+    );
 
     let stem = papo_test_server::unique("bot");
     let square_nick = format!("[{stem}]");

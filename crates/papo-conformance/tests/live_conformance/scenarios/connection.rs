@@ -176,7 +176,9 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(support.get("PAPO_UNKNOWN_TOKEN"), Advertised::Absent);
     assert_eq!(
         papo_testing::nick(
-            support.casemapping().expect("connection received ISUPPORT"),
+            support
+                .casemapping()
+                .expect("server advertised a supported casemapping"),
             "Alice",
         ),
         "aLICE"
@@ -404,15 +406,17 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
     {
         return s.skip("ELIST does not support mask, count, creation, and topic filters");
     }
-    let mapping = alice.snapshot().casemapping();
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
     let listed = alice
         .list()
         .channels([
-            mapping.mask(&channel).into_string(),
-            mapping.mask(">1").into_string(),
-            mapping.mask("<3").into_string(),
-            mapping.mask("C<10").into_string(),
-            mapping.mask("T<10").into_string(),
+            rules.mask(&channel).into_string(),
+            rules.mask(">1").into_string(),
+            rules.mask("<3").into_string(),
+            rules.mask("C<10").into_string(),
+            rules.mask("T<10").into_string(),
         ])
         .await?;
     let entry = listed

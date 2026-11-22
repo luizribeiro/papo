@@ -410,10 +410,11 @@ async fn account_registration_once(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let account = alice
-        .snapshot()
-        .casemapping()
-        .account(alice.snapshot().nick().as_str());
+    let state = alice.snapshot();
+    let account = state
+        .name_rules()
+        .expect("server advertised its name rules")
+        .account(state.nick().as_str());
     let registered = alice
         .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account.clone()))
         .await?;

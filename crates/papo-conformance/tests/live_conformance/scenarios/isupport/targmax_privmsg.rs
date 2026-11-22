@@ -61,7 +61,10 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
         .collect::<Vec<_>>();
     let (within_nicks, over_nicks) = nicks.split_at(limit);
     let frank_nick = over_nicks[0].clone();
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
     let targets = within_nicks
         .iter()
         .map(papo::Nick::as_str)
@@ -100,13 +103,13 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
                 line.numeric() == Some(407)
                     && line
                         .get(1)
-                        .is_some_and(|nick| mapping.nick(nick) == frank_nick.as_str())
+                        .is_some_and(|nick| rules.nick(nick) == frank_nick.as_str())
             })
         })
         .await?;
     assert_eq!(refusal.numeric(), Some(407));
     assert_eq!(
-        mapping
+        rules
             .nick(refusal.get(1).expect("407 includes the refused nickname"))
             .as_str(),
         frank_nick.as_str()

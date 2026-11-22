@@ -393,13 +393,12 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     let text = "Hello from the bridged network";
-    let mapping = alice.snapshot().casemapping();
+    let state = alice.snapshot();
+    let rules = state
+        .name_rules()
+        .expect("server advertised its name rules");
     alice
-        .relay(
-            mapping.channel(&channel),
-            mapping.nick("matrix/alice"),
-            text,
-        )
+        .relay(rules.channel(&channel), rules.nick("matrix/alice"), text)
         .await?;
     let message = bob
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
