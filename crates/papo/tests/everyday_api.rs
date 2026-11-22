@@ -24,7 +24,7 @@ fn foreign_channel_lookup_is_typed() {
     let (second, _, _) = papo::Client::builder("ircs://irc.example.net", "papo")
         .casemapping(papo::Casemapping::default())
         .build();
-    let channel = first.channel("#release").unwrap();
+    let channel = papo::__testing::channel_handle(&first, "#release").unwrap();
 
     assert_eq!(
         second.snapshot().channel(channel),

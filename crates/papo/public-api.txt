@@ -2386,9 +2386,6 @@ pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, 
 pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core::option::Option<papo::Whois>>
 impl papo::Client
-pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::Error>
-pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
-impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountOutcome>
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountOutcome>
 impl papo::Client
@@ -2403,6 +2400,8 @@ impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl papo::AsChannel) -> papo::RenameChannel
+impl papo::Client
+pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
 impl core::clone::Clone for papo::Client
 pub fn papo::Client::clone(&self) -> Self
 impl core::fmt::Debug for papo::Client

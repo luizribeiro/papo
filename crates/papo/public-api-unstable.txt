@@ -2496,9 +2496,6 @@ pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<core
 impl papo::Client
 pub fn papo::Client::bouncer(&self) -> papo::Bouncer
 impl papo::Client
-pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::Error>
-pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
-impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountOutcome>
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountOutcome>
 impl papo::Client
@@ -2517,6 +2514,8 @@ impl papo::Client
 pub fn papo::Client::relay(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::RelayOutcome>
 impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl papo::AsChannel) -> papo::RenameChannel
+impl papo::Client
+pub fn papo::Client::watch(&self, impl core::convert::AsRef<str>) -> papo::Watch
 impl papo::Client
 pub fn papo::Client::webpush(&self) -> papo::WebPush
 impl core::clone::Clone for papo::Client

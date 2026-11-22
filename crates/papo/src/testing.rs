@@ -106,6 +106,19 @@ pub fn channel_name(casemapping: Casemapping, text: impl Into<String>) -> Channe
     crate::Origin::NONE.__channel(casemapping, text)
 }
 
+/// Builds a handle using the client's current channel state and name rules.
+///
+/// See [`crate::Conversation`] for ops-only audiences.
+///
+/// # Errors
+/// Returns an error if the client cannot resolve the supplied channel.
+pub fn channel_handle(
+    client: &crate::Client,
+    channel: impl crate::AsChannel,
+) -> Result<crate::ChannelHandle, crate::Error> {
+    client.channel(channel)
+}
+
 /// Constructs an origin-free account name for test fixtures.
 #[must_use]
 pub fn account_name(casemapping: Casemapping, text: impl Into<String>) -> AccountName {

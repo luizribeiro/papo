@@ -20,9 +20,7 @@ use std::fmt;
 /// [`crate::Client::mark_read`] without an explicit boundary marks through the newest line,
 /// restricted or not. Ergo stores no ops-only lines in history; soju stores and replays them.
 ///
-/// Sending to the conversation's channel reaches everyone in it. That is what a composer typing
-/// in the `#ops` window wants, and never the answer to an ops-only line. [`crate::Client::channel`]
-/// refuses `@#ops`, so a channel handle never carries a status sign.
+/// To send to everyone in `#ops`, pass the plain name `"#ops"` or the conversation's channel handle.
 ///
 /// A server can also hide an audience without a sign (Ergo's `+U`, Solanum's `+z`): such a line
 /// arrives as plain `#ops` and no client can tell.

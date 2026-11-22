@@ -690,7 +690,7 @@ impl ForeignValues {
         };
         Self {
             message: message.return_address(),
-            channel: first.0.channel("#papo").unwrap(),
+            channel: papo_testing::channel_handle(&first.0, "#papo").unwrap(),
             alice: message.actor,
             nick: names.nick("alice"),
             account: names.account("alice"),
@@ -725,7 +725,6 @@ async fn every_send_reports_a_foreign_value_as_foreign_reference() {
     );
     let message = || foreign.message();
     let results = [
-        ("channel", done(second.channel(channel))),
         (
             "privmsg to a channel",
             done(second.privmsg(channel, "release ready").await),
@@ -2538,7 +2537,7 @@ async fn joined_channel_handle(
         next_active_event(events).await,
         papo::Event::Joined(_)
     ));
-    client.channel("#papo").unwrap()
+    papo_testing::channel_handle(client, "#papo").unwrap()
 }
 
 async fn assert_stale_channel_requests_fail(

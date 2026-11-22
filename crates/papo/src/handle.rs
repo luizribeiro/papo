@@ -650,7 +650,10 @@ impl crate::Client {
     /// including a `STATUSMSG` prefix such as `@#ops`,
     /// [`crate::Error::ForeignReference`] when `channel` belongs to another client, and
     /// [`crate::Error::TargetGone`] when `channel` is a handle to a channel this client has left.
-    pub fn channel(&self, channel: impl crate::AsChannel) -> Result<ChannelHandle, crate::Error> {
+    pub(crate) fn channel(
+        &self,
+        channel: impl crate::AsChannel,
+    ) -> Result<ChannelHandle, crate::Error> {
         let parts = crate::AsChannel::__parts(&channel).into_owned();
         let state = self.state();
         crate::ForeignReference::require_local(parts.origin, self.origin)?;

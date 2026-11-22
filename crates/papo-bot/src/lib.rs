@@ -544,7 +544,7 @@ mod tests {
     use papo::{
         AccountName, Casemapping, Client, Conversation, InvalidRateLimit, MessageKind, Nick, Party,
     };
-    use papo_testing::MessageBuilder;
+    use papo_testing::{MessageBuilder, channel_handle};
     use web_time::Instant;
 
     use super::{BotConfig, Command, ReplyRateLimiter, ReplyStatus};
@@ -1154,9 +1154,9 @@ mod tests {
     fn uses_name_equality_and_literal_window_boundary() {
         let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
         let client = client(Casemapping::Rfc1459);
-        let upper = Conversation::Channel(client.channel("#Papo").unwrap());
-        let lower = Conversation::Channel(client.channel("#papo").unwrap());
-        let elsewhere = Conversation::Channel(client.channel("#elsewhere").unwrap());
+        let upper = Conversation::Channel(channel_handle(&client, "#Papo").unwrap());
+        let lower = Conversation::Channel(channel_handle(&client, "#papo").unwrap());
+        let elsewhere = Conversation::Channel(channel_handle(&client, "#elsewhere").unwrap());
         let start = Instant::now();
 
         assert!(limiter.check_at(&upper, start));
@@ -1172,7 +1172,8 @@ mod tests {
         let client = client(Casemapping::Rfc1459);
         let now = Instant::now();
         for index in 0..2048 {
-            let target = Conversation::Channel(client.channel(format!("#papo-{index}")).unwrap());
+            let target =
+                Conversation::Channel(channel_handle(&client, format!("#papo-{index}")).unwrap());
             assert_eq!(limiter.check_at(&target, now), index < 1024);
         }
         assert_eq!(limiter.targets.lock().unwrap().len(), 1024);

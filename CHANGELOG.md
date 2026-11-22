@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+`Client::channel` is crate-private. Pass channel names as text or `ChannelName` values.
+
 `UserHandle` no longer compares directly with text. Use `handle.nick() == "luiz"` to check a nickname.
 
 Stored and untracked `UserHandle` values compare equal only to their own clones. Live tracked handles compare and hash by identity on the same client, including across observed renames.
