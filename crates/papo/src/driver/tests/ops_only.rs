@@ -493,6 +493,22 @@ async fn every_line_type_with_a_status_sign_arrives_restricted() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn typing_snapshot_preserves_the_notification_audience() {
+    let mut ops = OpsChannel::joined().await;
+    for (address, expected) in [("@#ops", Some('@')), ("#ops", None)] {
+        let line = format!("@+typing=active :oppy!~u@cloak.example TAGMSG {address}\r\n");
+        server_line(&mut ops.server, line.as_bytes()).await;
+        let (_, state) = within(ops.events.next())
+            .await
+            .expect("typing notification");
+        let typer = state.typing("#ops").next().expect("active channel typer");
+        assert_eq!(typer.nick(), "oppy");
+        assert_eq!(typer.audience().map(crate::Prefix::symbol), expected);
+    }
+    ops.finish().await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn an_untyped_line_with_a_status_sign_arrives_restricted() {
     let mut ops = OpsChannel::joined().await;
     server_line(
