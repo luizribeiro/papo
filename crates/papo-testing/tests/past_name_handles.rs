@@ -103,25 +103,10 @@ async fn archived_actors(
         .collect()
 }
 
-/// Sends to `target` while its nickname belongs to another account, answering any WHO papo
-/// asks, and requires the send to fail without a PRIVMSG.
 async fn send_is_refused(client: &papo::Client, wire: &mut Wire, kind: &str, target: UserHandle) {
-    let nick = target.nick().to_string();
-    let mut sending = tokio::spawn({
-        let client = client.clone();
-        async move { client.privmsg(target, "the deploy token is hunter2").await }
-    });
-    let who = format!("WHO {nick} %na");
-    let result = loop {
-        tokio::select! {
-            result = &mut sending => break result.unwrap(),
-            label = sent_after_join_queries(wire, &who) => {
-                wire.server(format!("{label}:ergo.test 354 papo {nick} mallory-account"))
-                    .await;
-                wire.server(format!("{label}:ergo.test 315 papo {nick} :End of WHO list"))
-                    .await;
-            }
-        }
+    let result = tokio::select! {
+        result = client.privmsg(target, "the deploy token is hunter2") => result,
+        line = wire.next_sent() => panic!("{kind}: sent {line}"),
     };
     assert!(
         matches!(result, Err(papo::Error::TargetGone)),
@@ -159,6 +144,21 @@ async fn past_names_never_reach_the_current_holder() {
         kinds.join(", "),
         "333 topic setter, 367 ban setter, archived JOIN, archived TOPIC, archived QUIT"
     );
+
+    for (nick, line) in [
+        ("carol", ":carol!~eve@guest.example JOIN #release"),
+        ("dave", ":dave!~mallory@visitor.example JOIN #release"),
+        ("alice", ":alice!~pat@cloak.example JOIN #release"),
+    ] {
+        wire.server(line).await;
+        loop {
+            if let Event::Joined(joined) = support::direct::next_active_event(&mut events).await
+                && joined.actor == nick
+            {
+                break;
+            }
+        }
+    }
 
     for (kind, target) in targets {
         send_is_refused(&client, &mut wire, kind, target).await;
