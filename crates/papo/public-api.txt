@@ -2235,7 +2235,7 @@ pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
 pub fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
 pub const fn papo::Builder::connect_timeout(self, core::time::Duration) -> Self
-pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self
+pub fn papo::Builder::create_account_on_connect(self, papo::NewAccount) -> Self
 pub fn papo::Builder::ctcp_replies(self, papo::CtcpReplies) -> Self
 pub fn papo::Builder::disable(self, papo::Feature) -> Self
 pub fn papo::Builder::enable(self, papo::Feature) -> Self

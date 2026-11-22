@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+Request registration during connection with `Builder::create_account_on_connect`.
+
 Enable bot mode with `Builder::bot_mode`.
 
 Build mode changes with `Client::set_modes`.

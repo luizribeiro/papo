@@ -378,7 +378,7 @@ async fn account_registration_once(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(
             s.configure("one-time-registration")?
-                .create_account(NewAccount::new(papo::Secret::new(PASSWORD))),
+                .create_account_on_connect(NewAccount::new(papo::Secret::new(PASSWORD))),
         )
         .await?;
     assert!(matches!(

@@ -313,9 +313,9 @@ impl Builder {
     /// ```
     /// let account = papo::NewAccount::new(papo::Secret::new("correct horse battery staple"))
     ///     .account("alice");
-    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").create_account(account);
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").create_account_on_connect(account);
     /// ```
-    pub fn create_account(mut self, account: NewAccount) -> Self {
+    pub fn create_account_on_connect(mut self, account: NewAccount) -> Self {
         let NewAccount {
             account,
             email,
@@ -1094,7 +1094,7 @@ mod tests {
     fn account_registration_reenables_its_capability() {
         let added = Builder::new("ircs://irc.example.net")
             .disable(crate::Feature::AccountCreation)
-            .create_account(NewAccount::new(crate::Secret::new("realistic secret")))
+            .create_account_on_connect(NewAccount::new(crate::Secret::new("realistic secret")))
             .config;
         assert_eq!(
             added
@@ -1351,7 +1351,7 @@ mod tests {
                 InvalidInput::EmptyText,
             ),
             (
-                Builder::new("ircs://irc.example.net").create_account(
+                Builder::new("ircs://irc.example.net").create_account_on_connect(
                     NewAccount::new(crate::Secret::new("correct horse battery staple"))
                         .account("*"),
                 ),
@@ -1378,7 +1378,7 @@ mod tests {
             Builder::new("ws://irc.example.net/webirc").webirc(webirc()),
             Builder::new("irc://irc.example.net")
                 .sasl(Sasl::plain("alice", crate::Secret::new("sasl-password"))),
-            Builder::new("irc://irc.example.net").create_account(
+            Builder::new("irc://irc.example.net").create_account_on_connect(
                 NewAccount::new(crate::Secret::new("account-password")).account("alice"),
             ),
         ];

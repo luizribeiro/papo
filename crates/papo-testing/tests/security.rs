@@ -1851,7 +1851,9 @@ async fn server_password_never_follows_a_batched_welcome() {
 async fn account_creation_never_follows_a_batched_welcome() {
     let (_client, mut events, mut wire) = wire(
         papo::Client::builder("irc://ergo.test", "papo-wire")
-            .create_account(papo::NewAccount::new(papo::Secret::new(PASSWORD)).account("alice"))
+            .create_account_on_connect(
+                papo::NewAccount::new(papo::Secret::new(PASSWORD)).account("alice"),
+            )
             .allow_insecure_auth(true)
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),

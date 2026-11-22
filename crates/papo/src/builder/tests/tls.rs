@@ -34,7 +34,7 @@ fn debug_is_opaque_with_every_builder_secret() {
             "alice",
             crate::Secret::new("unique-sasl-password-8527"),
         ))
-        .create_account(NewAccount::new(crate::Secret::new(
+        .create_account_on_connect(NewAccount::new(crate::Secret::new(
             "unique-account-password-7416",
         )))
         .tls_client_cert(

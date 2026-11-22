@@ -62,7 +62,7 @@ async fn sasl_requires_sasl() {
 #[tokio::test]
 async fn account_creation_requires_account_registration() {
     assert_unavailable(
-        builder().create_account(NewAccount::new(papo::Secret::new(PASSWORD))),
+        builder().create_account_on_connect(NewAccount::new(papo::Secret::new(PASSWORD))),
         ConnectErrorKind::CapabilityUnavailable,
         "draft/account-registration",
     )

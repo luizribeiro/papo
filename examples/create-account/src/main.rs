@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         account = account.email(email);
     }
     let (client, mut events) = Client::builder(url, &nick)
-        .create_account(account)
+        .create_account_on_connect(account)
         .connect()
         .await?;
 
