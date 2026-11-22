@@ -44,13 +44,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 We put a lot of effort into making papo hard to misuse. Not just by someone hostile, but also accidental misuse and footguns. One rule we had is that nothing should fall to documentation if it's a pitfall. We should always prefer structural fixes.
 
-**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. Sending to a nickname in text or as a `Nick` reaches its current holder. To answer the sender, reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`). A reply to a private history item reaches the current holder of the thread's peer nickname.
+**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. Sending to a nickname in text or as a `Nick` reaches its current holder without a WHO lookup. To answer the sender, reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`). A reply to a private history item reaches the current holder of the thread's peer nickname.
 
 ```rust
 client.privmsg("alice", "deploy finished").await?;
 ```
 
-A user handle from a live event addresses the observed person, follows observed nick changes, and refuses a send with `Error::TargetGone` when papo detects a handoff.
+A user handle from a live event follows observed nick changes. When papo sees the user leave or the nickname change hands, a send through that handle returns `Error::TargetGone`. Without a shared channel or other presence information, papo can miss a handoff.
 
 For an account check, compare the account you expect with the received message's
 `actor_account()`. To check the account papo currently knows for a nickname, call

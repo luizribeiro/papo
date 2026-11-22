@@ -2,6 +2,8 @@
 
 ## 0.1.0 - Unreleased
 
+`Client::query` and the first-send WHO lookup are removed. Send to the nickname and use `actor_account()` to check an incoming message’s account.
+
 Saved direct-message identities are removed. Compare the expected account with the message's `actor_account()` or the account returned by `state.user(nick)`.
 
 The first release of papo provides an asynchronous IRC client for applications and bots, broad
