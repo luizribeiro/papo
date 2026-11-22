@@ -161,11 +161,10 @@ async fn assert_shared_context(
         .wait_for(|event| message_text(event, "private thread reply"))
         .await?;
     if context_tag_allowed {
-        assert!(
-            threaded
-                .channel_context()
-                .is_some_and(|context| context == channel.as_str())
-        );
+        assert!(matches!(
+        threaded.channel_context(),
+        Some(papo::Conversation::Channel(context)) if context.name() == channel.as_str()
+        ));
     } else {
         assert_eq!(threaded.channel_context(), None);
     }
@@ -381,7 +380,10 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(received.conversation()),
         Some(alice.snapshot().nick().to_string())
     );
-    assert_eq!(received.return_address(), alice.snapshot().nick().as_str());
+    assert_eq!(
+        received.return_address().as_ref(),
+        alice.snapshot().nick().as_str()
+    );
     assert_eq!(received.raw_text, "private hello");
     assert!(is_private(&received));
     let (id, _, server_time) = confirmed_line(&sent);
@@ -1353,7 +1355,7 @@ async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()
     let live = alice.wait_for(|event| message_text(event, text)).await?;
     assert!(
         live.channel_context()
-            .is_some_and(|context| context == channel.as_str())
+            .is_some_and(|context| matches!(context, papo::Conversation::Channel(context) if context.name() == channel.as_str()))
     );
 
     let page = alice
@@ -1383,7 +1385,7 @@ async fn history_private_channel_context(s: Scenario) -> papo_testing::Result<()
     assert!(
         reply
             .channel_context()
-            .is_some_and(|context| context == channel.as_str())
+            .is_some_and(|context| matches!(context, papo::Conversation::Channel(context) if context.name() == channel.as_str()))
     );
     assert_eq!(reply.in_reply_to.as_ref(), historical.msgid());
     Ok(())

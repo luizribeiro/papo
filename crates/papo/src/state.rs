@@ -1145,12 +1145,14 @@ mod name_tests {
         );
 
         let conversation = name_rules(&state).conversation("Alice[bot]").unwrap();
-        assert_eq!(conversation, "alice{bot}");
+        assert!(
+            matches!(&conversation, crate::Conversation::Private(user) if user.nick() == "alice{bot}")
+        );
         assert_eq!(conversation.to_string(), "Alice[bot]");
         assert!(matches!(
             name_rules(&state).target("@#papo"),
-            Ok((Some(status), conversation))
-                if status.symbol() == '@' && conversation == "#papo"
+            Ok((Some(status), crate::Conversation::Channel(channel)))
+                if status.symbol() == '@' && channel.name() == "#papo"
         ));
         assert!(matches!(
             name_rules(&state).conversation("@#papo"),

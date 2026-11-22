@@ -111,7 +111,7 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
                     channel: synced, ..
                 }),
                 _,
-            )) if synced == channel => return,
+            )) if synced.name() == channel => return,
             Some((Event::Disconnected(disconnected), _)) => {
                 panic!("disconnected: {disconnected}")
             }

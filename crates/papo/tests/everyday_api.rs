@@ -76,7 +76,7 @@ fn everyday_api_is_nameable_from_the_facade() {
         .expect("server advertised CASEMAPPING")
         .conversation("Emily")
         .unwrap();
-    assert_eq!(conversation, "emily");
+    assert!(matches!(&conversation, papo::Conversation::Private(user) if user.nick() == "emily"));
     assert_eq!(conversation.to_string(), "Emily");
     let (status, conversation) = state
         .name_rules()
@@ -84,7 +84,9 @@ fn everyday_api_is_nameable_from_the_facade() {
         .target("#papo")
         .unwrap();
     assert_eq!(status, None);
-    assert_eq!(conversation, "#papo");
+    assert!(
+        matches!(conversation, papo::Conversation::Channel(channel) if channel.name() == "#papo")
+    );
 
     let send: papo::SendMessage = client
         .privmsg(&channel, "hello from papo")

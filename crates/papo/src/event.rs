@@ -4174,9 +4174,9 @@ mod tests {
         assert_eq!(notice.text, "nods hello");
         assert_eq!(notice.conversation().to_string(), "#ops");
         assert_eq!(notice.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120007"));
-        assert_eq!(notice.return_address(), "@#ops");
+        assert_eq!(notice.return_address().as_ref(), "@#ops");
         let reference = notice.return_address();
-        assert_eq!(reference, "@#ops");
+        assert_eq!(reference.as_ref(), "@#ops");
 
         let server = parse_event(
             Line::notice("papo", "Network maintenance begins soon").with_source("irc.example"),
@@ -4261,7 +4261,7 @@ mod tests {
         };
         assert!(matches!(notice.to, NoticeTarget::Channel(_)));
         assert_eq!(notice.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120008"));
-        assert_eq!(notice.return_address().as_ref().unwrap(), "@#ops");
+        assert_eq!(notice.return_address().unwrap().as_ref(), "@#ops");
     }
 
     #[test]
@@ -4292,7 +4292,7 @@ mod tests {
                 UNIX_EPOCH,
             );
             assert!(matches!(event, Event::ServerNotice(notice)
-                if matches!(notice.to, NoticeTarget::Channel(ref name) if name == channel)
+                if matches!(notice.to, NoticeTarget::Channel(ref name) if name.name() == channel)
                     && notice.status.map(crate::Prefix::symbol) == Some(status)));
         }
     }
@@ -4331,7 +4331,7 @@ mod tests {
     }
 
     #[test]
-    fn chat_compares_with_string_references() {
+    fn chat_conversation_names_follow_casemapping() {
         let message = event(
             LineRef::parse(":alice!a@h PRIVMSG #papo :!op")
                 .unwrap()
@@ -4341,8 +4341,11 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        assert_eq!(message.conversation, "#Papo");
-        assert_ne!(message.conversation, "#other");
+        let Conversation::Channel(channel) = message.conversation else {
+            panic!("expected a channel conversation");
+        };
+        assert_eq!(channel.name(), "#Papo");
+        assert_ne!(channel.name(), "#other");
 
         let private = event(
             Line::privmsg("papo", "release ready").with_source("[bot]!b@h"),
@@ -4350,8 +4353,11 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert_eq!(private.conversation, "{bot}");
-        assert_ne!(private.conversation, "[other]");
+        let Conversation::Private(user) = private.conversation else {
+            panic!("expected a private conversation");
+        };
+        assert_eq!(user.nick(), "{bot}");
+        assert_ne!(user.nick(), "[other]");
     }
 
     #[test]
@@ -4394,14 +4400,14 @@ mod tests {
         let version = version_event.as_ctcp_query().unwrap();
         assert_eq!(version.command, "VERSION");
         assert_eq!(version.params, None);
-        assert_eq!(version.return_address(), "@#ops");
+        assert_eq!(version.return_address().as_ref(), "@#ops");
         assert!(
             matches!(version.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")
         );
         let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
         let reply = reply_event.as_ctcp_reply().unwrap();
         assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
-        assert_eq!(reply.return_address(), "@#ops");
+        assert_eq!(reply.return_address().as_ref(), "@#ops");
         assert!(
             matches!(reply.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")
         );
@@ -4642,8 +4648,10 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(!matches!(channel.conversation, Conversation::Private(_)));
-        assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
-        assert_eq!(channel.return_address(), "#papo");
+        assert!(
+            matches!(&channel.conversation, Conversation::Channel(name) if name.name() == "#papo")
+        );
+        assert_eq!(channel.return_address().as_ref(), "#papo");
         assert_eq!(channel.actor.nick(), "emily");
 
         let private = event(
@@ -4656,7 +4664,7 @@ mod tests {
         assert!(
             matches!(&private.conversation, Conversation::Private(user) if user.nick() == "emily")
         );
-        assert_eq!(private.return_address(), "emily");
+        assert_eq!(private.return_address().as_ref(), "emily");
 
         let server = parse_event(
             Line::notice("papo", "Server maintenance begins soon").with_source("irc.example"),
@@ -4732,8 +4740,10 @@ mod tests {
         );
 
         assert_eq!(message.status.map(crate::Prefix::symbol), Some('+'));
-        assert!(matches!(&message.conversation, Conversation::Channel(name) if name == "#ops"));
-        assert_eq!(message.return_address(), "@+#ops");
+        assert!(
+            matches!(&message.conversation, Conversation::Channel(name) if name.name() == "#ops")
+        );
+        assert_eq!(message.return_address().as_ref(), "@+#ops");
         assert!(!matches!(message.conversation, Conversation::Private(_)));
         assert_eq!(message.tags.get("bot"), Some(""));
     }
@@ -4758,7 +4768,9 @@ mod tests {
             tagged.server_time,
             Some(crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap())
         );
-        assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
+        assert!(
+            matches!(&tagged.conversation, Conversation::Channel(name) if name.name() == "#papo")
+        );
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert!(
             matches!(tagged.actor.account(), AccountStatus::LoggedIn(account) if account == "emily")
@@ -5236,7 +5248,7 @@ mod tests {
             papo_core::Party::Me,
         ));
         let invited = event.as_invited().unwrap();
-        assert_eq!(invited.channel, "#papo");
+        assert_eq!(invited.channel.name(), "#papo");
         assert_eq!(invited.subject.nick(), "papo");
         assert!(matches!(&invited.actor, Actor::User(user) if user.nick() == "emily"));
         assert_eq!(invited.subject_party, Party::Me);
@@ -5267,7 +5279,7 @@ mod tests {
         let actor = joined.actor.nick();
         assert_eq!(actor.casemapping(), Casemapping::Ascii);
         assert_eq!(joined.actor.nick().casemapping(), Casemapping::Ascii);
-        assert_ne!(joined.channel, "#papo{dev}");
+        assert_ne!(joined.channel.name(), "#papo{dev}");
         assert_ne!(joined.actor.nick(), "alice{bot}");
     }
 
@@ -5438,9 +5450,9 @@ mod tests {
         };
         assert_eq!(reaction.actor.nick(), "alice");
         assert!(
-            matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#ops")
+            matches!(&reaction.conversation, Conversation::Channel(channel) if channel.name() == "#ops")
         );
-        assert_eq!(reaction.return_address(), "#ops");
+        assert_eq!(reaction.return_address().as_ref(), "#ops");
         assert_eq!(reaction.reaction, "👍");
         assert_eq!(reaction.reacts_to, "RKi9Cw");
         assert_eq!(reaction.action, crate::event::ReactionAction::Added);
@@ -5488,11 +5500,11 @@ mod tests {
             match forwarded(papo_core::Event::TagMessage(tag)) {
                 Event::TypingChanged(typing) => {
                     assert_eq!(typing.conversation().to_string(), "#ops");
-                    assert_eq!(typing.return_address(), "@#ops");
+                    assert_eq!(typing.return_address().as_ref(), "@#ops");
                     Some(typing.state)
                 }
                 Event::TagMsg(tag) => {
-                    assert_eq!(tag.return_address(), "@#ops");
+                    assert_eq!(tag.return_address().as_ref(), "@#ops");
                     None
                 }
                 _ => None,
@@ -5570,7 +5582,7 @@ mod tests {
                         crate::Origin::NONE,
                     )
                     && mapped.status == redacted.status
-                    && mapped.return_address() == "@#ops"
+                    && mapped.return_address().as_ref() == "@#ops"
                     && mapped.redacts.as_ref() == redacted.msgid
                     && mapped.reason.is_none()
         ));
@@ -5779,7 +5791,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__metadata_changed(papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(crate::Origin::NONE), "pronouns".into(), Some("they/them".into()), Visibility::Restricted("members".into()))),
             Event::MetadataChanged(changed)
-                if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
+                if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel.name() == "#papo")
                     && changed.key == "pronouns"
                     && matches!(changed.value, Some(ref value)
                         if value.value == "they/them"
@@ -6131,7 +6143,7 @@ mod tests {
             None,
         ));
         let joined = event.as_joined().unwrap();
-        assert_eq!(joined.channel, "#papo");
+        assert_eq!(joined.channel.name(), "#papo");
         assert_eq!(joined.actor.nick(), "alice");
         assert_eq!(joined.netjoin, None);
     }
@@ -6220,7 +6232,7 @@ mod tests {
     fn maps_channel_synced() {
         assert!(matches!(
             forwarded(papo_core::Event::__channel_synced(Casemapping::default().channel("#papo"))),
-            Event::ChannelSynced(synced) if synced.channel == "#papo"
+            Event::ChannelSynced(synced) if synced.channel.name() == "#papo"
         ));
     }
 
@@ -6228,7 +6240,7 @@ mod tests {
     fn maps_members_refreshed() {
         assert!(matches!(
             forwarded(papo_core::Event::__members_refreshed(Casemapping::default().channel("#papo"))),
-            Event::MembersRefreshed(refreshed) if refreshed.channel == "#papo"
+            Event::MembersRefreshed(refreshed) if refreshed.channel.name() == "#papo"
         ));
     }
 
@@ -6246,7 +6258,7 @@ mod tests {
                 papo_core::Party::Other,
             )),
             Event::Parted(parted)
-                if parted.channel == "#papo"
+                if parted.channel.name() == "#papo"
                     && parted.actor.nick() == "emily"
                     && parted.actor.account() == &AccountStatus::LoggedOut
                     && parted.reason.as_deref() == Some("Leaving for lunch")
@@ -6276,7 +6288,7 @@ mod tests {
                 Some("Flooding".into()),
             )),
             Event::Kicked(kicked)
-                if kicked.channel == "#papo"
+                if kicked.channel.name() == "#papo"
                     && kicked.subject.nick() == "emily"
                     && kicked.facts.is_none()
                     && kicked.actor.nick().is_some_and(|nick| nick == "alice")
@@ -6304,7 +6316,7 @@ mod tests {
             Event::Quit(quit)
                 if quit.actor.nick() == "emily"
                     && quit.reason.as_deref() == Some("Client exited")
-                    && quit.channels == ["#papo", "#rust"]
+                    && quit.channels.iter().map(crate::ChannelRef::name).eq(["#papo", "#rust"])
                     && quit.netsplit.is_none()
         ));
     }
@@ -6360,7 +6372,13 @@ mod tests {
         assert_eq!(changed.actor.nick(), "em");
         assert_eq!(changed.old, "emily");
         assert_eq!(changed.new, "em");
-        assert_eq!(changed.channels, ["#papo"]);
+        assert!(
+            changed
+                .channels
+                .iter()
+                .map(crate::ChannelRef::name)
+                .eq(["#papo"])
+        );
     }
 
     #[test]
@@ -6458,7 +6476,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Actor::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE), papo_core::Party::Other, papo_core::Party::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
             Event::ModeChanged(mode)
-                if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
+                if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel.name() == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
@@ -6683,7 +6701,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Actor::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::ReplyToken::__unknown(crate::Origin::NONE), papo_core::Party::Other)),
             Event::TopicChanged(changed)
-                if changed.channel == "#papo"
+                if changed.channel.name() == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
                     && changed.actor.nick().is_some_and(|nick| nick == "alice")
         ));
@@ -7115,7 +7133,7 @@ mod tests {
                 channel,
                 previous_created_at,
                 created_at,
-            }) if channel == "#release"
+            }) if channel.name() == "#release"
                 && previous_created_at == previous
                 && created_at == created
         ));

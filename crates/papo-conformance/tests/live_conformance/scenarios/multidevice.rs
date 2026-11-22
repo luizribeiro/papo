@@ -46,7 +46,7 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(received.conversation()),
         Some(channel.clone())
     );
-    assert_eq!(received.return_address(), channel.as_str());
+    assert_eq!(received.return_address().as_ref(), channel.as_str());
     phone
         .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
@@ -222,7 +222,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     assert_eq!(sent_text, "operators reviewing the deployment");
     assert_eq!(original.msgid(), Some(id));
     assert_eq!(sign, '@');
-    assert_eq!(original.return_address(), target.as_str());
+    assert_eq!(original.return_address().as_ref(), target.as_str());
     observer
         .expect_none(|event| any_message_text(event, "operators reviewing the deployment"))
         .await?;
@@ -237,7 +237,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     );
     assert_eq!(reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(sign, '@');
-    assert_eq!(reply.return_address(), target.as_str());
+    assert_eq!(reply.return_address().as_ref(), target.as_str());
     observer
         .expect_none(|event| any_message_text(event, "operators approve the deployment"))
         .await?;
@@ -250,7 +250,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let added = added.line.as_reacted().expect("reaction line");
     assert_eq!(&added.reacts_to, id);
     assert_eq!(added.reaction, "🛡️");
-    assert_eq!(added.return_address(), target.as_str());
+    assert_eq!(added.return_address().as_ref(), target.as_str());
     observer
         .expect_none(|event| {
             restricted_line(event, papo::event::RestrictedLine::as_reacted)
@@ -290,7 +290,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     assert_eq!(removed.server_time, echo_time);
     assert_eq!(&removed.redacts, id);
     assert_eq!(removed.reason.as_deref(), Some("deployment superseded"));
-    assert_eq!(removed.return_address(), channel.as_str());
+    assert_eq!(removed.return_address().as_ref(), channel.as_str());
     Ok(())
 }
 
@@ -365,7 +365,10 @@ async fn multidevice_ctcp_session_replies(s: Scenario) -> papo_testing::Result<(
                     .filter(|query| query.command == "VERSION")
             })
             .await?;
-        assert_eq!(query.return_address(), sender.snapshot().nick().as_str());
+        assert_eq!(
+            query.return_address().as_ref(),
+            sender.snapshot().nick().as_str()
+        );
     }
     for _ in 0..3 {
         let reply = sender
@@ -518,7 +521,10 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
             conversation_name(message.conversation()),
             Some(sender.snapshot().nick().to_string())
         );
-        assert_eq!(message.return_address(), sender.snapshot().nick().as_str());
+        assert_eq!(
+            message.return_address().as_ref(),
+            sender.snapshot().nick().as_str()
+        );
     }
     for peer in [&mut desktop, &mut phone, &mut tablet] {
         peer.expect_none(|event| chat_text(event, text)).await?;
@@ -535,7 +541,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
         Some(sender.snapshot().nick().to_string())
     );
     assert_eq!(
-        sibling_reply.return_address(),
+        sibling_reply.return_address().as_ref(),
         sender.snapshot().nick().as_str()
     );
     let received_reply = sender
@@ -543,7 +549,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(received_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(
-        received_reply.return_address(),
+        received_reply.return_address().as_ref(),
         desktop.snapshot().nick().as_str()
     );
     desktop

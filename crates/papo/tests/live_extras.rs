@@ -204,7 +204,7 @@ async fn wait_synced(events: &mut papo::Events, channel: &str) {
         match events.next().await.map(|(event, _)| event) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced {
                 channel: synced, ..
-            })) if synced == channel => return,
+            })) if synced.name() == channel => return,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected: {disconnected}")
             }

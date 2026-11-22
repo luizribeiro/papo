@@ -127,7 +127,7 @@ async fn connect_poster(server: &TestServer, channel: &str) -> Client {
     wait_for(
         &mut events,
         "poster channel sync",
-        |event| matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: synced, .. }) if synced == channel),
+        |event| matches!(event, Event::ChannelSynced(papo::event::ChannelSynced { channel: synced, .. }) if synced.name() == channel),
     )
     .await;
     poster
@@ -138,7 +138,7 @@ async fn wait_history(events: &mut papo::Events, target: &str) -> papo::event::H
         loop {
             match events.next().await.map(|(event, _)| event) {
                 Some(Event::History(history))
-                    if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) =>
+                    if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel.name() == target) =>
                 {
                     return history;
                 }
@@ -166,7 +166,7 @@ async fn assert_no_repeated_history(
             () = &mut deadline => return,
             event = events.next() => match event.map(|(event, _)| event) {
                 Some(Event::History(history))
-                    if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) => assert!(
+                    if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel.name() == target) => assert!(
                     history.chat_messages().all(|message| {
                         !message.text.contains("missed during the outage")
                             && message.msgid().is_none_or(|msgid| {
@@ -207,6 +207,6 @@ fn joined(event: &Event, nick: &str, channel: &str) -> bool {
     matches!(
         event,
         Event::Joined(papo::event::Joined { channel: joined,
-            actor, .. }) if joined == channel && actor.nick() == nick
+            actor, .. }) if joined.name() == channel && actor.nick() == nick
     )
 }

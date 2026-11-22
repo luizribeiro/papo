@@ -1955,7 +1955,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
             if !defaults
                 .channels
                 .iter()
-                .any(|entry| joined.channel == entry.channel.as_str())
+                .any(|entry| joined.channel.name() == entry.channel.as_str())
                 && defaults.channels.len() < MAX_REJOIN_CHANNELS
             {
                 defaults
@@ -1966,15 +1966,15 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
         Event::Parted(parted) if parted.actor_party == crate::Party::Me => {
             defaults
                 .channels
-                .retain(|entry| parted.channel != entry.channel.as_str());
+                .retain(|entry| parted.channel.name() != entry.channel.as_str());
             defaults
                 .parted_while_disconnected
-                .retain(|channel| parted.channel != channel.as_str());
+                .retain(|channel| parted.channel.name() != channel.as_str());
         }
         Event::Kicked(kicked) if kicked.subject_party == crate::Party::Me => {
             defaults
                 .channels
-                .retain(|entry| kicked.channel != entry.channel.as_str());
+                .retain(|entry| kicked.channel.name() != entry.channel.as_str());
         }
         Event::ChannelRenamed(renamed) => {
             for entry in &mut defaults.channels {
@@ -2004,7 +2004,7 @@ fn part_restored_channel(
         || !defaults
             .parted_while_disconnected
             .iter()
-            .any(|channel| joined.channel == channel.as_str())
+            .any(|channel| joined.channel.name() == channel.as_str())
     {
         return Ok(false);
     }

@@ -116,7 +116,7 @@ pub(super) async fn wait_message_starting_with(events: &mut Events, text: &str) 
 pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
     wait_for(events, format!("+o {nick}"), |event| match event {
         Event::ModeChanged(changed)
-            if matches!(&changed.subject, papo::Subject::Channel(name) if name == channel)
+            if matches!(&changed.subject, papo::Subject::Channel(name) if name.name() == channel)
                 && changed.changes.iter().any(|change| {
                     change.action == ModeAction::Add
                         && change.mode == 'o'

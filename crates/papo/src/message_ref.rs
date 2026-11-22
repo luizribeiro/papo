@@ -585,16 +585,6 @@ mod tests {
             let reference = message.return_address();
             assert_eq!(reference.to_string(), expected, "{kind}");
             assert_eq!(AsRef::<str>::as_ref(&reference), expected, "{kind}");
-            assert!(<MessageRef as PartialEq<str>>::eq(&reference, expected));
-            assert!(!<MessageRef as PartialEq<str>>::eq(
-                &reference,
-                "different-address"
-            ));
-            assert!(<MessageRef as PartialEq<&str>>::eq(&reference, &expected));
-            assert!(!<MessageRef as PartialEq<&str>>::eq(
-                &reference,
-                &"different-address"
-            ));
         }
     }
 
@@ -617,10 +607,7 @@ mod tests {
 
         assert_eq!(reference.to_string(), "@#ops");
         assert_eq!(AsRef::<str>::as_ref(&reference), "@#ops");
-        assert!(<NoticeRef as PartialEq<str>>::eq(&reference, "@#ops"));
-        assert!(!<NoticeRef as PartialEq<str>>::eq(&reference, "#ops"));
-        assert!(<NoticeRef as PartialEq<&str>>::eq(&reference, &"@#ops"));
-        assert!(!<NoticeRef as PartialEq<&str>>::eq(&reference, &"#ops"));
+        assert_ne!(reference.as_ref(), "#ops");
     }
 
     #[test]
@@ -649,7 +636,7 @@ mod tests {
             .receipt
             .set_reference(received.msgid.iter().cloned(), None);
         let reference = received.return_address();
-        assert_eq!(reference, "@#ops");
+        assert_eq!(reference.as_ref(), "@#ops");
         assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120004")));
         assert_eq!(reference.origin(), origin);
 
@@ -693,7 +680,7 @@ mod tests {
             None,
         );
         let reference = sent.return_address();
-        assert_eq!(reference, "@#ops");
+        assert_eq!(reference.as_ref(), "@#ops");
         assert_eq!(reference.msgids.len(), 2);
         assert_eq!(reference.origin(), origin);
         assert_eq!(

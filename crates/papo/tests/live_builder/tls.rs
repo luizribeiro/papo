@@ -48,7 +48,7 @@ async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
                 channel: joined,
                 actor,
                 ..
-            })) if joined == channel && actor.nick() == nick => return,
+            })) if joined.name() == channel && actor.nick() == nick => return,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while waiting for JOIN: {disconnected}")
             }

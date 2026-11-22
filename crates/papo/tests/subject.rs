@@ -8,18 +8,16 @@ fn exposes_and_compares_every_subject_kind() {
     let nick = Casemapping::Rfc1459.nick("Alice[bot]");
     let handle = papo::__testing::joined(channel.clone(), nick.clone(), false).channel;
     let user = papo::__testing::user_handle(nick.clone());
-    let subjects = [
-        (Subject::Channel(handle.clone()), "#papo{dev}"),
-        (Subject::User(user.clone()), "alice{bot}"),
-    ];
+    let channel_subject = Subject::Channel(handle.clone());
+    let user_subject = Subject::User(user.clone());
 
-    for (subject, text) in subjects {
-        assert_eq!(subject, text);
-        assert!(subject != "#elsewhere");
-    }
-    assert_eq!(Subject::Channel(handle.clone()).channel(), Some(&handle));
-    assert_eq!(Subject::Channel(handle).nick(), None);
-    assert_eq!(Subject::User(user.clone()).nick(), Some(nick));
-    assert_eq!(Subject::User(user.clone()).user(), Some(&user));
-    assert_eq!(Subject::User(user).channel(), None);
+    assert_eq!(channel_subject.channel(), Some(&handle));
+    assert_eq!(channel_subject.channel().unwrap().name(), "#papo{dev}");
+    assert_ne!(channel_subject.channel().unwrap().name(), "#elsewhere");
+    assert_eq!(channel_subject.nick(), None);
+    assert_eq!(user_subject.nick(), Some(nick));
+    assert_eq!(user_subject.nick().unwrap(), "alice{bot}");
+    assert_ne!(user_subject.nick().unwrap(), "mallory");
+    assert_eq!(user_subject.user(), Some(&user));
+    assert_eq!(user_subject.channel(), None);
 }

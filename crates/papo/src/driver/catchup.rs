@@ -42,14 +42,14 @@ pub(super) fn remember_live_event<'a>(
 }
 
 fn event_applies_to_channel(event: &Event, target: &str) -> bool {
-    if matches!(event.conversation(), Some(crate::Conversation::Channel(channel)) if channel == target)
+    if matches!(event.conversation(), Some(crate::Conversation::Channel(channel)) if channel.name() == target)
     {
         return true;
     }
     match event {
         Event::ChannelRenamed(line) => line.old == target,
-        Event::Quit(line) => line.channels.iter().any(|channel| channel == target),
-        Event::NickChanged(line) => line.channels.iter().any(|channel| channel == target),
+        Event::Quit(line) => line.channels.iter().any(|channel| channel.name() == target),
+        Event::NickChanged(line) => line.channels.iter().any(|channel| channel.name() == target),
         Event::Other(line) => line
             .as_ref()
             .param(0)

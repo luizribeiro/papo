@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await?;
 
     while let Some((event, _)) = events.next().await {
-        if !matches!(event, Event::ChannelSynced(ref synced) if synced.channel == channel.as_str())
+        if !matches!(event, Event::ChannelSynced(ref synced) if synced.channel.name() == channel.as_str())
         {
             continue;
         }

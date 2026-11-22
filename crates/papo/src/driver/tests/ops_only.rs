@@ -291,7 +291,7 @@ async fn saved_references_preserve_ops_only_audiences() {
     let line = ops.receive_restricted(OPS_ONLY).await;
     let saved = line.return_address().to_saved();
     let reference = ops.client.saved_message(&saved).unwrap();
-    assert_eq!(reference, "@#ops");
+    assert_eq!(reference.as_ref(), "@#ops");
     assert_eq!(reference.msgid(), line.msgid());
 
     let widened = ops
@@ -342,7 +342,7 @@ async fn restored_private_replies_send_to_the_saved_nickname_without_a_lookup() 
         .client
         .saved_message(&received.return_address().to_saved())
         .unwrap();
-    assert_eq!(reference, "emily");
+    assert_eq!(reference.as_ref(), "emily");
     assert_eq!(reference.msgid(), received.msgid());
 
     within(ops.client.reply(reference, "thanks")).await.unwrap();

@@ -111,13 +111,17 @@ async fn reactions_reach_another_client_with_reply_context() {
         let id = incoming.msgid().unwrap();
         client_b.react(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
-        assert_eq!(
+        let papo::Conversation::Channel(incoming_channel) = incoming.conversation() else {
+            panic!("expected a channel conversation");
+        };
+        assert!(matches!(
             reaction.conversation(),
-            incoming.conversation().to_string().as_str()
-        );
+            papo::Conversation::Channel(reaction_channel)
+                if reaction_channel.name() == incoming_channel.name().as_str()
+        ));
         assert_ne!(reaction.conversation(), incoming.conversation());
         assert_eq!(reaction.origin(), client_a.origin());
-        assert_eq!(reaction.return_address(), channel.as_str());
+        assert_eq!(reaction.return_address().as_ref(), channel.as_str());
         assert_eq!(&reaction.reacts_to, id);
 
         client_b.quit().await.unwrap();
@@ -311,7 +315,7 @@ async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
                 channel: joined,
                 actor,
                 ..
-            })) if registered && joined == channel && actor.nick() == nick => return,
+            })) if registered && joined.name() == channel && actor.nick() == nick => return,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while joining: {disconnected}")
             }

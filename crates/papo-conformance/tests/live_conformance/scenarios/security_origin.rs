@@ -107,8 +107,12 @@ async fn bound_client_reference(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_ne!(first_message.origin(), second_message.origin());
     assert_ne!(first_message.conversation(), second_message.conversation());
-    assert_eq!(first_message.conversation(), channel.as_str());
-    assert_eq!(second_message.conversation(), channel.as_str());
+    assert!(
+        matches!(first_message.conversation(), papo::Conversation::Channel(name) if name.name() == channel.as_str())
+    );
+    assert!(
+        matches!(second_message.conversation(), papo::Conversation::Channel(name) if name.name() == channel.as_str())
+    );
 
     let error = first
         .reply(&second_message, "must remain local")

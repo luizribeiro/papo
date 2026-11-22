@@ -2306,7 +2306,7 @@ async fn typing_status_change_preserves_the_latest_audience() {
         .unwrap();
     let state = client.snapshot();
     let typer = state.typing(&conversation).next().unwrap();
-    assert_eq!(typer.return_address(), "@#staff");
+    assert_eq!(typer.return_address().as_ref(), "@#staff");
 }
 
 #[tokio::test]

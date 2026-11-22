@@ -402,7 +402,7 @@ mod tests {
         };
         assert_eq!(message.actor.nick(), "alice");
         assert_eq!(message.text, "release ready");
-        assert_eq!(message.return_address(), "alice");
+        assert_eq!(message.return_address().as_ref(), "alice");
     }
 
     #[test]
@@ -506,14 +506,14 @@ mod tests {
             &channel.conversation,
             crate::Conversation::Channel(_)
         ));
-        assert_eq!(channel.return_address(), "#papo");
+        assert_eq!(channel.return_address().as_ref(), "#papo");
 
         let private = message(Some(source), "papo", "hello from alice", true);
         assert!(matches!(
             &private.conversation,
             crate::Conversation::Private(_)
         ));
-        assert_eq!(private.return_address(), "alice");
+        assert_eq!(private.return_address().as_ref(), "alice");
         assert_eq!(private.raw_text, "hello from alice");
 
         let joined = joined(
@@ -554,7 +554,7 @@ mod tests {
             Some("ergo-msgid-7xq2")
         );
         assert_eq!(reference.channel_context(), Some(&ops));
-        assert_eq!(message.return_address(), "BotServ");
+        assert_eq!(message.return_address().as_ref(), "BotServ");
     }
 
     #[test]
@@ -569,7 +569,7 @@ mod tests {
             crate::AccountStatus::LoggedIn(mapping.account("emily")),
         );
 
-        assert_eq!(message.return_address(), "emily");
+        assert_eq!(message.return_address().as_ref(), "emily");
         assert!(
             matches!(message.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")
         );

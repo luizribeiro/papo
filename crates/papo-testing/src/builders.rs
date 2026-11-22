@@ -120,7 +120,7 @@ mod tests {
             .tag("bot", None)
             .build();
 
-        assert_eq!(message.return_address(), "alice");
+        assert_eq!(message.return_address().as_ref(), "alice");
         assert_eq!(message.kind, MessageKind::Text);
         assert_eq!(message.actor.nick(), "alice");
         assert_eq!(message.msgid().map(AsRef::as_ref), Some("ergo-42"));

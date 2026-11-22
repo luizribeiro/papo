@@ -55,7 +55,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         assert!(!crate::scenarios::support::conversation_is_private(
             message.conversation()
         ));
-        assert_eq!(message.return_address(), name.as_str());
+        assert_eq!(message.return_address().as_ref(), name.as_str());
         assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_str()));
     }
 
@@ -94,7 +94,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(private.conversation()),
         Some(bob_nick.to_string())
     );
-    assert_eq!(private.return_address(), bob_nick.as_str());
+    assert_eq!(private.return_address().as_ref(), bob_nick.as_str());
 
     assert_eq!(alice.snapshot().channels().count(), types.chars().count());
     alice.expect_none(Event::as_joined).await?;

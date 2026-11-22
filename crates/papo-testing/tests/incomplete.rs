@@ -35,7 +35,9 @@ async fn dropped_connection_delivers_the_partial_message_before_disconnect() {
         panic!("expected an incomplete message, got {event:?}")
     };
     assert_eq!(message.text, "deploying release\nwaiting for health checks");
-    assert_eq!(message.conversation(), "#papo");
+    assert!(
+        matches!(message.conversation(), papo::Conversation::Channel(name) if name.name() == "#papo")
+    );
     assert_eq!(state.nick(), "papo-wire");
     assert!(matches!(
         events.next().await,
@@ -83,5 +85,7 @@ async fn a_cut_off_ops_only_message_stays_restricted() {
         panic!("expected an incomplete message, got {restricted:?}")
     };
     assert_eq!(message.text, "deploy key rotated\nnew key is in the vault");
-    assert_eq!(message.conversation(), "#ops");
+    assert!(
+        matches!(message.conversation(), papo::Conversation::Channel(name) if name.name() == "#ops")
+    );
 }

@@ -33,7 +33,10 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
         conversation_name(message.conversation()),
         Some(alice.snapshot().nick().to_string())
     );
-    assert_eq!(message.return_address(), alice.snapshot().nick().as_str());
+    assert_eq!(
+        message.return_address().as_ref(),
+        alice.snapshot().nick().as_str()
+    );
 
     bob.reply(&message, "release approved").await?;
     let reply = alice
@@ -77,7 +80,10 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(message.conversation()),
         Some(writer.snapshot().nick().to_string())
     );
-    assert_eq!(message.return_address(), writer.snapshot().nick().as_str());
+    assert_eq!(
+        message.return_address().as_ref(),
+        writer.snapshot().nick().as_str()
+    );
 
     reader.reply(message, "the report is attached").await?;
     Ok(())

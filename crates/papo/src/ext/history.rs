@@ -2067,10 +2067,10 @@ mod tests {
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.actor.nick() == "papo" && changed.old == "papo-old"
                 && changed.new == "papo"
-                && changed.channels == ["#papo"]
+                && changed.channels.iter().map(crate::ChannelRef::name).eq(["#papo"])
                 && changed.actor_party == crate::Party::Me));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
-            if quit.channels == ["#papo"]
+            if quit.channels.iter().map(crate::ChannelRef::name).eq(["#papo"])
                 && quit.actor_party == crate::Party::Other
                 && matches!(quit.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::ServerTime::from_stored("2026-10-19T14:31:08.123Z").unwrap();
@@ -2170,7 +2170,7 @@ mod tests {
             &reacted,
             PageEvent::Reacted(event)
                 if event.actor.nick() == "emily"
-                    && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+                    && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel.name() == "#papo")
                     && event.status.is_none()
                     && event.reacts_to == "RfcBTzyxY120004"
                     && event.reaction == "👍"
@@ -2197,7 +2197,7 @@ mod tests {
         assert!(matches!(
             &removal,
             PageEvent::Redacted(event)
-                if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+                if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel.name() == "#papo")
                     && event.status.is_none()
                     && event.redacts == "RfcBTzyxY120004"
                     && matches!(event.actor.user().unwrap().account(), crate::AccountStatus::LoggedIn(account) if account == "alice")
@@ -2284,7 +2284,7 @@ mod tests {
         assert!(matches!(
             joined,
             PageEvent::Joined(event)
-                if event.channel == "#papo" && event.actor.nick() == "emily"
+                if event.channel.name() == "#papo" && event.actor.nick() == "emily"
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && matches!(event.actor.account(), crate::AccountStatus::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
@@ -2321,7 +2321,7 @@ mod tests {
         assert!(matches!(
             parted,
             PageEvent::Parted(event)
-                if event.channel == "#papo" && event.actor.nick() == "emily"
+                if event.channel.name() == "#papo" && event.actor.nick() == "emily"
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && event.reason.as_deref() == Some("Leaving for lunch")
@@ -2346,7 +2346,7 @@ mod tests {
         assert!(matches!(
             kicked,
             PageEvent::Kicked(event)
-                if event.channel == "#papo" && event.subject.nick() == "emily"
+                if event.channel.name() == "#papo" && event.subject.nick() == "emily"
                     && event.channel.origin() == client.origin()
                     && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
@@ -2400,7 +2400,7 @@ mod tests {
         assert!(matches!(
             topic,
             PageEvent::TopicChanged(event)
-                if event.channel == "#papo"
+                if event.channel.name() == "#papo"
                     && event.topic.as_deref() == Some("Rust 1.90 is out")
                     && event.actor.nick().is_some_and(|nick| nick == "emily")
         ));
@@ -2411,7 +2411,7 @@ mod tests {
         assert!(matches!(
             mode,
             PageEvent::ModeChanged(event)
-                if matches!(event.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
+                if matches!(event.subject, crate::Subject::Channel(ref channel) if channel.name() == "#papo")
                     && event.actor.nick().is_some_and(|nick| nick == "emily")
                     && event.changes.len() == 2
                     && event
@@ -2738,7 +2738,7 @@ mod tests {
             message.conversation,
             crate::Conversation::Private(ref user) if user.nick() == "alice"
         ));
-        assert_eq!(message.return_address(), "alice");
+        assert_eq!(message.return_address().as_ref(), "alice");
         let reaction = tokio::spawn({
             let client = client.clone();
             let message = message.clone();
@@ -2931,7 +2931,7 @@ mod tests {
             let message = restricted.line.as_message().expect("restricted message");
             assert_eq!(message.raw_text, text);
             assert_eq!(message.conversation(), public.conversation());
-            assert_eq!(message.return_address(), "@#ops");
+            assert_eq!(message.return_address().as_ref(), "@#ops");
         }
         abort_task(task).await;
     }
@@ -3294,7 +3294,7 @@ mod tests {
             }
         );
         assert!(
-            matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
+            matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel.name() == "#papo"))
         );
 
         let request_client = client.clone();
@@ -3605,7 +3605,7 @@ mod tests {
             next_event(events).await,
             Some(Event::ReadMarkerChanged(changed))
                 if changed.marker == expected
-                    && matches!(&changed.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+                    && matches!(&changed.conversation, crate::Conversation::Channel(channel) if channel.name() == "#papo")
         ));
     }
 }
