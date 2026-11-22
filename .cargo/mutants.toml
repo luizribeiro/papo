@@ -10,6 +10,8 @@ exclude_re = [
   'replace check_action with \(\)$',
   'replace check_chat with \(\)$',
   'replace tests::assert_event_times with \(\)$',
+  'replace assert_structured_who with \(\)$',
+  'replace tests::identity::assert_person_at_arrival with \(\)$',
   # A stable build already returns `None`, so this replacement is equivalent.
   'replace Config::selected_bouncer_network -> Option<&str> with None$',
   # Typing changes have no message identifier, so both empty-vector forms are equivalent.
