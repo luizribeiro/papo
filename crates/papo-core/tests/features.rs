@@ -314,6 +314,7 @@ fn every_feature_name_round_trips() {
         (Feature::SetName, "real-name changes"),
         (Feature::BotMode, "bot mode"),
         (Feature::AccountCreation, "account creation"),
+        (Feature::AccountRequired, "account required"),
         (Feature::Bouncer, "bouncer networks"),
         (Feature::Persistence, "persistence"),
         (Feature::WebPush, "webpush"),

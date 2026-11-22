@@ -625,6 +625,36 @@ fn sts_feature_is_unavailable_when_the_server_does_not_advertise_it() {
 }
 
 #[test]
+fn reports_account_requirement_from_cap_or_isupport() {
+    let check = |session: &Session, expected| {
+        assert_eq!(session.supports(Feature::AccountRequired), expected);
+    };
+    let absent = Err(UnsupportedReason::NotOffered);
+    Transcript::new(Config::default().sasl(papo_core::Sasl::plain(
+        "alice",
+        papo_core::Secret::new("account-password"),
+    )))
+    .connect_default()
+    .server(":soju.test CAP * LS :soju.im/account-required sasl=PLAIN standard-replies")
+    .client("CAP REQ :standard-replies sasl")
+    .inspect(|session| check(session, Ok(())))
+    .server(":soju.test CAP * DEL :soju.im/account-required")
+    .inspect(|session| check(session, absent))
+    .no_client();
+
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test CAP * LS :")
+        .client("CAP END")
+        .inspect(|session| check(session, absent))
+        .server(":ergo.test 005 papo draft/ACCOUNTREQUIRED :are supported by this server")
+        .inspect(|session| check(session, Ok(())))
+        .server(":ergo.test 005 papo -draft/ACCOUNTREQUIRED :are supported by this server")
+        .inspect(|session| check(session, absent))
+        .no_client();
+}
+
+#[test]
 fn sts_upgrade_can_reconnect_the_same_session_securely() {
     Transcript::new(Config::default().wanted_caps(["sts"]))
         .connect_with(Connection {

@@ -46,6 +46,11 @@ macro_rules! feature_table {
             [] BotMode => "bot mode", [None, None];
             /// `IRCv3` draft account registration, requiring `draft/account-registration`.
             [] AccountCreation => "account creation", [Some(cap::ACCOUNT_REGISTRATION), None];
+            /// The server advertises that registration requires an authenticated account.
+            ///
+            /// Use this to explain the login requirement to users. Soju advertises it
+            /// with `soju.im/account-required`; servers can also use `draft/ACCOUNTREQUIRED`.
+            [] AccountRequired => "account required", [Some(cap::ACCOUNT_REQUIRED), None];
             /// Upstream network management on an IRC bouncer.
             [cfg(feature = "unstable")]
             Bouncer => "bouncer networks", [Some(cap::BOUNCER_NETWORKS), None];
@@ -260,6 +265,7 @@ impl Session {
         }
         let support = self.isupport.value();
         match feature {
+            Feature::AccountRequired if support.account_required() => return Ok(()),
             Feature::Monitor => return crate::monitor::support(support).map(|_| ()),
             Feature::BotMode => {
                 return support
@@ -287,7 +293,10 @@ impl Session {
             _ => {}
         }
         let required = feature.caps();
-        let available = if feature == Feature::StrictTransportSecurity {
+        let available = if matches!(
+            feature,
+            Feature::StrictTransportSecurity | Feature::AccountRequired
+        ) {
             self.caps.advertised()
         } else {
             self.caps.enabled()

@@ -104,7 +104,7 @@
 //! | `sasl` | — | automatic | SASL authentication | `sasl` |
 //! | `sts` | — | never | strict transport security | `sts` |
 //! | `ergo.chat/nope` | — | never | — | `caps` |
-//! | `soju.im/account-required` | — | never | — | `caps` |
+//! | `soju.im/account-required` | — | never | account required | `caps` |
 //! | `draft/account-registration` | account-registration | default | account creation | `account_registration` |
 //! | `soju.im/bouncer-networks` | — | opt-in | bouncer networks | `bouncer` |
 //! | `soju.im/bouncer-networks-notify` | — | opt-in | — | `bouncer` |

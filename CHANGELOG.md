@@ -19,6 +19,8 @@ Membership privilege checks can use `is_at_least_op()` and `is_at_least_voice()`
 
 `Feature::StrictTransportSecurity` reports whether the server advertises an STS policy.
 
+`Feature::AccountRequired` reports whether the server advertises an account requirement.
+
 Build negotiated capabilities for tests with `papo_testing::capabilities`.
 
 `papo-format` provides IRC text formatting with no stability promise. Use
