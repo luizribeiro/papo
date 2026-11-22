@@ -3,7 +3,7 @@
 ## 0.1.0 - Unreleased
 
 The first release of papo provides an asynchronous IRC client for applications and bots, broad
-IRCv3 support, deterministic protocol state, and native, WASI, and browser transports. `papo` is
+IRCv3 support, and native, WASI, and browser transports. `papo` is
 the supported application API; see the [IRCv3 support table](docs/ircv3-support.md) for the full
 protocol surface. The 0.1 release includes `papo-testing`, version-locked to `papo` with no
 stability promise even between patch releases. `papo-bot` stays unpublished. `papo-core` and
@@ -121,8 +121,6 @@ while disconnected, it still skips the current backoff and retries immediately.
 Channel and single-nick WHO replies now emit `AwayChanged` when they change a known away status.
 Initial away statuses learned in a channel refresh are included in `MembersRefreshed`.
 
-`actor_account()` reports the account evidence on the event’s own IRC line, including in history.
-
 `Party::{Me, Other, Unknown}` says who an event's actor (`actor_party`) or subject
 (`subject_party`, `ModeChanged::subject_party(&change)`) is relative to you. papo decides it when
 the line arrives, from the nick and account you held then, and a replayed history line is `Me` or
@@ -137,19 +135,13 @@ compile.
 `Client::rename_channel` can be awaited only after `.to(..)`; a rename without its destination does
 not compile.
 
-`Client::query` and `Client::channel` now return `Result<_, Error>`, so a reference whose user or
-channel has gone fails with `Error::TargetGone` instead of a foreign-reference error.
-
 `InvalidInput::ForeignReference` is removed: every request given a value from another client fails
 with `Error::ForeignReference`.
 
 `InvalidInput::InvalidRequest(String)` is removed: every request error papo-core reports reaches
 you as its own typed `Error` or `InvalidInput` variant, never as text.
 
-`Client::channel` refuses a status-prefixed name such as `@#ops` with `InvalidInput::InvalidName`:
-a channel reference names the whole channel, never a line's ops-only audience.
-
-`ChannelRef::status` is removed and a channel reference never carries a status sign: an `@#ops`
+`ChannelRef::status` was removed and a channel reference never carries a status sign: an `@#ops`
 line and a `#ops` line have equal conversations whose channel sends to `#ops`. Answer an ops-only
 line through `reply`, `react`, `redact` or its `return_address()`, which keep `@#ops`.
 
@@ -169,7 +161,7 @@ payloads no longer have `status()`. Code that does not match the new arm no long
 lines.
 
 `papo_bot` ignores ops-only commands unless the bot passes the `Restricted` line to
-`BotConfig::restricted_command`; `Command::audience` reports the sign and its replies keep it.
+`BotConfig::restricted_command`; `BotCommand::audience` reports the sign and its replies keep it.
 `BotConfig::command` returns `None` for a restricted line's inner message.
 
 `State::welcome_time` returns the server time stamped on the connection's 001, the earliest moment a
@@ -182,7 +174,7 @@ It also ignores every message from a history page, whatever its stamp.
 `SendMessage::reply_to` is removed: threading goes through `Client::reply(&line, ..)`, which answers
 the line's own audience. `papo_bot::BotCommand::private_notice` no longer threads its notice.
 
-`Message::channel_context()` and `Notice::channel_context` are a `Conversation` to file a private
+`Message::channel_context()` and `Notice::channel_context()` are a `Conversation` to file a private
 line under, not a sendable `ChannelRef`, so answering a DM cannot reach the whole channel.
 
 papo remembers the ids of the last 1024 status-prefixed lines each connection received, including
@@ -310,17 +302,9 @@ Private history messages and notices now carry `channel_context` from a valid co
 
 `Feature::from_name` resolves exact stable feature names back to their typed values.
 
-`Client::query` and `Client::channel` create connection-bound user and channel references without sending an IRC command.
-
-The first guarded use of a `UserRef` proves its identity with WHO, follows nickname changes, and refuses foreign or departed identities before writing the target command.
-
-All private chat operations now recheck that proof at the final wire write, rewrite a renamed recipient, and refuse a nickname that changed hands.
-
 User state lookups now return a typed `ForeignReference` error and preserve reference identity across nickname changes and handoffs.
 
 Every `UserRef` a live event carries, including the peer of a private conversation, names the person the line was about, even when the event is mapped after later lines moved that nickname to someone else.
-
-`WhoEntry::user` and `Whois::user` name the person the reply's row described when it arrived; without a shared channel, a send through them requires the account the reply showed.
 
 `State::presence` reports online, offline, or unknown evidence for a `UserRef` without allocating a monitor slot.
 
@@ -336,13 +320,12 @@ targets, instead of `LimitValue::Unlimited`; a bare `MONITOR` still means no lim
 
 `DirectSource` and `Client::direct_to` are removed; send to a received event's `UserRef` sender instead.
 
-`DirectRef` and `Client::direct` are removed; `Client::query` creates a `UserRef` without sending a command.
+`DirectRef` and `Client::direct` were removed. Send to a nickname or to a `UserRef` from a received event.
 
-KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserRef` directly.
+KICK, INVITE, and WHOIS can take a `UserRef` and recheck the tracked user before writing.
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.
-Privilege-granting mode helpers now require a `UserRef` and recheck its person identity at the final write.
-Metadata operations on a person now prove and recheck that identity before transmission.
+Metadata operations using a `UserRef` recheck the tracked user before transmission.
 
 `Client::join` now resolves to the synchronized `ChannelRef` for the joined channel.
 Mode and metadata requests on a channel reference the client has since left now fail with `Error::TargetGone` instead of panicking.
@@ -360,13 +343,6 @@ Message-like events now expose `UserRef` actors, and private `Conversation` valu
 `WhoEntry` now exposes user and channel references and reports the WHO operator flag as `is_oper`.
 
 `papo_proto::time::parse` is removed: `ServerTime::from_stored` is the one way to read text as a server time.
-
-papo's test-construction hooks require the internal `__testing` feature, which `papo-testing` enables.
-
-Use `papo_testing::unsupported` to build unavailable-feature diagnostics in tests. The `papo` crate
-now defines `Unsupported` with its existing `feature` and `reason` fields.
-
-Use `papo_testing::ErrorBuilder` to build disconnect and server-refusal fixtures in tests.
 
 The hidden `Actor::from_proto` constructor is removed; sources come only from received lines.
 
@@ -408,33 +384,82 @@ history cursors, read markers, or other values sent back to the server. Stored t
 `ServerTime` only through `ServerTime::from_stored`; `str::parse` is no longer offered.
 Format one with its `Display` impl; `papo::time::format` and `papo_proto::time::format` are removed.
 
-`InvalidInput::KnownCapability::feature` is now the `Feature` to enable, not its name as text.
 `InvalidInput::{InvalidRelayNickname, InvalidWebPushEndpoint, InvalidWebPushKey}` exist only with
 the `unstable` feature, like the operations that return them.
-
-`UserRef` equality and hashing identify only the tracked IRC user on one connection. Handles
-for that user stay equal across account discovery and nickname changes; different users remain
-unequal even on the same account or after a departed user's nickname is reused. Handles are per
-connection, so after a reconnect a new reference does not equal an old one.
-
-Person-targeted core writes now require opaque proof minted from session state and recheck that
-proof at the final wire write; recipient guards can no longer be assembled by downstream code.
 
 An upstream bouncer disconnect ends live direct targets for that network, including stable
 builds that only observe soju's notice or self-JOIN resync.
 
-`Events::next` and the `Events` stream now yield `(Event, Arc<State>)`. The state is captured
+`Events::next` now yields `(Event, Arc<State>)`. The state is captured
 immediately after the event was applied, so later server lines cannot change the state an event
 handler observes.
 
 `Client::snapshot` replaces `Client::state` for reading the latest state outside an event handler.
-The connection epoch API is removed. `Connected::reconnected` reports reconnections.
 
 `papo-bot` command parsing now takes the event snapshot, preventing bot filtering and mention
 matching from observing a later event.
 
 Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`; complete
-`Event::Message` and `Event::Notice` values always include the batch's closing proof.
+`Event::Message` and `Event::Notice` values require the batch to close.
+
+### Removed
+
+The `as_*` shortcuts on `Event`, `RestrictedLine`, and `Incomplete` are available only to
+tests using `papo-testing`. Match the variants in application code.
+
+`Client::channel` is private. Pass channel text or a `ChannelName` for a named channel.
+
+`UserRef` no longer compares directly with text. Use `user.nick() == "alice"`.
+
+`Client::query` was removed. Send to the nickname.
+
+Sends using a user reference no longer run a WHO lookup.
+
+`Client::open` was removed.
+
+`UserRef::key` was removed. To authorize a command, check the account on the message with
+`actor_account()`.
+
+The saved recipient types `PeerKey`, `InvalidPeerKey`, `PeerKeyCheck`, `PeerKeyMismatch`, and
+`NotSamePerson` were removed, along with `Error::NotSamePerson`.
+
+`SetModes::halfop`, `SetModes::dehalfop`, and `Feature::Halfop` were removed. Use
+`add_with('h', nick)` and `remove_with('h', nick)` when the server advertises that rank.
+
+`SetModes::quiet`, `SetModes::unquiet`, and `Feature::Quiet` were removed. Use the server's
+list mode or extended ban.
+
+Read events with `Events::next()`. The `futures_core::Stream` implementation has been removed.
+
+The capability-name conversion trait `AsCap` has been removed.
+
+`Builder::request_caps` and its `KnownCapability`, `ManagedCapability`, and
+`UnstableCapability` configuration errors were removed. Use typed features.
+
+`Sasl::authzid` was removed. PLAIN and EXTERNAL use an empty authorization identity.
+
+`Sasl::device` was removed.
+
+Bare name constructors are private. Build names with `State::name_rules` or use
+`papo-testing` for fixtures.
+
+`MemoryStsStore` is private. Use `StsStore` to supply a custom cache.
+
+`LineRef`, `Line::as_ref`, and `Line::to_line` were removed from the public API. `Line` still
+encodes to bytes.
+
+`ConnectionEpoch`, `Connected::epoch`, `State::connection_epoch`, and `Client::is_current` were
+removed. Use `Connected::reconnected` for reconnects.
+
+`State::casemapping` was removed. Read the current rules with `State::name_rules`.
+
+`SetModes::prefix` was removed. Use `add_with` or `remove_with` for advertised ranks.
+
+The standalone disconnect, server-refusal, unsupported-feature and capability fixtures moved
+from `papo` to `papo-testing`.
+
+`Color`, `FormatBuilder`, `Span`, `Style`, and `strip_formatting` moved from `papo` to
+`papo-format`.
 
 ### Fixed
 
@@ -452,9 +477,8 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
   `Event::Kicked`, but it no longer completes our pending kick or masks our `482` refusal.
 - Without labeled-response, topic and mode requests likewise end only at our own `TOPIC` or `MODE`
   echo; another operator's change to the same channel stays an ordinary event.
-- Without `account-tag`, a peer's first private line no longer takes the account a `WHO` proof saw:
-  `User::account` stays unknown, so whoever holds the proven nick is never reported as logged in.
-  Sends to the proven nick still succeed.
+- Without `account-tag`, a first private message does not inherit the account from an earlier WHO
+  reply. `actor_account()` reports `AccountStatus::Unknown` for the untagged line.
 - With echo-message and labeled-response, a `PRIVMSG` or `NOTICE` whose text is a `Secret` (such as
   `PRIVMSG NickServ :IDENTIFY ..`) stays redacted while papo awaits its echo, and the echo's lines
   and events are redacted in `{:?}` too.
