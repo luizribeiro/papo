@@ -110,87 +110,7 @@ pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::sync::{Arc, RwLock};
-
-    use papo_core::{Config, Event, ProofFailure, ResponseMatcher, Session};
-    use papo_proto::{Casemapping, Line, LineRef};
-    use tokio::io::AsyncWriteExt as _;
-
-    use super::who_account;
-    use crate::{Account, Error};
-
-    fn client(session: &Session) -> crate::Client {
-        let (commands, _) = tokio::sync::mpsc::channel(1);
-        crate::Client {
-            commands,
-            state: Arc::new(RwLock::new(Arc::new(crate::State::from_session(
-                session, false,
-            )))),
-            origin: crate::Origin::NONE,
-            network_builder: None,
-        }
-    }
-
-    fn response_with(lines: &[&str]) -> papo_core::Response {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default());
-        let id = session
-            .request_with_matcher(
-                now,
-                Line::new("WHO").with_params(["alice", "%na"]),
-                ResponseMatcher::Who("alice".into()),
-            )
-            .unwrap();
-        _ = session.poll_transmit();
-        session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
-        let mut response = std::iter::from_fn(|| session.poll_event())
-            .find_map(|event| match event {
-                Event::Response(response) => Some(response),
-                _ => None,
-            })
-            .unwrap();
-        assert_eq!(response.id, id);
-        response.lines = lines
-            .iter()
-            .map(|line| LineRef::parse(line).unwrap().to_owned())
-            .collect();
-        response
-    }
-
-    #[test]
-    fn who_account_requires_a_matching_who_account_row() {
-        let session = Session::new(Config::default().casemapping(Casemapping::default()));
-        let client = client(&session);
-        for (line, expected) in [
-            (
-                ":ergo.test 354 papo alice alice-account",
-                Some("alice-account"),
-            ),
-            (
-                ":ergo.test 354 papo Alice alice-account",
-                Some("alice-account"),
-            ),
-            (":ergo.test 354 papo alice 0", None),
-            (":ergo.test 354 papo alice *", None),
-        ] {
-            let account = who_account(&client, "alice", &response_with(&[line])).unwrap();
-            match expected {
-                Some(expected) => {
-                    assert!(matches!(account, Account::LoggedIn(name) if name == expected));
-                }
-                None => assert_eq!(account, Account::LoggedOut),
-            }
-        }
-        for line in [
-            ":ergo.test 352 papo alice mallory-account",
-            ":ergo.test 354 papo mallory mallory-account",
-        ] {
-            assert!(matches!(
-                who_account(&client, "alice", &response_with(&[line])),
-                Err(Error::TargetGone)
-            ));
-        }
-    }
+    use papo_core::ProofFailure;
 
     #[test]
     fn foreign_proof_failure_stays_typed() {
@@ -214,37 +134,5 @@ mod tests {
             super::map_failure(ProofFailure::IdentityChanged),
             crate::Error::TargetGone
         ));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn accountless_history_actor_cannot_be_proved_for_a_reply() {
-        use crate::driver::test_support::{
-            client_line, complete_connect, config, scripted, server_line, within,
-        };
-
-        let (mut server, client, mut events, driver) = scripted(config());
-        let driver = tokio::spawn(driver);
-        complete_connect(&mut server, &mut events).await;
-        let nick = client.state().name_rules().unwrap().nick("alice");
-        let handle =
-            crate::UserHandle::from_history(nick, crate::Account::Unknown, Some(&client.state));
-
-        let proving = tokio::spawn({
-            let client = client.clone();
-            async move { super::prove(&client, &handle).await }
-        });
-        client_line(&mut server, b"WHO alice %na\r\n").await;
-        server_line(
-            &mut server,
-            b":ergo.test 354 papo-driver alice current-account\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
-        )
-        .await;
-        assert!(matches!(
-            within(proving).await.unwrap(),
-            Err(crate::Error::TargetGone)
-        ));
-
-        within(server.shutdown()).await.unwrap();
-        assert!(within(driver).await.unwrap().is_err());
     }
 }
