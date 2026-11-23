@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, time::Duration};
+use std::{future::IntoFuture, sync::Arc, time::Duration};
 
 use papo_core::{AccountStatus, AwayStatus, Response, ResponseMatcher};
 use papo_proto::{
@@ -99,9 +99,30 @@ pub struct WhoisChannel {
     pub name: ChannelName,
     /// Membership prefixes in server-advertised order.
     pub prefixes: Vec<Prefix>,
+    advertised_prefix_order: Arc<[Prefix]>,
 }
 
 impl WhoisChannel {
+    /// Reports whether a reported prefix reaches operator in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
+    #[must_use]
+    pub fn is_at_least_op(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'o', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
+    /// Reports whether a reported prefix reaches voice in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
+    #[must_use]
+    pub fn is_at_least_voice(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'v', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
     /// Returns the highest standard rank held in this channel.
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
@@ -134,11 +155,32 @@ pub struct WhoEntry {
     pub is_oper: bool,
     /// Whether the server identifies the user as a bot.
     pub is_bot: Option<bool>,
-    /// Channel-membership prefixes in wire order.
+    /// Channel-membership prefixes in server order.
     pub prefixes: Vec<Prefix>,
+    advertised_prefix_order: Arc<[Prefix]>,
 }
 
 impl WhoEntry {
+    /// Reports whether a reported prefix reaches operator in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
+    #[must_use]
+    pub fn is_at_least_op(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'o', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
+    /// Reports whether a reported prefix reaches voice in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
+    #[must_use]
+    pub fn is_at_least_voice(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'v', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
     /// Returns the highest standard channel rank reported for this user.
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
@@ -254,6 +296,7 @@ pub(crate) fn whois(
         secure: false,
         idle: None,
     };
+    let advertised_prefix_order = isupport.__advertised_prefix().unwrap_or_default().into();
     for line in response.lines {
         let message = line.as_ref();
         let Command::Numeric(numeric) = message.command() else {
@@ -277,7 +320,7 @@ pub(crate) fn whois(
                     .param(2)
                     .into_iter()
                     .flat_map(str::split_ascii_whitespace)
-                    .map(|value| whois_channel(value, isupport, origin)),
+                    .map(|value| whois_channel(value, isupport, origin, &advertised_prefix_order)),
             ),
             Numeric::RPL_AWAY => {
                 result.away = AwayStatus::__away_value(message.param(2).map(str::to_owned));
@@ -339,7 +382,12 @@ fn whois_user_nick(response: &Response) -> Option<(usize, String)> {
     })
 }
 
-fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> WhoisChannel {
+fn whois_channel(
+    value: &str,
+    isupport: &Isupport,
+    origin: crate::Origin,
+    advertised_prefix_order: &Arc<[Prefix]>,
+) -> WhoisChannel {
     let symbols: String = value
         .chars()
         .take_while(|symbol| {
@@ -353,6 +401,7 @@ fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> Who
     WhoisChannel {
         name: origin.__channel(isupport.casemapping(), &value[offset..]),
         prefixes: ordered_prefixes(&symbols, isupport),
+        advertised_prefix_order: Arc::clone(advertised_prefix_order),
     }
 }
 
@@ -365,6 +414,7 @@ pub(crate) fn who(
     empty(&response)?;
     let origin = client.origin();
     let mapping = isupport.casemapping();
+    let advertised_prefix_order = isupport.__advertised_prefix().unwrap_or_default().into();
     Ok(std::mem::take(&mut response.lines)
         .into_iter()
         .enumerate()
@@ -397,13 +447,14 @@ pub(crate) fn who(
                     } else {
                         isupport.bot_mode().map(|_| false)
                     },
+                    advertised_prefix_order: Arc::clone(&advertised_prefix_order),
                     prefixes: ordered_prefixes(
                         &flags.prefixes.iter().collect::<String>(),
                         isupport,
                     ),
                 })
             } else {
-                plain_who(&message, isupport, client, token)
+                plain_who(&message, isupport, client, token, &advertised_prefix_order)
             }
         })
         .collect())
@@ -414,6 +465,7 @@ fn plain_who(
     isupport: &Isupport,
     client: &crate::Client,
     token: Option<papo_core::ReplyToken>,
+    advertised_prefix_order: &Arc<[Prefix]>,
 ) -> Option<WhoEntry> {
     (message.command() == Command::Numeric(Numeric::RPL_WHOREPLY)).then_some(())?;
     let flags = message.param(6)?;
@@ -454,6 +506,7 @@ fn plain_who(
         } else {
             isupport.bot_mode().map(|_| false)
         },
+        advertised_prefix_order: Arc::clone(advertised_prefix_order),
         prefixes: prefixes
             .into_iter()
             .filter(|prefix| flags.contains(prefix.symbol()))
@@ -562,7 +615,21 @@ mod tests {
     fn whois_channels_separate_advertised_membership_prefixes() {
         let mut support = Isupport::default();
         support.apply_tokens(["PREFIX=(qaohv)~&@%+"]);
-        let channel = whois_channel("~@#papo", &support, crate::Origin::NONE);
+        let order = support.__advertised_prefix().unwrap().into();
+        let channel = whois_channel("~@#papo", &support, crate::Origin::NONE, &order);
+        assert!(channel.is_at_least_op());
+        assert!(channel.is_at_least_voice());
+        let voiced = whois_channel("+#papo", &support, crate::Origin::NONE, &order);
+        assert!(!voiced.is_at_least_op());
+        assert!(voiced.is_at_least_voice());
+        let fallback = whois_channel(
+            "@#papo",
+            &Isupport::default(),
+            crate::Origin::NONE,
+            &std::sync::Arc::default(),
+        );
+        assert!(!fallback.is_at_least_op());
+        assert!(!fallback.is_at_least_voice());
 
         assert_eq!(channel.name, "#papo");
         assert_eq!(
@@ -700,7 +767,9 @@ mod tests {
 
     #[test]
     fn who_entry_is_oper_for_plain_and_whox() {
-        let isupport = Isupport::default();
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["PREFIX=(ohqv)@%!+"]);
+        let order = isupport.__advertised_prefix().unwrap().into();
         let client = crate::Client::disconnected_for_test();
         let hidden = Line::new("352").with_params([
             "papo",
@@ -723,8 +792,18 @@ mod tests {
             "0 Bob Example",
         ]);
 
-        let hidden = plain_who(&hidden.as_ref(), &isupport, &client, None).unwrap();
-        let visible = plain_who(&visible.as_ref(), &isupport, &client, None).unwrap();
+        let fallback = plain_who(
+            &hidden.as_ref(),
+            &Isupport::default(),
+            &client,
+            None,
+            &std::sync::Arc::default(),
+        )
+        .unwrap();
+        assert!(!fallback.is_at_least_op());
+        assert!(!fallback.is_at_least_voice());
+        let hidden = plain_who(&hidden.as_ref(), &isupport, &client, None, &order).unwrap();
+        let visible = plain_who(&visible.as_ref(), &isupport, &client, None, &order).unwrap();
         assert_eq!(
             (&hidden.account, &hidden.away),
             (&AccountStatus::Unknown, &AwayStatus::Present)
@@ -736,6 +815,10 @@ mod tests {
         assert_eq!(hidden.channel, None);
         assert_eq!(hidden.prefixes[0].symbol(), '@');
         assert!(hidden.is_oper);
+        assert!(hidden.is_at_least_op());
+        assert!(hidden.is_at_least_voice());
+        assert!(!visible.is_at_least_op());
+        assert!(visible.is_at_least_voice());
         assert_eq!(hidden.rank(), Some(crate::Rank::Op));
         assert_eq!(
             (
@@ -756,7 +839,7 @@ mod tests {
             )
             .unwrap();
         for line in [
-            ":ergo.test 354 papo 152 #rust ~alice staff.example alice H*@ alice :Alice Example",
+            ":ergo.test 354 papo 152 #rust ~alice staff.example alice H*! alice :Alice Example",
             ":ergo.test 315 papo #rust :End of WHO list",
         ] {
             session.handle_line(now, line.as_bytes());
@@ -770,6 +853,8 @@ mod tests {
         let extended = who(response, &isupport, &client, true).unwrap();
         assert_eq!(extended.len(), 1);
         assert!(extended[0].is_oper);
+        assert!(!extended[0].is_at_least_op());
+        assert!(extended[0].is_at_least_voice());
         assert_eq!(extended[0].user.nick(), "alice");
     }
 
@@ -1144,7 +1229,8 @@ mod tests {
         let session = Session::new(Config::default().casemapping(Casemapping::Ascii));
         let client = crate::driver::test_support::client_with_commands(&session).0;
         let origin = client.origin();
-        let channel = whois_channel("@#Papo[dev]", &isupport, origin);
+        let order = std::sync::Arc::default();
+        let channel = whois_channel("@#Papo[dev]", &isupport, origin, &order);
         let who = Line::new("352").with_params([
             "papo",
             "#Papo[dev]",
@@ -1155,7 +1241,7 @@ mod tests {
             "H@",
             "0 Alice Example",
         ]);
-        let who = plain_who(&who.as_ref(), &isupport, &client, None).unwrap();
+        let who = plain_who(&who.as_ref(), &isupport, &client, None, &order).unwrap();
 
         assert_eq!(channel.name.casemapping(), Casemapping::Ascii);
         assert_eq!(

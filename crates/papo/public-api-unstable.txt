@@ -3879,6 +3879,8 @@ pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::user: papo::UserRef
 pub papo::WhoEntry::username: alloc::string::String
 impl papo::WhoEntry
+pub fn papo::WhoEntry::is_at_least_op(&self) -> bool
+pub fn papo::WhoEntry::is_at_least_voice(&self) -> bool
 pub fn papo::WhoEntry::rank(&self) -> core::option::Option<papo::isupport::Rank>
 impl core::clone::Clone for papo::WhoEntry
 pub fn papo::WhoEntry::clone(&self) -> Self
@@ -3926,6 +3928,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Whois
 pub papo::WhoisChannel::name: papo::ChannelName
 pub papo::WhoisChannel::prefixes: alloc::vec::Vec<papo::Prefix>
 impl papo::WhoisChannel
+pub fn papo::WhoisChannel::is_at_least_op(&self) -> bool
+pub fn papo::WhoisChannel::is_at_least_voice(&self) -> bool
 pub fn papo::WhoisChannel::rank(&self) -> core::option::Option<papo::isupport::Rank>
 impl core::clone::Clone for papo::WhoisChannel
 pub fn papo::WhoisChannel::clone(&self) -> Self
