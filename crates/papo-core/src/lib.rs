@@ -70,6 +70,7 @@ mod account_registration;
     reason = "batch keys and positions are resolved from the same validated open-batch graph"
 )]
 mod batch;
+mod batch_state;
 #[cfg(feature = "unstable")]
 #[path = "unstable/bouncer.rs"]
 #[allow(
@@ -4256,6 +4257,7 @@ impl Session {
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
                 }
+                let applied_state = self.dispatch_batched_state(now, &message);
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
                 match self.batches.handle(
@@ -4266,7 +4268,7 @@ impl Session {
                     message
                         .tag("label")
                         .is_some_and(|label| self.requests.contains_key(label.as_ref())),
-                    None,
+                    applied_state,
                 ) {
                     BatchAction::Consumed => {}
                     BatchAction::Complete(events) => {

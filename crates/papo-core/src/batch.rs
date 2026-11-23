@@ -6,7 +6,7 @@ use web_time::Instant;
 
 use papo_proto::{Command, Line, LineRef, Reaction};
 
-use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, ReplyToken, cap};
+use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, ReplyToken, SplitServers, cap};
 
 const MAX_ABANDONED_BATCHES: usize = 256;
 pub(crate) const DEFAULT_BYTE_BUDGET: usize = 64 * 1024 * 1024;
@@ -58,6 +58,13 @@ impl RoutedMember {
         subject: None,
         joined_ready: None,
     };
+}
+
+pub(crate) struct LiveMember<'a> {
+    pub(crate) kind: &'a str,
+    pub(crate) label: Option<&'a str>,
+    pub(crate) split: Option<SplitServers>,
+    pub(crate) raw: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -766,6 +773,54 @@ impl Batches {
             parent = batch.parent.as_deref();
         }
         false
+    }
+
+    pub(crate) fn live_member(&self, message: &LineRef<'_>) -> Option<LiveMember<'_>> {
+        let reference = message.tag("batch")?;
+        let Some((reference, batch)) = self.open.get_key_value(reference.as_ref()) else {
+            let (_, kind, replay) = self
+                .abandoned
+                .iter()
+                .find(|(id, ..)| id == reference.as_ref())?;
+            return (!replay).then_some(LiveMember {
+                kind,
+                label: None,
+                split: None,
+                raw: true,
+            });
+        };
+        if batch.replay {
+            return None;
+        }
+        let split_kind = match message.command() {
+            Command::Quit => Some("netsplit"),
+            Command::Join => Some("netjoin"),
+            _ => None,
+        };
+        let mut member = LiveMember {
+            kind: &batch.kind,
+            label: None,
+            split: None,
+            raw: !batch.is_typed_aggregate() && batch.kind != cap::LABELED_RESPONSE.as_str(),
+        };
+        let mut ancestor = Some((reference, batch));
+        while let Some((reference, batch)) = ancestor {
+            if member.label.is_none() {
+                member.label = batch.label.as_deref();
+            }
+            if member.split.is_none() && split_kind == Some(batch.kind.as_str()) {
+                member.split = Some(SplitServers {
+                    batch: reference.clone().into(),
+                    first: batch.params.first().cloned().unwrap_or_default(),
+                    second: batch.params.get(1).cloned().unwrap_or_default(),
+                });
+            }
+            ancestor = batch
+                .parent
+                .as_ref()
+                .and_then(|parent| self.open.get_key_value(parent));
+        }
+        Some(member)
     }
 
     fn context(&self, message: &LineRef<'_>) -> DispatchContext {

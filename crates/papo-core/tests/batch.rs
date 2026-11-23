@@ -1150,7 +1150,6 @@ fn recorded_solanum_netsplit_emits_a_marked_quit() {
         now,
         b"@batch=uoiRnDa1CRdpNmJ :ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
     );
-    session.handle_line(now, b":irc.papo.test BATCH -uoiRnDa1CRdpNmJ");
 
     let Some(Event::Quit {
         nick,
@@ -1168,6 +1167,8 @@ fn recorded_solanum_netsplit_emits_a_marked_quit() {
     assert_eq!(channels.len(), 1);
     assert!(channels.iter().any(|channel| channel == "#papo"));
     assert!(session.state().user("ChanServ").is_none());
+    session.handle_line(now, b":irc.papo.test BATCH -uoiRnDa1CRdpNmJ");
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]
