@@ -212,6 +212,14 @@ impl Transcript {
         self
     }
 
+    pub fn check_connection(mut self, duration: Duration, accepted: bool) -> Self {
+        assert_eq!(
+            self.session.__check_connection(self.now, duration),
+            accepted
+        );
+        self
+    }
+
     /// Disconnects the session at the current transcript time.
     pub fn disconnect(mut self) -> Self {
         self.session.handle_disconnected(self.now);

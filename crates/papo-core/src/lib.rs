@@ -209,6 +209,8 @@ pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
 #[doc(hidden)]
 pub use identity::{PersonCommand, ProofFailure, Proven};
 use isupport::IsupportState;
+#[doc(hidden)]
+pub use keepalive::ConnectionCheckResult;
 use keepalive::Keepalive;
 use labels::encode_label;
 pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue, Visibility};
@@ -4263,7 +4265,10 @@ impl Session {
             self.close_for_long_line();
             return;
         }
-        self.keepalive.handle_incoming(now);
+        if !self.keepalive.handle_incoming(now, &mut self.outbox) {
+            self.apply_close_request();
+            return;
+        }
 
         let decoded = match std::str::from_utf8(line) {
             Ok(line) => std::borrow::Cow::Borrowed(line),
@@ -5774,6 +5779,22 @@ impl Session {
         let id = RequestId(self.next_request_id);
         self.next_request_id = self.next_request_id.wrapping_add(1);
         id
+    }
+
+    /// Starts or joins a liveness check. Returns false until registration is complete.
+    #[doc(hidden)]
+    pub fn __check_connection(&mut self, now: Instant, duration: Duration) -> bool {
+        if !self.is_connected() || self.outbox.close_requested {
+            return false;
+        }
+        self.keepalive.start_check(now, duration, &mut self.outbox);
+        true
+    }
+
+    /// Takes the result shared by the callers of the current liveness check.
+    #[doc(hidden)]
+    pub fn __take_connection_check_result(&mut self) -> Option<ConnectionCheckResult> {
+        self.keepalive.check_result.take()
     }
 
     /// Reports whether the connection is ready for use.
