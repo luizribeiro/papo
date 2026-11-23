@@ -144,3 +144,26 @@ fn a_written_idle_ping_can_answer_a_later_check() {
         .server(":ergo.test PONG ergo.test :papo-0")
         .check_result(Some(ConnectionCheckResult::Pong(Duration::from_secs(3))));
 }
+
+#[test]
+fn a_queued_check_counts_toward_the_immediate_output_limit() {
+    let mut transcript = connected().check_connection(Duration::from_secs(3), true);
+    for _ in 0..16_382 {
+        transcript = transcript.server("PING :ergo.test");
+    }
+    transcript
+        .no_event()
+        .server("PING :ergo.test")
+        .no_event()
+        .server("PING :ergo.test")
+        .check_result(None)
+        .event(|event| {
+            matches!(
+                event,
+                Event::Close { kind: CloseKind::Other, reason, .. }
+                    if reason == "pending protocol output reached its limit"
+            )
+        })
+        .client("PING papo-check-0")
+        .ignore_rest();
+}

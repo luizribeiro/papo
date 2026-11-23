@@ -10318,6 +10318,133 @@ async fn connection_checks_share_a_written_idle_ping() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn a_silent_check_reconnects_without_waiting_for_transport_shutdown() {
+    let (stream, mut server) = tokio::io::duplex(128);
+    let (next_stream, mut next_server) = tokio::io::duplex(4096);
+    let streams: VecDeque<super::BoxConnection> = VecDeque::from([
+        Box::new(NeverDrainingStream {
+            inner: stream,
+            written: Arc::default(),
+        }) as super::BoxConnection,
+        Box::new(next_stream) as super::BoxConnection,
+    ]);
+    let streams = Mutex::new(streams);
+    let connector: super::Connector = Arc::new(move |_, _| {
+        let stream = streams.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential().initial_delay(Duration::from_secs(60)),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let check = tokio::spawn(client.check_connection(Duration::from_secs(3)));
+    client_line(&mut server, b"PING papo-check-0\r\n").await;
+    let started = tokio::time::Instant::now();
+    let update = "Status update queued while the app returns to the foreground. ".repeat(5);
+    let send = tokio::spawn(client.send_raw(crate::Line::privmsg("#papo", update)));
+    assert_eq!(within(server.read_u8()).await.unwrap(), b'P');
+    tokio::time::advance(Duration::from_secs(3)).await;
+
+    assert!(matches!(
+        within(check).await.unwrap(),
+        Err(Error::Interrupted(disconnected))
+            if disconnected.cause == crate::DisconnectCause::PingTimeout
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(disconnected))
+            if disconnected.cause == crate::DisconnectCause::PingTimeout
+                && disconnected.reconnect_in == Some(Duration::ZERO)
+    ));
+    assert!(matches!(
+        within(send).await.unwrap(),
+        Err(Error::Disconnected(disconnected))
+            if disconnected.cause == crate::DisconnectCause::PingTimeout
+    ));
+    client_line(&mut next_server, b"CAP LS 302\r\n").await;
+    assert_eq!(started.elapsed(), Duration::from_secs(3));
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn a_full_protocol_queue_interrupts_the_check_with_normal_backoff() {
+    let (stream, mut server) = tokio::io::duplex(4096);
+    let stream = Mutex::new(Some(NeverDrainingStream {
+        inner: stream,
+        written: Arc::default(),
+    }));
+    let connector: super::Connector = Arc::new(move |_, _| {
+        let stream = stream.lock().unwrap().take().unwrap();
+        Box::pin(async move { Ok(Box::new(stream) as super::BoxConnection) })
+    });
+    let settings = config()
+        .max_channels(1)
+        .rate_limit(papo_core::RateLimit::new(1, Duration::from_hours(1)).unwrap());
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(settings),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential().initial_delay(Duration::from_secs(10)),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    client
+        .send_raw(crate::Line::new("WHOIS").param("release-bot"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"WHOIS release-bot\r\n").await;
+
+    let check = tokio::spawn(client.check_connection(Duration::from_secs(30)));
+    client_line(&mut server, b"PING papo-check-0\r\n").await;
+    let join_cycle = b":papo-driver!~papo@localhost JOIN #papo-dev\r\n\
+        :ergo.test 366 papo-driver #papo-dev :End of NAMES list\r\n\
+        :papo-driver!~papo@localhost PART #papo-dev :Leaving\r\n";
+    // Each cycle contributes two paced follow-ups. One channel has room for 16,387.
+    server_line(&mut server, &join_cycle.repeat(8_193)).await;
+    server_line(&mut server, b":papo-driver!~papo@localhost JOIN #papo-dev\r\n:ergo.test 366 papo-driver #papo-dev :End of NAMES list\r\n:ergo.test PONG ergo.test :papo-check-0\r\n").await;
+
+    let Err(Error::Interrupted(probe)) = within(check).await.unwrap() else {
+        panic!("the queue limit must interrupt the outstanding probe");
+    };
+    assert!(matches!(
+        &probe.cause,
+        crate::DisconnectCause::Protocol { message, .. }
+            if message == "pending protocol output reached its limit"
+    ));
+    let disconnected = within(async {
+        loop {
+            match next_event(&mut events).await {
+                Some(Event::Disconnected(disconnected)) => break disconnected,
+                Some(_) => {}
+                None => panic!("the driver ended before reporting the disconnect"),
+            }
+        }
+    })
+    .await;
+    assert_eq!(disconnected.cause, probe.cause);
+    assert_ne!(disconnected.reconnect_in.unwrap(), Duration::ZERO);
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn connection_check_leaves_registration_and_backoff_alone() {
     let policy = Reconnect::exponential().initial_delay(Duration::from_secs(10));
     let (mut server, client, mut events, driver, calls) = reconnectable_stream(config(), policy);
