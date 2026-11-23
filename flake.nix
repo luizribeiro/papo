@@ -595,10 +595,25 @@
             stages = [ "pre-push" ];
           };
         };
-        gitHooks = git-hooks.lib.${system}.run {
-          src = ./.;
-          hooks = offlineHooks // cargoHooks;
-        };
+        makeGitHooks =
+          addGcRoot:
+          git-hooks.lib.${system}.run {
+            src = ./.;
+            hooks = offlineHooks // cargoHooks;
+            inherit addGcRoot;
+          };
+        gitHooks = makeGitHooks true;
+        hookShell = hooks: ''
+          ${hooks.shellHook}
+
+          # Worktrees share this config, so the hook directory must resolve from any checkout.
+          if papo_git_dir=$(${pkgs.lib.getExe pkgs.git} rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
+            if [ "$(${pkgs.lib.getExe pkgs.git} config --local --get core.hooksPath)" != "$papo_git_dir/hooks" ]; then
+              ${pkgs.lib.getExe pkgs.git} config --local core.hooksPath "$papo_git_dir/hooks"
+            fi
+          fi
+          unset papo_git_dir
+        '';
       in
       {
         checks = rec {
@@ -606,6 +621,14 @@
             ${pkgs.bash}/bin/bash ${./scripts/test_no_merge_commits.sh} ${./scripts/check-no-merge-commits}
             touch $out
           '';
+          worktree-hooks =
+            let
+              shellHook = pkgs.writeText "git-hooks.sh" (hookShell (makeGitHooks false));
+            in
+            pkgs.runCommand "test-worktree-hooks" { nativeBuildInputs = [ pkgs.git ]; } ''
+              ${pkgs.bash}/bin/bash ${./scripts/test_worktree_hooks.sh} ${shellHook}
+              touch $out
+            '';
           pre-commit = git-hooks.lib.${system}.run {
             src = ./.;
             hooks = offlineHooks;
@@ -915,7 +938,7 @@
           CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
           CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
           CARGO_TARGET_WASM32_WASIP3_RUNNER = nixTestRunner;
-          inherit (gitHooks) shellHook;
+          shellHook = hookShell gitHooks;
         };
       }
     );
