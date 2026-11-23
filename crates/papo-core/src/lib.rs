@@ -3695,6 +3695,7 @@ pub struct Session {
     welcome_state: WelcomeState,
     sasl: SaslSession,
     secret_echoes: secret_echo::SecretEchoes,
+    reply_secrets: secret_echo::ReplySecrets,
     state: State,
     state_generation: u64,
     typing_generation: u64,
@@ -3737,6 +3738,7 @@ impl std::fmt::Debug for Session {
             .field("welcome_state", &self.welcome_state)
             .field(cap::SASL.as_str(), &self.sasl)
             .field("secret_echoes", &self.secret_echoes)
+            .field("reply_secrets", &self.reply_secrets)
             .field("state", &self.state)
             .field("state_generation", &self.state_generation)
             .field("typing_generation", &self.typing_generation)
@@ -4068,6 +4070,7 @@ impl Session {
             welcome_state,
             sasl,
             secret_echoes,
+            reply_secrets: secret_echo::ReplySecrets::default(),
             state,
             state_generation: 0,
             typing_generation: 0,
@@ -4188,6 +4191,8 @@ impl Session {
         }
         match LineRef::parse(&decoded) {
             Ok(message) => {
+                let reply = self.reply_secrets.redact(&message);
+                let message = reply.as_ref().map_or(message, Line::as_ref);
                 let redacted = self
                     .secret_echoes
                     .mark_echo(redact_sensitive_server_line(&message), &message);
@@ -5445,6 +5450,14 @@ impl Session {
             }
             None => None,
         };
+        if !self.reply_secrets.track(&queued.line) {
+            self.outbox.close_and_discard(
+                CloseKind::Other,
+                "credential tracking limit reached".to_owned(),
+            );
+            self.apply_close_request();
+            return None;
+        }
         if let Some((old, new)) = resolved
             && !replace_wire_target(&mut queued.line, old, &new)
         {

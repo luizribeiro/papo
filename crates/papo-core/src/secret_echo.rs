@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, time::Duration};
 
-use papo_proto::{Line, LineRef, Param};
+use papo_proto::{Command, Line, LineRef, Param, Secret, WireLine};
 use web_time::Instant;
 
 use crate::RequestError;
@@ -128,5 +128,67 @@ impl SecretEchoes {
             repeated = true;
         }
         repeated
+    }
+}
+
+/// The peer can repeat a credential in a late or unlabelled reply. Keep the credentials for the
+/// session and refuse to send any beyond the bound.
+#[derive(Debug, Default)]
+pub(super) struct ReplySecrets(Vec<Secret>);
+
+impl ReplySecrets {
+    pub(super) fn track(&mut self, line: &WireLine) -> bool {
+        const MAX_CREDENTIALS: usize = 256;
+        let commands = [
+            "MODE",
+            "JOIN",
+            "OPER",
+            "PASS",
+            "REGISTER",
+            "VERIFY",
+            "WEBIRC",
+            "AUTHENTICATE",
+        ];
+        if !line.__has_secret_parameter()
+            || !LineRef::parse_bytes(line)
+                .is_ok_and(|message| commands.iter().any(|command| message.command_is(command)))
+        {
+            return true;
+        }
+        for value in papo_proto::__wire_secret_parameters(line).filter(|value| !value.is_empty()) {
+            if self.0.iter().any(|secret| secret.expose() == value) {
+                continue;
+            }
+            if self.0.len() == MAX_CREDENTIALS {
+                return false;
+            }
+            self.0.push(Secret::new(value));
+        }
+        true
+    }
+
+    pub(super) fn redact(&self, message: &LineRef<'_>) -> Option<Line> {
+        if self.0.is_empty()
+            || !(matches!(message.command(), Command::Numeric(_))
+                || [
+                    "FAIL", "WARN", "NOTE", "ERROR", "NOTICE", "REGISTER", "VERIFY",
+                ]
+                .iter()
+                .any(|command| message.command_is(command)))
+        {
+            return None;
+        }
+        let mut line = None;
+        let last = message.len().saturating_sub(1);
+        for (index, param) in message.params().enumerate() {
+            if self.0.iter().any(|secret| {
+                let value = secret.expose();
+                param == value || index == last && param.contains(value)
+            }) {
+                line.get_or_insert_with(|| message.to_owned())
+                    .__replace_param(index, REDACTED);
+            }
+        }
+        line
     }
 }

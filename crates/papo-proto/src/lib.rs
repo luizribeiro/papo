@@ -62,3 +62,11 @@ pub use text::{Segment, SegmentBoundary, split_text};
 pub use time::{InvalidServerTime, ServerTime};
 pub use views::{Account, Away, Chghost, Join, Setname, StandardReply, StandardReplyKind};
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};
+
+/// Borrows the secret parameters carried by an encoded line.
+#[doc(hidden)]
+pub fn __wire_secret_parameters(line: &WireLine) -> impl Iterator<Item = &str> {
+    line.secret_spans()
+        .iter()
+        .map(|span| std::str::from_utf8(&line[span.clone()]).expect("encoded parameters are UTF-8"))
+}

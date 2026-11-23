@@ -1947,6 +1947,41 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
 }
 
 #[tokio::test]
+async fn rejected_channel_key_stays_redacted() {
+    const KEY: &str = "hunter2,staff-only-6294";
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["batch", "labeled-response", "message-tags"])
+        .await;
+    connected(&mut events).await;
+    wire.server("005 papo-wire CHANMODES=beI,k,l,imnpst :are supported")
+        .await;
+    wire.server(":papo-wire!~papo@localhost JOIN #staff").await;
+
+    let request =
+        tokio::spawn(async move { client.set_modes("#staff").key(papo::Secret::new(KEY)).await });
+    let label = loop {
+        let sent = wire.next_sent().await;
+        if let Some(tags) = sent.strip_suffix(&format!(" MODE #staff +k {KEY}")) {
+            break tags.to_owned();
+        }
+    };
+    wire.server(format!(
+        "{label} :offline.test 696 papo-wire #staff k {KEY} :Invalid key mode parameter. Syntax: <key>."
+    ))
+    .await;
+    let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
+        panic!("expected server refusal")
+    };
+    assert_eq!(error.numeric(), Some(696));
+    assert_eq!(error.params()[3], "<redacted>");
+    assert!(!format!("{error:?} {error}").contains(KEY));
+}
+
+#[tokio::test]
 async fn raw_mode_response_redacts_the_channel_key() {
     let (client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
