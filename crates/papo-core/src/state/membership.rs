@@ -210,11 +210,16 @@ impl State {
             return;
         }
         if let Some(channel) = self.channel_mut(channel_name) {
+            let mut seen_modes = std::collections::HashSet::new();
             let prefixes = channel
                 .prefix_order
                 .iter()
                 .copied()
-                .filter(|prefix| prefixes.contains(&prefix.symbol()))
+                .filter(|prefix| {
+                    prefix.mode().is_ascii_alphabetic()
+                        && prefixes.contains(&prefix.symbol())
+                        && seen_modes.insert(prefix.mode())
+                })
                 .collect();
             channel.members.insert(
                 NameKey::new(nick, mapping),

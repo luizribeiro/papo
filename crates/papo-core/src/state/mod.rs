@@ -967,8 +967,17 @@ impl State {
 
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport, casemapping: Casemapping) {
         self.update_casemapping(casemapping);
-        self.isupport.clone_from(isupport);
         let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
+        let prefix_changed = !self.who_sweeps.is_empty()
+            && self.isupport.prefix().as_slice() != prefix_order.as_ref();
+        self.isupport.clone_from(isupport);
+        if prefix_changed {
+            for sweep in self.who_sweeps.values_mut() {
+                for changes in sweep.prefix_changes.values_mut() {
+                    changes.retain(|prefix, _| prefix_order.contains(prefix));
+                }
+            }
+        }
         let advertised_prefix_order: Option<Arc<[Prefix]>> =
             isupport.__advertised_prefix().map(Arc::from);
         for channel in self.channels.values_mut() {
@@ -2058,10 +2067,14 @@ impl Channel {
         prefix: Prefix,
         action: papo_proto::ModeAction,
     ) -> bool {
+        if !prefix.mode().is_ascii_alphabetic() {
+            return false;
+        }
         let Some(member) = self.members.get_mut(self.casemapping.fold(nick).as_ref()) else {
             return false;
         };
         if action == papo_proto::ModeAction::Add && !member.prefixes.contains(&prefix) {
+            member.prefixes.retain(|held| held.mode() != prefix.mode());
             member.prefixes.push(prefix);
             member.prefixes.sort_by_key(|held| {
                 self.prefix_order
@@ -2069,7 +2082,7 @@ impl Channel {
                     .position(|advertised| advertised == held)
             });
         } else if action == papo_proto::ModeAction::Remove {
-            member.prefixes.retain(|held| *held != prefix);
+            member.prefixes.retain(|held| held.mode() != prefix.mode());
         }
         true
     }

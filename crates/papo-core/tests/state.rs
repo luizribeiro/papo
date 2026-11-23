@@ -2913,3 +2913,31 @@ fn ignores_nonletter_user_modes_while_updates_continue() {
         })
         .ignore_rest();
 }
+
+#[test]
+fn member_prefixes_follow_the_current_advertisement_while_it_changes() {
+    Transcript::new(Config::default())
+        .server(":ergo.test 005 papo WHOX PREFIX=(ov)@+ :are supported")
+        .server(":papo!~papo@localhost JOIN #papo")
+        .server(":ergo.test 353 papo = #papo :papo +alice")
+        .server(":ergo.test 366 papo #papo :End of NAMES list")
+        .update(|session| {
+            let now = std::time::Instant::now();
+            for symbol in (0x4e00..0x51e8).filter_map(char::from_u32) {
+                let line = format!(":ergo.test 005 papo PREFIX=(ov){symbol}+ :are supported");
+                session.handle_line(now, line.as_bytes());
+                session.handle_line(now, b":papo!~papo@localhost MODE #papo +o alice");
+                while session.poll_event().is_some() {}
+            }
+        })
+        .server(":ergo.test 005 papo PREFIX=(ov)@+ :are supported")
+        .server(":papo!~papo@localhost MODE #papo +o alice")
+        .server(":ergo.test 354 papo 152 #papo ~alice localhost alice H+ 0 :Alice")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            let prefixes = channel.member("alice").unwrap().prefixes();
+            assert_eq!(prefixes.len(), 2);
+            assert_eq!(prefix_symbols(prefixes), ['@', '+']);
+        })
+        .ignore_rest();
+}
