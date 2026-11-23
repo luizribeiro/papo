@@ -68,7 +68,7 @@ expect_rejected 'let state = papo::__testing::exercise_session_mapping;' \
   "doc-hidden __-prefixed"
 expect_rejected 'use papo::{Client, __is_known_cap};' \
   "doc-hidden __-prefixed"
-expect_rejected 'let channel = state.__channel_local("#papo");' \
+expect_rejected 'let historical = message.actor.__names_a_past_line();' \
   "doc-hidden __-prefixed"
 expect_rejected 'let origin = Origin::__new(7);' \
   "doc-hidden __-prefixed"

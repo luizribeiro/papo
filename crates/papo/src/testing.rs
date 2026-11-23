@@ -19,6 +19,13 @@ use crate::{
     event::{AwayChanged, Connected, Joined},
 };
 
+/// Looks up a joined channel in a fixture snapshot.
+/// See [`crate::Conversation`] for status-prefixed line guidance.
+#[doc(hidden)]
+pub fn channel_local(state: &State, name: impl crate::AsChannel) -> Option<&crate::Channel> {
+    state.channel_local(name)
+}
+
 /// Exercises a complete core session and observes public events mapped from arbitrary server bytes.
 #[doc(hidden)]
 pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Event)) {

@@ -94,7 +94,7 @@ async fn replayed_history_is_marked_without_changing_live_state() {
         [Event::Joined(_), Event::NickChanged(_)]
     ));
     assert_eq!(state.nick(), "papo-wire");
-    assert!(state.__channel_local("#archive").is_none());
+    assert!(state.channel("#archive").unwrap().is_none());
     assert_eq!(client.snapshot().nick(), "papo-wire");
-    assert!(client.snapshot().__channel_local("#archive").is_none());
+    assert!(client.snapshot().channel("#archive").unwrap().is_none());
 }

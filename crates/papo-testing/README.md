@@ -13,8 +13,9 @@ papo-testing = "=0.1.0"
 ```
 
 Use `wire()` for scripted connections, `ErrorBuilder` for disconnects and server refusals, and
-`unsupported()` for unavailable-feature diagnostics. Live-server fixtures stay in papo's
-own conformance suite.
+`unsupported()` for unavailable-feature diagnostics. Use `channel_local()` to look up a joined
+channel in a test snapshot with a synthetic name. Live-server fixtures stay in papo's own
+conformance suite.
 
 ## Test a bot without a server
 

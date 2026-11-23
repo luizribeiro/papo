@@ -526,11 +526,6 @@ impl State {
         self.channel_parts(&crate::AsChannel::__parts(&name))
     }
 
-    #[doc(hidden)]
-    pub fn __channel_local(&self, name: impl crate::AsChannel) -> Option<&Channel> {
-        self.channel_local(name)
-    }
-
     fn channel_parts(&self, parts: &crate::target::sealed::Parts<'_>) -> Option<&Channel> {
         let current = parts
             .channel

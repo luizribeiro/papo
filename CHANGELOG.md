@@ -44,6 +44,8 @@ other events caused by a user.
 
 Renamed `Builder::tls_ca_pem` to `Builder::tls_only_ca_pem` to make its exclusive trust explicit.
 
+Channel state fixtures can use `papo_testing::channel_local`. Application code uses `State::channel`.
+
 Import `Disconnected` and `PersistenceStatus` (with `unstable`) from `papo::event`.
 
 Import `AccountOutcome` and `HistoryPage` from `papo::event`.

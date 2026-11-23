@@ -14,6 +14,15 @@ pub fn channel(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::C
     papo::__testing::channel_name(casemapping, text.as_ref())
 }
 
+/// Looks up a joined channel in a test snapshot using the snapshot's casemapping.
+///
+/// The fixture may use a synthetic name from a different origin. For status-prefixed targets,
+/// see the guidance on [`papo::Conversation`].
+#[must_use]
+pub fn channel_local(state: &State, name: impl papo::AsChannel) -> Option<&papo::Channel> {
+    papo::__testing::channel_local(state, name)
+}
+
 /// Builds a channel reference for the supplied client and its current channel state.
 ///
 /// The reference represents the whole channel. See [`papo::Conversation`] for ops-only lines.

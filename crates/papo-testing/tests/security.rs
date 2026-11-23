@@ -302,7 +302,8 @@ async fn unfinished_ban_list_stays_bounded_and_the_client_keeps_working() {
     assert_eq!(
         client
             .snapshot()
-            .__channel_local("#papo")
+            .channel("#papo")
+            .unwrap()
             .unwrap()
             .list(papo::ListMode::Ban),
         None
@@ -877,7 +878,7 @@ async fn foreign_names_cannot_read_another_clients_state() {
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .nick("alice");
-    assert!(second.snapshot().__channel_local("#papo").is_some());
+    assert!(papo_testing::channel_local(&second.snapshot(), &foreign_channel).is_some());
     assert_eq!(
         second.snapshot().channel(&foreign_channel),
         Err(papo::ForeignReference)
@@ -892,7 +893,7 @@ async fn foreign_names_cannot_read_another_clients_state() {
     assert!(second.snapshot().read_marker("#papo").is_some());
     assert!(second.snapshot().read_marker(&foreign_channel).is_none());
     let state = second.snapshot();
-    let channel = state.__channel_local("#papo").unwrap();
+    let channel = state.channel("#papo").unwrap().unwrap();
     assert!(channel.member("alice").unwrap().is_some());
     assert_eq!(channel.member(&foreign_nick), Err(papo::ForeignReference));
 }
@@ -1107,7 +1108,8 @@ async fn every_line_reference_refuses_a_stale_target() {
         .await;
     while client
         .snapshot()
-        .__channel_local("#review")
+        .channel("#review")
+        .unwrap()
         .and_then(papo::Channel::created_at)
         .is_none()
     {
@@ -2257,7 +2259,8 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
 
     let state = client.snapshot();
     let channel = state
-        .__channel_local("#papo")
+        .channel("#papo")
+        .unwrap()
         .expect("own join remains cached");
     assert_eq!(channel.topic(), Some("current topic"));
     assert!(channel.member("bob").unwrap().is_none());
@@ -2350,7 +2353,7 @@ async fn channel_keys_are_redacted_across_state_and_events() {
         papo::Event::Other(line) if line.numeric() == Some(777)
     ));
     let state = client.snapshot();
-    let channel = state.__channel_local("#staff").unwrap();
+    let channel = state.channel("#staff").unwrap().unwrap();
     assert_eq!(
         channel.key().map(papo::Secret::expose),
         Some("snapshot-key-2026")

@@ -47,7 +47,7 @@ async fn a_nick_taker_never_inherits_the_previous_holders_account_or_rank() {
     let taker = state.user("alice").unwrap().unwrap();
     assert_eq!(taker.username(), Some("~mallory"));
     assert!(!matches!(taker.account(), AccountStatus::LoggedIn(_)));
-    let channel = state.__channel_local("#lobby").unwrap();
+    let channel = state.channel("#lobby").unwrap().unwrap();
     let member = channel.member("alice").unwrap().unwrap();
     assert!(!member.is_at_least_op());
 }
