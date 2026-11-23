@@ -278,6 +278,10 @@ fn continuous_private_messages_evict_the_oldest_message_only_user() {
         b":alicia!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :signing off",
     );
     session.handle_line(now, b":alicia!~u@kq2ccwrbbbw6a.irc QUIT :Client Quit");
+    session.handle_line(
+        now,
+        b":carol!~u@users.example PRIVMSG papo-admin :please review the release",
+    );
     session.handle_line(now, ALICE_ADMIN.as_bytes());
     session.handle_line(now, b":alice!~u@8ajhv7kxgp7ag.irc NICK alicia");
     let nick = session.state().casemapping().nick("alicia");
@@ -293,6 +297,11 @@ fn continuous_private_messages_evict_the_oldest_message_only_user() {
         assert_eq!(
             session.state().user(nick.as_str()).is_some(),
             index < 999,
+            "{index}"
+        );
+        assert_eq!(
+            session.state().user("carol").is_some(),
+            index < 998,
             "{index}"
         );
         assert!(session.state().user(format!("guest{index}")).is_some());
@@ -464,4 +473,58 @@ fn message_only_identity_uses_who_whois_and_userhost_rows() {
         );
     }
     assert!(mismatches.is_empty(), "{mismatches:?}");
+}
+
+#[test]
+fn server_replies_fill_only_the_missing_message_sender_facts() {
+    for first in [
+        ":alice@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status",
+        ":alice!~u PRIVMSG papo-admin :release status",
+    ] {
+        let mut session = registered("message-tags account-notify");
+        let now = Instant::now();
+        let frame = b":ergo.test 302 papo-admin :alice=+~u@8ajhv7kxgp7ag.irc";
+        session.handle_line(now, first.as_bytes());
+        let before = token(&session, "alice");
+        session.handle_line(now, frame);
+        let alice = session.state().user("alice").unwrap();
+        assert_eq!(alice.username(), Some("~u"), "{first}");
+        assert_eq!(alice.host(), Some("8ajhv7kxgp7ag.irc"), "{first}");
+        assert_eq!(token(&session, "alice"), before);
+
+        let generation = session.state_generation();
+        session.handle_line(now, frame);
+        assert_eq!(session.state_generation(), generation);
+
+        session.handle_line(
+            now,
+            b":ergo.test 302 papo-admin :alice=+~mallory@8ajhv7kxgp7ag.irc",
+        );
+        assert_ne!(token(&session, "alice"), before);
+    }
+}
+
+#[test]
+fn whois_teaches_the_account_of_a_sender_with_unknown_login_state() {
+    let mut session = registered("message-tags account-notify");
+    let now = Instant::now();
+    session.handle_line(
+        now,
+        b":alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status",
+    );
+    let before = token(&session, "alice");
+    assert_eq!(account(&session, "alice"), Some(AccountStatus::Unknown));
+
+    session.handle_line(
+        now,
+        b":ergo.test 330 papo-admin alice alice :is logged in as",
+    );
+    assert_eq!(
+        account(&session, "alice"),
+        Some(logged_in(&session, "alice"))
+    );
+    assert_eq!(token(&session, "alice"), before);
+
+    session.handle_line(now, b":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT mallory");
+    assert_ne!(token(&session, "alice"), before);
 }
