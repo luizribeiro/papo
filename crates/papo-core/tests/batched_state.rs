@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{AccountStatus, Config, RateLimit, Session, State};
+use papo_core::{
+    AccountStatus, BatchAbandonReason, Config, Event, RateLimit, RecipientStatus, Session, State,
+};
 use papo_proto::Line;
 
 const MEMBERS: &[&str] = &[
@@ -14,6 +16,9 @@ const MEMBERS: &[&str] = &[
     ":ChanServ!ChanServ@services.int ACCOUNT *",
     ":ChanServ!ChanServ@services.int CHGHOST ChanServ services.example",
     ":operator!~op@staff.example MODE #papo +o ChanServ",
+    ":operator!~op@staff.example TOPIC #papo :Service restored",
+    ":ChanServ!ChanServ@services.int SETNAME :Network services",
+    ":irc.papo.test 353 papo = #papo :@alice",
 ];
 
 fn applied(state: &State, line: &str) -> bool {
@@ -23,10 +28,12 @@ fn applied(state: &State, line: &str) -> bool {
         "QUIT" => state.user("ChanServ").is_none(),
         "NICK" => state.user("ChanServ-away").is_some(),
         "PART" | "KICK" => channel.member("ChanServ").is_none(),
-        "JOIN" => channel.member("alice").is_some(),
+        "JOIN" | "353" => channel.member("alice").is_some(),
         "ACCOUNT" => chanserv().account() == &AccountStatus::LoggedOut,
         "CHGHOST" => chanserv().host() == Some("services.example"),
         "MODE" => !channel.member("ChanServ").unwrap().prefixes().is_empty(),
+        "TOPIC" => channel.topic() == Some("Service restored"),
+        "SETNAME" => chanserv().realname() == Some("Network services"),
         _ => unreachable!(),
     }
 }
@@ -37,6 +44,7 @@ enum Ending {
     Size,
     Timeout,
     OpenLimit,
+    Disconnect,
 }
 
 fn open_response(session: &mut Session, now: Instant) {
@@ -92,10 +100,27 @@ fn transcript(kind: &str, parent: Option<&str>, ending: Ending, member: &str, li
     read(&format!(
         "{parent_tag}:irc.papo.test BATCH +inner {kind}{parameters}"
     ));
-    read(&format!("@batch=inner {member}"));
+    let state = session.state();
+    let guard = state
+        .__capture_recipient(
+            state.casemapping().nick("ChanServ"),
+            state.user("ChanServ").unwrap().account().clone(),
+        )
+        .unwrap();
+    session.handle_line(now, format!("@batch=inner {member}").as_bytes());
     let case = (kind, parent, ending, member);
     let on_arrival = applied(session.state(), member);
     assert_eq!(on_arrival, live, "on arrival: {case:?}");
+    let recipient = session.state().__resolve_recipient(&guard);
+    match (live, member.split_ascii_whitespace().nth(1).unwrap()) {
+        (true, "QUIT" | "PART" | "KICK" | "ACCOUNT") => {
+            assert_eq!(recipient, RecipientStatus::Gone);
+        }
+        (true, "NICK") => {
+            assert!(matches!(recipient, RecipientStatus::Current(nick) if nick == "ChanServ-away"));
+        }
+        _ => assert!(matches!(recipient, RecipientStatus::Current(nick) if nick == "ChanServ")),
+    }
     match ending {
         Ending::Close => {
             session.handle_line(now, b":irc.papo.test BATCH -inner");
@@ -109,9 +134,32 @@ fn transcript(kind: &str, parent: Option<&str>, ending: Ending, member: &str, li
         ),
         Ending::Timeout => session.handle_timeout(now + Duration::from_secs(1)),
         Ending::OpenLimit => {}
+        Ending::Disconnect => {
+            let state = session.state();
+            let guard = state
+                .__capture_recipient(state.casemapping().nick("papo"), AccountStatus::Unknown)
+                .unwrap();
+            session.handle_disconnected(now);
+            assert_eq!(
+                session.state().__resolve_recipient(&guard),
+                RecipientStatus::Gone
+            );
+            return;
+        }
     }
     let after = applied(session.state(), member);
     assert_eq!(after, live, "after ending: {case:?}");
+    let reason = match ending {
+        Ending::Size => Some(BatchAbandonReason::LineLimit),
+        Ending::Timeout => Some(BatchAbandonReason::Timeout),
+        Ending::OpenLimit => Some(BatchAbandonReason::OpenBatchLimit),
+        Ending::Close | Ending::Disconnect => None,
+    };
+    if let Some(reason) = reason {
+        assert!(std::iter::from_fn(|| session.poll_event()).any(|event|
+            matches!(event, Event::BatchAbandoned { reason: actual, .. } if actual == reason)
+        ), "missing abandonment: {case:?}");
+    }
 }
 
 #[test]
@@ -134,6 +182,7 @@ fn live_batch_state_transcript_matrix() {
             Ending::Size,
             Ending::Timeout,
             Ending::OpenLimit,
+            Ending::Disconnect,
         ] {
             for &member in MEMBERS {
                 transcript(kind, parent, ending, member, live);

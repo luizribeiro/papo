@@ -368,11 +368,11 @@ fn a_failure_answers_the_send(now: Instant, silent: bool) {
         .iter()
         .position(|event| matches!(event, Event::AwayChanged { .. }))
         .expect("the away reply is reported");
+    assert_eq!(away, 0, "{events:?}");
     assert!(
-        matches!(events.first(), Some(Event::Response(_))),
+        matches!(events.get(1), Some(Event::Response(_))),
         "{events:?}"
     );
-    assert_eq!(away, events.len() - 1, "{events:?}");
 }
 
 #[test]

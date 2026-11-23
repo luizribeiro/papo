@@ -77,10 +77,22 @@ fn updates_presence(command: Command<'_>) -> bool {
             | Command::Numeric(
                 Numeric::RPL_NAMREPLY
                     | Numeric::RPL_ENDOFNAMES
+                    | Numeric::RPL_MONONLINE
+                    | Numeric::RPL_MONOFFLINE
                     | Numeric::RPL_WHOREPLY
                     | Numeric::RPL_WHOSPCRPL
                     | Numeric::RPL_ENDOFWHO
                     | Numeric::RPL_WHOISUSER
+                    | Numeric::RPL_WHOISBOT
+                    | Numeric::RPL_VISIBLEHOST
+                    | Numeric::RPL_AWAY
+                    | Numeric::RPL_UNAWAY
+                    | Numeric::RPL_NOWAWAY
+                    | Numeric::RPL_UMODEIS
+                    | Numeric::RPL_CHANNELMODEIS
+                    | Numeric::RPL_CREATIONTIME
+                    | Numeric::RPL_TOPIC
+                    | Numeric::RPL_TOPICWHOTIME
             )
     )
 }
