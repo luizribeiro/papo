@@ -103,9 +103,17 @@ async fn a_history_page_message_stamped_after_registration_runs_no_command() {
     ) {}
     let request = tokio::spawn({
         let client = client.clone();
-        async move { client.history("#ops").latest().limit(50).await }
+        async move {
+            let start = papo::ServerTime::from_stored("2026-11-16T09:00:01.000Z").unwrap();
+            let end = papo::ServerTime::from_stored("2026-11-16T09:00:04.000Z").unwrap();
+            client.history("#ops").between(start, end).limit(50).await
+        }
     });
-    let label = label_of(&mut wire, "CHATHISTORY LATEST #ops * 50").await;
+    let label = label_of(
+        &mut wire,
+        "CHATHISTORY BETWEEN #ops timestamp=2026-11-16T09:00:01.000Z timestamp=2026-11-16T09:00:04.000Z 50",
+    )
+    .await;
     for line in [
         format!("{label}:irc.libera.chat BATCH +reply labeled-response"),
         "@batch=reply :irc.libera.chat BATCH +history chathistory #ops".into(),

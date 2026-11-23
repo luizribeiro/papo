@@ -853,6 +853,78 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn history_page_messages_never_run_commands() {
+        let mut accepted = Vec::new();
+        for (caps, welcome_stamp) in [
+            ("batch server-time", "@time=2026-11-01T03:35:55.224Z "),
+            ("batch", ""),
+        ] {
+            for (case, time_tag) in [
+                ("before welcome", ";time=2026-11-01T03:31:52.503Z"),
+                ("after welcome", ";time=2026-11-01T03:36:02.731Z"),
+                ("without a stamp", ""),
+            ] {
+                let transcript = format!(
+                    ":irc.papo.test CAP * LS :{caps}\r\n\
+                     :irc.papo.test CAP papo{{bot}} ACK :{caps}\r\n\
+                     {welcome_stamp}:irc.papo.test 001 papo{{bot}} :Welcome to the papo IRC Network\r\n\
+                     :irc.papo.test 005 papo{{bot}} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n\
+                     :irc.papo.test 422 papo{{bot}} :MOTD File is missing\r\n\
+                     :irc.papo.test BATCH +history chathistory emily\r\n\
+                     @batch=history{time_tag} :emily!~emily@localhost PRIVMSG papo{{bot}} :!deploy staging\r\n\
+                     :irc.papo.test BATCH -history\r\n"
+                );
+                let (client, mut events, driver) =
+                    Client::builder("ircs://irc.example", "papo{bot}")
+                        .stream(TranscriptStream::new(&transcript))
+                        .build();
+                let driver = tokio::spawn(driver);
+                let (message, state) = loop {
+                    match events.next().await.expect("driver stopped") {
+                        (papo::Event::History(page), state) => {
+                            let Some(papo::Event::Message(message)) = page.items.into_iter().next()
+                            else {
+                                panic!("expected a message in history");
+                            };
+                            break (message, state);
+                        }
+                        (papo::Event::Disconnected(disconnected), _) => {
+                            panic!("disconnected: {disconnected}");
+                        }
+                        _ => {}
+                    }
+                };
+                assert_eq!(
+                    state.welcome_time(),
+                    welcome_stamp
+                        .strip_prefix("@time=")
+                        .map(|time| papo::ServerTime::from_stored(time.trim_end()).unwrap())
+                );
+                assert_eq!(
+                    state.caps().contains(&papo::cap::SERVER_TIME),
+                    !welcome_stamp.is_empty()
+                );
+                assert_eq!(
+                    message.server_time,
+                    time_tag
+                        .strip_prefix(";time=")
+                        .map(|time| papo::ServerTime::from_stored(time).unwrap())
+                );
+                if BotCommand::parse(&client, &state, &message, None, &BotConfig::new("!"))
+                    .is_some()
+                {
+                    accepted.push((caps, case));
+                }
+                driver.abort();
+            }
+        }
+        assert!(
+            accepted.is_empty(),
+            "accepted history commands: {accepted:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn ignores_a_message_from_another_client() {
         let transcript = concat!(
             ":ergo.test CAP * LS :\r\n",
