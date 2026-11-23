@@ -492,6 +492,7 @@ pub struct ServerNotice {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Other {
+    pub(crate) from_history: bool,
     /// The original parsed line.
     pub line: crate::Line,
     /// The server-assigned message identifier, when supplied.
@@ -715,12 +716,18 @@ pub(crate) fn incoming_from_core(
                 .is_some()
         })
     });
-    if received.batch_type().is_some_and(|kind| {
-        kind != crate::cap::LABELED_RESPONSE.as_str()
-            && kind != crate::cap::MULTILINE.as_str()
-            && !matches!(kind, "netsplit" | "netjoin")
-    }) {
-        return other_from_line(received.into_line(), received_at);
+    if let Some(kind) = received.batch_type()
+        && kind != crate::cap::LABELED_RESPONSE.as_str()
+        && kind != crate::cap::MULTILINE.as_str()
+        && !matches!(kind, "netsplit" | "netjoin")
+    {
+        let historical = [
+            crate::cap::CHATHISTORY.as_str(),
+            crate::cap::EVENT_PLAYBACK.as_str(),
+            "znc.in/playback",
+        ]
+        .contains(&papo_core::cap::canonical(kind));
+        return other_with_history(received.into_line(), received_at, historical);
     }
     if carries_a_secret(&received) {
         return other_from_line(received.into_line(), received_at);
@@ -1659,6 +1666,10 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
 }
 
 pub(crate) fn other_from_line(line: ProtoLine, received_at: SystemTime) -> Event {
+    other_with_history(line, received_at, false)
+}
+
+fn other_with_history(line: ProtoLine, received_at: SystemTime, from_history: bool) -> Event {
     let message = line.as_ref();
     let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
     // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so untyped playback
@@ -1666,6 +1677,7 @@ pub(crate) fn other_from_line(line: ProtoLine, received_at: SystemTime) -> Event
     let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
         .and_then(|value| ServerTime::from_stored(&value).ok());
     Event::Other(Other {
+        from_history,
         line: crate::Line(line),
         msgid,
         server_time,

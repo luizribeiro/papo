@@ -303,6 +303,9 @@ pub(crate) fn history_item(
             other(raw, received_at)
         }
     };
+    if let Event::Other(line) = &mut event {
+        line.from_history = true;
+    }
     crate::event_impl::attach_message_handles(
         &mut event,
         crate::event_impl::LineTokens::default(),

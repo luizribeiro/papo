@@ -1,6 +1,6 @@
 use super::{
-    CtcpQuery, CtcpReply, Joined, Kicked, Message, ModeChanged, NickChanged, Notice, Parted, Quit,
-    Reacted, Redacted, ServerNotice, TagMsg, TopicChanged,
+    CtcpQuery, CtcpReply, Joined, Kicked, Message, ModeChanged, NickChanged, Notice, Other, Parted,
+    Quit, Reacted, Redacted, ServerNotice, TagMsg, TopicChanged,
 };
 
 macro_rules! history_accessors {
@@ -39,6 +39,7 @@ history_accessors!(
     NickChanged: |self| self.from_history,
     TopicChanged: |self| self.from_history,
     ModeChanged: |self| self.from_history,
+    Other: |self| self.from_history,
 );
 
 #[cfg(all(test, not(browser)))]
@@ -114,7 +115,7 @@ mod tests {
 
     macro_rules! accessor {
         ($variant:ident) => {
-            |event| match event {
+            |event: &Event| match event {
                 Event::$variant(payload) => Some(payload.is_from_history()),
                 _ => None,
             }
@@ -201,6 +202,38 @@ mod tests {
         ];
         for &(line, accessor) in rows {
             assert_provenance(SOJU, "draft/event-playback", line, accessor);
+        }
+    }
+
+    #[test]
+    fn untyped_lines_keep_known_replay_context() {
+        for line in [
+            ":soju.example TAGMSG #review",
+            "NOTICE #review :Channel maintenance starts shortly",
+        ] {
+            assert_provenance(SOJU, "chathistory", line, accessor!(Other));
+        }
+
+        let now = Instant::now();
+        for (batch, historical) in [
+            ("znc.in/playback", true),
+            ("chathistory", true),
+            ("draft/chathistory", true),
+            ("draft/event-playback", true),
+            ("vendor/sync", false),
+        ] {
+            let mut session = Session::new(Config::default().nick("papo").max_open_batches(0));
+            session.handle_line(
+                now,
+                format!(":znc.example BATCH +replay {batch} #review").as_bytes(),
+            );
+            session.handle_line(now, b"@batch=replay;znc.in/server-time-iso=2026-10-19T14:31:11.456Z :emily!~e@localhost PRIVMSG #review :looks good");
+            let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+            let provenance = events
+                .into_iter()
+                .filter_map(|event| map_live(&session, event))
+                .find_map(|event| (accessor!(Other))(&event));
+            assert_eq!(provenance, Some(historical), "{batch}");
         }
     }
 }

@@ -1090,6 +1090,8 @@ pub papo::event::Other::line: papo::Line
 pub papo::event::Other::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Other::received_at: std::time::SystemTime
 pub papo::event::Other::server_time: core::option::Option<papo_proto::time::ServerTime>
+impl papo::event::Other
+pub const fn papo::event::Other::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Other
 pub fn papo::event::Other::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Other
