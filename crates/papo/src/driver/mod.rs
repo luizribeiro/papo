@@ -580,7 +580,11 @@ impl Events {
     ///
     /// The state is captured immediately after the event was applied and before any later event.
     /// Use [`Client::snapshot`] for the latest state outside event handling.
-    /// This method is cancel-safe: cancelling the future does not consume an event.
+    ///
+    /// # Cancellation
+    ///
+    /// Dropping a pending call leaves the next event available to a later call. Any event
+    /// removed from the queue is returned in the same poll.
     pub async fn next(&mut self) -> Option<(Event, Arc<State>)> {
         let next = std::future::poll_fn(|context| self.poll_next_with_state(context));
         #[cfg(all(test, not(browser)))]

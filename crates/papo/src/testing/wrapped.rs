@@ -14,6 +14,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> Stream for T {}
 ///
 /// Reconnects open a new connection and call `wrap` again.
 ///
+/// # Cancellation
+///
+/// The wrapper may already have received the stream when this future is dropped. As with
+/// [`crate::Builder::connect`], dropping it after spawning releases both handles and asks
+/// the driver to stop.
+///
+///
 /// # Errors
 ///
 /// Returns the same errors as [`crate::Builder::connect`].

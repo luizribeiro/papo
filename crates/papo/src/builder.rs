@@ -621,6 +621,12 @@ impl Builder {
     /// The connection remains alive while either returned handle exists. Dropping both sends a
     /// bare `QUIT`; use [`crate::Client::quit`] for an explicit shutdown reason and outcome.
     ///
+    /// # Cancellation
+    ///
+    /// Dropping this future before its first poll leaves the connection unopened. After the
+    /// driver is spawned, registration lines may already be on the wire, and dropping the
+    /// future drops both handles, asking the driver to stop and send `QUIT` if connected.
+    ///
     /// # Panics
     ///
     /// On native targets, panics when called outside a Tokio runtime because the driver is
