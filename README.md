@@ -113,6 +113,8 @@ conversation's peer by nickname. If that nickname is now yours, the reply fails 
 
 After a reconnect, replies to earlier DMs fail. Send to the nick instead.
 
+When your app returns to the foreground, use `client.check_connection(deadline)` to probe the connection and let papo recover if the server has gone silent.
+
 **Typed names.** `client.kick(channel, nick)` accepts a `ChannelName` and a `Nick` in that
 order. Swapping those typed arguments fails at compile time. Plain text is checked when the
 request runs.

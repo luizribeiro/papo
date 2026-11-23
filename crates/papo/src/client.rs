@@ -911,11 +911,36 @@ impl Client {
 
     /// Checks a doubtful connection, such as when a mobile app returns to the foreground.
     ///
-    /// Concurrent calls share the first deadline and the result.
+    /// A matching `PONG` received before `deadline` returns its round-trip time. Concurrent
+    /// calls share one probe, the first call's deadline, and the result. A connection that
+    /// answers stays open. A keepalive `PING` already sent can serve as the probe, so the
+    /// round-trip time can include time before the call.
+    ///
+    /// ```no_run
+    /// # async fn on_foreground(client: &papo::Client) -> Result<(), papo::Error> {
+    /// use std::time::Duration;
+    /// let round_trip = client.check_connection(Duration::from_secs(3)).await?;
+    /// # let _ = round_trip;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Silence through the deadline returns [`Error::Interrupted`] with
+    /// [`crate::DisconnectCause::PingTimeout`] and emits [`crate::Event::Disconnected`].
+    /// The first automatic retry has zero delay. [`crate::Reconnect::never`] and
+    /// [`Self::pause_reconnect`] still apply.
+    /// If other traffic arrived during the check, a missing `PONG` returns [`Error::Timeout`]
+    /// and the connection stays open.
+    ///
+    /// While connecting, registering, waiting for a reconnect, or after the driver stops,
+    /// returns [`Error::Disconnected`]. Use [`Self::reconnect`] to skip an existing backoff.
     ///
     /// # Cancellation
     ///
-    /// A queued check continues if the caller drops the future.
+    /// Dropping the future stops waiting for its result. Once queued, the check can still
+    /// run and end a silent connection.
     pub fn check_connection(&self, deadline: Duration) -> crate::RequestFuture<Duration> {
         let client = self.clone();
         crate::RequestFuture::new(async move {

@@ -62,3 +62,70 @@ async fn a_silent_connection_closes_at_the_deadline_and_retries_immediately() {
         Duration::from_secs(3)
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn a_silent_check_obeys_disabled_and_paused_reconnect() {
+    for paused in [false, true] {
+        let policy = if paused {
+            Reconnect::exponential()
+        } else {
+            Reconnect::never()
+        };
+        let (client, mut events, mut wire) =
+            wire(Client::builder("irc://offline.test", "papo").reconnect(policy));
+        wire.register(&[]).await;
+        connected(&mut events).await;
+        if paused {
+            client.pause_reconnect().await.unwrap();
+        }
+
+        let check = tokio::spawn(client.check_connection(Duration::from_secs(3)));
+        assert_eq!(wire.next_sent().await, "PING papo-check-0");
+        check.abort();
+        assert!(check.await.unwrap_err().is_cancelled());
+        advance(Duration::from_secs(3)).await;
+        let Some((Event::Disconnected(disconnected), _)) = events.next().await else {
+            panic!("expected the silent connection to disconnect");
+        };
+        assert_eq!(disconnected.cause, DisconnectCause::PingTimeout);
+        assert_eq!(disconnected.reconnect_in, paused.then_some(Duration::ZERO));
+        assert_eq!(wire.next_sent_or_closed().await, None);
+
+        if paused {
+            wire.close().await;
+            assert!(
+                tokio::time::timeout(Duration::from_millis(1), wire.next_sent())
+                    .await
+                    .is_err()
+            );
+            client.resume_reconnect().await.unwrap();
+            assert_eq!(wire.next_sent().await, "CAP LS 302");
+        } else {
+            assert!(events.next().await.is_none());
+        }
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_unrelated_line_preserves_the_connection() {
+    let (client, mut events, mut wire) =
+        wire(Client::builder("irc://offline.test", "papo").reconnect(Reconnect::never()));
+    wire.register(&[]).await;
+    connected(&mut events).await;
+
+    let check = tokio::spawn(client.check_connection(Duration::from_secs(3)));
+    assert_eq!(wire.next_sent().await, "PING papo-check-0");
+    advance(Duration::from_secs(2)).await;
+    wire.server("PING :offline.test").await;
+    assert_eq!(wire.next_sent().await, "PONG offline.test");
+    advance(Duration::from_secs(1)).await;
+    assert!(matches!(check.await.unwrap(), Err(Error::Timeout)));
+    assert!(client.snapshot().is_connected());
+
+    let fresh = tokio::spawn(client.check_connection(Duration::from_secs(3)));
+    assert_eq!(wire.next_sent().await, "PING papo-check-1");
+    advance(Duration::from_millis(50)).await;
+    wire.server(":offline.test PONG offline.test :papo-check-1")
+        .await;
+    assert_eq!(fresh.await.unwrap().unwrap(), Duration::from_millis(50));
+}

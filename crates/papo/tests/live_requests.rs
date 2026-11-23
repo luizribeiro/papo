@@ -34,6 +34,15 @@ async fn typed_requests_round_trip_against_ergo() {
             }
         }
 
+        client
+            .check_connection(std::time::Duration::from_secs(3))
+            .await
+            .unwrap();
+        assert!(matches!(
+            client.reconnect().await,
+            Err(papo::Error::AlreadyConnected)
+        ));
+
         let whois = client.whois(support::nick(&nick)).await.unwrap().unwrap();
         assert_eq!(whois.user.nick(), nick.as_str());
 
