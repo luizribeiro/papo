@@ -431,3 +431,37 @@ fn message_only_identity_uses_names_and_monitor_rows() {
     }
     assert!(mismatches.is_empty(), "{mismatches:?}");
 }
+
+#[test]
+fn message_only_identity_uses_who_whois_and_userhost_rows() {
+    let mut mismatches = Vec::new();
+    for evidence in [
+        ":ergo.test 352 papo-admin #review ~u kq2ccwrbbbw6a.irc ergo.test alice H :0 Alice",
+        ":ergo.test 352 papo-admin * ~u kq2ccwrbbbw6a.irc ergo.test alice H :0 Alice",
+        ":ergo.test 354 papo-admin 152 #review ~u kq2ccwrbbbw6a.irc alice H alice :Alice",
+        ":ergo.test 354 papo-admin 152 #review ~u 8ajhv7kxgp7ag.irc alice H mallory :Mallory",
+        ":ergo.test 354 papo-admin 152 * ~u 8ajhv7kxgp7ag.irc alice H mallory :Mallory",
+        ":ergo.test 311 papo-admin alice ~u kq2ccwrbbbw6a.irc * :Alice",
+        ":ergo.test 330 papo-admin alice mallory :is logged in as",
+        ":ergo.test 302 papo-admin :bob=+~u@localhost alice*=-~u@kq2ccwrbbbw6a.irc",
+        ":ergo.test 302 papo-admin :alice=+kq2ccwrbbbw6a.irc",
+    ] {
+        let result = observe_after_private_message(evidence);
+        if result != (false, RecipientStatus::Gone) {
+            mismatches.push((evidence, result));
+        }
+    }
+    for evidence in [
+        ":ergo.test 311 papo-admin alice ~u 8ajhv7kxgp7ag.irc * :Alice",
+        ":ergo.test 330 papo-admin alice alice :is logged in as",
+        ":ergo.test 302 papo-admin :alice=+~u@8ajhv7kxgp7ag.irc",
+        ":ergo.test 302 papo-admin :alice=~u@kq2ccwrbbbw6a.irc",
+    ] {
+        let (same_token, status) = observe_after_private_message(evidence);
+        assert!(
+            same_token && matches!(status, RecipientStatus::Current(_)),
+            "{evidence}"
+        );
+    }
+    assert!(mismatches.is_empty(), "{mismatches:?}");
+}

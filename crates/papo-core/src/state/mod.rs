@@ -332,12 +332,12 @@ impl AwayStatus {
     }
 }
 
-#[derive(Clone, Copy)]
 struct WhoUser<'a> {
     channel: &'a str,
     nick: &'a str,
     username: Option<&'a str>,
     host: Option<&'a str>,
+    account: Option<AccountStatus>,
     realname: Option<&'a str>,
 }
 

@@ -369,12 +369,67 @@ impl State {
         who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
+        let _ = self.observe_user_numeric(message);
         self.handle_visible_host(message, outbox)
             .or_else(|| self.handle_account(message, outbox))
             .or_else(|| self.handle_away(message, own_away_message, outbox))
             .or_else(|| self.handle_identity_change(message, outbox))
             .or_else(|| self.handle_bot_numeric(message))
             .or_else(|| self.handle_who(message, isupport, who_target, outbox))
+    }
+
+    fn observe_user_numeric(&mut self, message: &LineRef<'_>) -> Option<()> {
+        let nick = message.param(1)?;
+        match message.command() {
+            Command::Numeric(Numeric::RPL_WHOISUSER) => {
+                self.reconcile_message_user(
+                    nick,
+                    Some(message.param(2)?),
+                    Some(message.param(3)?),
+                    None,
+                );
+            }
+            Command::Numeric(Numeric::RPL_WHOISACCOUNT) => {
+                let account = AccountStatus::from_notify(Some(message.param(2)?), self.casemapping);
+                self.observe_who_facts(nick, None, None, Some(&account));
+            }
+            Command::Numeric(Numeric::RPL_USERHOST) => {
+                for entry in nick.split_whitespace() {
+                    if let Some((nick, userhost)) = entry.split_once('=')
+                        && let Some(userhost) = userhost.strip_prefix(['+', '-'])
+                    {
+                        let (username, host) = userhost
+                            .split_once('@')
+                            .map_or((None, userhost), |(username, host)| (Some(username), host));
+                        let nick = nick.strip_suffix('*').unwrap_or(nick);
+                        self.reconcile_message_user(
+                            nick,
+                            username.filter(|user| !user.is_empty()),
+                            Some(host).filter(|host| !host.is_empty()),
+                            None,
+                        );
+                    }
+                }
+            }
+            _ => return None,
+        }
+        Some(())
+    }
+
+    fn observe_who_facts(
+        &mut self,
+        nick: &str,
+        username: Option<&str>,
+        host: Option<&str>,
+        account: Option<&AccountStatus>,
+    ) {
+        let user = self.reconcile_message_user(nick, username, host, account);
+        if let (Some(user), Some(account)) = (user, account)
+            && user.account != *account
+        {
+            user.update_account(account.clone());
+            self.mark_changed();
+        }
     }
 
     fn handle_bot_numeric(&mut self, message: &LineRef<'_>) -> Option<Handled> {
@@ -508,25 +563,20 @@ impl State {
             return None;
         }
         let flags = reply.flags(isupport)?;
-        let Some(channel) = reply.channel.filter(|channel| self.is_who_sweep(channel)) else {
-            return self.apply_nick_who_away(message, who_target, nick, flags.presence, outbox);
-        };
-        let applied = self.apply_who_user(
+        self.apply_who_user(
             message,
             WhoUser {
-                channel,
+                channel: reply.channel.unwrap_or("*"),
                 nick,
                 username: reply.user,
                 host: reply.host,
+                account: Some(AccountStatus::from_notify(reply.account, self.casemapping)),
                 realname: reply.realname,
             },
             &flags,
+            who_target,
             outbox,
-        );
-        if applied && let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-            user.update_account(AccountStatus::from_notify(reply.account, self.casemapping));
-        }
-        Some(Handled::Yes)
+        )
     }
 
     fn apply_who_user(
@@ -534,18 +584,35 @@ impl State {
         message: &LineRef<'_>,
         reply: WhoUser<'_>,
         flags: &WhoxFlags,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
-    ) -> bool {
+    ) -> Option<Handled> {
         let channel = self.casemapping.channel(reply.channel);
         let nick = NameKey::new(reply.nick.to_owned(), self.casemapping);
         let sweep = self.who_sweeps.get(&channel);
         if sweep.is_some_and(|sweep| sweep.row_is_stale(&nick)) {
-            return false;
+            return Some(Handled::Yes);
         }
+        let tracked_channel = sweep.is_some();
         let prefix_changes = sweep
             .and_then(|sweep| sweep.prefix_changes.get(&nick))
             .cloned();
         let realname_changed = sweep.is_some_and(|sweep| sweep.realname_changes.contains(&nick));
+        self.observe_who_facts(
+            reply.nick,
+            reply.username,
+            reply.host,
+            reply.account.as_ref(),
+        );
+        if !tracked_channel {
+            return self.apply_nick_who_away(
+                message,
+                who_target,
+                reply.nick,
+                flags.presence,
+                outbox,
+            );
+        }
         self.add_member(
             reply.channel,
             reply.nick,
@@ -572,7 +639,14 @@ impl State {
             user.is_bot = Some(flags.bot);
         }
         self.apply_who_away(message, reply.nick, flags.presence, outbox);
-        true
+        if let Some(account) = reply.account
+            && let Some(user) = self
+                .users
+                .get_mut(self.casemapping.fold(reply.nick).as_ref())
+        {
+            user.update_account(account);
+        }
+        Some(Handled::Yes)
     }
 
     fn apply_who_away(
@@ -628,9 +702,6 @@ impl State {
         );
         let realname = hopcount_realname.split_once(' ')?.1;
         let flags = WhoxFlags::__parse(raw_flags, isupport);
-        if !self.is_who_sweep(channel) {
-            return self.apply_nick_who_away(message, who_target, nick, flags.presence, outbox);
-        }
         self.apply_who_user(
             message,
             WhoUser {
@@ -638,17 +709,13 @@ impl State {
                 nick,
                 username: Some(user),
                 host: Some(host),
+                account: None,
                 realname: Some(realname),
             },
             &flags,
+            who_target,
             outbox,
-        );
-        Some(Handled::Yes)
-    }
-
-    fn is_who_sweep(&self, channel: &str) -> bool {
-        self.who_sweeps
-            .contains_key(&self.casemapping.channel(channel))
+        )
     }
 
     fn apply_nick_who_away(
