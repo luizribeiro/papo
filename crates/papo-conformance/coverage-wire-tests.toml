@@ -125,6 +125,9 @@
   "security.sasl.verified-proof-before-success",
   "security.sasl.own-account-after-verified-proof",
 ]
+"security::unverified_scram_success_does_not_publish_a_late_account" = [
+  "security.sasl.hostile-note-9.no-account-after-unverified-success",
+]
 "security::scram_never_falls_back_to_plain_unsafely" = [
   "security.sasl.no-plain-fallback-after-bad-proof",
 ]

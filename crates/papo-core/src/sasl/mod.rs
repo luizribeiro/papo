@@ -128,6 +128,7 @@ pub(super) struct SaslSession {
     account: Option<String>,
     pending_account: Option<String>,
     account_update: AccountUpdate,
+    unsolicited_login: UnsolicitedLogin,
     challenge: String,
     entropy: Option<Box<dyn Entropy + Send>>,
     require: bool,
@@ -170,6 +171,12 @@ pub(super) enum AccountUpdate {
     LoggedIn(String),
     LoggedOut,
     Unknown,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum UnsolicitedLogin {
+    Allowed,
+    Suppressed,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -237,6 +244,7 @@ impl std::fmt::Debug for SaslSession {
             .field("account", &self.account)
             .field("pending_account", &self.pending_account)
             .field("account_update", &self.account_update)
+            .field("unsolicited_login", &self.unsolicited_login)
             .field("challenge_len", &self.challenge.len())
             .field("has_entropy", &self.entropy.is_some())
             .field("require", &self.require)
@@ -277,6 +285,7 @@ impl SaslSession {
             account: None,
             pending_account: None,
             account_update: AccountUpdate::Unchanged,
+            unsolicited_login: UnsolicitedLogin::Allowed,
             challenge: String::new(),
             entropy,
             require: config.sasl.as_ref().is_some_and(|sasl| sasl.required),
@@ -308,6 +317,7 @@ impl SaslSession {
         self.account = None;
         self.pending_account = None;
         self.account_update = AccountUpdate::Unchanged;
+        self.unsolicited_login = UnsolicitedLogin::Allowed;
         self.challenge.clear();
         self.failures.clear();
         self.failure_kind = FailureKind::Login;
@@ -539,13 +549,7 @@ impl SaslSession {
             }
         }
         if message.command_is("900") {
-            if let Some(account) = message.param(2) {
-                if self.is_exchanging() {
-                    self.pending_account = Some(account.to_owned());
-                } else {
-                    self.publish_account(Some(account.to_owned()));
-                }
-            }
+            self.handle_logged_in(message.param(2));
         } else if message.command_is("901") {
             self.pending_account = None;
             self.publish_account(None);
@@ -558,6 +562,10 @@ impl SaslSession {
                 || (matches!(self.active, Some(Mechanism::ScramSha256 { .. }))
                     && self.proof != Proof::Verified))
         {
+            if matches!(self.configured.first(), Some(Mechanism::ScramSha256 { .. })) {
+                // The account numeric can follow the rejected success numeric.
+                self.unsolicited_login = UnsolicitedLogin::Suppressed;
+            }
             self.fail_all("SCRAM succeeded without a verified server proof", outbox);
         } else if message.command_is("903") || message.command_is("907") {
             if self.active.is_some() {
@@ -568,6 +576,7 @@ impl SaslSession {
                 self.scram_step = ScramStep::None;
                 self.oauth_bearer_step = OAuthBearerStep::None;
                 self.completion = Completion::Success;
+                self.unsolicited_login = UnsolicitedLogin::Allowed;
                 if let Some(account) = self.pending_account.take() {
                     self.publish_account(Some(account));
                 } else if self.account.is_none() {
@@ -615,6 +624,16 @@ impl SaslSession {
             return false;
         }
         true
+    }
+
+    fn handle_logged_in(&mut self, account: Option<&str>) {
+        if let Some(account) = account {
+            if self.is_exchanging() {
+                self.pending_account = Some(account.to_owned());
+            } else if self.unsolicited_login == UnsolicitedLogin::Allowed {
+                self.publish_account(Some(account.to_owned()));
+            }
+        }
     }
 
     pub(super) fn unavailable(&mut self, reason: &str, outbox: &mut Outbox) {

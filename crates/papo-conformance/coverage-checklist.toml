@@ -73,6 +73,7 @@ ids = [
   "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
   "security.sasl.hostile-4.no-plain-after-scram-response",
   "security.sasl.own-account-after-verified-proof", "security.sasl.oauthbearer-error-challenge",
+  "security.sasl.hostile-note-9.no-account-after-unverified-success",
   "security.sasl.no-replay-after-success",
   "security.sasl.no-auto-login-after-registration",
   "security.sasl.no-auto-login-beside-batched-welcome",

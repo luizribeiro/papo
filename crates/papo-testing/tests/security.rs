@@ -1516,11 +1516,19 @@ impl papo::sts::StsStore for CaseSensitiveStsStore {
 }
 
 async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
+    start_scram_with(
+        address,
+        Sasl::password("alice", papo::Secret::new(PASSWORD)),
+    )
+    .await
+}
+
+async fn start_scram_with(address: &str, sasl: Sasl) -> (papo::Client, Events, Wire) {
     let (client, events, mut wire) = wire(
         papo::Client::builder(address, "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::password("alice", papo::Secret::new(PASSWORD)))
+            .sasl(sasl)
             .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
@@ -1744,6 +1752,29 @@ async fn scram_success_requires_verified_server_proof() {
         .await;
     let disconnected = sasl_disconnect(&mut events).await;
     assert_sasl_failure(&disconnected, "ServerSignatureMismatch");
+}
+
+#[tokio::test(start_paused = true)]
+async fn unverified_scram_success_does_not_publish_a_late_account() {
+    let (client, mut events, mut wire) = start_scram_with(
+        "ircs://offline.test",
+        Sasl::scram_sha256("alice", papo::Secret::new(PASSWORD)).optional(),
+    )
+    .await;
+    wire.server(":offline.test 903 papo-wire :SASL authentication successful")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP END");
+    wire.server(
+        ":offline.test 900 papo-wire papo-wire!~papo@localhost alice :You are now logged in as alice",
+    )
+    .await;
+    wire.server(":offline.test 001 papo-wire :Welcome to the hostile test network")
+        .await;
+    connected(&mut events).await;
+    assert!(matches!(
+        client.snapshot().account(),
+        papo::AccountStatus::Unknown | papo::AccountStatus::LoggedOut
+    ));
 }
 
 #[tokio::test(start_paused = true)]

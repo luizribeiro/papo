@@ -1353,14 +1353,14 @@ fn scram_start(require_sasl: bool) -> Transcript {
         .client("AUTHENTICATE SCRAM-SHA-256")
 }
 
-fn scram_after_client_first(require_sasl: bool) -> Transcript {
-    scram_start(require_sasl)
+fn scram_after_client_first(transcript: Transcript) -> Transcript {
+    transcript
         .server("AUTHENTICATE +")
         .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
 }
 
-fn scram_after_client_final(require_sasl: bool) -> Transcript {
-    scram_after_client_first(require_sasl)
+fn scram_after_client_final(transcript: Transcript) -> Transcript {
+    scram_after_client_first(transcript)
         .server(concat!(
             "AUTHENTICATE ",
             "cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGElaHZZRHBXVWEyUmFUQ0FmdXhGSWxqKWhObEYkazAs",
@@ -1374,13 +1374,13 @@ fn scram_after_client_final(require_sasl: bool) -> Transcript {
 }
 
 fn scram_until_server_final(server_final: &str) -> Transcript {
-    scram_after_client_final(false).server(server_final)
+    scram_after_client_final(scram_start(false)).server(server_final)
 }
 
 #[test]
 fn each_scram_step_renews_the_deadline() {
-    scram_after_client_first(false).deadline(Some(std::time::Duration::from_secs(30)));
-    scram_after_client_final(false).deadline(Some(std::time::Duration::from_secs(30)));
+    scram_after_client_first(scram_start(false)).deadline(Some(std::time::Duration::from_secs(30)));
+    scram_after_client_final(scram_start(false)).deadline(Some(std::time::Duration::from_secs(30)));
 }
 
 #[test]
@@ -1399,7 +1399,10 @@ fn rejects_a_non_empty_initial_scram_challenge() {
 #[test]
 fn rejects_scram_success_without_a_verified_server_proof() {
     for numeric in [903, 907] {
-        for transcript in [scram_start(true), scram_after_client_final(true)] {
+        for transcript in [
+            scram_start(true),
+            scram_after_client_final(scram_start(true)),
+        ] {
             transcript
                 .server(&format!(
                     ":ergo.test {numeric} user :SASL authentication successful"
@@ -1411,7 +1414,10 @@ fn rejects_scram_success_without_a_verified_server_proof() {
                 .no_client();
         }
 
-        for transcript in [scram_start(false), scram_after_client_final(false)] {
+        for transcript in [
+            scram_start(false),
+            scram_after_client_final(scram_start(false)),
+        ] {
             transcript
                 .server(&format!(
                     ":ergo.test {numeric} user :SASL authentication successful"
@@ -1427,7 +1433,7 @@ fn rejects_scram_success_without_a_verified_server_proof() {
 
 #[test]
 fn unverified_scram_success_discards_the_pending_account() {
-    scram_after_client_final(false)
+    scram_after_client_final(scram_start(false))
         .server(":ergo.test 900 user user!~u@host user :You are now logged in as user")
         .inspect(|session| {
             assert_eq!(session.account(), None);
@@ -1449,6 +1455,42 @@ fn unverified_scram_success_discards_the_pending_account() {
                 AccountStatus::Unknown | AccountStatus::LoggedOut
             ));
         });
+}
+
+#[test]
+fn unverified_scram_success_does_not_publish_a_late_account() {
+    let logged_in = ":ergo.test 900 papo papo!~u@host user :You are now logged in as user";
+    let after_rejected_success = || {
+        scram_start(false)
+            .server(":ergo.test 903 papo :SASL authentication successful")
+            .event(|event| {
+                matches!(event, Event::AuthenticationFailed { reason, .. }
+                    if reason.contains("without a verified server proof"))
+            })
+            .client("CAP END")
+            .server(logged_in)
+            .inspect(|session| assert_eq!(session.account(), None))
+    };
+
+    let retry = after_rejected_success()
+        .welcome(":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .reauthenticate()
+        .client("AUTHENTICATE SCRAM-SHA-256");
+    scram_after_client_final(retry)
+        .server("AUTHENTICATE dj1hV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==")
+        .client("AUTHENTICATE +")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .server(logged_in)
+        .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("900")))
+        .inspect(|session| assert_eq!(session.account(), Some("user")));
+
+    after_rejected_success()
+        .disconnect()
+        .connect_default()
+        .server(logged_in)
+        .inspect(|session| assert_eq!(session.account(), Some("user")));
 }
 
 #[test]
@@ -1484,7 +1526,7 @@ fn sasl_failure_discards_the_pending_account() {
 #[test]
 fn rejects_scram_success_while_aborting_a_bad_server_proof() {
     for require_sasl in [true, false] {
-        let transcript = scram_after_client_final(require_sasl)
+        let transcript = scram_after_client_final(scram_start(require_sasl))
             .server("AUTHENTICATE dj1iV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==")
             .client("AUTHENTICATE *")
             .server(":ergo.test 900 user user!u@host user :You are now logged in as user")
