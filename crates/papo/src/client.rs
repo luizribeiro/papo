@@ -1346,17 +1346,17 @@ impl Client {
     /// | The person quits (`QUIT`) | [`Error::TargetGone`]. |
     /// | The last shared channel is left and papo stops following the person | [`Error::TargetGone`]. |
     /// | Papo sees someone else take the nick | [`Error::TargetGone`]. |
+    /// | New user@host or account facts contradict those of a message-only sender | [`Error::TargetGone`]. |
     /// | This client reconnects or the bouncer loses its upstream connection | An earlier reference to the person returns [`Error::TargetGone`]. |
     /// | The app sends to the sender's `UserRef` from private history | [`Error::TargetGone`]. |
     /// | The app sends to the sender's `UserRef` from channel history | The send goes through only if the account on the line matches the account papo tracks for that nick. Otherwise it returns [`Error::TargetGone`]. |
     /// | The app replies to a channel message | The reply goes to the channel, keeping any status prefix, whatever happened to the sender. |
     /// | The app replies to a message from private history | The reply goes to whoever holds the thread's peer nick. If that is now your own nick, it returns [`Error::TargetGone`]. |
     ///
-    /// Starting a watch or receiving more ISUPPORT preserves message-only references.
-    /// If papo knows someone only from messages, it can treat a host change or a newly reported
-    /// login as a sign that someone else took the nick. A host change reported as a `QUIT` and a
-    /// `JOIN` also ends the earlier reference. With `account-tag` negotiated, papo reads a line
-    /// from another user, such as a message or a nick change, without the tag as “logged out.”
+    /// A watch change or ISUPPORT update alone preserves a message-only reference. Papo checks
+    /// facts from live user lines and from server replies such as NAMES, WHO and MONITOR.
+    /// With `account-tag` negotiated, papo reads a line from another user without the tag as
+    /// “logged out” unless the line reports the account in its parameters.
     ///
     /// If a private reply or a send to a user returns [`Error::TargetGone`], send directly to
     /// the nick if the app intends to reach whoever holds it at the time of the send.

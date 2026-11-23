@@ -1,3 +1,4 @@
+use papo::Event;
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -155,5 +156,113 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
         crate::source_nick(&broadcast.actor),
         Some(oper.snapshot().nick().as_str())
     );
+    Ok(())
+}
+
+/// refuses a private reply when only a later JOIN reveals the sender was replaced
+#[scenario(covers = ["security.recipient-1.live-join-handoff"])]
+async fn private_reply_refuses_unseen_join_handoff(s: Scenario) -> papo_testing::Result<()> {
+    let mut bot = s.connect("bot").await?;
+    let bouncer = s.server.bouncer();
+    let sender = |label| {
+        if let Some(bouncer) = bouncer {
+            let upstream = bouncer.upstream_addr();
+            let endpoint = papo::Endpoint::plaintext(upstream.ip().to_string(), upstream.port())?;
+            Ok(
+                papo::Client::builder(endpoint, papo_test_server::unique(label))
+                    .allow_insecure_auth(true),
+            )
+        } else {
+            s.configure(label)
+        }
+    };
+    let alice = s.connect_with(sender("alice")?.username("alice")).await?;
+    let mut replacement = sender("mallory")?.username("mallory");
+    if profile().starts_with("ergo-") || bouncer.is_some() {
+        replacement = replacement.webirc(
+            papo::WebIrc::new(
+                "papo-gateway",
+                papo::Secret::new(papo_test_server::WEBIRC_PASSWORD),
+                "192.0.2.42".parse()?,
+            )
+            .hostname("handoff.papo.test"),
+        );
+    }
+    let mut mallory = s.connect_with(replacement).await?;
+    let channel = s.channel_name();
+    bot.join(&channel).await?;
+    let nick = alice.snapshot().nick().clone();
+    alice
+        .privmsg(bot.snapshot().nick().as_str(), "release status")
+        .await?;
+    let (request, before) = bot
+        .wait_for_with_state(|event| message_text(event, "release status"))
+        .await?;
+    alice.quit().await?;
+    mallory.set_nick(nick.as_str()).await?;
+    assert_eq!(mallory.snapshot().nick(), nick.as_str());
+    mallory.join(&channel).await?;
+    let (newcomer, after) = bot
+        .wait_for_with_state(|event| {
+            event
+                .as_joined()
+                .filter(|joined| joined.actor.nick() == nick.as_str())
+        })
+        .await?;
+    let original = before.user(&request.actor)?.unwrap();
+    let replacement = after.user(&newcomer.actor)?.unwrap();
+    assert_ne!(
+        (original.username(), original.host()),
+        (replacement.username(), replacement.host())
+    );
+    assert_ne!(request.actor, newcomer.actor);
+    assert!(matches!(
+        bot.reply(&request, "release approved").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        bot.privmsg(&request.actor, "release approved").await,
+        Err(papo::Error::TargetGone)
+    ));
+    mallory
+        .expect_none(|event| message_text(event, "release approved"))
+        .await?;
+    Ok(())
+}
+
+/// keeps a private reply valid when either the sender or another user is watched
+#[scenario(requires(isupport = ["MONITOR"]), covers = [
+    "security.recipient-3.live-watch-keeps-reply"
+])]
+async fn private_reply_survives_watch(s: Scenario) -> papo_testing::Result<()> {
+    let mut bot = s.connect("bot").await?;
+    let mut alice = s.connect("alice").await?;
+    let bob = s.connect("bob").await?;
+    alice
+        .privmsg(bot.snapshot().nick().as_str(), "release status")
+        .await?;
+    let request = bot
+        .wait_for(|event| message_text(event, "release status"))
+        .await?;
+    let bob_nick = bob.snapshot().nick().to_string();
+    let _bob_watch = bot.watch(&bob_nick);
+    bot.wait_for(|event| {
+        event
+            .as_monitor_online()
+            .filter(|online| online.subject.nick() == bob_nick.as_str())
+    })
+    .await?;
+    bot.reply(&request, "release approved").await?;
+    alice
+        .wait_for(|event| message_text(event, "release approved"))
+        .await?;
+
+    let _alice_watch = request.actor.watch();
+    let online = bot.wait_for(Event::as_monitor_online).await?;
+    assert_eq!(online.subject, request.actor);
+    bot.reply(&request, "release published").await?;
+    alice
+        .wait_for(|event| message_text(event, "release published"))
+        .await?;
     Ok(())
 }

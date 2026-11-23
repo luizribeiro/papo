@@ -515,6 +515,9 @@ Deliver away replies and presence notifications for users outside the tracked ro
 WHOIS bot markers, metadata deferrals, login and logout replies, and prefixless topic and mode
 changes are available as `Event::Other`.
 
+Private replies and sends to a message-only user return `TargetGone` when a later line
+shows conflicting user or account facts for their nick.
+
 Private replies remain usable when a watch changes or the server sends more ISUPPORT.
 
 - A reconnect history catchup whose `CHATHISTORY` request times out, fails or is aborted is
