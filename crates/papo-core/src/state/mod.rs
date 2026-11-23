@@ -660,12 +660,22 @@ impl State {
             &mut self.latest_server_time_order,
             BoundedCollection::new(config.max_read_markers),
         );
-        let mut rejoin_creation_times = std::mem::take(&mut self.rejoin_creation_times);
+        let previous_creation_times = std::mem::take(&mut self.rejoin_creation_times);
+        let mut rejoin_creation_times = HashMap::new();
         for channel in self.channels.values() {
             if let Some(created_at) = channel.created_at {
                 rejoin_creation_times
                     .insert(NameKey::new(channel.name.as_str(), casemapping), created_at);
             }
+        }
+        // Preserve observations from older connections when slots are still available.
+        for (channel, created_at) in previous_creation_times {
+            if rejoin_creation_times.len() >= config.max_channels {
+                break;
+            }
+            rejoin_creation_times
+                .entry(NameKey::new(channel.original(), casemapping))
+                .or_insert(created_at);
         }
         let reply_epoch = self
             .reply_epoch
@@ -698,12 +708,7 @@ impl State {
                 debug_assert!(evicted.is_none());
             }
         }
-        self.rejoin_creation_times = rejoin_creation_times
-            .into_iter()
-            .map(|(channel, created_at)| {
-                (NameKey::new(channel.original(), casemapping), created_at)
-            })
-            .collect();
+        self.rejoin_creation_times = rejoin_creation_times;
     }
 
     /// Returns the receipt position used to guard a response built outside the core.
@@ -2660,5 +2665,32 @@ mod tests {
         assert!(sweep.prefix_changes.len() <= 3);
         assert!(sweep.realname_changes.len() <= 3);
         assert!(sweep.changed_members_overflowed);
+    }
+
+    #[test]
+    fn remembers_at_most_the_channel_limit_of_old_creation_times() {
+        let now = web_time::Instant::now();
+        let mut session = crate::Session::new(Config::default().max_channels(2));
+        for index in 0..100 {
+            session.handle_connected(now);
+            session.handle_line(
+                now,
+                format!(":papo!~papo@localhost JOIN #papo{index}").as_bytes(),
+            );
+            session.handle_line(
+                now,
+                format!(":ergo.test 329 papo #papo{index} 1700000000").as_bytes(),
+            );
+            session.handle_disconnected(now);
+            assert!(session.state().rejoin_creation_times.len() <= 2);
+            assert!(
+                session
+                    .state()
+                    .rejoin_creation_times
+                    .keys()
+                    .any(|key| key.original() == format!("#papo{index}"))
+            );
+        }
+        assert_eq!(session.state().rejoin_creation_times.len(), 2);
     }
 }
