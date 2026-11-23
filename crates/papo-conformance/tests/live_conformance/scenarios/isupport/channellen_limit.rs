@@ -43,11 +43,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
 
     for peer in [&alice, &bob] {
         assert_eq!(
-            peer.snapshot()
-                .__channel_local(&at_limit)
-                .unwrap()
-                .name()
-                .as_str(),
+            peer.snapshot().channel(&at_limit)?.unwrap().name().as_str(),
             at_limit
         );
     }
@@ -61,7 +57,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(name, over);
     assert_eq!(reason, InvalidIdentifier::__too_long(n + 1, n));
 
-    assert!(alice.snapshot().__channel_local(&over).is_none());
+    assert!(alice.snapshot().channel(&over)?.is_none());
     assert_eq!(alice.snapshot().channels().count(), 1);
     alice.expect_none(Event::as_joined).await?;
     bob.expect_none(Event::as_joined).await?;

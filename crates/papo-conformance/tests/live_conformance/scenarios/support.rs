@@ -307,7 +307,7 @@ pub(super) fn reaction_or_skip<T>(reaction: Result<T, Error>) -> papo_testing::R
 pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {
     if peer
         .snapshot()
-        .__channel_local(channel)
+        .channel(channel)?
         .is_some_and(papo::Channel::is_synced)
     {
         return Ok(());

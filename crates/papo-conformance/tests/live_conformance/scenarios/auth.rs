@@ -320,7 +320,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     let state = alice.snapshot();
     let founder = state
-        .__channel_local(&channel)
+        .channel(&channel)?
         .unwrap()
         .member(state.nick())
         .unwrap()

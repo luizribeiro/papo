@@ -48,7 +48,7 @@ async fn joined_pair(
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
         let members = state
-            .__channel_local(&channel)
+            .channel(&channel)?
             .expect("joined channel is in state");
         assert!(members.is_synced());
         assert!(
@@ -490,7 +490,7 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let phone_state = phone.snapshot();
     let attached = phone_state
-        .__channel_local(&channel)
+        .channel(&channel)?
         .expect("another account session inherits joined channels");
     assert!(attached.is_synced());
 
@@ -526,7 +526,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
             .is_none()
     );
 
-    if phone.snapshot().__channel_local(&channel).is_none() {
+    if phone.snapshot().channel(&channel)?.is_none() {
         phone.join(&channel).await?;
     }
     let text = "message from another logged-in session";
@@ -586,7 +586,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.msgid(), Some(confirmed_line(&sent).0));
     assert!(
         bob.snapshot()
-            .__channel_local(&channel)
+            .channel(&channel)?
             .and_then(|members| members.member(bob.snapshot().nick().clone()).unwrap())
             .is_some_and(|member| member
                 .prefixes()
@@ -832,7 +832,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     if alice
         .snapshot()
-        .__channel_local(&channel)
+        .channel(&channel)?
         .is_some_and(|channel| channel.mode('C').is_some())
     {
         return s.skip("the channel has no-CTCP mode set");

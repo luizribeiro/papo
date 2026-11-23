@@ -40,7 +40,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         alice
             .snapshot()
-            .__channel_local(&channel)
+            .channel(&channel)?
             .unwrap()
             .member(at_limit.as_str())
             .unwrap()
@@ -49,7 +49,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         alice
             .snapshot()
-            .__channel_local(&channel)
+            .channel(&channel)?
             .unwrap()
             .member(original.as_str())
             .unwrap()

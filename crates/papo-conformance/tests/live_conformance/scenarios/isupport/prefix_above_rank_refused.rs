@@ -41,7 +41,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
 
     for peer in [&alice, &bob, &carol] {
         let state = peer.snapshot();
-        let channel_state = state.__channel_local(&channel).unwrap();
+        let channel_state = state.channel(&channel)?.unwrap();
         assert!(
             channel_state
                 .member(bob_nick.as_str())
@@ -82,7 +82,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     for peer in [&alice, &bob, &carol] {
         let state = peer.snapshot();
         let member = state
-            .__channel_local(&channel)
+            .channel(&channel)?
             .unwrap()
             .member(bob_nick.as_str())
             .unwrap()

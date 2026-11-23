@@ -70,13 +70,8 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(joined.channel.name().as_str(), mixed_channel);
     assert_same_channel(&square.snapshot(), &mixed_channel, &lowercase_channel);
-    assert!(
-        square
-            .snapshot()
-            .__channel_local(&lowercase_channel)
-            .is_some()
-    );
-    assert!(curly.snapshot().__channel_local(&mixed_channel).is_some());
+    assert!(square.snapshot().channel(&lowercase_channel)?.is_some());
+    assert!(curly.snapshot().channel(&mixed_channel)?.is_some());
 
     let base = alice.snapshot().nick().clone();
     let bob_original = bob.snapshot().nick().clone();
@@ -124,13 +119,13 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
 
     alice.expect_none(Event::as_joined).await?;
 
-    assert!(alice.snapshot().__channel_local(&folded).is_none());
+    assert!(alice.snapshot().channel(&folded)?.is_none());
     let alice_state = alice.snapshot();
     let found = alice_state
-        .__channel_local(chan.as_str().to_ascii_uppercase())
+        .channel(chan.as_str().to_ascii_uppercase())?
         .expect("ascii folding finds the channel by its letter-uppercased name");
     assert_eq!(found.name().as_str(), chan);
-    assert!(bob.snapshot().__channel_local(&chan).is_none());
+    assert!(bob.snapshot().channel(&chan)?.is_none());
 
     let channel_name = name_rules(&alice_state).channel(&chan);
     assert_ne!(channel_name, folded.as_str());
@@ -139,7 +134,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         alice
             .snapshot()
-            .__channel_local(&chan)
+            .channel(&chan)?
             .unwrap()
             .member(alice_square_nick.as_str().to_ascii_uppercase())
             .unwrap()

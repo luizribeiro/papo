@@ -113,7 +113,8 @@ fn allowed_prefixes(expected: &[Prefix]) -> Vec<Prefix> {
 
 fn member_prefixes(state: &State, channel: &str, nick: &str) -> Vec<char> {
     state
-        .__channel_local(channel)
+        .channel(channel)
+        .unwrap()
         .unwrap()
         .member(nick)
         .unwrap()
@@ -199,7 +200,7 @@ async fn assert_dave_view(
     dave.join(channel).await?;
     let state = dave.snapshot();
     let member = state
-        .__channel_local(channel)
+        .channel(channel)?
         .unwrap()
         .member(bob_nick.as_str())
         .unwrap()
