@@ -102,7 +102,7 @@ pub struct AccountChanged {
     pub actor: crate::UserRef,
     /// The account state after the change.
     ///
-    /// This is retained because it describes the change itself.
+    /// Contradictory account evidence reports [`AccountStatus::Unknown`].
     pub account: AccountStatus,
     /// Who the affected user is relative to you.
     pub actor_party: Party,

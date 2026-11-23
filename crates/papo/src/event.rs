@@ -1637,15 +1637,12 @@ fn core_envelope(
         msgid: envelope.msgid().map(MessageId::from),
         server_time: envelope.server_time(),
         received_at,
-        account: envelope.account().map_or_else(
-            || {
-                if envelope.__account_known() || account_tag_enabled {
-                    AccountStatus::LoggedOut
-                } else {
-                    AccountStatus::Unknown
-                }
+        account: envelope.__reported_account(casemapping, origin).unwrap_or(
+            if account_tag_enabled {
+                AccountStatus::LoggedOut
+            } else {
+                AccountStatus::Unknown
             },
-            |account| AccountStatus::LoggedIn(origin.__account(casemapping, account)),
         ),
     }
 }
@@ -2254,14 +2251,18 @@ pub(crate) fn from_core_with_receipt(
     handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> CoreEvent {
     let actor_account = |envelope: &papo_core::LineEnvelope, party| {
-        let (tag, user_source) = envelope.__actor_account_evidence();
-        if let Some(name) = tag {
-            AccountStatus::LoggedIn(origin.__account(casemapping, name))
-        } else if account_tag_enabled && party == papo_core::Party::Other && user_source {
-            AccountStatus::LoggedOut
-        } else {
-            AccountStatus::Unknown
-        }
+        envelope
+            .__reported_account(casemapping, origin)
+            .unwrap_or_else(|| {
+                if account_tag_enabled
+                    && party == papo_core::Party::Other
+                    && envelope.__actor_account_evidence().1
+                {
+                    AccountStatus::LoggedOut
+                } else {
+                    AccountStatus::Unknown
+                }
+            })
     };
     let map_envelope = |envelope| {
         core_envelope(
@@ -3751,20 +3752,22 @@ mod tests {
     }
 
     #[test]
-    fn an_untagged_join_uses_capability_and_source_inference() {
+    fn untagged_extended_join_reports_its_account() {
         let now = Instant::now();
         let join = ":alice!~alice@cloak.example JOIN #review alice :Alice";
         for (line, cap, expected) in [
-            (join, true, AccountStatus::LoggedOut),
-            (join, false, AccountStatus::Unknown),
+            (join, true, "alice"),
+            (join, false, "alice"),
             (
                 ":papo!~papo@localhost JOIN #review papo :Papo",
                 true,
-                AccountStatus::Unknown,
+                "papo",
             ),
         ] {
             let event = mapped_live_event_with_account_tag(line, now, cap);
-            assert_eq!(event.as_joined().unwrap().actor_account(), &expected);
+            assert!(
+                matches!(event.as_joined().unwrap().actor_account(), AccountStatus::LoggedIn(name) if name == expected)
+            );
         }
     }
 

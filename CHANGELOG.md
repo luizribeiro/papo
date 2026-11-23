@@ -511,6 +511,9 @@ from `papo` to `papo-testing`.
 
 ### Fixed
 
+`actor_account()` uses the account stated by an `ACCOUNT` or extended `JOIN` line.
+Conflicting command and tag values report an unknown account.
+
 Deliver away replies and presence notifications for users outside the tracked roster. Standalone
 WHOIS bot markers, metadata deferrals, login and logout replies, and prefixless topic and mode
 changes are available as `Event::Other`.
