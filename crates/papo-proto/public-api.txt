@@ -1253,7 +1253,10 @@ pub papo_proto::NamesEntry::nick: &'a str
 pub papo_proto::NamesEntry::prefixes: alloc::vec::Vec<char>
 pub papo_proto::NamesEntry::user: core::option::Option<&'a str>
 impl<'a> papo_proto::NamesEntry<'a>
+pub fn papo_proto::NamesEntry<'a>::is_at_least_op(&self) -> bool
+pub fn papo_proto::NamesEntry<'a>::is_at_least_voice(&self) -> bool
 pub fn papo_proto::NamesEntry<'a>::parse(&'a str, &papo_proto::Isupport) -> Self
+pub fn papo_proto::NamesEntry<'a>::prefixes(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_proto::Prefix> + '_
 impl<'a> core::clone::Clone for papo_proto::NamesEntry<'a>
 pub fn papo_proto::NamesEntry<'a>::clone(&self) -> Self
 impl<'a> core::cmp::Eq for papo_proto::NamesEntry<'a>

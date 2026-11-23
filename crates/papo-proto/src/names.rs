@@ -1,4 +1,4 @@
-use crate::{Command, Isupport, LineRef, Numeric, source::split_user};
+use crate::{Command, Isupport, LineRef, Numeric, Prefix, source::split_user};
 
 /// The namespace containing a protocol name.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -52,17 +52,21 @@ pub struct NamesEntry<'a> {
     pub user: Option<&'a str>,
     /// The member's hostname when `userhost-in-names` is active.
     pub host: Option<&'a str>,
+    prefix_order: Vec<Prefix>,
+    advertised_prefix: bool,
 }
 
 impl<'a> NamesEntry<'a> {
     /// Parses one NAMES entry using the server's advertised prefix symbols.
     #[must_use]
     pub fn parse(entry: &'a str, isupport: &Isupport) -> Self {
-        let advertised = isupport.prefix();
+        let advertised = isupport.__advertised_prefix();
+        let advertised_prefix = advertised.is_some();
+        let prefix_order = advertised.unwrap_or_else(|| isupport.prefix());
         let prefix_bytes = entry
             .char_indices()
             .take_while(|(_, character)| {
-                advertised
+                prefix_order
                     .iter()
                     .any(|prefix| prefix.symbol() == *character)
             })
@@ -76,7 +80,39 @@ impl<'a> NamesEntry<'a> {
             nick,
             user,
             host,
+            prefix_order,
+            advertised_prefix,
         }
+    }
+
+    /// Returns the held membership letters and symbols in server order.
+    pub fn prefixes(&self) -> impl Iterator<Item = Prefix> + '_ {
+        self.prefix_order
+            .iter()
+            .copied()
+            .filter(|prefix| self.prefixes.contains(&prefix.symbol()))
+    }
+
+    /// Reports whether a held prefix reaches operator in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
+    #[must_use]
+    pub fn is_at_least_op(&self) -> bool {
+        self.advertised_prefix
+            && Prefix::__reaches(&self.prefix_order, 'o', |prefix| {
+                self.prefixes.contains(&prefix.symbol())
+            })
+    }
+
+    /// Reports whether a held prefix reaches voice in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
+    #[must_use]
+    pub fn is_at_least_voice(&self) -> bool {
+        self.advertised_prefix
+            && Prefix::__reaches(&self.prefix_order, 'v', |prefix| {
+                self.prefixes.contains(&prefix.symbol())
+            })
     }
 }
 

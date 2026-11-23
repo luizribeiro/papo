@@ -64,21 +64,18 @@ fn parses_multi_prefix_and_userhost_entries_together_and_apart() {
     support.apply_tokens(["PREFIX=(qaohv)~&@%+"]);
 
     assert_eq!(
-        NamesEntry::parse("@+alice!~alice@user/alice", &support),
+        parse_entry("@+alice!~alice@user/alice", &support),
         entry(&['@', '+'], "alice", Some("~alice"), Some("user/alice"))
     );
     assert_eq!(
-        NamesEntry::parse("bob!~bob@192.0.2.4", &support),
+        parse_entry("bob!~bob@192.0.2.4", &support),
         entry(&[], "bob", Some("~bob"), Some("192.0.2.4"))
     );
     assert_eq!(
-        NamesEntry::parse("%carol", &support),
+        parse_entry("%carol", &support),
         entry(&['%'], "carol", None, None)
     );
-    assert_eq!(
-        NamesEntry::parse("dan", &support),
-        entry(&[], "dan", None, None)
-    );
+    assert_eq!(parse_entry("dan", &support), entry(&[], "dan", None, None));
 }
 
 #[test]
@@ -87,10 +84,10 @@ fn strips_only_advertised_prefix_characters() {
     support.apply_tokens(["PREFIX=(ov)@+"]);
 
     assert_eq!(
-        NamesEntry::parse("~alice!ident@cloak.example", &support),
+        parse_entry("~alice!ident@cloak.example", &support),
         entry(&[], "~alice", Some("ident"), Some("cloak.example"))
     );
-    assert_eq!(NamesEntry::parse("", &support), entry(&[], "", None, None));
+    assert_eq!(parse_entry("", &support), entry(&[], "", None, None));
 }
 
 #[test]
@@ -121,11 +118,37 @@ fn entry<'a>(
     nick: &'a str,
     user: Option<&'a str>,
     host: Option<&'a str>,
-) -> NamesEntry<'a> {
-    NamesEntry {
-        prefixes: prefixes.to_vec(),
-        nick,
-        user,
-        host,
-    }
+) -> Entry<'a> {
+    (prefixes.to_vec(), nick, user, host)
+}
+
+type Entry<'a> = (Vec<char>, &'a str, Option<&'a str>, Option<&'a str>);
+
+fn parse_entry<'a>(raw: &'a str, support: &Isupport) -> Entry<'a> {
+    let entry = NamesEntry::parse(raw, support);
+    (entry.prefixes, entry.nick, entry.user, entry.host)
+}
+
+#[test]
+fn names_entry_checks_privileges_against_the_advertised_table() {
+    let mut support = Isupport::default();
+    let fallback = NamesEntry::parse("@alice", &support);
+    assert!(!fallback.is_at_least_op());
+    assert!(!fallback.is_at_least_voice());
+    support.apply_tokens(["PREFIX=(ohqv)@%!+"]);
+    let low = NamesEntry::parse("!alice", &support);
+    assert_eq!(
+        low.prefixes()
+            .map(|prefix| (prefix.mode(), prefix.symbol()))
+            .collect::<Vec<_>>(),
+        [('q', '!')]
+    );
+    assert!(!low.is_at_least_op());
+    assert!(low.is_at_least_voice());
+    let high = NamesEntry::parse("@+alice", &support);
+    assert!(high.is_at_least_op());
+    assert!(high.is_at_least_voice());
+    let unknown = NamesEntry::parse("~alice", &support);
+    assert!(!unknown.is_at_least_op());
+    assert!(!unknown.is_at_least_voice());
 }
