@@ -3,13 +3,18 @@ use tokio::{
     sync::mpsc::UnboundedReceiver,
 };
 
+use papo::__testing::WireIo;
+
 use crate::driver_task::DriverTask;
 
 const MAX_LINE_LEN: usize = 8191 + 512;
 
 /// The server side of an in-memory IRC connection.
+///
+/// Cancelling a write or a read that consumed part of a line closes the stream.
+/// Subsequent I/O on the interrupted fixture panics.
 pub struct Wire {
-    stream: Option<DuplexStream>,
+    stream: Option<WireIo>,
     endpoint: Option<String>,
     connections: UnboundedReceiver<(DuplexStream, String)>,
     driver: DriverTask,
@@ -135,6 +140,8 @@ impl Wire {
 
     /// Reads the next complete line sent by the client, without its terminator.
     ///
+    /// Cancellation follows [`Self::next_sent_or_closed`].
+    ///
     /// # Panics
     ///
     /// Panics if the client closes the pipe mid-line, sends non-UTF-8 text, or
@@ -147,12 +154,24 @@ impl Wire {
 
     /// Reads the next complete client line, or `None` when the client closes cleanly.
     ///
+    /// # Cancellation
+    ///
+    /// Cancelling before the first byte leaves the fixture usable. Cancelling after consuming
+    /// part of the line closes and poisons the fixture.
+    ///
     /// # Panics
     ///
     /// Panics if the client sends non-UTF-8 text or a line exceeds 8703 bytes.
     pub async fn next_sent_or_closed(&mut self) -> Option<String> {
         let stream = self.stream().await;
-        let mut line = Vec::new();
+        let first = stream.read_byte().await.ok()?;
+        stream
+            .run(async |io| Self::read_line(io, first).await)
+            .await
+    }
+
+    async fn read_line(stream: &mut DuplexStream, first: u8) -> Option<String> {
+        let mut line = vec![first];
         loop {
             let byte = stream.read_u8().await.ok()?;
             line.push(byte);
@@ -168,21 +187,21 @@ impl Wire {
     ///
     /// # Panics
     ///
-    /// Panics if the in-memory pipe cannot be shut down.
+    /// Panics if the in-memory pipe cannot be shut down or the fixture was interrupted.
     pub async fn close(&mut self) {
         if let Some(mut stream) = self.stream.take() {
-            stream.shutdown().await.unwrap();
+            stream.run(async |io| io.shutdown().await.unwrap()).await;
         }
     }
 
-    async fn stream(&mut self) -> &mut DuplexStream {
+    async fn stream(&mut self) -> &mut WireIo {
         if self.stream.is_none() {
             let (stream, endpoint) = self
                 .connections
                 .recv()
                 .await
                 .expect("client driver stopped before connecting");
-            self.stream = Some(stream);
+            self.stream = Some(WireIo::new(stream));
             self.endpoint = Some(endpoint);
         }
         self.stream.as_mut().unwrap()

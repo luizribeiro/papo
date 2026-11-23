@@ -42,6 +42,8 @@ other events caused by a user.
 
 Dropping a live driver publishes a disconnected snapshot and releases pending requests.
 
+Cancelling line I/O on a scriptable wire fixture closes and poisons that connection.
+
 `Rank` names operator and voice for display. Other membership ranks remain available as prefix letters and symbols.
 
 Renamed `Builder::tls_ca_pem` to `Builder::tls_only_ca_pem` to make its exclusive trust explicit.

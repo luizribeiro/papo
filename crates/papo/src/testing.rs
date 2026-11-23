@@ -5,6 +5,10 @@ use std::{sync::Arc, time::SystemTime};
 use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[cfg(test)]
+#[path = "testing/cancellation.rs"]
+mod cancellation;
+
 #[path = "testing/wire_io.rs"]
 mod wire_io;
 
@@ -187,22 +191,36 @@ pub fn wire_client(
 
 /// Writes exact server bytes to an in-memory client connection.
 ///
+/// # Cancellation
+///
+/// Dropping a pending write closes the connection and poisons the fixture.
+///
 /// # Panics
 ///
-/// Panics if the in-memory pipe cannot accept all bytes.
-pub async fn server_line(server: &mut tokio::io::DuplexStream, line: &[u8]) {
-    server.write_all(line).await.unwrap();
+/// Panics if the in-memory pipe cannot accept all bytes or the fixture is poisoned.
+pub async fn server_line(server: &mut WireIo, line: &[u8]) {
+    server
+        .run(async |stream| stream.write_all(line).await.unwrap())
+        .await;
 }
 
 /// Reads and checks exact client bytes from an in-memory connection.
 ///
+/// # Cancellation
+///
+/// Dropping a pending read closes the connection and poisons the fixture.
+///
 /// # Panics
 ///
-/// Panics if the client closes early or sends bytes other than `expected`.
-pub async fn client_line(server: &mut tokio::io::DuplexStream, expected: &[u8]) {
-    let mut actual = vec![0; expected.len()];
-    server.read_exact(&mut actual).await.unwrap();
-    assert_eq!(actual, expected);
+/// Panics if the client closes early, sends bytes other than `expected`, or the fixture is poisoned.
+pub async fn client_line(server: &mut WireIo, expected: &[u8]) {
+    server
+        .run(async |stream| {
+            let mut actual = vec![0; expected.len()];
+            stream.read_exact(&mut actual).await.unwrap();
+            assert_eq!(actual, expected);
+        })
+        .await;
 }
 
 /// Constructs a user reference without network I/O.
