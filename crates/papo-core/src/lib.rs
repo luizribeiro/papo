@@ -4191,6 +4191,8 @@ impl Session {
         }
         match LineRef::parse(&decoded) {
             Ok(message) => {
+                let mode = self.without_ambiguous_mode_args(&message);
+                let message = mode.as_ref().map_or(message, Line::as_ref);
                 let reply = self.reply_secrets.redact(&message);
                 let message = reply.as_ref().map_or(message, Line::as_ref);
                 let redacted = self

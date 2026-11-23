@@ -1,4 +1,4 @@
-use papo_proto::{Command, ModeChanges, Numeric};
+use papo_proto::{Command, ModeChanges, ModeKind, Numeric};
 
 use crate::{Event, Line, LineRef, ReceivedLine, Session, conversation::classify_line_with_names};
 
@@ -119,18 +119,7 @@ impl Session {
     pub(super) fn mark_channel_key(&self, line: &mut Line) {
         let key_params = {
             let message = line.as_ref();
-            let (modestring, args_start) = match message.command() {
-                Command::Mode
-                    if message
-                        .param(0)
-                        .is_some_and(|target| self.isupport.value().is_channel(target)) =>
-                {
-                    (message.param(1), 2)
-                }
-                Command::Numeric(Numeric::RPL_CHANNELMODEIS) => (message.param(2), 3),
-                _ => return,
-            };
-            let Some(modestring) = modestring else {
+            let Some((modestring, args_start)) = self.channel_mode_fields(&message) else {
                 return;
             };
             let mut consumed = 0;
@@ -150,6 +139,40 @@ impl Session {
         };
         for index in key_params {
             line.__mark_secret(index);
+        }
+    }
+
+    pub(super) fn without_ambiguous_mode_args(&self, message: &LineRef<'_>) -> Option<Line> {
+        let (modes, start) = self.channel_mode_fields(message)?;
+        let isupport = self.isupport.value();
+        let mut first_unknown = None;
+        let mut next_arg = start;
+        for change in ModeChanges::parse(modes, message.params().skip(start), isupport) {
+            // A mode without advertised arity can shift any later argument onto a key.
+            if change.mode == 'k'
+                && let Some(offset) = first_unknown
+            {
+                return Some(papo_proto::__line_with_params_prefix(message, offset));
+            }
+            if change.kind == ModeKind::Unknown {
+                first_unknown.get_or_insert(next_arg);
+            }
+            next_arg += usize::from(change.arg.is_some());
+        }
+        None
+    }
+
+    fn channel_mode_fields<'a>(&self, message: &LineRef<'a>) -> Option<(&'a str, usize)> {
+        match message.command() {
+            Command::Mode
+                if message
+                    .param(0)
+                    .is_some_and(|target| self.isupport.value().is_channel(target)) =>
+            {
+                Some((message.param(1)?, 2))
+            }
+            Command::Numeric(Numeric::RPL_CHANNELMODEIS) => Some((message.param(2)?, 3)),
+            _ => None,
         }
     }
 

@@ -8,7 +8,7 @@ use papo_core::{Config, Event, Secret};
 use papo_proto::Line;
 use support::Transcript;
 
-fn raw_line_has_debug(expected: &str) -> impl FnOnce(&Event) -> bool + '_ {
+fn raw_line_has_debug(expected: &str) -> impl Fn(&Event) -> bool + '_ {
     move |event| {
         let Event::Line(line) = event else {
             return false;
@@ -89,4 +89,28 @@ fn malformed_mode_does_not_expose_a_channel_key() {
             assert_eq!(line, b"<redacted>");
             true
         });
+}
+
+#[test]
+fn unknown_mode_before_key_does_not_expose_a_channel_key() {
+    for (message, expected) in [
+        (
+            "@batch=opaque :alice!~a@staff.example MODE #staff +Xk 10 staff-key-4821",
+            "@batch=opaque :alice!~a@staff.example MODE #staff +Xk",
+        ),
+        (
+            "@batch=opaque :alice!~a@staff.example MODE #staff +lXk 25 10 staff-key-4821",
+            "@batch=opaque :alice!~a@staff.example MODE #staff +lXk 25",
+        ),
+        (
+            ":ergo.test 324 papo #staff +Xk 10 staff-key-4821",
+            ":ergo.test 324 papo #staff +Xk",
+        ),
+    ] {
+        Transcript::new(Config::default())
+            .server(":ergo.test 005 papo CHANMODES=beI,k,l,imnpst :are supported by this server")
+            .server(":ergo.test BATCH +opaque vendor.example/archive")
+            .server(message)
+            .event_until(raw_line_has_debug(expected));
+    }
 }

@@ -487,6 +487,15 @@ pub struct Line {
     params: Vec<Param>,
 }
 
+/// Copies a line with only its first `count` parameters.
+#[doc(hidden)]
+#[must_use]
+pub fn __line_with_params_prefix(message: &LineRef<'_>, count: usize) -> Line {
+    let mut line = message.to_owned();
+    line.params.truncate(count);
+    line
+}
+
 impl Line {
     /// Starts a line with no parameters.
     pub fn new(command: impl Into<String>) -> Self {

@@ -2021,6 +2021,31 @@ async fn malformed_mode_does_not_expose_a_channel_key() {
 }
 
 #[tokio::test]
+async fn ambiguous_mode_does_not_expose_a_channel_key() {
+    let (_, mut events, mut wire) = wire(papo::Client::builder("irc://offline.test", "papo-wire"));
+    wire.register(&["batch"]).await;
+    connected(&mut events).await;
+    wire.server(
+        ":offline.test 005 papo-wire CHANMODES=beI,k,l,imnpst :are supported by this server",
+    )
+    .await;
+    wire.server(":offline.test BATCH +opaque vendor.example/archive")
+        .await;
+    wire.server("@batch=opaque :alice!~a@staff.example MODE #staff +Xk 10 staff-key-4821")
+        .await;
+    wire.server(":offline.test BATCH -opaque").await;
+    loop {
+        if let papo::Event::Other(line) = next_active_event(&mut events).await
+            && line.command() == "MODE"
+        {
+            assert!(line.params().get(2).is_none());
+            assert!(!format!("{line:?}").contains("staff-key-4821"));
+            break;
+        }
+    }
+}
+
+#[tokio::test]
 async fn invalid_account_extbans_never_reach_the_wire() {
     let (_client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
