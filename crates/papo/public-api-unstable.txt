@@ -875,6 +875,8 @@ pub fn papo::event::Message::is_own(&self) -> bool
 pub const fn papo::event::Message::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::Message::origin(&self) -> papo::Origin
 pub fn papo::event::Message::return_address(&self) -> papo::MessageRef
+impl papo::event::Message
+pub const fn papo::event::Message::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Message
 pub fn papo::event::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Message
@@ -1054,6 +1056,8 @@ pub const fn papo::event::Notice::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Notice::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
 pub fn papo::event::Notice::return_address(&self) -> papo::NoticeRef
+impl papo::event::Notice
+pub const fn papo::event::Notice::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Notice
 pub fn papo::event::Notice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Notice

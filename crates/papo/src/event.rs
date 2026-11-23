@@ -26,6 +26,8 @@ mod channel;
 mod connection;
 #[path = "event/conversation.rs"]
 mod conversation;
+#[path = "event/history.rs"]
+mod history;
 #[path = "event/restricted.rs"]
 mod restricted;
 #[path = "event/server.rs"]
@@ -2068,6 +2070,7 @@ pub(crate) fn attach_message_handles(
     macro_rules! user_event {
         ($event:expr) => {{
             let event = $event;
+            event.receipt.set_from_history(historical);
             attach_user_message_handle(
                 &mut event.actor,
                 event.actor_party,

@@ -24,6 +24,7 @@ struct ReceiptIdentity {
     recipient: Option<crate::UserRef>,
     channel: Option<crate::ChannelRef>,
     archived_private: bool,
+    from_history: bool,
     msgids: Vec<MessageId>,
     channel_context: Option<crate::ChannelRef>,
 }
@@ -53,6 +54,7 @@ impl Receipt {
                     Conversation::Channel(channel) => Some(channel.clone()),
                     Conversation::Private(_) => None,
                 },
+                from_history: false,
                 msgids: Vec::new(),
                 channel_context: None,
             }),
@@ -74,12 +76,21 @@ impl Receipt {
                 recipient: None,
                 archived_private: false,
                 channel: None,
+                from_history: false,
                 msgids: Vec::new(),
                 channel_context: None,
             }),
             address,
             origin,
         }
+    }
+
+    pub(crate) const fn is_from_history(&self) -> bool {
+        self.identity.from_history
+    }
+
+    pub(crate) fn set_from_history(&mut self, historical: bool) {
+        self.identity.from_history = historical;
     }
 
     fn reference(&self) -> MessageRef {

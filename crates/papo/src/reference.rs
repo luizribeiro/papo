@@ -207,6 +207,9 @@ impl Drop for WatchLease {
 /// the nickname now. Sending to the actor of a private history item returns
 /// [`crate::Error::TargetGone`]. Use [`crate::Client::reply`] on the item to address the current
 /// holder of the conversation's peer nickname.
+/// You can also send to the peer's nickname directly. A channel-history sender reference can be
+/// used to send only if papo matches the account on the line to a user it currently tracks.
+/// Otherwise sending through that reference returns [`crate::Error::TargetGone`].
 ///
 /// Tracked live references compare and hash as the same user on this client across observed
 /// nickname changes. Other references compare equal only to their own clones.
