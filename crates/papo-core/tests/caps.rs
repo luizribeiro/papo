@@ -704,3 +704,46 @@ fn pending_capability_names_have_a_fixed_limit() {
         .server(":ergo.test CAP * NEW :example.net/feature512")
         .client("CAP REQ :example.net/feature512");
 }
+
+#[test]
+fn pending_capability_names_survive_repeated_ls_and_del_new() {
+    let config = Config::default().wanted_caps(["sasl", "away-notify"]);
+    Transcript::new(config)
+        .connect_default()
+        .server(":ergo.test CAP * LS :away-notify sasl=PLAIN")
+        .client("CAP REQ :sasl away-notify")
+        .server(":ergo.test CAP * LS :away-notify sasl=PLAIN")
+        .no_client()
+        .server(":ergo.test CAP * DEL :sasl")
+        .server(":ergo.test CAP * NEW :sasl=PLAIN")
+        .no_client()
+        .server(":ergo.test CAP * NAK :sasl away-notify")
+        .client("CAP END")
+        .server(":ergo.test CAP * NEW :away-notify")
+        .client("CAP REQ :away-notify");
+}
+
+#[test]
+fn a_new_connection_can_request_capabilities_left_unanswered() {
+    let config = Config::default()
+        .wanted_caps(["away-notify"])
+        .welcome_timeout(Duration::from_secs(5));
+    Transcript::new(config)
+        .connect_default()
+        .server(":ergo.test CAP * LS :away-notify")
+        .client("CAP REQ :away-notify")
+        .advance(Duration::from_secs(5))
+        .event(|event| {
+            matches!(
+                event,
+                Event::Close {
+                    kind: CloseKind::WelcomeTimeout,
+                    ..
+                }
+            )
+        })
+        .disconnect()
+        .connect_default()
+        .server(":ergo.test CAP * LS :away-notify")
+        .client("CAP REQ :away-notify");
+}

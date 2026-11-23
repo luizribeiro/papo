@@ -542,6 +542,10 @@ Private replies remain usable when a watch changes or the server sends more ISUP
 
 - Live membership and identity changes in IRC batches take effect on arrival, including when
   a batch is unfinished or abandoned. Replayed history stays out of live state.
+- Bound the protocol state kept for in-flight WHO sweeps, channel creation times across reconnects,
+  mode and prefix changes, and unknown bouncer network attributes.
+- Close a session when protocol output accumulates because the transport cannot drain it.
+
 - Capability negotiation keeps at most 512 unanswered capability names and sends one request
   for each until the server replies or the connection resets.
 

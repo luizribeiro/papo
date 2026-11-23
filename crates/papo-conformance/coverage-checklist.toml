@@ -85,6 +85,8 @@ ids = [
   "security.history.unbatched-playback-command",
   "security.history.page-item-command",
   "security.bot.private-reply-after-nick-takeover", "security.reply.broadcast-private",
+  "security.audit-2.metadata-subscription-bound",
+  "security.audit-3.pending-capability-bound",
   "security.st-1.metadata-nick-handoff",
   "security.routing.status-prefix-channel", "security.routing.status-prefix-reaction",
   "security.routing.status-prefix-typing", "security.target.no-comma-multitarget",

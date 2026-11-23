@@ -336,3 +336,10 @@
 "history_overflow::disconnect_delivers_buffered_replay_as_history" = [
   "security.identity-2.abandoned-history-provenance",
 ]
+
+"server_bounds::metadata_subscription_acknowledgements_are_bounded" = [
+  "security.audit-2.metadata-subscription-bound",
+]
+"server_bounds::unanswered_capability_request_is_sent_once_on_the_wire" = [
+  "security.audit-3.pending-capability-bound",
+]
