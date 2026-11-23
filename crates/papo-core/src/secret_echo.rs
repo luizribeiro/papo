@@ -167,6 +167,13 @@ impl ReplySecrets {
         true
     }
 
+    pub(super) fn repeated_in_bytes(&self, line: &[u8]) -> bool {
+        self.0.iter().any(|secret| {
+            let value = secret.expose().as_bytes();
+            line.windows(value.len()).any(|bytes| bytes == value)
+        })
+    }
+
     pub(super) fn redact(&self, message: &LineRef<'_>) -> Option<Line> {
         if self.0.is_empty()
             || !(matches!(message.command(), Command::Numeric(_))

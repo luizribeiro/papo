@@ -127,13 +127,22 @@ impl Wire {
     /// Panics if `line` contains a line ending, exceeds 8703 bytes, or the
     /// client has closed its end of the pipe.
     pub async fn server(&mut self, line: impl AsRef<str>) {
-        let line = line.as_ref();
+        self.server_bytes(line.as_ref().as_bytes()).await;
+    }
+
+    /// Sends one server line as bytes, including invalid UTF-8.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `line` contains a line ending, exceeds 8703 bytes, or the
+    /// client has closed its end of the pipe.
+    pub async fn server_bytes(&mut self, line: &[u8]) {
         assert!(
-            !line.contains(['\r', '\n']),
+            !line.contains(&b'\r') && !line.contains(&b'\n'),
             "server input must be one line"
         );
         assert!(line.len() <= MAX_LINE_LEN, "server line exceeds 8703 bytes");
-        let mut bytes = line.as_bytes().to_vec();
+        let mut bytes = line.to_vec();
         bytes.extend_from_slice(b"\r\n");
         papo::__testing::server_line(self.stream().await, &bytes).await;
     }

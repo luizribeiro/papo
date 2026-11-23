@@ -5870,6 +5870,13 @@ impl Session {
     }
 
     fn malformed(&mut self, line: &[u8]) {
+        let line = if echo::malformed_mode_may_carry_key(line)
+            || self.reply_secrets.repeated_in_bytes(line)
+        {
+            b"<redacted>"
+        } else {
+            line
+        };
         self.outbox.event(Event::Malformed {
             line: line.to_vec(),
         });

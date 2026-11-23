@@ -172,6 +172,34 @@ impl Session {
     }
 }
 
+pub(super) fn malformed_mode_may_carry_key(line: &[u8]) -> bool {
+    let mut fields = line
+        .split(|&byte| byte == b' ')
+        .filter(|field| !field.is_empty())
+        .peekable();
+    for prefix in *b"@:" {
+        if fields
+            .peek()
+            .is_some_and(|field| field.starts_with(&[prefix]))
+        {
+            fields.next();
+        }
+    }
+    let Some(command) = fields.next() else {
+        return false;
+    };
+    let target_fields = if command.eq_ignore_ascii_case(b"MODE") {
+        1
+    } else if command == b"324" {
+        2
+    } else {
+        return false;
+    };
+    fields
+        .nth(target_fields)
+        .is_some_and(|modes| modes.contains(&b'k'))
+}
+
 /// Returns the valid channel a private message's `+channel-context` tag names.
 ///
 /// It is only the line's claim: the sender's membership in that channel is not checked.

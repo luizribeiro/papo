@@ -2004,6 +2004,23 @@ async fn raw_mode_response_redacts_the_channel_key() {
 }
 
 #[tokio::test]
+async fn malformed_mode_does_not_expose_a_channel_key() {
+    let (_, mut events, mut wire) = wire(papo::Client::builder("irc://offline.test", "papo-wire"));
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    wire.server_bytes(b":alice!~a@staff.example MODE #staff +k staff-key-4821\xff")
+        .await;
+    loop {
+        if let papo::Event::Warning(papo::event::Warning::Malformed { line, .. }) =
+            next_active_event(&mut events).await
+        {
+            assert_eq!(line, b"<redacted>");
+            break;
+        }
+    }
+}
+
+#[tokio::test]
 async fn invalid_account_extbans_never_reach_the_wire() {
     let (_client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
