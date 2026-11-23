@@ -1,8 +1,7 @@
 //! A person a WHO or WHOIS reply describes is the one the server described: a send through the
 //! reply's handle never reaches a later holder of the nickname.
 //!
-//! A labeled-response batch is dispatched when it closes, so a departure inside it has been
-//! applied before papo maps the reply.
+//! A labeled response completes after intervening batch members can change who holds the nick.
 
 mod support {
     pub mod direct;
@@ -150,4 +149,37 @@ async fn a_reply_subject_seen_leaving_or_renaming_is_never_the_next_holder() {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn a_discarded_multiline_keeps_the_following_whois_rows_recipient() {
+    let (client, _events, mut wire) = connect(&REPLIES[2]).await;
+    let sending = tokio::spawn(async move {
+        let alice = client.whois("alice").await?.unwrap().user;
+        client.privmsg(alice, "The release notes are ready").await
+    });
+    let label = label_of(&mut wire, "WHOIS alice").await;
+    wire.server(format!(
+        "@label={label} :offline.test BATCH +reply labeled-response"
+    ))
+    .await;
+    for line in [
+        "@batch=reply :offline.test BATCH +old znc.in/playback #review",
+        "@batch=old :alice!~alice@cloak.example BATCH +empty draft/multiline papo",
+        "@batch=reply :offline.test 311 papo alice ~alice cloak.example * :Alice Liddell",
+        "@batch=old :alice!~alice@cloak.example BATCH -empty",
+        "@batch=reply :offline.test BATCH -old",
+        "@batch=reply :alice!~alice@cloak.example QUIT :Quit: bye",
+        "@batch=reply :alice!~alice@cloak.example JOIN #review",
+        "@batch=reply :offline.test 318 papo alice :End of /WHOIS list",
+        ":offline.test BATCH -reply",
+    ] {
+        wire.server(line).await;
+    }
+    assert!(matches!(sending.await.unwrap(), Err(Error::TargetGone)));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), wire.next_sent())
+            .await
+            .is_err()
+    );
 }

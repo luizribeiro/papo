@@ -213,3 +213,93 @@ fn already_applied_split_members_stay_in_the_response_without_being_emitted_agai
     );
     assert_eq!(session.poll_event(), None);
 }
+
+#[test]
+fn a_member_that_updates_state_still_makes_the_multiline_invalid() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    open_response(&mut session, now);
+    for line in [
+        "@label=0 :alice!~alice@staff.example BATCH +m draft/multiline #papo",
+        "@batch=m :alice!~alice@staff.example MODE #papo +m",
+        "@batch=m :alice!~alice@staff.example PRIVMSG #papo :Channel maintenance",
+        ":alice!~alice@staff.example BATCH -m",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, Event::ModeChanged { .. }))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, Event::Response(response) if response.sent().is_none()))
+    );
+    assert!(
+        events
+            .iter()
+            .all(|event| !matches!(event, Event::MultilineMessage(_)))
+    );
+}
+
+#[test]
+fn a_labelled_response_keeps_live_and_replayed_multiline_rows_distinct() {
+    const ROW: &str = "@batch=response :irc.papo.test 311 papo ChanServ ChanServ services.int * :Channel Services";
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    open_response(&mut session, now);
+    for line in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":ChanServ!ChanServ@services.int JOIN #papo",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let subject = session.state().__reply_token_for("ChanServ");
+    for line in [
+        "@label=0 :znc.example BATCH +response labeled-response",
+        "@batch=response :znc.example BATCH +old znc.in/playback #papo",
+        "@batch=old :retired!~review@staff.example BATCH +empty draft/multiline papo",
+        ROW,
+        "@batch=old :retired!~review@staff.example BATCH -empty",
+        "@batch=old :retired!~review@staff.example BATCH +archive draft/multiline papo",
+        "@batch=archive :retired!~review@staff.example PRIVMSG papo :Earlier release notes",
+        ROW,
+        "@batch=old :retired!~review@staff.example BATCH -archive",
+        "@batch=response :znc.example BATCH -old",
+        "@batch=response :alice!~alice@staff.example BATCH +live draft/multiline papo",
+        "@batch=live :alice!~alice@staff.example PRIVMSG papo :Current release notes",
+        ROW,
+        "@batch=response :alice!~alice@staff.example BATCH -live",
+        "@batch=response :ChanServ!ChanServ@services.int QUIT :Services restarted",
+        "@batch=response :ChanServ!service@services.example JOIN #papo",
+        ":znc.example BATCH -response",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .expect("the WHOIS response");
+    let text: Vec<_> = response
+        .lines
+        .iter()
+        .filter_map(|line| {
+            let line = line.as_ref();
+            line.command_is("PRIVMSG").then(|| line.param(1).unwrap())
+        })
+        .collect();
+    assert_eq!(text, ["Earlier release notes", "Current release notes"]);
+    assert_ne!(session.state().__reply_token_for("ChanServ"), subject);
+    for (index, line) in response.lines.iter().enumerate() {
+        if line.as_ref().command_is("311") {
+            assert_eq!(response.__subject_token(index), Some(subject));
+        }
+    }
+    assert!(session.state().user("retired").is_none());
+    assert!(session.state().user("alice").is_some());
+}

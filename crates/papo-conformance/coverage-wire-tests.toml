@@ -325,3 +325,7 @@
 "batched_quit::loss_of_batch_provenance_closes_before_a_reply_can_be_written" = [
   "security.recipient-2.abandoned-batch-provenance-limit",
 ]
+
+"reply_subjects::a_discarded_multiline_keeps_the_following_whois_rows_recipient" = [
+  "security.recipient-2.multiline-whois-recipient",
+]

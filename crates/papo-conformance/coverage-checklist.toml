@@ -131,6 +131,7 @@ ids = [
   "security.recipient-2.open-netsplit-quit",
   "security.recipient-2.abandoned-history-isolation",
   "security.recipient-2.abandoned-batch-provenance-limit",
+  "security.recipient-2.multiline-whois-recipient",
   "security.history.unknown-batch-isolation",
   "security.origin.cross-client-wire", "security.origin.bound-client-wire",
   "security.x-origin.monitor-add", "security.x-origin.monitor-remove",

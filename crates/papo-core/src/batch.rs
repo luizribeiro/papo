@@ -753,13 +753,14 @@ impl Batches {
             batch
                 .messages
                 .splice(index..=index, replacement.iter().cloned());
-            let shifted = batch.routed_members.split_off(&(index + 1));
+            let route = batch.routed_members.remove(&index);
+            let shifted = batch.routed_members.split_off(&index);
             batch.routed_members.extend(
                 shifted
                     .into_iter()
                     .map(|(position, route)| (position - 1 + replacement_len, route)),
             );
-            if let Some(route) = batch.routed_members.remove(&index) {
+            if let Some(route) = route {
                 batch
                     .routed_members
                     .extend((index..index + replacement_len).map(|index| (index, route)));
