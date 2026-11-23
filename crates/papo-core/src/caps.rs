@@ -16,6 +16,7 @@ use crate::{
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
 const MAX_IRC_BODY_LEN: usize = MAX_LINE_LEN - 2;
 const MAX_ADVERTISED: usize = 512;
+const MAX_PENDING_CAPABILITIES: usize = MAX_ADVERTISED;
 const MAX_CAP_VALUE_LEN: usize = 4_096;
 const MAX_LS_LINES: usize = 512;
 
@@ -219,8 +220,7 @@ impl Caps {
             });
         }
 
-        let mut seen = BTreeSet::new();
-        let requested = config
+        let requested: Vec<_> = config
             .wanted_caps
             .iter()
             .map(String::as_str)
@@ -233,10 +233,9 @@ impl Caps {
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
             .filter(|name| announced.contains(*name))
             .filter(|name| !self.enabled.contains_key(&Cap::from(*name)))
-            .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
             .collect();
-        self.send_requests(split_requests(requested), outbox);
+        self.send_requests(&requested, outbox);
     }
 
     fn handle_ls(
@@ -324,37 +323,50 @@ impl Caps {
         self.negotiating = true;
 
         self.enabled.insert(cap::CAP_NOTIFY, None);
-        let mut seen = BTreeSet::new();
         let wanted = config
             .wanted_caps
             .iter()
             .map(String::as_str)
             .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()));
-        let requested = wanted
+        let requested: Vec<_> = wanted
             .filter(|wanted| {
                 cap::requestable(wanted, &self.advertised, &config.wanted_caps, config)
             })
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
-            .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
-            .collect::<Vec<_>>();
-        let requests = split_requests(requested);
+            .collect();
         if config.sasl.is_some() && !self.advertised.contains_key(&cap::SASL) {
             sasl.unavailable("the server did not advertise sasl", outbox);
         }
-        if !requests.is_empty() {
-            self.send_requests(requests, outbox);
-        }
+        self.send_requests(&requested, outbox);
     }
 
-    fn send_requests(&mut self, requests: Vec<Vec<String>>, outbox: &mut Outbox) {
-        for request in requests {
+    fn send_requests(&mut self, requested: &[String], outbox: &mut Outbox) {
+        if requested.is_empty() {
+            return;
+        }
+        // A DEL changes availability. The outstanding REQ still occupies its place in reply order.
+        let mut seen: BTreeSet<_> = self
+            .pending
+            .iter()
+            .flatten()
+            .map(|name| cap::canonical(name))
+            .collect();
+        let available = MAX_PENDING_CAPABILITIES - seen.len();
+        let requested = requested
+            .iter()
+            .filter(|name| name.len() <= MAX_IRC_BODY_LEN - CAP_REQ_PREFIX_LEN)
+            .filter(|name| seen.insert(cap::canonical(name)))
+            .take(available)
+            .cloned()
+            .collect();
+        for request in split_requests(requested) {
             let line = Line::new("CAP").param("REQ").param(request.join(" "));
             if let Ok(line) = line.encode() {
                 outbox.transmit_raw(line);
+                self.pending.push_back(request);
             }
-            self.pending.push_back(request);
         }
     }
 

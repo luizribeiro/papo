@@ -682,3 +682,25 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
         })
         .client("CAP END");
 }
+
+#[test]
+fn pending_capability_names_have_a_fixed_limit() {
+    let config = Config::default()
+        .wanted_caps((0..513).map(|index| format!("example.net/feature{index:03}")));
+    let mut transcript = Transcript::new(config)
+        .connect_default()
+        .server(":ergo.test CAP * LS :")
+        .client("CAP END");
+    for index in 0..512 {
+        let name = format!("example.net/feature{index:03}");
+        transcript = transcript
+            .server(&format!(":ergo.test CAP * NEW :{name}"))
+            .client(&format!("CAP REQ :{name}"));
+    }
+    transcript
+        .server(":ergo.test CAP * NEW :example.net/feature512")
+        .no_client()
+        .server(":ergo.test CAP * NAK :example.net/feature000")
+        .server(":ergo.test CAP * NEW :example.net/feature512")
+        .client("CAP REQ :example.net/feature512");
+}
