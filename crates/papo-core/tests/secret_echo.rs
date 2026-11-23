@@ -422,3 +422,51 @@ fn an_ordinary_redaction_reason_stays_visible() {
     assert!(events.iter().any(|event| matches!(event, Event::Redacted(redacted) if redacted.reason.as_deref() == Some("mod action"))), "{events:?}");
     assert!(events.iter().any(|event| matches!(event, Event::StandardReply(reply) if reply.description == "This message does not exist or is too old")), "{events:?}");
 }
+
+#[test]
+fn credentials_stay_redacted_until_the_connection_ends() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    let join = |key: Secret| Line::new("JOIN").param("#staff").param(key);
+
+    let key = "staff-key-000";
+    for index in 0..256 {
+        session
+            .send(now, join(Secret::new(format!("staff-key-{index:03}"))))
+            .unwrap();
+        assert!(session.poll_transmit().is_some());
+    }
+    session.send(now, join(Secret::new(key))).unwrap();
+    assert!(
+        session.poll_transmit().is_some(),
+        "an already tracked key is accepted"
+    );
+
+    let late = now + Duration::from_secs(31);
+    session.handle_timeout(late);
+    session.handle_line(
+        late,
+        format!(":ergo.test WARN JOIN BAD_CHANNEL_KEY #staff :Rejected {key}").as_bytes(),
+    );
+    assert!(std::iter::from_fn(|| session.poll_event()).any(
+        |event| matches!(event, Event::StandardReply(reply) if reply.description == "<redacted>"),
+    ));
+    session.handle_line(
+        late,
+        format!(":ergo.test NOTICE papo :Rejected {key}\0").as_bytes(),
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == b"<redacted>")
+    );
+
+    let new = join(Secret::new("staff-key-256"));
+    session.send(late, new.clone()).unwrap();
+    assert!(
+        session.poll_transmit().is_none(),
+        "an untracked key cannot go on the wire"
+    );
+    assert!(matches!(session.poll_event(), Some(Event::Close { .. })));
+    register(&mut session, late, "ergo.test", ERGO_CAPS);
+    session.send(late, new).unwrap();
+    assert!(session.poll_transmit().is_some());
+}

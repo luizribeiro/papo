@@ -1982,6 +1982,90 @@ async fn rejected_channel_key_stays_redacted() {
 }
 
 #[tokio::test]
+async fn credential_request_refusals_are_redacted() {
+    for (command, args, numeric, reply) in [
+        (
+            "MODE",
+            "#staff +k",
+            Some(696),
+            ":offline.test 696 papo-wire #staff k * :Invalid mode k parameter",
+        ),
+        (
+            "JOIN",
+            "#staff",
+            Some(475),
+            ":offline.test 475 papo-wire #staff :Cannot join channel (+k)",
+        ),
+        (
+            "OPER",
+            "operator",
+            Some(464),
+            ":offline.test 464 papo-wire :Password incorrect",
+        ),
+        (
+            "REGISTER",
+            "* *",
+            None,
+            ":offline.test FAIL REGISTER INVALID_PASSWORD papo-wire :Password was invalid",
+        ),
+        (
+            "VERIFY",
+            "alice",
+            None,
+            ":offline.test FAIL VERIFY INVALID_CODE :Invalid verification code",
+        ),
+    ] {
+        let (client, mut events, mut wire) = wire(
+            papo::Client::builder("ircs://offline.test", "papo-wire")
+                .rate_limit(papo::RateLimit::unlimited()),
+        );
+        let (caps, label) = if command == "JOIN" {
+            (&[][..], "")
+        } else {
+            (
+                &["labeled-response", "draft/account-registration"][..],
+                "@label=0 ",
+            )
+        };
+        wire.register(caps).await;
+        connected(&mut events).await;
+        if command == "MODE" {
+            wire.server("005 papo-wire CHANMODES=beI,k,l,imnpst :are supported")
+                .await;
+        }
+        let credential = format!("test-credential-{command}-4721");
+        let secret = papo::Secret::new(&credential);
+        let request = tokio::spawn(async move {
+            match command {
+                "MODE" => done(client.set_modes("#staff").key(secret).await),
+                "JOIN" => done(client.join("#staff").key(secret).await),
+                "OPER" => client.oper("operator", secret).await,
+                "REGISTER" => done(client.create_account(papo::NewAccount::new(secret)).await),
+                "VERIFY" => done(client.verify_account("alice", secret).await),
+                _ => unreachable!(),
+            }
+        });
+        assert_eq!(
+            wire.next_sent().await,
+            format!("{label}{command} {args} {credential}")
+        );
+        wire.server(format!("{label}{reply}: {credential}")).await;
+        let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
+            panic!("expected server refusal for {command}")
+        };
+        assert_eq!(error.numeric(), numeric);
+        assert_eq!(error.description(), "<redacted>");
+        assert!(
+            !error
+                .params()
+                .iter()
+                .any(|param| param.contains(&credential))
+        );
+        assert!(!format!("{error:?} {error}").contains(&credential));
+    }
+}
+
+#[tokio::test]
 async fn login_credential_refusals_are_redacted() {
     let builder = || papo::Client::builder("irc://offline.test", "papo-wire");
     let key = "test-credential-login-4821";
