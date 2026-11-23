@@ -312,6 +312,17 @@ pub mod cap;
 pub mod tags;
 
 /// Read-only views of server features advertised through `RPL_ISUPPORT`.
+///
+/// Use [`crate::Member::is_at_least_op`] to check a member's privileges in the server's
+/// advertised order. [`crate::Rank`] is for display.
+///
+/// ```compile_fail,E0369
+/// use papo::{Member, Rank};
+///
+/// fn can_manage_channel(member: &Member) -> bool {
+///     member.rank() >= Some(Rank::Op)
+/// }
+/// ```
 pub mod isupport {
     #[doc(inline)]
     pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Limit, LimitValue};

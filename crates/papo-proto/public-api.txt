@@ -362,20 +362,13 @@ impl core::marker::UnsafeUnpin for papo_proto::ParseError
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ParseError
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::ParseError
 #[non_exhaustive] pub enum papo_proto::Rank
-pub papo_proto::Rank::Admin
-pub papo_proto::Rank::Halfop
 pub papo_proto::Rank::Op
-pub papo_proto::Rank::Owner
 pub papo_proto::Rank::Voice
 impl core::clone::Clone for papo_proto::Rank
 pub fn papo_proto::Rank::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Rank
-impl core::cmp::Ord for papo_proto::Rank
-pub fn papo_proto::Rank::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo_proto::Rank
 pub fn papo_proto::Rank::eq(&self, &Self) -> bool
-impl core::cmp::PartialOrd for papo_proto::Rank
-pub fn papo_proto::Rank::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::fmt::Debug for papo_proto::Rank
 pub fn papo_proto::Rank::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::Rank

@@ -336,10 +336,7 @@ fn reports_the_highest_whois_channel_rank() {
     assert!(response.whois_channels[0].is_at_least_voice());
     assert!(!response.whois_channels[1].is_at_least_op());
     assert!(response.whois_channels[1].is_at_least_voice());
-    assert_eq!(
-        response.whois_channels[0].rank(),
-        Some(papo_core::Rank::Owner)
-    );
+    assert_eq!(response.whois_channels[0].rank(), None);
     assert_eq!(response.whois_channels[1].name, "#voice");
     assert_eq!(
         response.whois_channels[1].rank(),

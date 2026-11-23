@@ -224,7 +224,7 @@ pub struct Channel {
     names_reply_seen: bool,
     synced: bool,
     prefix_order: Arc<[Prefix]>,
-    advertised_prefix_order: Arc<[Prefix]>,
+    advertised_prefix_order: Option<Arc<[Prefix]>>,
 }
 
 /// State known about a channel member.
@@ -232,7 +232,7 @@ pub struct Channel {
 pub struct Member {
     nick: Nick,
     prefixes: Vec<Prefix>,
-    advertised_prefix_order: Arc<[Prefix]>,
+    advertised_prefix_order: Option<Arc<[Prefix]>>,
 }
 
 /// State known about a user sharing a channel or followed through MONITOR.
@@ -950,15 +950,19 @@ impl State {
         self.update_casemapping(casemapping);
         self.isupport.clone_from(isupport);
         let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
-        let advertised_prefix_order: Arc<[Prefix]> =
-            isupport.__advertised_prefix().unwrap_or_default().into();
+        let advertised_prefix_order: Option<Arc<[Prefix]>> =
+            isupport.__advertised_prefix().map(Arc::from);
         for channel in self.channels.values_mut() {
             let channel = Arc::make_mut(channel);
             channel.prefix_order = Arc::clone(&prefix_order);
             if channel.advertised_prefix_order != advertised_prefix_order {
-                channel.advertised_prefix_order = Arc::clone(&advertised_prefix_order);
+                channel
+                    .advertised_prefix_order
+                    .clone_from(&advertised_prefix_order);
                 for member in channel.members.values_mut() {
-                    member.advertised_prefix_order = Arc::clone(&advertised_prefix_order);
+                    member
+                        .advertised_prefix_order
+                        .clone_from(&advertised_prefix_order);
                 }
             }
         }
@@ -1954,7 +1958,7 @@ impl Channel {
             names_reply_seen: false,
             synced,
             prefix_order: isupport.prefix().into(),
-            advertised_prefix_order: isupport.__advertised_prefix().unwrap_or_default().into(),
+            advertised_prefix_order: isupport.__advertised_prefix().map(Arc::from),
         }
     }
 
@@ -2199,9 +2203,11 @@ impl Member {
     /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
     #[must_use]
     pub fn is_at_least_op(&self) -> bool {
-        Prefix::__reaches(&self.advertised_prefix_order, 'o', |prefix| {
-            self.prefixes.contains(prefix)
-        })
+        Prefix::__reaches(
+            self.advertised_prefix_order.as_deref().unwrap_or_default(),
+            'o',
+            |prefix| self.prefixes.contains(prefix),
+        )
     }
 
     /// Reports whether a held prefix reaches voice in the server's advertised order.
@@ -2209,21 +2215,23 @@ impl Member {
     /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
     #[must_use]
     pub fn is_at_least_voice(&self) -> bool {
-        Prefix::__reaches(&self.advertised_prefix_order, 'v', |prefix| {
-            self.prefixes.contains(prefix)
-        })
+        Prefix::__reaches(
+            self.advertised_prefix_order.as_deref().unwrap_or_default(),
+            'v',
+            |prefix| self.prefixes.contains(prefix),
+        )
     }
 
-    /// Returns the highest standard rank the member holds.
+    /// Returns operator or voice for display when it is the highest held prefix.
     ///
-    /// Vendor-specific membership modes do not map to a standard rank.
-    /// Use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`] for privilege checks.
+    /// For privilege checks, use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`].
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
-        self.prefixes
-            .iter()
-            .filter_map(|prefix| prefix.rank())
-            .max()
+        let highest = match &self.advertised_prefix_order {
+            Some(order) => order.iter().find(|prefix| self.prefixes.contains(prefix)),
+            None => self.prefixes.first(),
+        };
+        highest?.rank()
     }
 
     /// Reports whether the member holds the exact standard rank.

@@ -123,10 +123,12 @@ impl WhoisChannel {
         })
     }
 
-    /// Returns the highest standard rank held in this channel.
+    /// Returns operator or voice for display when it is the highest reported prefix.
+    ///
+    /// For privilege checks, use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`].
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
-        highest_rank(&self.prefixes)
+        self.prefixes.first()?.rank()
     }
 }
 
@@ -181,10 +183,12 @@ impl WhoEntry {
         })
     }
 
-    /// Returns the highest standard channel rank reported for this user.
+    /// Returns operator or voice for display when it is the highest reported prefix.
+    ///
+    /// For privilege checks, use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`].
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
-        highest_rank(&self.prefixes)
+        self.prefixes.first()?.rank()
     }
 }
 
@@ -522,10 +526,6 @@ fn ordered_prefixes(symbols: &str, isupport: &Isupport) -> Vec<Prefix> {
         .collect()
 }
 
-fn highest_rank(prefixes: &[Prefix]) -> Option<Rank> {
-    prefixes.iter().filter_map(|prefix| prefix.rank()).max()
-}
-
 /// Refuses a reply that a state bound cut short, so a partial answer never looks complete.
 pub(crate) fn whole(response: &Response) -> Result<(), Error> {
     response
@@ -640,7 +640,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             ['~', '@']
         );
-        assert_eq!(channel.rank(), Some(crate::Rank::Owner));
+        assert_eq!(channel.rank(), None);
     }
 
     fn whois_response(session: &mut Session, lines: &[&str]) -> papo_core::Response {

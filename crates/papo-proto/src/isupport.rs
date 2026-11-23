@@ -53,34 +53,25 @@ impl Prefix {
             .is_some_and(|index| order[..=index].iter().any(held))
     }
 
-    /// Returns the standard rank represented by this membership mode.
+    /// Returns the display name for operator (`o`) or voice (`v`).
     #[must_use]
     pub const fn rank(self) -> Option<Rank> {
         match self.mode {
             'v' => Some(Rank::Voice),
-            'h' => Some(Rank::Halfop),
             'o' => Some(Rank::Op),
-            'a' => Some(Rank::Admin),
-            'q' => Some(Rank::Owner),
             _ => None,
         }
     }
 }
 
-/// A standard channel membership rank.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+/// A named channel membership rank for display.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Rank {
     /// May speak in a moderated channel.
     Voice,
-    /// Has half-operator privileges.
-    Halfop,
     /// Has channel-operator privileges.
     Op,
-    /// Has channel-administrator privileges.
-    Admin,
-    /// Has channel-owner privileges.
-    Owner,
 }
 
 /// The four standard channel-mode parameter groups.

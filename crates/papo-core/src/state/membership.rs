@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::{
     AccountStatus, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey,
     Numeric, Outbox, ProtoSource, State, StateLimit, rename::ChannelLifecycle,
@@ -218,7 +216,7 @@ impl State {
                 Member {
                     nick: mapping.nick(nick),
                     prefixes,
-                    advertised_prefix_order: Arc::clone(&channel.advertised_prefix_order),
+                    advertised_prefix_order: channel.advertised_prefix_order.clone(),
                 },
             );
             let user_key = NameKey::new(nick, mapping);

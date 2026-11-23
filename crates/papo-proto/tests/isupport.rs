@@ -298,10 +298,10 @@ fn prefix_accessors_map_ergo_and_solanum_rank_letters() {
         (
             "PREFIX=(qaohv)~&@%+",
             vec![
-                ('q', '~', Some(Rank::Owner)),
-                ('a', '&', Some(Rank::Admin)),
+                ('q', '~', None),
+                ('a', '&', None),
                 ('o', '@', Some(Rank::Op)),
-                ('h', '%', Some(Rank::Halfop)),
+                ('h', '%', None),
                 ('v', '+', Some(Rank::Voice)),
             ],
         ),

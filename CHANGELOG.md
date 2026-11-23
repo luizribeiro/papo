@@ -40,6 +40,8 @@ other events caused by a user.
 
 ### Changed
 
+`Rank` names operator and voice for display. Other membership ranks remain available as prefix letters and symbols.
+
 Import `Disconnected` and `PersistenceStatus` (with `unstable`) from `papo::event`.
 
 Import `AccountOutcome` and `HistoryPage` from `papo::event`.

@@ -1269,7 +1269,7 @@ fn ranks_names_prefixes_independently_of_wire_order() {
 }
 
 #[test]
-fn each_member_prefix_list_uses_the_table_active_when_built() {
+fn display_rank_tracks_prefix_order_changes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
@@ -1279,6 +1279,7 @@ fn each_member_prefix_list_uses_the_table_active_when_built() {
         .server(":ergo.test 353 emily = #papo :@+bob!b@cloak.example")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.member("alice").unwrap().rank(), Some(Rank::Voice));
             assert_eq!(
                 prefix_symbols(channel.member("alice").unwrap().prefixes()),
                 ['@', '+']
@@ -1304,7 +1305,7 @@ fn solanum_prefix_without_halfop_reports_only_advertised_ranks() {
             assert_eq!(emily.rank(), Some(Rank::Op));
             assert!(emily.has(Rank::Op));
             assert!(emily.has(Rank::Voice));
-            assert!(!emily.has(Rank::Halfop));
+            assert!(!emily.prefixes().iter().any(|prefix| prefix.mode() == 'h'));
             assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Voice));
         })
         .ignore_rest();
@@ -1321,26 +1322,30 @@ fn inspircd_custom_prefix_does_not_invent_a_standard_rank() {
             let service = channel.member("service").unwrap();
             assert_eq!(prefix_symbols(service.prefixes()), ['!']);
             assert_eq!(service.rank(), None);
-            assert!(!service.has(Rank::Owner));
+            assert!(service.is_at_least_op());
             assert_eq!(channel.member("emily").unwrap().rank(), Some(Rank::Op));
         })
         .ignore_rest();
 }
 
 #[test]
-fn unreal_prefix_modes_map_owner_and_halfop_by_letter() {
+fn highest_unnamed_rank_remains_readable_as_a_letter_and_symbol() {
     Transcript::new(Config::default().nick("emily"))
         .server(":irc.unreal.example 005 emily PREFIX=(qaohv)~&@%+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
-        .server(":irc.unreal.example 353 emily = #papo :~emily &alice %dan")
+        .server(":irc.unreal.example 353 emily = #papo :~@emily &alice %dan")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
-            let emily = channel.member("emily").unwrap();
-            assert_eq!(emily.rank(), Some(Rank::Owner));
-            assert!(emily.has(Rank::Owner));
-            assert!(!emily.has(Rank::Admin));
-            assert_eq!(channel.member("alice").unwrap().rank(), Some(Rank::Admin));
-            assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Halfop));
+            for (nick, mode, symbol) in
+                [("emily", 'q', '~'), ("alice", 'a', '&'), ("dan", 'h', '%')]
+            {
+                let member = channel.member(nick).unwrap();
+                assert_eq!(member.rank(), None);
+                assert_eq!(
+                    (member.prefixes()[0].mode(), member.prefixes()[0].symbol()),
+                    (mode, symbol)
+                );
+            }
         })
         .ignore_rest();
 }
@@ -1898,7 +1903,7 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
             assert_eq!(prefix_symbols(channel.member("dan").unwrap().prefixes()), ['@', '+']);
             assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Op));
             assert!(channel.member("dan").unwrap().has(Rank::Voice));
-            assert!(!channel.member("dan").unwrap().has(Rank::Halfop));
+            assert!(!channel.member("dan").unwrap().prefixes().iter().any(|prefix| prefix.mode() == 'h'));
             assert_eq!(channel.member("erin").unwrap().rank(), None);
             assert_eq!(channel.member("frank").unwrap().rank(), Some(Rank::Op));
             assert!(!channel.member("frank").unwrap().has(Rank::Voice));

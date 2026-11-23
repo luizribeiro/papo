@@ -1829,13 +1829,12 @@ impl WhoisChannel {
         })
     }
 
-    /// Returns the highest standard rank held in this channel.
+    /// Returns operator or voice for display when it is the highest reported prefix.
+    ///
+    /// For privilege checks, use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`].
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
-        self.prefixes
-            .iter()
-            .filter_map(|prefix| prefix.rank())
-            .max()
+        self.prefixes.first()?.rank()
     }
 }
 
