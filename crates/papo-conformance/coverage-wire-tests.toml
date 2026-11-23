@@ -163,6 +163,21 @@
 "security::raw_mode_response_redacts_the_channel_key" = [
   "security.adv-4.channel-key-responses",
 ]
+"security::rejected_channel_key_stays_redacted" = [
+  "security.hostile-1.reply-secrets",
+]
+"security::credential_request_refusals_are_redacted" = [
+  "security.hostile-1.reply-secrets",
+]
+"security::login_credential_refusals_are_redacted" = [
+  "security.hostile-1.reply-secrets",
+]
+"security::malformed_mode_does_not_expose_a_channel_key" = [
+  "security.hostile-1.malformed-mode",
+]
+"security::ambiguous_mode_does_not_expose_a_channel_key" = [
+  "security.hostile-1.ambiguous-mode",
+]
 "security::invalid_account_extbans_never_reach_the_wire" = [
   "security.api.validated-account-extbans",
 ]

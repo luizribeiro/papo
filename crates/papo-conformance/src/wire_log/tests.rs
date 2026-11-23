@@ -1,6 +1,6 @@
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 
-use super::{Direction, Tapped, WireLog, redact::redact};
+use super::{Direction, Tapped, WireLog, redact::Credentials};
 
 fn tapped(
     log: &WireLog,
@@ -430,4 +430,24 @@ fn unparsable_lines_show_only_their_length() {
     assert_eq!(redact(b"PASS \xff\xfesecret"), "<unparsed line, 13 bytes>");
     let oversized = format!("PRIVMSG #papo :{}", "a".repeat(512));
     assert_eq!(redact(oversized.as_bytes()), "<unparsed line, 527 bytes>");
+}
+
+fn redact(line: &[u8]) -> String {
+    Credentials::default().redact(line, false)
+}
+
+#[test]
+fn a_reply_repeating_a_credential_is_redacted_in_the_wire_log() {
+    let log = WireLog::new();
+    let client = log.add_client();
+    log.record(client, Direction::Sent, b"MODE #staff +k :staff only 4821");
+    log.record(
+        client,
+        Direction::Received,
+        b":ergo.test 696 papo #staff k * :Invalid mode k parameter: staff only 4821",
+    );
+    let text = without_times(&log.render());
+    assert!(text.contains("-> MODE #staff +k :<redacted>"));
+    assert!(text.contains("<- :ergo.test 696 papo #staff k * :<redacted>"));
+    assert!(!text.contains("staff only 4821"));
 }

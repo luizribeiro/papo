@@ -1678,6 +1678,36 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// keeps a rejected channel key out of errors and the wire log
+#[scenario(covers = ["security.hostile-1.channel-key-refusal"])]
+async fn rejected_channel_key_stays_redacted(s: Scenario) -> papo_testing::Result<()> {
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    let ergo = matches!(profile.as_str(), "ergo-default" | "ergo-persistent");
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let key = "staff only 4821";
+    let result = alice.set_modes(&channel).key(papo::Secret::new(key)).await;
+    let log = s.rendered_wire_log();
+    assert!(!log.contains(key), "channel key in the wire log");
+    assert!(log.contains(&format!(" MODE {channel} +k :<redacted>")));
+    let Err(papo::Error::Server(error)) = result else {
+        assert!(!ergo, "expected Ergo to refuse the key with a server error");
+        return s.skip("the server accepted or rewrote the key");
+    };
+    if ergo {
+        assert_eq!(error.numeric(), Some(696));
+        assert!(
+            error.description() == "<redacted>",
+            "expected a redacted description"
+        );
+        assert!(log.contains(" 696 "));
+    }
+    assert!(!error.params().iter().any(|param| param.contains(key)));
+    assert!(!format!("{error:?} {error}").contains(key));
+    Ok(())
+}
+
 /// queries and changes invisible user mode while rejecting an unknown flag
 #[scenario(covers = [
     "base.mode.user.query",

@@ -31,6 +31,7 @@ struct ClientLog {
     name: String,
     lines: VecDeque<String>,
     dropped: usize,
+    credentials: redact::Credentials,
 }
 
 #[derive(Clone, Copy)]
@@ -55,6 +56,7 @@ impl WireLog {
             name,
             lines: VecDeque::new(),
             dropped: 0,
+            credentials: redact::Credentials::default(),
         });
         clients.len() - 1
     }
@@ -93,13 +95,15 @@ impl WireLog {
             Direction::Sent => "->",
             Direction::Received => "<-",
         };
+        let mut clients = self.clients();
+        let client = &mut clients[client];
         let line = format!(
             "{:.3} {arrow} {}",
             self.started.elapsed().as_secs_f64(),
-            redact::redact(line)
+            client
+                .credentials
+                .redact(line, matches!(direction, Direction::Sent))
         );
-        let mut clients = self.clients();
-        let client = &mut clients[client];
         client.lines.push_back(line);
         if client.lines.len() > LINES_PER_CLIENT {
             client.lines.pop_front();

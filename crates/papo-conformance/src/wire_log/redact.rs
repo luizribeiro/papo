@@ -1,4 +1,4 @@
-use papo_proto::LineRef;
+use papo_proto::{LineRef, Secret};
 
 const SASL_STEPS: &[&str] = &[
     "+",
@@ -13,21 +13,54 @@ const SASL_STEPS: &[&str] = &[
 ];
 const SERVICE_ALIASES: &[&str] = &["ACCOUNT", "CS", "HS", "NS", "OS"];
 
-/// Returns one wire line as sent, or re-encoded with every credential-bearing parameter replaced.
-pub(super) fn redact(raw: &[u8]) -> String {
-    let Ok(message) = LineRef::parse_bytes(raw) else {
-        return format!("<unparsed line, {} bytes>", raw.len());
-    };
-    let params: Vec<&str> = message.params().collect();
-    let secrets = secret_params(message.raw_command(), &params);
-    if secrets.is_empty() {
-        return String::from_utf8_lossy(raw).into_owned();
+#[derive(Default)]
+pub(super) struct Credentials {
+    values: Vec<Secret>,
+    full: bool,
+}
+
+impl Credentials {
+    /// Logs one frame while keeping credentials and their repeats out of diagnostics.
+    pub(super) fn redact(&mut self, raw: &[u8], outgoing: bool) -> String {
+        let Ok(message) = LineRef::parse_bytes(raw) else {
+            return format!("<unparsed line, {} bytes>", raw.len());
+        };
+        let params: Vec<&str> = message.params().collect();
+        let mut secrets = secret_params(message.raw_command(), &params);
+        if outgoing {
+            for &index in &secrets {
+                self.remember(params[index]);
+            }
+        }
+        if self.full {
+            return "<redacted>".to_owned();
+        }
+        secrets.extend(params.iter().enumerate().filter_map(|(index, param)| {
+            self.values
+                .iter()
+                .any(|secret| param.contains(secret.expose()))
+                .then_some(index)
+        }));
+        if secrets.is_empty() {
+            return String::from_utf8_lossy(raw).into_owned();
+        }
+        let mut line = message.to_owned();
+        for index in secrets {
+            line.__mark_secret(index);
+        }
+        line.to_string()
     }
-    let mut line = message.to_owned();
-    for index in secrets {
-        line.__mark_secret(index);
+
+    fn remember(&mut self, value: &str) {
+        if value.is_empty() || self.values.iter().any(|secret| secret.expose() == value) {
+            return;
+        }
+        if self.values.len() == 256 {
+            self.full = true;
+        } else {
+            self.values.push(Secret::new(value));
+        }
     }
-    line.to_string()
 }
 
 fn secret_params(command: &str, params: &[&str]) -> Vec<usize> {

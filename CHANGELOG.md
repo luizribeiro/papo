@@ -520,6 +520,9 @@ shows conflicting user or account facts for their nick.
 
 Private replies remain usable when a watch changes or the server sends more ISUPPORT.
 
+- Server replies and errors redact repeated channel keys and authentication credentials.
+  Malformed or ambiguous channel mode updates also hide any channel key they may carry.
+
 - A reconnect history catchup whose `CHATHISTORY` request times out, fails or is aborted is
   dropped with its request. It used to stay for the rest of the connection and record the msgid
   of every later live message in that channel, growing without bound.
