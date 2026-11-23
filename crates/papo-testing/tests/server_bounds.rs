@@ -75,3 +75,35 @@ async fn unanswered_capability_request_is_sent_once_on_the_wire() {
     wire.server(":offline.test CAP papo NEW :away-notify").await;
     assert_eq!(wire.next_sent().await, "CAP REQ :away-notify");
 }
+
+#[tokio::test]
+async fn an_application_that_stops_polling_lags_without_losing_the_connection() {
+    let (_client, mut events, mut wire) =
+        wire(papo::Client::builder("irc://offline.test", "papo").event_capacity(16));
+    wire.register(&[]).await;
+    connected(&mut events).await;
+
+    for index in 1..=17_000 {
+        wire.server(format!(
+            ":dan!~dan@users.example PRIVMSG papo :build {index} finished"
+        ))
+        .await;
+    }
+    wire.server("PING :still-connected").await;
+    assert_eq!(wire.next_sent().await, "PONG still-connected");
+
+    let seen = events_before_marker(&mut events, &mut wire).await;
+    let dropped: u64 = seen
+        .iter()
+        .filter_map(|event| match event {
+            papo::Event::Lagged(lagged) => Some(lagged.dropped),
+            _ => None,
+        })
+        .sum();
+    let delivered = seen
+        .iter()
+        .filter(|event| matches!(event, papo::Event::Message(_)))
+        .count();
+    assert!(dropped > 16_384, "only {dropped} events were dropped");
+    assert_eq!(dropped + delivered as u64, 17_000);
+}
