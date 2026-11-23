@@ -239,10 +239,9 @@ fn reaches_a_status_audience(state: &State, message: &ChatMessage) -> bool {
 }
 
 // A server that stamps lines but cannot batch its playback replays them as plain lines, so a
-// stamp no earlier than our own 001 is the only proof such a line is live. Every history page
-// builds its actors from past lines, whatever their stamps.
+// stamp no earlier than our own 001 is the only proof such a line is live.
 fn arrived_live(state: &State, message: &ChatMessage) -> bool {
-    if message.actor.__names_a_past_line() {
+    if message.is_from_history() {
         return false;
     }
     match state.welcome_time() {
