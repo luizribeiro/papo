@@ -371,6 +371,16 @@ fn observe_after_private_message(evidence: &str) -> (bool, RecipientStatus) {
             AccountStatus::Unknown,
         )
         .unwrap();
+    if matches!(
+        evidence.split_whitespace().nth(1),
+        Some("730" | "731" | "734")
+    ) {
+        session.monitor_add(["alice"]);
+        assert_eq!(
+            session.poll_transmit().unwrap().as_ref(),
+            b"MONITOR + alice\r\n"
+        );
+    }
     let now = Instant::now() + std::time::Duration::from_millis(1);
     session.handle_line(now, evidence.as_bytes());
     (
@@ -400,4 +410,24 @@ fn message_only_identity_uses_live_user_lines() {
         assert_eq!(same_token, same_person, "{evidence}");
         assert_eq!(matches!(status, RecipientStatus::Current(_)), same_person, "{evidence}: {status:?}");
     }
+}
+
+#[test]
+#[rustfmt::skip]
+fn message_only_identity_uses_names_and_monitor_rows() {
+    let mut mismatches = Vec::new();
+    for (evidence, same_person) in [
+        (":ergo.test 353 papo-admin = #review :@alice!~u@kq2ccwrbbbw6a.irc", false),
+        (":ergo.test 353 papo-admin = #review :@alice!~u@8ajhv7kxgp7ag.irc", true),
+        (":ergo.test 730 papo-admin :alice!~u@kq2ccwrbbbw6a.irc", false),
+        (":ergo.test 730 papo-admin :alice!~u@8ajhv7kxgp7ag.irc", true),
+        (":ergo.test 731 papo-admin :alice", false),
+        (":ergo.test 734 papo-admin 100 alice :Monitor list is full.", true),
+    ] {
+        let (same_token, status) = observe_after_private_message(evidence);
+        if same_token != same_person || matches!(status, RecipientStatus::Current(_)) != same_person {
+            mismatches.push((evidence, same_token, status));
+        }
+    }
+    assert!(mismatches.is_empty(), "{mismatches:?}");
 }

@@ -1,4 +1,7 @@
 [tests]
+"adopted_nick::contradictory_arrival_expires_message_and_actor" = [
+  "security.recipient-1.message-only-nick-handoff",
+]
 "unrelated_watch::replies_survive_monitor_sync_and_isupport" = [
   "security.recipient-3.message-only-monitor-sync",
 ]

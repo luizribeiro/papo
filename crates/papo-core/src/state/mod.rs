@@ -1035,6 +1035,7 @@ impl State {
             self.mark_changed();
         }
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
+            self.reconcile_message_user(nick, username, host, None);
             if !self.users.contains_key(&key) {
                 self.prepare_identity_arrival(nick);
                 let user = self.new_user(nick, username, host);
@@ -1047,6 +1048,8 @@ impl State {
             user.monitored = false;
             if user.channels.is_empty()
                 && user.nick != self.nick
+                && (self.monitor_presence.get(&key) == Some(&false)
+                    || !self.message_users.contains(&key))
                 && let Some(user) = self.users.remove(&key)
             {
                 self.remember_departed(&user);
@@ -1243,13 +1246,17 @@ impl State {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
-            let Some(state) = self.channel_mut(channel) else {
-                return Handled::No;
-            };
-            state.names_reply_seen = true;
+            let joined = self.channel_mut(channel).is_some_and(|state| {
+                state.names_reply_seen = true;
+                true
+            });
             for raw in entries {
                 let entry = NamesEntry::parse(raw, isupport);
-                if !entry.nick.is_empty() {
+                if entry.nick.is_empty() {
+                    continue;
+                }
+                self.reconcile_message_user(entry.nick, entry.user, entry.host, None);
+                if joined {
                     self.add_member(
                         channel,
                         entry.nick,
@@ -1260,7 +1267,7 @@ impl State {
                     );
                 }
             }
-            return Handled::Yes;
+            return if joined { Handled::Yes } else { Handled::No };
         }
         if self.finish_names(message, isupport, no_implicit_names, outbox) {
             return Handled::Yes;
