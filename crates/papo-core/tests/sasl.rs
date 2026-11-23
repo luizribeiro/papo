@@ -459,6 +459,60 @@ fn scram_then_plain_started() -> Transcript {
     .client("AUTHENTICATE SCRAM-SHA-256")
 }
 
+#[test]
+fn plain_never_follows_an_answered_scram_challenge() {
+    Transcript::with_entropy(
+        secure_sasl(Sasl::password("user", papo_core::Secret::new("pencil")).optional()),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server(":ergo.test CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .client("CAP END")
+    .server(":ergo.test CAP * DEL :sasl")
+    .event(|event| {
+        matches!(event, Event::CapsChanged { removed, .. } if removed.contains_key(&cap::SASL))
+    })
+    .server(":ergo.test CAP * NEW :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .event(|event| {
+        matches!(event, Event::CapsChanged { added, .. } if added.contains_key(&cap::SASL))
+    })
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .no_client()
+    .event(|event| {
+        matches!(event, Event::AuthenticationFailed { reason, .. }
+            if reason.contains("PLAIN fallback"))
+    })
+    .welcome(":ergo.test 001 papo :Welcome to the ErgoTest IRC Network papo")
+    .server(":ergo.test 422 papo :MOTD File is missing")
+    .event(|event| matches!(event, Event::Connected(_)))
+    .reauthenticate()
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .no_client()
+    .event(|event| {
+        matches!(event, Event::AuthenticationFailed { reason, .. }
+            if reason.contains("PLAIN fallback"))
+    })
+    .disconnect()
+    .connect_default()
+    .server(":ergo.test CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .client("AUTHENTICATE PLAIN");
+}
+
 fn ack_sasl_again(transcript: Transcript) -> Transcript {
     transcript
         .server(":ergo.test CAP * LS :sasl=SCRAM-SHA-256,PLAIN")

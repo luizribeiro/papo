@@ -128,6 +128,9 @@
 "security::scram_never_falls_back_to_plain_unsafely" = [
   "security.sasl.no-plain-fallback-after-bad-proof",
 ]
+"security::plain_never_follows_an_answered_scram_challenge" = [
+  "security.sasl.hostile-4.no-plain-after-scram-response",
+]
 "security::oauth_bearer_error_challenge_is_acknowledged_without_publication" = [
   "security.sasl.oauthbearer-error-challenge",
 ]

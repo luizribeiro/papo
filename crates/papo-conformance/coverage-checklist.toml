@@ -71,6 +71,7 @@ ids = [
   "multidevice.dm-fanout-thread",
   # Security regressions against a scripted hostile server.
   "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
+  "security.sasl.hostile-4.no-plain-after-scram-response",
   "security.sasl.own-account-after-verified-proof", "security.sasl.oauthbearer-error-challenge",
   "security.sasl.no-replay-after-success",
   "security.sasl.no-auto-login-after-registration",

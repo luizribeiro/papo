@@ -1781,6 +1781,44 @@ async fn scram_never_falls_back_to_plain_unsafely() {
     assert_sasl_failure(&disconnected, "ServerSignatureMismatch");
 }
 
+#[tokio::test(start_paused = true)]
+async fn plain_never_follows_an_answered_scram_challenge() {
+    let (_client, _events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .sasl(Sasl::password("alice", papo::Secret::new(PASSWORD)).optional()),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":offline.test CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+    wire.server(":offline.test CAP * ACK :sasl").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE SCRAM-SHA-256");
+    wire.server("AUTHENTICATE +").await;
+    assert!(wire.next_sent().await.starts_with("AUTHENTICATE "));
+    wire.server(":offline.test 904 papo-wire :SASL authentication failed")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP END");
+
+    wire.server(":offline.test CAP * DEL :sasl").await;
+    wire.server(":offline.test CAP * NEW :sasl=SCRAM-SHA-256,PLAIN")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+    wire.server(":offline.test CAP * ACK :sasl").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE SCRAM-SHA-256");
+    wire.server(":offline.test 904 papo-wire :SASL authentication failed")
+        .await;
+    wire.server(":offline.test 001 papo-wire :Welcome to the hostile test network")
+        .await;
+    wire.server(":offline.test 422 papo-wire :MOTD File is missing")
+        .await;
+    wire.server("PING :probe").await;
+    assert_eq!(wire.next_sent().await, "PONG probe");
+}
+
 #[tokio::test]
 async fn server_password_waits_for_sts() {
     let (_client, _events, mut wire) = wire(

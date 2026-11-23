@@ -137,6 +137,7 @@ pub(super) struct SaslSession {
     aborting: bool,
     abort_outcome: AbortOutcome,
     plain_fallback: PlainFallback,
+    scram_response: ScramResponse,
     scram: Option<ScramClient>,
     scram_step: ScramStep,
     oauth_bearer_step: OAuthBearerStep,
@@ -216,6 +217,12 @@ enum PlainFallback {
     Forbidden,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ScramResponse {
+    NotSent,
+    Sent,
+}
+
 impl std::fmt::Debug for SaslSession {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -239,6 +246,7 @@ impl std::fmt::Debug for SaslSession {
             .field("aborting", &self.aborting)
             .field("abort_outcome", &self.abort_outcome)
             .field("plain_fallback", &self.plain_fallback)
+            .field("scram_response", &self.scram_response)
             .field("has_scram", &self.scram.is_some())
             .field("scram_step", &self.scram_step)
             .field("oauth_bearer_step", &self.oauth_bearer_step)
@@ -278,6 +286,7 @@ impl SaslSession {
             aborting: false,
             abort_outcome: AbortOutcome::Retry,
             plain_fallback,
+            scram_response: ScramResponse::NotSent,
             scram: None,
             scram_step: ScramStep::None,
             oauth_bearer_step: OAuthBearerStep::None,
@@ -305,6 +314,7 @@ impl SaslSession {
         self.deadline = None;
         self.aborting = false;
         self.abort_outcome = AbortOutcome::Retry;
+        self.scram_response = ScramResponse::NotSent;
         self.scram = None;
         self.scram_step = ScramStep::None;
         self.oauth_bearer_step = OAuthBearerStep::None;
@@ -657,7 +667,8 @@ impl SaslSession {
                 return self.fail_all("every configured SASL mechanism failed", outbox);
             };
             if matches!(mechanism, Mechanism::Plain { .. })
-                && self.plain_fallback == PlainFallback::Forbidden
+                && (self.scram_response == ScramResponse::Sent
+                    || self.plain_fallback == PlainFallback::Forbidden)
             {
                 self.failures.push(
                     "PLAIN fallback is allowed only on a secure connection before a SCRAM challenge"
@@ -742,9 +753,7 @@ impl SaslSession {
             ScramStep::Initial if challenge.is_empty() => {
                 transmit_response(client.client_first().as_bytes(), outbox);
                 self.scram_step = ScramStep::ServerFirst;
-                if self.plain_fallback == PlainFallback::Allowed {
-                    self.plain_fallback = PlainFallback::Forbidden;
-                }
+                self.scram_response = ScramResponse::Sent;
                 Ok(false)
             }
             ScramStep::ServerFirst => {
