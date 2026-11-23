@@ -45,6 +45,7 @@ pub enum ModeAction {
 }
 
 /// Parser for the operations in an IRC mode string.
+#[derive(Debug)]
 pub struct ModeChanges;
 
 impl ModeChanges {

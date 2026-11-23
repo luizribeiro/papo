@@ -12,6 +12,7 @@
 //! The IRC specifications call each line a message; this crate uses "line" so
 //! "message" can consistently mean a chat message in the wider API.
 
+#![deny(missing_debug_implementations)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod casemapping;

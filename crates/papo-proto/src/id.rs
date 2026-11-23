@@ -458,6 +458,7 @@ mod name_argument {
 
 /// The text and client identity retained by a name argument.
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct NameParts<'a> {
     text: Cow<'a, str>,
     folded: Option<(&'a str, Casemapping)>,

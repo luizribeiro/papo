@@ -1233,6 +1233,8 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ModeChange<'a>
 pub struct papo_proto::ModeChanges
 impl papo_proto::ModeChanges
 pub fn papo_proto::ModeChanges::parse<'a, I>(&'a str, I, &'a papo_proto::Isupport) -> impl core::iter::traits::iterator::Iterator<Item = papo_proto::ModeChange<'a>> + 'a where I: core::iter::traits::collect::IntoIterator<Item = &'a str> + 'a, <I as core::iter::traits::collect::IntoIterator>::IntoIter: 'a
+impl core::fmt::Debug for papo_proto::ModeChanges
+pub fn papo_proto::ModeChanges::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo_proto::ModeChanges
 impl core::marker::Send for papo_proto::ModeChanges
 impl core::marker::Sync for papo_proto::ModeChanges
