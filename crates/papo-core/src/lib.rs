@@ -4117,6 +4117,7 @@ impl Session {
         self.ctcp_sources.clear();
         self.requests.clear();
         self.secret_echoes.handle_connected();
+        self.reply_secrets = secret_echo::ReplySecrets::default();
         self.pending_mark_reads.clear();
         self.unlabelled_requests.clear();
         self.away_messages.clear();
@@ -5452,7 +5453,10 @@ impl Session {
             }
             None => None,
         };
-        if !self.reply_secrets.track(&queued.line) {
+        if !self
+            .reply_secrets
+            .track(&queued.line, self.config.sasl.as_ref())
+        {
             self.outbox.close_and_discard(
                 CloseKind::Other,
                 "credential tracking limit reached".to_owned(),

@@ -3,7 +3,7 @@ use std::{collections::VecDeque, time::Duration};
 use papo_proto::{Command, Line, LineRef, Param, Secret, WireLine};
 use web_time::Instant;
 
-use crate::RequestError;
+use crate::{RequestError, Sasl, sasl::Mechanism};
 
 /// The most secrets a session tracks for the lines the server echoes.
 const MAX_SECRET_ECHOES: usize = 32;
@@ -132,12 +132,12 @@ impl SecretEchoes {
 }
 
 /// The peer can repeat a credential in a late or unlabelled reply. Keep the credentials for the
-/// session and refuse to send any beyond the bound.
+/// connection and refuse to send any beyond the bound.
 #[derive(Debug, Default)]
 pub(super) struct ReplySecrets(Vec<Secret>);
 
 impl ReplySecrets {
-    pub(super) fn track(&mut self, line: &WireLine) -> bool {
+    pub(super) fn track(&mut self, line: &WireLine, sasl: Option<&Sasl>) -> bool {
         const MAX_CREDENTIALS: usize = 256;
         let commands = [
             "MODE",
@@ -149,13 +149,26 @@ impl ReplySecrets {
             "WEBIRC",
             "AUTHENTICATE",
         ];
-        if !line.__has_secret_parameter()
-            || !LineRef::parse_bytes(line)
-                .is_ok_and(|message| commands.iter().any(|command| message.command_is(command)))
-        {
+        if !line.__has_secret_parameter() {
             return true;
         }
-        for value in papo_proto::__wire_secret_parameters(line).filter(|value| !value.is_empty()) {
+        let Ok(message) = LineRef::parse_bytes(line) else {
+            return true;
+        };
+        if !commands.iter().any(|command| message.command_is(command)) {
+            return true;
+        }
+        let decoded = sasl
+            .filter(|_| message.command_is("AUTHENTICATE"))
+            .into_iter()
+            .flat_map(|sasl| &sasl.mechanisms)
+            .filter_map(|mechanism| match mechanism {
+                Mechanism::Plain { password, .. } => Some(password.expose()),
+                Mechanism::OAuthBearer { token } => Some(token.expose()),
+                _ => None,
+            });
+        let values = papo_proto::__wire_secret_parameters(line).chain(decoded);
+        for value in values.filter(|value| !value.is_empty()) {
             if self.0.iter().any(|secret| secret.expose() == value) {
                 continue;
             }
@@ -178,7 +191,14 @@ impl ReplySecrets {
         if self.0.is_empty()
             || !(matches!(message.command(), Command::Numeric(_))
                 || [
-                    "FAIL", "WARN", "NOTE", "ERROR", "NOTICE", "REGISTER", "VERIFY",
+                    "FAIL",
+                    "WARN",
+                    "NOTE",
+                    "ERROR",
+                    "NOTICE",
+                    "REGISTER",
+                    "VERIFY",
+                    "AUTHENTICATE",
                 ]
                 .iter()
                 .any(|command| message.command_is(command)))

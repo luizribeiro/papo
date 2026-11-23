@@ -1982,6 +1982,96 @@ async fn rejected_channel_key_stays_redacted() {
 }
 
 #[tokio::test]
+async fn login_credential_refusals_are_redacted() {
+    let builder = || papo::Client::builder("irc://offline.test", "papo-wire");
+    let key = "test-credential-login-4821";
+    let secret = || papo::Secret::new(key);
+    for (command, builder, reply, echo_encoded) in [
+        (
+            "PASS",
+            builder().password(secret()),
+            ":offline.test 464 * :Password incorrect",
+            false,
+        ),
+        (
+            "WEBIRC",
+            builder().webirc(papo::WebIrc::new(
+                "gateway",
+                secret(),
+                "192.0.2.42".parse().unwrap(),
+            )),
+            "ERROR :WEBIRC command is not usable from your address or incorrect password given",
+            false,
+        ),
+        (
+            "PLAIN",
+            builder().sasl(Sasl::plain("alice", secret())),
+            ":offline.test 904 papo-wire :SASL authentication failed",
+            true,
+        ),
+        (
+            "PLAIN",
+            builder().sasl(Sasl::plain("alice", secret())),
+            ":offline.test 904 papo-wire :SASL authentication failed",
+            false,
+        ),
+        (
+            "OAUTHBEARER",
+            builder().sasl(Sasl::oauth_bearer(secret())),
+            ":offline.test 904 papo-wire :SASL authentication failed",
+            false,
+        ),
+    ] {
+        let (_, mut events, mut wire) = wire(
+            builder
+                .allow_insecure_auth(true)
+                .reconnect(Reconnect::never()),
+        );
+        if command == "WEBIRC" {
+            assert_eq!(
+                wire.next_sent().await,
+                format!("WEBIRC {key} gateway 192.0.2.42 192.0.2.42")
+            );
+        } else {
+            assert_eq!(wire.next_sent().await, "CAP LS 302");
+            assert_eq!(wire.next_sent().await, "NICK papo-wire");
+            assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+        }
+        let payload = match command {
+            "PASS" => {
+                wire.server(":offline.test CAP * LS :").await;
+                assert_eq!(wire.next_sent().await, format!("PASS {key}"));
+                key.to_owned()
+            }
+            "PLAIN" | "OAUTHBEARER" => {
+                wire.server(format!(":offline.test CAP * LS :sasl={command}"))
+                    .await;
+                assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+                wire.server(":offline.test CAP * ACK :sasl").await;
+                assert_eq!(wire.next_sent().await, format!("AUTHENTICATE {command}"));
+                wire.server("AUTHENTICATE +").await;
+                let bytes = if command == "PLAIN" {
+                    format!("\0alice\0{key}")
+                } else {
+                    format!("n,,\x01auth=Bearer {key}\x01\x01")
+                };
+                let payload = STANDARD.encode(bytes);
+                assert_eq!(wire.next_sent().await, format!("AUTHENTICATE {payload}"));
+                payload
+            }
+            _ => key.to_owned(),
+        };
+        let echoed = if echo_encoded { &payload } else { key };
+        wire.server(format!("{reply}: {echoed}")).await;
+        let disconnected = next_login_disconnect(&mut events).await;
+        let diagnostic = disconnect_diagnostic(&disconnected);
+        assert!(diagnostic.contains("<redacted>"), "{command}: {diagnostic}");
+        let shown = format!("{disconnected:?} {diagnostic}");
+        assert!(!shown.contains(echoed));
+    }
+}
+
+#[tokio::test]
 async fn raw_mode_response_redacts_the_channel_key() {
     let (client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
