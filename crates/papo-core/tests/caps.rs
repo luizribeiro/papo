@@ -747,3 +747,19 @@ fn a_new_connection_can_request_capabilities_left_unanswered() {
         .server(":ergo.test CAP * LS :away-notify")
         .client("CAP REQ :away-notify");
 }
+
+#[test]
+fn requests_the_longest_capability_name_a_510_byte_line_can_advertise() {
+    let longest = format!("example.net/{}", "a".repeat(488));
+    let advertisement = format!("CAP * LS :{longest}");
+    assert_eq!((longest.len(), advertisement.len()), (500, 510));
+    Transcript::new(Config::default().wanted_caps(["away-notify", longest.as_str()]))
+        .connect_default()
+        .server(":ergo.test CAP * LS * :away-notify")
+        .server(&advertisement)
+        .client("CAP REQ :away-notify")
+        .client(&format!("CAP REQ :{longest}"))
+        .server(&format!("CAP * LS :{longest}a"))
+        .no_client()
+        .ignore_rest();
+}

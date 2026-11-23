@@ -356,7 +356,6 @@ impl Caps {
         let available = MAX_PENDING_CAPABILITIES - seen.len();
         let requested = requested
             .iter()
-            .filter(|name| name.len() <= MAX_IRC_BODY_LEN - CAP_REQ_PREFIX_LEN)
             .filter(|name| seen.insert(cap::canonical(name)))
             .take(available)
             .cloned()
