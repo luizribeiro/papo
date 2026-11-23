@@ -341,3 +341,63 @@ fn monitor_sync_preserves_a_message_only_identity() {
     }
     assert!(failures.is_empty(), "{failures:?}");
 }
+
+fn observe_after_private_message(evidence: &str) -> (bool, RecipientStatus) {
+    let mut session = registered("message-tags account-notify chghost userhost-in-names");
+    for line in [
+        ":ergo.test 005 papo-admin MONITOR=100 WHOX :are supported",
+        ":papo-admin!~u@localhost JOIN #review",
+        ":ergo.test 366 papo-admin #review :End of NAMES list",
+        ALICE_ADMIN,
+    ] {
+        server(&mut session, line);
+    }
+    for expected in ["MODE #review\r\n", "WHO #review %tcuhnfar,152\r\n"] {
+        assert_eq!(
+            session.poll_transmit().unwrap().as_ref(),
+            expected.as_bytes()
+        );
+    }
+    assert!(
+        drain(&mut session)
+            .iter()
+            .any(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("PRIVMSG")))
+    );
+    let before = token(&session, "alice");
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            AccountStatus::Unknown,
+        )
+        .unwrap();
+    let now = Instant::now() + std::time::Duration::from_millis(1);
+    session.handle_line(now, evidence.as_bytes());
+    (
+        before == token(&session, "alice"),
+        session.state().__resolve_recipient(&guard),
+    )
+}
+
+#[test]
+#[rustfmt::skip]
+fn message_only_identity_uses_live_user_lines() {
+    for (evidence, same_person) in [
+        (":alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :hello", false),
+        (":alice!~u@kq2ccwrbbbw6a.irc JOIN #review", false),
+        (":alice!~u@8ajhv7kxgp7ag.irc JOIN #review", true),
+        (":alice!~u@kq2ccwrbbbw6a.irc JOIN #review alice :Alice", false),
+        (":alice!~u@8ajhv7kxgp7ag.irc JOIN #review mallory :Mallory", false),
+        (":alice!~u@8ajhv7kxgp7ag.irc JOIN #review alice :Alice", true),
+        (":alice!~u@8ajhv7kxgp7ag.irc CHGHOST ~u kq2ccwrbbbw6a.irc", false),
+        (":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT mallory", false),
+        (":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT alice", true),
+        ("@account=mallory :alice!~u@8ajhv7kxgp7ag.irc INVITE papo-admin #staff", false),
+        ("@account=alice :alice!~u@kq2ccwrbbbw6a.irc INVITE papo-admin #staff", false),
+        ("@account=alice :alice!~u@8ajhv7kxgp7ag.irc INVITE papo-admin #staff", true),
+    ] {
+        let (same_token, status) = observe_after_private_message(evidence);
+        assert_eq!(same_token, same_person, "{evidence}");
+        assert_eq!(matches!(status, RecipientStatus::Current(_)), same_person, "{evidence}: {status:?}");
+    }
+}

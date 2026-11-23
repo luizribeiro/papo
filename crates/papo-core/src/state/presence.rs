@@ -1,6 +1,6 @@
 use super::{
     AccountNotify, AccountStatus, AwayNotify, AwayStatus, Chghost, Command, Event, Handled,
-    Isupport, LineRef, NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, User,
+    Isupport, Join, LineRef, NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, User,
     WHOX_FIELDS, WHOX_TOKEN, WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
@@ -25,12 +25,16 @@ impl State {
         nick: &str,
         enabled_caps: &crate::Capabilities,
     ) -> Option<AccountStatus> {
+        if message.command() == Command::Account {
+            return None;
+        }
         match message.tag("account") {
             Some(account) => Some(AccountStatus::LoggedIn(
                 self.casemapping.account(account.as_ref()),
             )),
             None => (enabled_caps.contains_key(&crate::cap::ACCOUNT_TAG)
-                && !crate::names_equal(self.casemapping, nick, self.nick.as_str()))
+                && !crate::names_equal(self.casemapping, nick, self.nick.as_str())
+                && Join::parse(message).is_none_or(|join| join.realname.is_none()))
             .then_some(AccountStatus::LoggedOut),
         }
     }
@@ -104,7 +108,7 @@ impl State {
     ) -> crate::Names {
         let mapping = isupport.casemapping();
         self.update_casemapping(mapping);
-        self.track_message_user(message, isupport, enabled_caps);
+        self.observe_user_source(message, isupport, enabled_caps);
         self.apply_message_metadata(message, own_nick, enabled_caps, outbox);
         self.casemapping
     }
@@ -115,18 +119,44 @@ impl State {
         !user.channels.is_empty() || user.monitored || user.nick == self.nick
     }
 
-    fn track_message_user(
+    pub(super) fn reconcile_message_user(
+        &mut self,
+        nick: &str,
+        username: Option<&str>,
+        host: Option<&str>,
+        account: Option<&AccountStatus>,
+    ) -> Option<&mut User> {
+        let folded = self.casemapping.fold(nick);
+        let user = self.users.get(folded.as_ref())?;
+        if self.follows_presence(user) {
+            return None;
+        }
+        if !user.may_send_as(username, host, account) {
+            self.prepare_identity_arrival(nick);
+            let mut user = self.new_user(nick, username, host);
+            if let Some(account) = account {
+                user.update_account(account.clone());
+            }
+            self.users
+                .insert(NameKey::new(nick, self.casemapping), user);
+            self.mark_changed();
+        } else if (user.username.is_none() && username.is_some())
+            || (user.host.is_none() && host.is_some())
+        {
+            self.users
+                .get_mut(folded.as_ref())?
+                .update_userhost(username, host);
+            self.mark_changed();
+        }
+        self.users.get_mut(folded.as_ref())
+    }
+
+    fn observe_user_source(
         &mut self,
         message: &LineRef<'_>,
         isupport: &Isupport,
         enabled_caps: &crate::Capabilities,
     ) {
-        if !matches!(
-            message.command(),
-            Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact
-        ) {
-            return;
-        }
         let Some(ProtoSource::User {
             nick,
             username,
@@ -136,13 +166,29 @@ impl State {
         else {
             return;
         };
-        let key = NameKey::new(nick, self.casemapping);
         let line_account = self.line_account(message, nick, enabled_caps);
-        if self.users.get(&key).is_some_and(|user| {
-            !self.follows_presence(user) && !user.may_send_as(username, host, line_account.as_ref())
-        }) {
-            self.prepare_identity_arrival(nick);
+        let join_account = Join::parse(message)
+            .filter(|join| join.realname.is_some())
+            .map(|join| AccountStatus::from_notify(join.account, self.casemapping));
+        self.reconcile_message_user(nick, username, host, line_account.as_ref());
+        if let Some(account) = join_account.as_ref() {
+            self.reconcile_message_user(nick, username, host, Some(account));
         }
+        if let Some(change) = Chghost::parse(message) {
+            self.reconcile_message_user(
+                nick,
+                Some(change.user),
+                Some(change.host),
+                line_account.as_ref(),
+            );
+        }
+        if !matches!(
+            message.command(),
+            Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact
+        ) {
+            return;
+        }
+        let key = NameKey::new(nick, self.casemapping);
         let mut changed = false;
         if !self.users.contains_key(&key) {
             let mut user = self.new_user(nick, username, host);
@@ -181,24 +227,25 @@ impl State {
 
     fn handle_account(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
         let account = AccountNotify::parse(message)?;
-        let Some(ProtoSource::User { nick, .. }) = message.source() else {
+        let Some(ProtoSource::User {
+            nick,
+            username,
+            host,
+            ..
+        }) = message.source()
+        else {
             return Some(Handled::No);
         };
         let envelope = crate::LineEnvelope::from_line(message).with_account(account.account);
         let account = AccountStatus::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
+        let changed_or_untracked = self.user(nick).is_none_or(|user| user.account != account);
+        self.reconcile_message_user(nick, username, host, Some(&account));
         let token = self.__reply_token_for(nick);
-        let changed_or_untracked = self
-            .users
-            .get_mut(self.casemapping.fold(nick).as_ref())
-            .is_none_or(|user| {
-                if user.account == account {
-                    return false;
-                }
-                user.update_account(account.clone());
-                true
-            });
         if changed_or_untracked {
+            if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
+                user.update_account(account.clone());
+            }
             outbox.event(Event::AccountChanged {
                 envelope,
                 actor,
