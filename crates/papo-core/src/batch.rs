@@ -1,12 +1,12 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
+    collections::{BTreeMap, HashSet, VecDeque},
     time::Duration,
 };
 use web_time::Instant;
 
 use papo_proto::{Command, Line, LineRef, Reaction};
 
-use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
+use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, ReplyToken, cap};
 
 const MAX_ABANDONED_BATCHES: usize = 256;
 pub(crate) const DEFAULT_BYTE_BUDGET: usize = 64 * 1024 * 1024;
@@ -32,7 +32,7 @@ struct OpenBatch {
     exhausted: bool,
     messages: Vec<Line>,
     incomplete: Vec<usize>,
-    replay_members: BTreeSet<usize>,
+    routed_members: RoutedMembers,
     completed: Vec<BatchEvent>,
     multiline_collectors: Vec<String>,
     lines: usize,
@@ -43,9 +43,27 @@ struct OpenBatch {
     replay: bool,
 }
 
+pub(crate) type RoutedMembers = BTreeMap<usize, RoutedMember>;
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RoutedMember {
+    pub(crate) live: bool,
+    pub(crate) subject: Option<ReplyToken>,
+    pub(crate) joined_ready: Option<bool>,
+}
+
+impl RoutedMember {
+    const REPLAY: Self = Self {
+        live: false,
+        subject: None,
+        joined_ready: None,
+    };
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct DispatchContext {
     batch_type: Option<String>,
+    pub(crate) defer_responses: bool,
 }
 
 impl DispatchContext {
@@ -56,6 +74,7 @@ impl DispatchContext {
     pub(crate) fn from_batch_type(batch_type: String) -> Self {
         Self {
             batch_type: Some(batch_type),
+            ..Self::default()
         }
     }
 }
@@ -73,7 +92,7 @@ pub(crate) enum BatchEvent {
         echo: Option<Line>,
         messages: Vec<Line>,
         batch_type: String,
-        replay_members: BTreeSet<usize>,
+        routed_members: RoutedMembers,
         replay: bool,
         history: Option<(String, Vec<HistoryItem>, bool)>,
         history_targets: Option<Vec<(String, papo_proto::ServerTime)>>,
@@ -224,7 +243,7 @@ impl Batches {
                     .any(|(key, _)| key == "draft/chathistory-end"),
                 messages: Vec::new(),
                 incomplete: Vec::new(),
-                replay_members: BTreeSet::new(),
+                routed_members: BTreeMap::new(),
                 completed: Vec::new(),
                 multiline_collectors: multiline_collectors.clone(),
                 lines: 0,
@@ -246,7 +265,9 @@ impl Batches {
                 .get_mut(&collector)
                 .expect("resolved multiline collector remains open");
             if replay && !batch.replay {
-                batch.replay_members.insert(batch.messages.len());
+                batch
+                    .routed_members
+                    .insert(batch.messages.len(), RoutedMember::REPLAY);
             }
             batch.messages.push(message.to_owned());
             batch.buffered_bytes = batch.buffered_bytes.saturating_add(retained_bytes(message));
@@ -317,7 +338,7 @@ impl Batches {
                 echo,
                 messages: response_messages.expect("label captured response messages"),
                 batch_type: batch.kind.clone(),
-                replay_members: batch.replay_members,
+                routed_members: batch.routed_members,
                 replay: batch.replay,
                 history,
                 history_targets,
@@ -404,7 +425,9 @@ impl Batches {
                 .get_mut(reference)
                 .expect("resolved aggregate remains open");
             if replay && !batch.replay {
-                batch.replay_members.insert(batch.messages.len());
+                batch
+                    .routed_members
+                    .insert(batch.messages.len(), RoutedMember::REPLAY);
             }
             batch.messages.push(message.to_owned());
         }
@@ -675,14 +698,16 @@ impl Batches {
             batch
                 .messages
                 .splice(index..=index, replacement.iter().cloned());
-            let shifted = batch.replay_members.split_off(&(index + 1));
-            batch.replay_members.extend(
+            let shifted = batch.routed_members.split_off(&(index + 1));
+            batch.routed_members.extend(
                 shifted
                     .into_iter()
-                    .map(|position| position - 1 + replacement_len),
+                    .map(|(position, route)| (position - 1 + replacement_len, route)),
             );
-            if batch.replay_members.remove(&index) {
-                batch.replay_members.extend(index..index + replacement_len);
+            if let Some(route) = batch.routed_members.remove(&index) {
+                batch
+                    .routed_members
+                    .extend((index..index + replacement_len).map(|index| (index, route)));
             }
             for stored in &mut batch.incomplete {
                 if *stored > index {
@@ -729,7 +754,10 @@ impl Batches {
             .tag("batch")
             .and_then(|reference| self.open.get(reference.as_ref()))
             .map(|batch| batch.kind.clone());
-        DispatchContext { batch_type }
+        DispatchContext {
+            batch_type,
+            ..DispatchContext::default()
+        }
     }
 
     pub(crate) fn recount(&self) -> usize {

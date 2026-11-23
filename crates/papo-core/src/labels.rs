@@ -51,7 +51,7 @@ impl Session {
     pub(super) fn who_reply_target(
         &self,
         message: &LineRef<'_>,
-        enclosing_request: Option<&PendingRequest>,
+        enclosing_request: Option<(RequestId, Option<&str>)>,
     ) -> Option<String> {
         if !matches!(
             message.command(),
@@ -59,8 +59,8 @@ impl Session {
         ) {
             return None;
         }
-        if let Some(request) = enclosing_request {
-            return request.who_target.clone();
+        if let Some((_, target)) = enclosing_request {
+            return target.map(str::to_owned);
         }
         if let Some(label) = message.tag("label") {
             return self.requests.get(label.as_ref())?.who_target.clone();
@@ -249,6 +249,7 @@ impl Session {
         now: Instant,
         message: &LineRef<'_>,
         labelled_request: Option<RequestId>,
+        joined_ready: Option<bool>,
     ) -> bool {
         let mapping = self.isupport.value().casemapping();
         if self.abort_departed_join(message, mapping) {
@@ -282,7 +283,14 @@ impl Session {
                         request
                             .boundary
                             .matches(message, mapping, self.welcome_state.nick(), &self.state)
-                            .map(|complete| complete && request.fence.is_none())
+                            .map(|complete| {
+                                let complete = if join_started {
+                                    joined_ready.unwrap_or(complete)
+                                } else {
+                                    complete
+                                };
+                                complete && request.fence.is_none()
+                            })
                     })
                     .map(|done| (index, done, join_started))
             })

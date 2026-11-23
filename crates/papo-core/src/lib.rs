@@ -5959,7 +5959,7 @@ impl Session {
         message: &LineRef<'_>,
         context: &DispatchContext,
         emit_unhandled: bool,
-        enclosing_request: Option<&PendingRequest>,
+        enclosing_request: Option<(RequestId, Option<&str>)>,
     ) {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
@@ -6133,14 +6133,18 @@ impl Session {
                     .is_some_and(|request| request.sent)
             })
             && self.is_own_source(message);
-        let labelled_request = enclosing_request.map(|request| request.id).or_else(|| {
+        let labelled_request = enclosing_request.map(|(id, _)| id).or_else(|| {
             message
                 .tag("label")
                 .and_then(|label| self.requests.get(label.as_ref()).map(|request| request.id))
         });
-        let labelled_response =
-            self.resolve_labelled_message(message, queued_events, emit_response_events);
-        let response = self.resolve_unlabelled(now, message, labelled_request) || labelled_response;
+        let response = if context.defer_responses {
+            false
+        } else {
+            let labelled_response =
+                self.resolve_labelled_message(message, queued_events, emit_response_events);
+            self.resolve_unlabelled(now, message, labelled_request, None) || labelled_response
+        };
         if response && labelled_echo && emit_response_events {
             self.enqueue_labelled_echo(message);
         }
@@ -6739,12 +6743,24 @@ impl Session {
         messages: &[Line],
         context: &DispatchContext,
         request: Option<&PendingRequest>,
-        replay_members: &std::collections::BTreeSet<usize>,
+        routed_members: &batch::RoutedMembers,
     ) -> (Vec<(usize, ReplyToken)>, Vec<Event>) {
         let mut subject_tokens = Vec::new();
         let mut unanswering_events = Vec::new();
+        let enclosing = request.map(|request| (request.id, request.who_target.as_deref()));
         for (index, message) in messages.iter().enumerate() {
-            if replay_members.contains(&index) {
+            if let Some(member) = routed_members.get(&index) {
+                if member.live {
+                    subject_tokens.extend(member.subject.map(|token| (index, token)));
+                    if let Some(request) = request {
+                        self.resolve_unlabelled(
+                            now,
+                            &message.as_ref(),
+                            Some(request.id),
+                            member.joined_ready,
+                        );
+                    }
+                }
                 continue;
             }
             let answers =
@@ -6755,7 +6771,7 @@ impl Session {
                 &message.as_ref(),
                 context,
                 request.is_none() || !answers,
-                request,
+                enclosing,
             );
             if !answers {
                 unanswering_events.extend(self.outbox.events.drain(queued_events..));
@@ -6775,7 +6791,7 @@ impl Session {
             echo,
             messages,
             batch_type,
-            replay_members,
+            routed_members,
             replay,
             mut history,
             history_targets,
@@ -6802,7 +6818,7 @@ impl Session {
                 &messages,
                 &context,
                 request.as_ref(),
-                &replay_members,
+                &routed_members,
             )
         } else {
             (Vec::new(), Vec::new())
