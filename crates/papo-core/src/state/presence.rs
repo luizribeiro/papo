@@ -576,27 +576,7 @@ impl State {
             message.param(7)?,
         );
         let realname = hopcount_realname.split_once(' ')?.1;
-        let flags = WhoxFlags {
-            presence: raw_flags.chars().find_map(|flag| match flag {
-                'H' => Some(WhoxPresence::Here),
-                'G' => Some(WhoxPresence::Gone),
-                _ => None,
-            }),
-            oper: raw_flags.contains('*'),
-            bot: raw_flags.contains('B')
-                || isupport
-                    .bot_mode()
-                    .is_some_and(|mode| raw_flags.contains(mode)),
-            prefixes: isupport
-                .prefix()
-                .into_iter()
-                .filter_map(|prefix| {
-                    raw_flags
-                        .contains(prefix.symbol())
-                        .then_some(prefix.symbol())
-                })
-                .collect(),
-        };
+        let flags = WhoxFlags::__parse(raw_flags, isupport);
         if !self.is_who_sweep(channel) {
             return self.apply_nick_who_away(message, who_target, nick, flags.presence, outbox);
         }

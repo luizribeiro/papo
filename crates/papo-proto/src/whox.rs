@@ -1,4 +1,4 @@
-use crate::{Command, Isupport, LineRef, Numeric};
+use crate::{Command, Isupport, LineRef, Numeric, Prefix};
 
 const FIELDS: &str = "tcuihsnfdlaor";
 
@@ -22,6 +22,8 @@ pub struct WhoxFlags {
     pub bot: bool,
     /// Advertised channel-membership prefixes in wire order.
     pub prefixes: Vec<char>,
+    prefix_order: Vec<Prefix>,
+    advertised_prefix: bool,
 }
 
 /// A typed view of an `RPL_WHOSPCRPL` (`354`) reply.
@@ -101,9 +103,18 @@ impl<'a> WhoxReply<'a> {
     /// Parses presence, operator, bot, and membership markers from the flags field.
     #[must_use]
     pub fn flags(&self, isupport: &Isupport) -> Option<WhoxFlags> {
-        let flags = self.raw_flags?;
-        let prefixes = isupport.prefix();
-        Some(WhoxFlags {
+        Some(WhoxFlags::__parse(self.raw_flags?, isupport))
+    }
+}
+
+impl WhoxFlags {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __parse(flags: &str, isupport: &Isupport) -> Self {
+        let advertised = isupport.__advertised_prefix();
+        let advertised_prefix = advertised.is_some();
+        let prefix_order = advertised.unwrap_or_else(|| isupport.prefix());
+        Self {
             presence: flags.chars().find_map(|flag| match flag {
                 'H' => Some(WhoxPresence::Here),
                 'G' => Some(WhoxPresence::Gone),
@@ -114,9 +125,41 @@ impl<'a> WhoxReply<'a> {
                 || isupport.bot_mode().is_some_and(|mode| flags.contains(mode)),
             prefixes: flags
                 .chars()
-                .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol() == *flag))
+                .filter(|flag| prefix_order.iter().any(|prefix| prefix.symbol() == *flag))
                 .collect(),
-        })
+            prefix_order,
+            advertised_prefix,
+        }
+    }
+
+    /// Returns the held membership letters and symbols in server order.
+    pub fn prefixes(&self) -> impl Iterator<Item = Prefix> + '_ {
+        self.prefix_order
+            .iter()
+            .copied()
+            .filter(|prefix| self.prefixes.contains(&prefix.symbol()))
+    }
+
+    /// Reports whether a held prefix reaches operator in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
+    #[must_use]
+    pub fn is_at_least_op(&self) -> bool {
+        self.advertised_prefix
+            && Prefix::__reaches(&self.prefix_order, 'o', |prefix| {
+                self.prefixes.contains(&prefix.symbol())
+            })
+    }
+
+    /// Reports whether a held prefix reaches voice in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
+    #[must_use]
+    pub fn is_at_least_voice(&self) -> bool {
+        self.advertised_prefix
+            && Prefix::__reaches(&self.prefix_order, 'v', |prefix| {
+                self.prefixes.contains(&prefix.symbol())
+            })
     }
 }
 

@@ -1816,6 +1816,10 @@ pub papo_proto::WhoxFlags::bot: bool
 pub papo_proto::WhoxFlags::oper: bool
 pub papo_proto::WhoxFlags::prefixes: alloc::vec::Vec<char>
 pub papo_proto::WhoxFlags::presence: core::option::Option<papo_proto::WhoxPresence>
+impl papo_proto::WhoxFlags
+pub fn papo_proto::WhoxFlags::is_at_least_op(&self) -> bool
+pub fn papo_proto::WhoxFlags::is_at_least_voice(&self) -> bool
+pub fn papo_proto::WhoxFlags::prefixes(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo_proto::Prefix> + '_
 impl core::clone::Clone for papo_proto::WhoxFlags
 pub fn papo_proto::WhoxFlags::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::WhoxFlags

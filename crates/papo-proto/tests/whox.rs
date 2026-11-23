@@ -1,6 +1,6 @@
 //! WHOX reply parsing behavior.
 
-use papo_proto::{Isupport, LineRef, WhoxFlags, WhoxPresence, WhoxReply};
+use papo_proto::{Isupport, LineRef, WhoxPresence, WhoxReply};
 
 #[test]
 fn parses_real_ergo_state_query_reply() {
@@ -21,15 +21,23 @@ fn parses_real_ergo_state_query_reply() {
 
     let mut support = Isupport::default();
     support.apply_tokens(["PREFIX=(qaohv)~&@%+", "BOT=B"]);
+    let flags = reply.flags(&support).unwrap();
+    assert_eq!(flags.presence, Some(WhoxPresence::Here));
+    assert!(!flags.oper);
+    assert!(!flags.bot);
+    assert_eq!(flags.prefixes, ['@']);
+    assert!(flags.is_at_least_op());
+    assert!(flags.is_at_least_voice());
     assert_eq!(
-        reply.flags(&support),
-        Some(WhoxFlags {
-            presence: Some(WhoxPresence::Here),
-            oper: false,
-            bot: false,
-            prefixes: vec!['@'],
-        })
+        flags
+            .prefixes()
+            .map(|prefix| (prefix.mode(), prefix.symbol()))
+            .collect::<Vec<_>>(),
+        [('o', '@')]
     );
+    let flags = reply.flags(&Isupport::default()).unwrap();
+    assert!(!flags.is_at_least_op());
+    assert!(!flags.is_at_least_voice());
 }
 
 #[test]
@@ -50,15 +58,13 @@ fn maps_fixed_field_order_and_normalizes_placeholders() {
 
     let mut support = Isupport::default();
     support.apply_tokens(["PREFIX=(ov)@+", "BOT=b"]);
-    assert_eq!(
-        reply.flags(&support),
-        Some(WhoxFlags {
-            presence: Some(WhoxPresence::Gone),
-            oper: true,
-            bot: true,
-            prefixes: vec!['+'],
-        })
-    );
+    let flags = reply.flags(&support).unwrap();
+    assert_eq!(flags.presence, Some(WhoxPresence::Gone));
+    assert!(flags.oper);
+    assert!(flags.bot);
+    assert_eq!(flags.prefixes, ['+']);
+    assert!(!flags.is_at_least_op());
+    assert!(flags.is_at_least_voice());
 }
 
 #[test]
