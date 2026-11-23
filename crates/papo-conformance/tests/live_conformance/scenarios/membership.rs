@@ -1,6 +1,6 @@
 use papo::{
-    AccountStatus, Actor, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Rank,
-    Refusal, isupport::LimitValue,
+    AccountStatus, Actor, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Refusal,
+    isupport::LimitValue,
 };
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
@@ -709,8 +709,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .member(bob_nick.as_str())
             .unwrap()
             .unwrap()
-            .rank()
-            >= Some(Rank::Op)
+            .is_at_least_op()
     );
 
     alice.invite(carol_nick.as_str(), &channel).await?;

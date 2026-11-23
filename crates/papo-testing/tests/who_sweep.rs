@@ -1,6 +1,6 @@
 //! Highest-layer regression for WHO rows that describe an earlier holder of a nick.
 
-use papo::{AccountStatus, Event, Rank, Reconnect};
+use papo::{AccountStatus, Event, Reconnect};
 use papo_testing::wire;
 
 async fn members_refreshed(events: &mut papo::Events) -> std::sync::Arc<papo::State> {
@@ -49,5 +49,5 @@ async fn a_nick_taker_never_inherits_the_previous_holders_account_or_rank() {
     assert!(!matches!(taker.account(), AccountStatus::LoggedIn(_)));
     let channel = state.__channel_local("#lobby").unwrap();
     let member = channel.member("alice").unwrap().unwrap();
-    assert!(!member.has(Rank::Op));
+    assert!(!member.is_at_least_op());
 }

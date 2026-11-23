@@ -1,5 +1,5 @@
 use papo::event::AccountOutcome;
-use papo::{ConnectErrorKind, Event, NewAccount, Rank, event::Warning};
+use papo::{ConnectErrorKind, Event, NewAccount, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{DeploymentProfile, create_account, unique};
@@ -325,9 +325,9 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         .member(state.nick())
         .unwrap()
         .unwrap();
-    assert_eq!(founder.rank(), Some(Rank::Owner));
-    assert!(!founder.has(Rank::Op));
-    assert!(founder.rank() >= Some(Rank::Op));
+    assert!(founder.prefixes().iter().any(|prefix| prefix.mode() == 'q'));
+    assert!(!founder.prefixes().iter().any(|prefix| prefix.mode() == 'o'));
+    assert!(founder.is_at_least_op());
     Ok(())
 }
 

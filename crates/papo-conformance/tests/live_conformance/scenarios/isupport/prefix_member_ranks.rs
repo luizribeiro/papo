@@ -1,4 +1,4 @@
-use papo::{ModeAction, ModeArg, Nick, Rank, State};
+use papo::{ModeAction, ModeArg, Nick, State};
 use papo::{Prefix, isupport::Advertised};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
@@ -212,10 +212,12 @@ async fn assert_dave_view(
             .collect::<Vec<_>>(),
         allowed_symbols
     );
-    assert!(member.rank() >= Some(Rank::Op));
-    assert!(member.has(Rank::Op));
-    assert!(member.has(Rank::Voice));
-    assert_eq!(member.has(Rank::Halfop), has_halfop);
+    assert!(member.is_at_least_op());
+    assert!(member.is_at_least_voice());
+    assert_eq!(
+        member.prefixes().iter().any(|prefix| prefix.mode() == 'h'),
+        has_halfop
+    );
     assert_eq!(
         member
             .prefixes()

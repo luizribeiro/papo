@@ -2217,8 +2217,7 @@ impl Member {
     /// Returns the highest standard rank the member holds.
     ///
     /// Vendor-specific membership modes do not map to a standard rank.
-    /// Compare with `>=` for a privilege threshold, such as
-    /// `member.rank() >= Some(Rank::Op)`. `None` fails every such threshold.
+    /// Use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`] for privilege checks.
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
         self.prefixes
@@ -2229,8 +2228,7 @@ impl Member {
 
     /// Reports whether the member holds the exact standard rank.
     ///
-    /// For “at least op,” use `member.rank() >= Some(Rank::Op)`. A channel founder on Ergo holds
-    /// only [`Rank::Owner`], so `member.has(Rank::Op)` is false for them.
+    /// Use [`Self::is_at_least_op`] or [`Self::is_at_least_voice`] for privilege checks.
     #[must_use]
     pub fn has(&self, rank: Rank) -> bool {
         self.prefixes
