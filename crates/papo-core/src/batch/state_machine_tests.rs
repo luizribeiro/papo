@@ -126,6 +126,7 @@ impl BatchAccounting {
                 usize::MAX,
                 false,
                 false,
+                None,
             );
         }
         batches

@@ -4266,6 +4266,7 @@ impl Session {
                     message
                         .tag("label")
                         .is_some_and(|label| self.requests.contains_key(label.as_ref())),
+                    None,
                 ) {
                     BatchAction::Consumed => {}
                     BatchAction::Complete(events) => {

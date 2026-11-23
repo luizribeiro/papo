@@ -168,9 +168,10 @@ impl Batches {
         multiline_max_bytes: usize,
         bouncer_enabled: bool,
         correlated_label: bool,
+        applied_state: Option<RoutedMember>,
     ) -> BatchAction {
         if !message.command_is("BATCH") {
-            return self.member(message, multiline_max_bytes);
+            return self.member(message, multiline_max_bytes, applied_state);
         }
         let Some(reference) = message.param(0) else {
             return BatchAction::Dispatch(self.context(message));
@@ -295,6 +296,9 @@ impl Batches {
         self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
         let mut completed = std::mem::take(&mut batch.completed);
         let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
+        if batch.kind != cap::MULTILINE.as_str() && !batch.routed_members.is_empty() {
+            batch.messages = unapplied_messages(batch.messages, &batch.routed_members).collect();
+        }
         if batch.is_typed_aggregate()
             && (batch.kind == cap::MULTILINE.as_str()
                 || !self.has_typed_aggregate_ancestor(batch.parent.as_deref(), batch.replay))
@@ -376,12 +380,20 @@ impl Batches {
         }
     }
 
-    fn member(&mut self, message: &LineRef<'_>, multiline_max_bytes: usize) -> BatchAction {
+    fn member(
+        &mut self,
+        message: &LineRef<'_>,
+        multiline_max_bytes: usize,
+        applied_state: Option<RoutedMember>,
+    ) -> BatchAction {
         let context = self.context(message);
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);
         };
         if !self.open.contains_key(reference.as_ref()) {
+            if applied_state.is_some() {
+                return BatchAction::Consumed;
+            }
             let batch_type =
                 self.abandoned.iter().rev().find_map(|(stored, kind, _)| {
                     (stored == reference.as_ref()).then(|| kind.clone())
@@ -414,20 +426,27 @@ impl Batches {
                 );
             }
         }
-        let aggregates = message
-            .tag("batch")
-            .map(|reference| self.aggregate_references(reference.as_ref()))
-            .unwrap_or_default();
+        let aggregates = self.aggregate_references(reference.as_ref());
         let replay = self.open[reference.as_ref()].replay;
         for reference in &aggregates {
             let batch = self
                 .open
                 .get_mut(reference)
                 .expect("resolved aggregate remains open");
-            if replay && !batch.replay {
-                batch
-                    .routed_members
-                    .insert(batch.messages.len(), RoutedMember::REPLAY);
+            let route = if replay && !batch.replay {
+                Some(RoutedMember::REPLAY)
+            } else {
+                applied_state
+            };
+            if let Some(route) = route {
+                if batch.label.is_some() {
+                    let overhead = std::mem::size_of::<(usize, RoutedMember)>();
+                    batch.buffered_bytes = batch.buffered_bytes.saturating_add(overhead);
+                    self.buffered_bytes = self.buffered_bytes.saturating_add(overhead);
+                    batch.routed_members.insert(batch.messages.len(), route);
+                } else if batch.kind != cap::MULTILINE.as_str() {
+                    continue;
+                }
             }
             batch.messages.push(message.to_owned());
         }
@@ -448,7 +467,7 @@ impl Batches {
                 BatchAbandonReason::ByteLimit
             };
             let mut events = self.abandon(&reference, reason);
-            if aggregates.is_empty() {
+            if aggregates.is_empty() && applied_state.is_none() {
                 let fallback = BatchEvent::Line {
                     line: message.to_owned(),
                     batch_type: context.batch_type,
@@ -457,15 +476,15 @@ impl Batches {
             }
             return BatchAction::Complete(events);
         }
-        if aggregates.is_empty() && context.batch_type.is_some() {
+        if applied_state.is_some() || !aggregates.is_empty() {
+            BatchAction::Consumed
+        } else if context.batch_type.is_some() {
             BatchAction::Complete(vec![BatchEvent::Line {
                 line: message.to_owned(),
                 batch_type: context.batch_type,
             }])
-        } else if aggregates.is_empty() {
-            BatchAction::Dispatch(context)
         } else {
-            BatchAction::Consumed
+            BatchAction::Dispatch(context)
         }
     }
 
@@ -592,7 +611,7 @@ impl Batches {
             } else if batch.kind != cap::MULTILINE.as_str()
                 && !absorbed_multiline.contains(&candidate)
             {
-                messages.extend(batch.messages);
+                messages.extend(unapplied_messages(batch.messages, &batch.routed_members));
             }
             for event in batch.completed {
                 collect_messages(event, &mut messages);
@@ -954,12 +973,25 @@ fn history_from_event(event: BatchEvent) -> Option<(String, Vec<HistoryItem>, bo
     Some((target, items, exhausted))
 }
 
+fn unapplied_messages(messages: Vec<Line>, routed: &RoutedMembers) -> impl Iterator<Item = Line> {
+    messages
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            (!routed.get(&index).is_some_and(|member| member.live)).then_some(line)
+        })
+}
+
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
     match event {
         BatchEvent::Response {
-            messages: batch, ..
+            messages: batch,
+            routed_members,
+            ..
+        } => {
+            messages.extend(unapplied_messages(batch, &routed_members));
         }
-        | BatchEvent::Metadata {
+        BatchEvent::Metadata {
             messages: batch, ..
         }
         | BatchEvent::Isupport(batch) => messages.extend(batch),
@@ -1118,7 +1150,7 @@ mod tests {
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = LineRef::parse(line).unwrap();
-        match batches.handle(Instant::now(), &message, usize::MAX, false, false) {
+        match batches.handle(Instant::now(), &message, usize::MAX, false, false, None) {
             BatchAction::Complete(mut events) => match events.pop() {
                 Some(BatchEvent::Line { batch_type, .. }) => (false, batch_type),
                 _ => (false, None),
@@ -1126,6 +1158,42 @@ mod tests {
             BatchAction::Consumed => (false, None),
             BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
         }
+    }
+
+    #[test]
+    fn applied_state_members_remain_raw_response_lines() {
+        let now = Instant::now();
+        let mut batches = Batches::new(&Config::default().max_batch_lines(1));
+        let mut handle = |line, state| {
+            batches.handle(
+                now,
+                &LineRef::parse(line).unwrap(),
+                usize::MAX,
+                false,
+                true,
+                state,
+            )
+        };
+        _ = handle("@label=0 :ergo.test BATCH +reply labeled-response", None);
+        let applied = super::RoutedMember {
+            live: true,
+            subject: None,
+            joined_ready: None,
+        };
+        assert!(matches!(
+            handle(
+                "@batch=reply :alice!~alice@staff.example NICK alice-work",
+                Some(applied)
+            ),
+            BatchAction::Consumed
+        ));
+        let BatchAction::Complete(events) = handle(":ergo.test BATCH -reply", None) else {
+            panic!("labelled batch failed to close")
+        };
+        assert!(
+            matches!(events.as_slice(), [BatchEvent::Response { messages, routed_members, .. }]
+            if messages[0].as_ref().command_is("NICK") && routed_members[&0].live)
+        );
     }
 
     #[test]
@@ -1173,7 +1241,7 @@ mod tests {
         );
         let close = LineRef::parse("BATCH -h").unwrap();
         let BatchAction::Complete(events) =
-            batches.handle(Instant::now(), &close, usize::MAX, false, false)
+            batches.handle(Instant::now(), &close, usize::MAX, false, false, None)
         else {
             panic!("history did not complete")
         };
@@ -1194,7 +1262,7 @@ mod tests {
             let line = format!("BATCH +ref{index} vendor/sync");
             let message = LineRef::parse(&line).unwrap();
             assert!(matches!(
-                batches.handle(Instant::now(), &message, usize::MAX, false, false),
+                batches.handle(Instant::now(), &message, usize::MAX, false, false, None),
                 BatchAction::Complete(_)
             ));
         }
@@ -1202,7 +1270,7 @@ mod tests {
 
         let late = LineRef::parse("@batch=ref9999 :alice PART #papo :old").unwrap();
         let BatchAction::Complete(events) =
-            batches.handle(Instant::now(), &late, usize::MAX, false, false)
+            batches.handle(Instant::now(), &late, usize::MAX, false, false, None)
         else {
             panic!("late refused member was dispatched live")
         };
@@ -1223,7 +1291,7 @@ mod tests {
         let mut batches = Batches::new(&config);
         let open = LineRef::parse("@label=lost BATCH +reply labeled-response").unwrap();
         assert!(matches!(
-            batches.handle(now, &open, usize::MAX, false, true),
+            batches.handle(now, &open, usize::MAX, false, true, None),
             BatchAction::Consumed
         ));
         let prefix = "@batch=reply;vendor.example/large=";
@@ -1235,7 +1303,7 @@ mod tests {
         loop {
             fed += wire.len();
             if let BatchAction::Complete(events) =
-                batches.handle(now, &member, usize::MAX, false, true)
+                batches.handle(now, &member, usize::MAX, false, true, None)
             {
                 assert!(events.iter().any(|event| matches!(
                     event,
@@ -1290,7 +1358,7 @@ mod tests {
 
         for line in [&history, &multiline, &message] {
             assert!(matches!(
-                batches.handle(Instant::now(), line, usize::MAX, false, false),
+                batches.handle(Instant::now(), line, usize::MAX, false, false, None),
                 BatchAction::Consumed
             ));
         }
@@ -1351,7 +1419,7 @@ mod tests {
             batches.open.get_mut("outer").unwrap().buffered_bytes += padding;
 
             let close = LineRef::parse("@batch=outer BATCH -inner").unwrap();
-            let action = batches.handle(Instant::now(), &close, usize::MAX, false, false);
+            let action = batches.handle(Instant::now(), &close, usize::MAX, false, false, None);
             assert_eq!(
                 matches!(action, BatchAction::Complete(ref events) if events.iter().any(|event| matches!(
                     event,
@@ -1396,6 +1464,7 @@ mod tests {
                 usize::MAX,
                 false,
                 false,
+                None,
             );
             assert_eq!(
                 matches!(action, BatchAction::Complete(ref events) if events.iter().any(|event| matches!(
@@ -1415,15 +1484,15 @@ mod tests {
             let mut batches = Batches::new(&Config::default());
             let open = LineRef::parse("@label=request-7 BATCH +reply labeled-response").unwrap();
             assert!(matches!(
-                batches.handle(now, &open, usize::MAX, false, pending),
+                batches.handle(now, &open, usize::MAX, false, pending, None),
                 BatchAction::Consumed
             ));
             let member =
                 LineRef::parse("@batch=reply :irc.example 401 papo missing :No such nick").unwrap();
-            let _ = batches.handle(now, &member, usize::MAX, false, pending);
+            let _ = batches.handle(now, &member, usize::MAX, false, pending, None);
             let close = LineRef::parse("BATCH -reply").unwrap();
             let BatchAction::Complete(events) =
-                batches.handle(now, &close, usize::MAX, false, pending)
+                batches.handle(now, &close, usize::MAX, false, pending, None)
             else {
                 panic!("labeled response did not complete")
             };
