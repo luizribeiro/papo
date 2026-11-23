@@ -152,6 +152,12 @@ pub struct Typers<'a> {
     conversation: Option<Conversation>,
 }
 
+impl std::fmt::Debug for Typers<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Typers").finish_non_exhaustive()
+    }
+}
+
 impl<'a> Iterator for Typers<'a> {
     type Item = &'a Typer;
 

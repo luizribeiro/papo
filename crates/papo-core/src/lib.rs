@@ -56,6 +56,7 @@
 //! | `draft/extended-isupport` | — | default | extended ISUPPORT discovery | `isupport` |
 //! <!-- caps:end -->
 
+#![deny(missing_debug_implementations)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(
     not(test),

@@ -53,6 +53,12 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
     );
     _ = session.poll_event();
 
+    let unrelated = conversation(&session, "#staff");
+    let debug = format!("{:?}", session.state().typing(&unrelated));
+    assert!(debug.starts_with("Typers"));
+    assert!(!debug.contains("#papo"));
+    assert!(!debug.contains("alice"));
+
     let conversation = conversation(&session, "#papo");
     let typers: Vec<_> = session.state().typing(&conversation).collect();
     assert_eq!(typers.len(), 2);
