@@ -6492,6 +6492,16 @@ impl Session {
                     batch_type: BatchType::from(batch_type),
                     reason,
                 });
+                if self.batches.provenance_exhausted && !self.outbox.close_requested {
+                    self.state.end_session_identities();
+                    self.state_generation = self.state_generation.wrapping_add(1);
+                    self.typing_generation = self.typing_generation.wrapping_add(1);
+                    self.outbox.close_and_discard(
+                        CloseKind::Other,
+                        "too many abandoned batches remain open".to_owned(),
+                    );
+                    self.apply_close_request();
+                }
                 if reason != BatchAbandonReason::Timeout
                     && let Some(request) = label.and_then(|label| self.requests.get(&label))
                 {

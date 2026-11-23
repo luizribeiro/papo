@@ -1709,3 +1709,28 @@ fn netjoin_for_our_nick_waits_for_requested_names() {
         Some(Event::ChannelSynced { channel, .. }) if channel == "#papo"
     ));
 }
+
+#[test]
+fn abandoned_batch_provenance_exhaustion_ends_recipients_and_drops_queued_sends() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_open_batches(0));
+    session.handle_line(now, b":papo!~papo@localhost JOIN #review");
+    session.handle_line(now, b":alice!~alice@staff.example JOIN #review");
+    let state = session.state();
+    let nick = state.casemapping().nick("alice");
+    let guard = state
+        .__capture_recipient(nick, papo_core::AccountStatus::Unknown)
+        .unwrap();
+    let message = Line::privmsg("alice", "Release notes");
+    session
+        .send_guarded_tracked(now, message, Some(guard.clone()))
+        .unwrap();
+
+    for index in 0..=256 {
+        let opening = format!(":ergo.test BATCH +history{index} chathistory #review");
+        session.handle_line(now, opening.as_bytes());
+    }
+    let recipient = session.state().__resolve_recipient(&guard);
+    assert_eq!(recipient, papo_core::RecipientStatus::Gone);
+    assert_eq!(session.poll_transmit(), None);
+}

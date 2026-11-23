@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashSet},
     time::Duration,
 };
 use web_time::Instant;
@@ -14,12 +14,21 @@ pub(crate) const DEFAULT_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 #[derive(Debug)]
 pub(crate) struct Batches {
     open: BTreeMap<String, OpenBatch>,
-    abandoned: VecDeque<(String, String, bool)>,
+    abandoned: BTreeMap<String, AbandonedBatch>,
+    pub(crate) provenance_exhausted: bool,
     max_open: usize,
     max_lines: usize,
     byte_budget: usize,
     timeout: Duration,
     buffered_bytes: usize,
+}
+
+#[derive(Debug)]
+struct AbandonedBatch {
+    kind: String,
+    parent: Option<String>,
+    reason: BatchAbandonReason,
+    replay: bool,
 }
 
 #[derive(Debug)]
@@ -135,7 +144,8 @@ impl Batches {
     pub(crate) fn new(config: &Config) -> Self {
         Self {
             open: BTreeMap::new(),
-            abandoned: VecDeque::new(),
+            abandoned: BTreeMap::new(),
+            provenance_exhausted: false,
             max_open: config.max_open_batches,
             max_lines: config.max_batch_lines,
             byte_budget: config.batch_byte_budget,
@@ -154,6 +164,7 @@ impl Batches {
             .collect();
         self.open.clear();
         self.abandoned.clear();
+        self.provenance_exhausted = false;
         self.buffered_bytes = 0;
         incomplete
     }
@@ -177,7 +188,10 @@ impl Batches {
             return self.open(now, message, reference, bouncer_enabled, correlated_label);
         }
         if let Some(reference) = reference.strip_prefix('-') {
-            return self.close(message, reference);
+            if !self.abandoned.contains_key(reference) {
+                return self.close(message, reference);
+            }
+            self.close_abandoned(message, reference);
         }
         BatchAction::Dispatch(self.context(message))
     }
@@ -194,28 +208,41 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         };
         let parent = message.tag("batch").map(std::borrow::Cow::into_owned);
+        let open_parent = parent.as_ref().and_then(|parent| self.open.get(parent));
+        let abandoned_parent = parent
+            .as_ref()
+            .and_then(|parent| self.abandoned.get(parent));
         if !valid_reference(reference)
             || self.open.contains_key(reference)
-            || parent
-                .as_ref()
-                .is_some_and(|parent| !self.open.contains_key(parent))
+            || self.abandoned.contains_key(reference)
+            || (parent.is_some() && open_parent.is_none() && abandoned_parent.is_none())
         {
             return BatchAction::Dispatch(self.context(message));
         }
-        let replay_parent = parent
-            .as_ref()
-            .is_some_and(|parent| self.open[parent].replay);
+        let replay_parent = open_parent.is_some_and(|parent| parent.replay)
+            || abandoned_parent.is_some_and(|parent| parent.replay);
         let replay = replay_parent || is_replay(kind);
         let label = (correlated_label && !replay_parent)
             .then(|| message.tag("label"))
             .flatten()
             .map(std::borrow::Cow::into_owned);
-        if self.open.len() >= self.max_open {
-            self.remember_abandoned(reference, kind, replay);
+        let abandon = abandoned_parent.map(|parent| parent.reason).or_else(|| {
+            (self.open.len() >= self.max_open).then_some(BatchAbandonReason::OpenBatchLimit)
+        });
+        if let Some(reason) = abandon {
+            self.remember_abandoned(
+                reference,
+                AbandonedBatch {
+                    kind: kind.to_owned(),
+                    parent,
+                    reason,
+                    replay,
+                },
+            );
             return BatchAction::Complete(vec![BatchEvent::Abandoned {
                 reference: reference.to_owned(),
                 batch_type: kind.to_owned(),
-                reason: BatchAbandonReason::OpenBatchLimit,
+                reason,
                 label,
             }]);
         }
@@ -272,6 +299,21 @@ impl Batches {
             self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
         }
         BatchAction::Consumed
+    }
+
+    fn close_abandoned(&mut self, message: &LineRef<'_>, reference: &str) {
+        let parent = message.tag("batch");
+        if message.len() == 1
+            && self.abandoned.get(reference).is_some_and(|batch| {
+                parent.is_none() || parent.as_deref() == batch.parent.as_deref()
+            })
+            && !self
+                .abandoned
+                .values()
+                .any(|batch| batch.parent.as_deref() == Some(reference))
+        {
+            self.abandoned.remove(reference);
+        }
     }
 
     fn close(&mut self, message: &LineRef<'_>, reference: &str) -> BatchAction {
@@ -391,10 +433,10 @@ impl Batches {
             if applied_state.is_some() {
                 return BatchAction::Consumed;
             }
-            let batch_type =
-                self.abandoned.iter().rev().find_map(|(stored, kind, _)| {
-                    (stored == reference.as_ref()).then(|| kind.clone())
-                });
+            let batch_type = self
+                .abandoned
+                .get(reference.as_ref())
+                .map(|batch| batch.kind.clone());
             if batch_type.as_deref() == Some(cap::MULTILINE.as_str())
                 && matches!(message.command(), Command::Privmsg | Command::Notice)
                 && message.param(1).is_some()
@@ -562,9 +604,6 @@ impl Batches {
         let history_target = is_history(&batch_type)
             .then(|| self.open[reference].params.first().cloned())
             .flatten();
-        for (candidate, kind) in &types {
-            self.remember_abandoned(candidate, kind, self.open[candidate].replay);
-        }
         let incomplete = self.incomplete_multilines(&references);
         let multiline_replacements: Vec<_> = references
             .iter()
@@ -594,6 +633,7 @@ impl Batches {
         let mut incomplete_events = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
+            self.remember_abandoned(&candidate, batch.abandoned(reason));
             self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
             history_incomplete.extend(
                 batch
@@ -643,14 +683,13 @@ impl Batches {
         events
     }
 
-    fn remember_abandoned(&mut self, reference: &str, kind: &str, replay: bool) {
-        self.abandoned
-            .retain(|(stored, ..)| stored.as_str() != reference);
+    fn remember_abandoned(&mut self, reference: &str, batch: AbandonedBatch) {
         if self.abandoned.len() == MAX_ABANDONED_BATCHES {
-            self.abandoned.pop_front();
+            // An evicted batch could be either live or a replay.
+            self.provenance_exhausted = true;
+        } else {
+            self.abandoned.insert(reference.to_owned(), batch);
         }
-        self.abandoned
-            .push_back((reference.to_owned(), kind.to_owned(), replay));
     }
 
     fn aggregate_references(&self, reference: &str) -> Vec<String> {
@@ -768,12 +807,9 @@ impl Batches {
     pub(crate) fn live_member(&self, message: &LineRef<'_>) -> Option<LiveMember<'_>> {
         let reference = message.tag("batch")?;
         let Some((reference, batch)) = self.open.get_key_value(reference.as_ref()) else {
-            let (_, kind, replay) = self
-                .abandoned
-                .iter()
-                .find(|(id, ..)| id == reference.as_ref())?;
-            return (!replay).then_some(LiveMember {
-                kind,
+            let batch = self.abandoned.get(reference.as_ref())?;
+            return (!batch.replay).then_some(LiveMember {
+                kind: &batch.kind,
                 label: None,
                 split: None,
                 raw: true,
@@ -869,6 +905,15 @@ fn is_aggregate(kind: &str, bouncer_enabled: bool) -> bool {
 }
 
 impl OpenBatch {
+    fn abandoned(&self, reason: BatchAbandonReason) -> AbandonedBatch {
+        AbandonedBatch {
+            kind: self.kind.clone(),
+            parent: self.parent.clone(),
+            reason,
+            replay: self.replay,
+        }
+    }
+
     fn is_typed_aggregate(&self) -> bool {
         self.typed_aggregate
     }
@@ -1286,10 +1331,12 @@ mod tests {
                 batches.handle(Instant::now(), &message, usize::MAX, false, false, None),
                 BatchAction::Complete(_)
             ));
+            assert_eq!(batches.provenance_exhausted, index >= 256);
         }
         assert_eq!(batches.abandoned.len(), 256);
 
-        let late = LineRef::parse("@batch=ref9999 :alice PART #papo :old").unwrap();
+        assert!(batches.provenance_exhausted);
+        let late = LineRef::parse("@batch=ref0 :alice PART #papo :Leaving").unwrap();
         let BatchAction::Complete(events) =
             batches.handle(Instant::now(), &late, usize::MAX, false, false, None)
         else {
@@ -1302,6 +1349,7 @@ mod tests {
 
         batches.reset();
         assert!(batches.abandoned.is_empty());
+        assert!(!batches.provenance_exhausted);
     }
 
     #[test]
