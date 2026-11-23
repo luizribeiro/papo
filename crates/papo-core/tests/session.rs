@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{
     CloseKind, Config, DEFAULT_WANTED_CAPS, Event, Feature, Party, RateLimit, RequestError, Sasl,
-    Secret, Session, TextKind, UnsupportedReason,
+    Secret, Session, TextKind, UnsupportedReason, WhoOnJoin,
 };
 use papo_proto::{BuildError, Line, Origin};
 use support::unsupported_error;
@@ -484,7 +484,7 @@ fn stops_reading_when_server_output_is_no_longer_drained() {
     ] {
         let now = std::time::Instant::now();
         let mut session = Session::new(Config::default());
-        for _ in 0..17_000 {
+        for _ in 0..16_385 {
             session.handle_line(now, line.as_bytes());
         }
         let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
@@ -503,4 +503,86 @@ fn stops_reading_when_server_output_is_no_longer_drained() {
         };
         assert_eq!(queued, 16_384);
     }
+}
+
+fn play_server_lines(session: &mut Session, now: Instant, lines: &[String]) {
+    for line in lines {
+        session.handle_line(now, line.as_bytes());
+    }
+}
+
+#[test]
+fn application_lines_do_not_count_towards_the_16384_protocol_line_limit() {
+    let now = Instant::now();
+    let config = Config::default()
+        .rate_limit(RateLimit::unlimited())
+        .who_on_join(WhoOnJoin::BelowMembers(2));
+    let mut session = Session::new(config);
+    // Each channel joined alone queues a MODE and a WHO query.
+    for index in 1..=8_192 {
+        let channel = format!("#project-{index:04}");
+        play_server_lines(
+            &mut session,
+            now,
+            &[
+                format!(":papo!~papo@localhost JOIN {channel}"),
+                format!(":irc.example.net 366 papo {channel} :End of NAMES list"),
+            ],
+        );
+        assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::ChannelSynced { .. })
+        ));
+        if index < 8_192 {
+            let part = format!(":papo!~papo@localhost PART {channel} :Leaving");
+            session.handle_line(now, part.as_bytes());
+            assert!(matches!(session.poll_event(), Some(Event::Parted { .. })));
+        }
+        assert_eq!(session.poll_event(), None);
+    }
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(b"MODE #project-0001\r\n".as_slice())
+    );
+    for _ in 0..16_384 {
+        session
+            .send(now, Line::privmsg("alice", "release approved"))
+            .unwrap();
+    }
+
+    // 16383 protocol lines and 16384 application lines are queued.
+    session.handle_line(now, b":alice!~alice@localhost PRIVMSG papo :Hello");
+    assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+    assert_eq!(session.poll_event(), None);
+
+    // A channel with two members queues a MODE query alone, the 16384th protocol line.
+    play_server_lines(
+        &mut session,
+        now,
+        &[
+            ":papo!~papo@localhost JOIN #ops".to_owned(),
+            ":irc.example.net 353 papo = #ops :papo @alice".to_owned(),
+            ":irc.example.net 366 papo #ops :End of NAMES list".to_owned(),
+        ],
+    );
+    assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::ChannelSynced { .. })
+    ));
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_line(now, b":alice!~alice@localhost PRIVMSG papo :Hello again");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Close {
+            kind: CloseKind::Other,
+            reason,
+            ..
+        }) if reason == "pending protocol output reached its limit"
+    ));
+    assert_eq!(session.poll_event(), None);
+    let queued = std::iter::from_fn(|| session.poll_transmit()).count();
+    assert_eq!(queued, 16_384 + 16_384);
 }
