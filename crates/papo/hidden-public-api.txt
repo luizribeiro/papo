@@ -1,0 +1,48 @@
+# Argument conversion for the facade's sealed traits. It preserves origin and identity guards.
+papo::AsChannel::__parts
+papo::AsConversation::__parts
+papo::AsMask::__parts
+papo::AsNick::__parts
+papo::Target::__parts
+
+# Shared protocol argument conversion and identifier validation.
+papo::AccountName::check
+papo::AsAccount::__parts
+papo::ChannelName::check
+papo::InvalidIdentifier::__too_long
+papo::Mask::check
+papo::Nick::check
+
+# The inferred return of AsAccount::__parts carries its text, origin and folding metadata.
+papo_proto::id::NameParts
+papo_proto::id::NameParts::__folded
+papo_proto::id::NameParts::into_owned
+papo_proto::id::NameParts::origin
+papo_proto::id::NameParts::text
+
+# The core and facade stamp validated identifiers with the client that produced them.
+papo::Origin::__account
+papo::Origin::__channel
+papo::Origin::__mask
+papo::Origin::__new
+papo::Origin::__nick
+
+# Facade wrappers use these to map away state, enumerate features and declare metadata keys.
+papo::AwayStatus::__away_value
+papo::Feature::ALL
+papo::MetadataKey::__from_static
+
+# Parser and facade tests construct user sources and decode typing tags.
+papo::LineSource::__user
+papo::Typing::parse
+
+# Core preserves status symbols even when the server lists no matching membership mode.
+papo::Prefix::__new
+papo::Prefix::__reaches
+
+# The logging and transport layers preserve credential markers.
+papo::Param::__is_secret
+papo::WireLine::__has_secret_parameter
+
+# The bot rejects commands taken from a history page even when their stamps look live.
+papo::UserRef::__names_a_past_line
