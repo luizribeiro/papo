@@ -129,6 +129,15 @@ fn untagged_extended_join_is_the_event_and_tracked_account() {
         .event(|event| matches!(event, Event::Joined { envelope, .. }
             if envelope.account() == Some("actor")))
         .inspect(assert_tracks_actor_account)
+        .server(":papo!~u@2j8y98eazaf5w.irc JOIN #triage * :Papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server("@account=previous :actor!~u@2j8y98eazaf5w.irc JOIN #triage actor :New Real")
+        .event(|event| matches!(event, Event::Joined { envelope, .. }
+            if envelope.account().is_none() && !envelope.__account_known()))
+        .inspect(|session| assert_eq!(
+            session.state().user("actor").unwrap().account(),
+            &papo_core::AccountStatus::Unknown
+        ))
         .no_client();
 }
 

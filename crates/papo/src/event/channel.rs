@@ -7,6 +7,9 @@ use crate::{ChannelName, ChannelRef, MessageId, Nick, Party, Subject};
 use super::Actor;
 
 /// A user joined a channel shared with the client.
+///
+/// An extended `JOIN` supplies its account to [`Self::actor_account`]. A conflicting account
+/// tag makes the account [`crate::AccountStatus::Unknown`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Joined {

@@ -1554,13 +1554,6 @@ impl EventEnvelope {
             AccountStatus::Unknown
         }
     }
-
-    fn with_account(mut self, account: AccountStatus) -> Self {
-        if self.account == AccountStatus::Unknown {
-            self.account = account;
-        }
-        self
-    }
 }
 
 pub(crate) fn line_envelope_with_account_tag(
@@ -1587,19 +1580,15 @@ pub(crate) fn joined_from_line(
     actor_party: Party,
     casemapping: Casemapping,
     origin: crate::Origin,
-    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
-    let account = match (join.realname, join.account) {
-        (None, _) => AccountStatus::Unknown,
-        (Some(_), None) => AccountStatus::LoggedOut,
-        (Some(_), Some(account)) => AccountStatus::LoggedIn(origin.__account(casemapping, account)),
-    };
-    let envelope =
-        line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at);
-    let actor_account = envelope.tagged_account();
-    let envelope = envelope.with_account(account);
+    let mut envelope =
+        line_envelope_with_account_tag(line, casemapping, origin, false, received_at);
+    envelope.account = papo_core::LineEnvelope::__from_line_with_account(line, casemapping)
+        .__reported_account(casemapping, origin)
+        .unwrap_or(AccountStatus::Unknown);
+    let actor_account = envelope.account.clone();
     let actor = actor::from_line(
         actor::LinePrefix::Raw(line.raw_source()?),
         &envelope,
@@ -3752,22 +3741,67 @@ mod tests {
     }
 
     #[test]
-    fn untagged_extended_join_reports_its_account() {
+    fn account_commands_supply_evidence_with_or_without_account_tag() {
         let now = Instant::now();
-        let join = ":alice!~alice@cloak.example JOIN #review alice :Alice";
-        for (line, cap, expected) in [
-            (join, true, "alice"),
-            (join, false, "alice"),
-            (
-                ":papo!~papo@localhost JOIN #review papo :Papo",
-                true,
-                "papo",
-            ),
-        ] {
-            let event = mapped_live_event_with_account_tag(line, now, cap);
-            assert!(
-                matches!(event.as_joined().unwrap().actor_account(), AccountStatus::LoggedIn(name) if name == expected)
+        for cap in [false, true] {
+            let own_join = mapped_live_event_with_account_tag(
+                ":papo!~u@localhost JOIN #review papo :Papo",
+                now,
+                cap,
             );
+            assert!(matches!(
+                own_join.as_joined().unwrap().actor_account(),
+                AccountStatus::LoggedIn(name) if name == "papo"
+            ));
+            for (tags, command, expected) in [
+                ("", "ACCOUNT actor", Some("actor")),
+                ("", "ACCOUNT *", Some("*")),
+                ("@account=Actor ", "ACCOUNT actor", Some("actor")),
+                ("@account=previous ", "ACCOUNT actor", None),
+                ("@account=actor ", "ACCOUNT *", None),
+                ("", "JOIN #review actor :Actor", Some("actor")),
+                ("", "JOIN #review * :Actor", Some("*")),
+                (
+                    "@account=Actor ",
+                    "JOIN #review actor :Actor",
+                    Some("actor"),
+                ),
+                ("@account=previous ", "JOIN #review actor :Actor", None),
+                ("@account=actor ", "JOIN #review * :Actor", None),
+            ] {
+                let line = format!("{tags}:actor!~u@cloak.example {command}");
+                let event = mapped_live_event_with_account_tag(&line, now, cap);
+                let account = match &event {
+                    Event::AccountChanged(change) => {
+                        assert_eq!(change.actor_account(), &change.account);
+                        assert_eq!(change.actor_account(), change.actor.account());
+                        change.actor_account()
+                    }
+                    Event::Joined(join) => {
+                        assert_eq!(join.actor_account(), join.actor.account());
+                        let history = super::joined_from_line(
+                            &LineRef::parse(&line).unwrap(),
+                            Party::Unknown,
+                            Casemapping::default(),
+                            crate::Origin::NONE,
+                            UNIX_EPOCH,
+                        )
+                        .unwrap();
+                        assert_eq!(history.actor_account(), join.actor_account());
+                        assert_eq!(history.actor_account(), history.actor.account());
+                        join.actor_account()
+                    }
+                    _ => panic!("expected an account change or join for {line}"),
+                };
+                match expected {
+                    Some("*") => assert_eq!(account, &AccountStatus::LoggedOut, "{line}"),
+                    Some(name) => assert!(
+                        matches!(account, AccountStatus::LoggedIn(actual) if actual == name && actual.as_str() == name),
+                        "{line}: {account:?}"
+                    ),
+                    None => assert_eq!(account, &AccountStatus::Unknown, "{line}"),
+                }
+            }
         }
     }
 

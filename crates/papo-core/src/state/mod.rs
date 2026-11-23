@@ -277,8 +277,8 @@ impl<'a> MetadataView<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AccountStatus {
-    /// No source has named the user's account or reported them logged out; a server may have
-    /// confirmed a login without naming its account.
+    /// No consistent evidence established the user's account state. A server may have confirmed
+    /// a login without naming its account.
     Unknown,
     /// The user is known to be logged out.
     LoggedOut,

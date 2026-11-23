@@ -541,15 +541,8 @@ fn joined(
 ) -> Option<Event> {
     let state = client.state();
     let mapping = state.working_casemapping();
-    crate::event_impl::joined_from_line(
-        message,
-        actor_party,
-        mapping,
-        client.origin(),
-        state.caps().contains(&crate::cap::ACCOUNT_TAG),
-        received_at,
-    )
-    .map(Event::Joined)
+    crate::event_impl::joined_from_line(message, actor_party, mapping, client.origin(), received_at)
+        .map(Event::Joined)
 }
 
 fn parted(
