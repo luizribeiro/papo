@@ -573,6 +573,8 @@ impl papo::event::CtcpQuery
 pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpQuery::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::CtcpQuery
+pub const fn papo::event::CtcpQuery::is_from_history(&self) -> bool
+impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::origin(&self) -> papo::Origin
 impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::return_address(&self) -> papo::MessageRef
@@ -604,6 +606,8 @@ pub const fn papo::event::CtcpReply::actor_account(&self) -> &papo::AccountStatu
 impl papo::event::CtcpReply
 pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::CtcpReply::msgid(&self) -> core::option::Option<&papo::MessageId>
+impl papo::event::CtcpReply
+pub const fn papo::event::CtcpReply::is_from_history(&self) -> bool
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
 impl papo::event::CtcpReply
@@ -1133,6 +1137,8 @@ impl papo::event::Reacted
 pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Reacted::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::Reacted
+pub const fn papo::event::Reacted::is_from_history(&self) -> bool
+impl papo::event::Reacted
 pub fn papo::event::Reacted::origin(&self) -> papo::Origin
 impl papo::event::Reacted
 pub fn papo::event::Reacted::return_address(&self) -> papo::MessageRef
@@ -1207,6 +1213,8 @@ impl papo::event::Redacted
 pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Redacted::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::Redacted
+pub const fn papo::event::Redacted::is_from_history(&self) -> bool
+impl papo::event::Redacted
 pub fn papo::event::Redacted::origin(&self) -> papo::Origin
 impl papo::event::Redacted
 pub fn papo::event::Redacted::return_address(&self) -> papo::MessageRef
@@ -1257,6 +1265,8 @@ impl papo::event::ServerNotice
 pub const fn papo::event::ServerNotice::actor_account(&self) -> &papo::AccountStatus
 pub const fn papo::event::ServerNotice::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::event::ServerNotice::return_address(&self) -> core::option::Option<papo::NoticeRef>
+impl papo::event::ServerNotice
+pub const fn papo::event::ServerNotice::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::ServerNotice
 pub fn papo::event::ServerNotice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ServerNotice
@@ -1323,6 +1333,8 @@ pub const fn papo::event::TagMsg::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::TagMsg
 pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::TagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>
+impl papo::event::TagMsg
+pub const fn papo::event::TagMsg::is_from_history(&self) -> bool
 impl papo::event::TagMsg
 pub fn papo::event::TagMsg::origin(&self) -> papo::Origin
 impl papo::event::TagMsg

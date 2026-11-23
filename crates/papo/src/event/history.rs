@@ -1,4 +1,4 @@
-use super::{Message, Notice};
+use super::{CtcpQuery, CtcpReply, Message, Notice, Reacted, Redacted, ServerNotice, TagMsg};
 
 macro_rules! history_accessors {
     ($($ty:ident: |$this:ident| $history:expr),+ $(,)?) => {
@@ -23,6 +23,12 @@ macro_rules! history_accessors {
 history_accessors!(
     Message: |self| self.receipt.is_from_history(),
     Notice: |self| self.receipt.is_from_history(),
+    CtcpQuery: |self| self.receipt.is_from_history(),
+    CtcpReply: |self| self.receipt.is_from_history(),
+    ServerNotice: |self| self.receipt.is_from_history(),
+    TagMsg: |self| self.receipt.is_from_history(),
+    Reacted: |self| self.receipt.is_from_history(),
+    Redacted: |self| self.receipt.is_from_history(),
 );
 
 #[cfg(all(test, not(browser)))]
@@ -117,6 +123,36 @@ mod tests {
                 SOJU,
                 "@time=2026-10-20T18:44:00.250Z :emily!~e@cloak.example NOTICE #review :build 4412 finished",
                 accessor!(Notice),
+            ),
+            (
+                ERGO,
+                ":emily!~emily@localhost PRIVMSG #review :\x01VERSION\x01",
+                accessor!(CtcpQuery),
+            ),
+            (
+                SOJU,
+                ":emily!~e@cloak.example NOTICE #review :\x01VERSION weechat 4.6.3\x01",
+                accessor!(CtcpReply),
+            ),
+            (
+                ERGO,
+                ":ergo.test NOTICE #review :Channel is now closed for maintenance",
+                accessor!(ServerNotice),
+            ),
+            (
+                SOJU,
+                "@+example/status=ready :emily!~e@cloak.example TAGMSG #review",
+                accessor!(TagMsg),
+            ),
+            (
+                ERGO,
+                "@+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~emily@localhost TAGMSG #review",
+                accessor!(Reacted),
+            ),
+            (
+                SOJU,
+                ":soju.example REDACT #review RfcBTzyxY120004 :sent too early",
+                accessor!(Redacted),
             ),
         ];
         for &(server, line, accessor) in rows {

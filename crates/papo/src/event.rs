@@ -2095,6 +2095,7 @@ pub(crate) fn attach_message_handles(
         Event::Reacted(event) => user_event!(event),
         Event::TypingChanged(event) => user_event!(event),
         Event::Redacted(event) => {
+            event.receipt.set_from_history(historical);
             if let Actor::User(actor) = &mut event.actor {
                 attach_user_message_handle(
                     actor,
@@ -2108,6 +2109,7 @@ pub(crate) fn attach_message_handles(
             }
         }
         Event::ServerNotice(event) => {
+            event.receipt.set_from_history(historical);
             if let Actor::User(actor) = &mut event.actor {
                 *actor = event_handle(actor, tokens.actor, state, historical);
                 let conversation = match &event.to {
