@@ -336,13 +336,6 @@ impl State {
         self.core.parse_target(target)
     }
 
-    pub(crate) fn conversation_inner(
-        &self,
-        text: impl AsRef<str>,
-    ) -> Result<papo_core::Conversation, crate::InvalidIdentifier> {
-        self.core.conversation(text)
-    }
-
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
         let mut state = Self::from_session_with_core(
             session,
@@ -901,8 +894,6 @@ mod name_tests {
             changed.user_local("alice").unwrap().host(),
             Some("cloak.example")
         );
-        let conversation = name_rules(&changed).target("#papo").unwrap().1;
-        assert_eq!(changed.typing(&conversation).count(), 1);
         assert_eq!(changed.typing("#PAPO").count(), 1);
         assert_eq!(
             changed
@@ -1114,7 +1105,6 @@ mod name_tests {
         ] {
             assert_eq!(names.check_channel(text), NameCheck::Invalid(reason));
         }
-        assert!(names.conversation("alexander_the_great").is_ok());
     }
 
     #[test]
@@ -1136,34 +1126,6 @@ mod name_tests {
             name_rules(&state).check_channel("&staff"),
             NameCheck::Invalid(InvalidIdentifier::InvalidPrefix('&'))
         ));
-    }
-
-    #[test]
-    fn exposes_conversation_and_status_parsing_with_facade_errors() {
-        let state = state_with_isupport(
-            ":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 CHANTYPES=# STATUSMSG=@ :are supported by this server",
-        );
-
-        let conversation = name_rules(&state).conversation("Alice[bot]").unwrap();
-        assert!(
-            matches!(&conversation, crate::Conversation::Private(user) if user.nick() == "alice{bot}")
-        );
-        assert_eq!(conversation.to_string(), "Alice[bot]");
-        assert!(matches!(
-            name_rules(&state).target("@#papo"),
-            Ok((Some(status), crate::Conversation::Channel(channel)))
-                if status.symbol() == '@' && channel.name() == "#papo"
-        ));
-        assert!(matches!(
-            name_rules(&state).conversation("@#papo"),
-            Err(crate::InvalidInput::InvalidName { name, .. }) if name == "@#papo"
-        ));
-        for target in ["*", "$*.example.org"] {
-            assert!(matches!(
-                name_rules(&state).conversation(target),
-                Err(crate::InvalidInput::InvalidName { name, .. }) if name == target
-            ));
-        }
     }
 
     #[test]

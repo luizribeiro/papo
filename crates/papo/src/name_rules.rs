@@ -4,7 +4,6 @@ use crate::{InvalidIdentifier, State};
 
 mod check;
 mod extban;
-mod parse;
 
 /// The result of checking a name against universal and server-advertised rules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,9 +30,12 @@ pub enum NameCheck {
 /// Name values are useful as keys in sets and maps because they retain both the server's
 /// casemapping and the client that produced them. Builders do not validate and never fail:
 /// server-specific rules arrive only after connecting. Use [`Self::check_nick`] and
-/// [`Self::check_channel`] for configuration or user input. A build without the `precis`
-/// feature can use ASCII rules when the server advertises them alongside `UTF8MAPPING=rfc8265`.
-/// In that case papo emits [`crate::event::Warning::Utf8CasemappingUnsupported`] once for the connection.
+/// [`Self::check_channel`] for configuration or user input. Pass nickname or channel text
+/// directly to methods that accept [`crate::AsConversation`] or [`crate::Target`].
+///
+/// A build without the `precis` feature can use ASCII rules when the server advertises them
+/// alongside `UTF8MAPPING=rfc8265`. In that case papo emits
+/// [`crate::event::Warning::Utf8CasemappingUnsupported`] once for the connection.
 ///
 /// ```
 /// # fn example(state: &papo::State) {

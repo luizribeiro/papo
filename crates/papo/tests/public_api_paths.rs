@@ -84,14 +84,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub fn papo::NameRules<'_>::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>",
-        ConversationClass::State,
-    ),
-    (
-        "pub fn papo::NameRules<'_>::target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>",
-        ConversationClass::State,
-    ),
-    (
         "pub papo::ReactOutcome::conversation: papo::Conversation",
         ConversationClass::Outgoing,
     ),

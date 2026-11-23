@@ -3105,9 +3105,6 @@ impl papo::NameRules<'_>
 pub fn papo::NameRules<'_>::check_channel(&self, &str) -> papo::NameCheck
 pub fn papo::NameRules<'_>::check_nick(&self, &str) -> papo::NameCheck
 impl papo::NameRules<'_>
-pub fn papo::NameRules<'_>::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>
-pub fn papo::NameRules<'_>::target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>
-impl papo::NameRules<'_>
 pub fn papo::NameRules<'_>::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
 impl<'a> core::clone::Clone for papo::NameRules<'a>
 pub fn papo::NameRules<'a>::clone(&self) -> Self

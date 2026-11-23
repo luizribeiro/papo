@@ -11,6 +11,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 
 ### Added
 
+Build channel conversation fixtures with `papo_testing::channel_conversation`.
+
 Build negotiated capabilities for tests with `papo_testing::capabilities`.
 
 `papo-format` provides IRC text formatting with no stability promise. Use
@@ -414,6 +416,9 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 
 ### Removed
 
+`NameRules::conversation` and `NameRules::target` were removed. Pass nickname or channel text
+directly to the method that accepts it.
+
 `Mask::exact`, `Mask::for_host`, `Mask::for_user_host`, and `MaskSource` were removed. Build a
 mask from text with `NameRules::mask`.
 
@@ -681,8 +686,8 @@ match rules.check_nick(candidate) {
 `Builder::casemapping` seeds them. Requests that need name resolution return
 `InvalidInput::NameRulesUnknown` before that point. `State::{nickname, channel_name, account_name,
 mask, conversation, parse_target, parse_extban, is_valid_nick, is_valid_channel}` were removed;
-their `NameRules` replacements are `nick`, `channel`, `account`, `mask`, `conversation`, `target`,
-`parse_extban`, `check_nick`, and `check_channel`.
+use `NameRules` for `nick`, `channel`, `account`, `mask`, `parse_extban`, `check_nick`, and
+`check_channel`.
 
 `CasemappingChanged` now fires when name rules first become known and on later changes. Its `old` field is optional.
 
