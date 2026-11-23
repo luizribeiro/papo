@@ -1734,3 +1734,100 @@ fn abandoned_batch_provenance_exhaustion_ends_recipients_and_drops_queued_sends(
     assert_eq!(recipient, papo_core::RecipientStatus::Gone);
     assert_eq!(session.poll_transmit(), None);
 }
+
+#[test]
+fn abandoned_replay_keeps_its_id_until_the_matching_close() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_open_batches(1));
+    for line in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":ChanServ!ChanServ@services.int JOIN #papo",
+        ":irc.papo.test BATCH +hold vendor/sync",
+        ":irc.papo.test BATCH +history chathistory #papo",
+        "@batch=history :irc.papo.test BATCH +split netsplit irc.papo.test services.papo.test",
+        ":irc.papo.test BATCH -history",
+        "@batch=hold :irc.papo.test BATCH -split",
+        "@batch=history :irc.papo.test BATCH -split unexpected-parameter",
+        ":irc.papo.test BATCH -hold",
+        ":irc.papo.test BATCH +history netsplit irc.papo.test services.papo.test",
+        ":irc.papo.test BATCH +split netsplit irc.papo.test services.papo.test",
+        "@batch=history :ChanServ!ChanServ@services.int QUIT :Quit: previous session",
+        "@batch=split :ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(session.state().user("ChanServ").is_some());
+
+    for line in [
+        "@batch=history :irc.papo.test BATCH -split",
+        ":irc.papo.test BATCH -history",
+        ":irc.papo.test BATCH +split netsplit irc.papo.test services.papo.test",
+        "@batch=split :ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(session.state().user("ChanServ").is_none());
+}
+
+#[test]
+fn a_batch_with_an_unknown_parent_cannot_supply_live_state() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":ChanServ!ChanServ@services.int JOIN #papo",
+        "@batch=missing :irc.papo.test BATCH +split netsplit irc.papo.test services.papo.test",
+        "@batch=split :ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(session.state().user("ChanServ").is_some());
+}
+
+#[test]
+fn a_membership_event_requires_the_matching_split_type_for_its_annotation() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        ":irc.papo.test BATCH +split netsplit irc.papo.test services.papo.test",
+        "@batch=split :alice!~alice@staff.example JOIN #papo",
+        "@batch=split :irc.papo.test NICK",
+        ":irc.papo.test BATCH -split",
+        ":irc.papo.test BATCH +join netjoin irc.papo.test services.papo.test",
+        "@batch=join :alice!~alice@staff.example QUIT :Quit: leaving",
+        ":irc.papo.test BATCH -join",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Joined { netjoin: None, .. })
+    ));
+    assert!(matches!(session.poll_event(), Some(Event::Line(line))
+        if line.batch_type() == Some("netsplit") && line.as_ref().command_is("NICK")));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Quit { netsplit: None, .. })
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn nested_playback_inside_history_emits_a_single_page() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        ":ergo.test BATCH +history chathistory #papo",
+        "@batch=history :ergo.test BATCH +playback draft/event-playback #papo",
+        "@batch=playback :alice!~alice@staff.example QUIT :Quit: previous session",
+        "@batch=history :ergo.test BATCH -playback",
+        ":ergo.test BATCH -history",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(
+        matches!(session.poll_event(), Some(Event::History { items, .. })
+        if matches!(items.as_slice(), [HistoryItem::Quit(_)]))
+    );
+    assert_eq!(session.poll_event(), None);
+}

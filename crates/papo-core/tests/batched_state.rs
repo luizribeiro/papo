@@ -190,3 +190,26 @@ fn live_batch_state_transcript_matrix() {
         }
     }
 }
+
+#[test]
+fn already_applied_split_members_stay_in_the_response_without_being_emitted_again() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    open_response(&mut session, now);
+    for line in [
+        "@label=0 :irc.papo.test BATCH +split netsplit irc.papo.test services.papo.test",
+        "@batch=split :ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert!(std::iter::from_fn(|| session.poll_event()).any(|event| {
+        matches!(event, Event::Quit { nick, netsplit: Some(split), .. }
+            if nick == "ChanServ" && split.batch == "split")
+    }));
+    session.handle_line(now, b":irc.papo.test BATCH -split");
+    assert!(
+        matches!(session.poll_event(), Some(Event::Response(response))
+        if response.lines.len() == 1 && response.lines[0].as_ref().command_is("QUIT"))
+    );
+    assert_eq!(session.poll_event(), None);
+}
