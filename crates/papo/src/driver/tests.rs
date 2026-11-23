@@ -10293,6 +10293,71 @@ async fn ping_timeout_after_welcome_retries_normally() {
     abort_task(driver).await;
 }
 
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn connection_checks_share_a_written_idle_ping() {
+    let settings = config().ping_interval(Duration::from_secs(30));
+    let (mut server, client, mut events, driver) = scripted(settings);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    tokio::time::advance(Duration::from_secs(30)).await;
+    client_line(&mut server, b"PING papo-0\r\n").await;
+
+    let check = client.check_connection(Duration::from_secs(3));
+    let overlapping = client.check_connection(Duration::from_millis(100));
+    let callers = tokio::spawn(async { tokio::join!(check, overlapping) });
+    tokio::task::yield_now().await;
+    client.resume_reconnect().await.unwrap();
+    tokio::time::advance(Duration::from_secs(1)).await;
+    server_line(&mut server, b":ergo.test PONG ergo.test :papo-0\r\n").await;
+    let (first, second) = within(callers).await.unwrap();
+    assert_eq!(first.unwrap(), Duration::from_secs(1));
+    assert_eq!(second.unwrap(), Duration::from_secs(1));
+    server_line(&mut server, b"PING :ergo.test\r\n").await;
+    client_line(&mut server, b"PONG ergo.test\r\n").await;
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn connection_check_leaves_registration_and_backoff_alone() {
+    let policy = Reconnect::exponential().initial_delay(Duration::from_secs(10));
+    let (mut server, client, mut events, driver, calls) = reconnectable_stream(config(), policy);
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    assert!(matches!(
+        client.check_connection(Duration::from_secs(1)).await,
+        Err(Error::Disconnected(_))
+    ));
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
+    assert_connected(&mut events).await;
+
+    server.shutdown().await.unwrap();
+    let Some(Event::Disconnected(disconnected)) = next_event(&mut events).await else {
+        panic!("expected a disconnect after EOF");
+    };
+    assert_eq!(disconnected.reconnect_in, Some(Duration::from_secs(8)));
+    let result = client.check_connection(Duration::from_secs(1)).await;
+    assert!(
+        matches!(result, Err(Error::Disconnected(current)) if current.cause == disconnected.cause)
+    );
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn a_gone_driver_rejects_a_connection_check() {
+    let (_, client, _events, driver) = scripted(config());
+    drop(driver);
+    assert!(matches!(
+        client.check_connection(Duration::from_secs(1)).await,
+        Err(Error::Disconnected(crate::event::Disconnected {
+            cause: crate::DisconnectCause::ConnectionLost { .. },
+            ..
+        }))
+    ));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn client_reads_owned_state_snapshots() {
     let (mut server, client, mut events, driver) = scripted(config());
