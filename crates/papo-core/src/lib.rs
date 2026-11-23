@@ -5430,8 +5430,11 @@ impl Session {
 
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<WireLine> {
-        self.poll_transmit_tracked()
-            .map(|transmit| transmit.into_parts().0)
+        let (line, _) = self.poll_transmit_tracked()?.into_parts();
+        if let Some(now) = self.rate_limit.now {
+            self.__handle_written(now, &line);
+        }
+        Some(line)
     }
 
     /// Returns the next wire line with its optional write-completion identifier.
@@ -5789,6 +5792,12 @@ impl Session {
         }
         self.keepalive.start_check(now, duration, &mut self.outbox);
         true
+    }
+
+    /// Records a line written by a transport that uses tracked transmission.
+    #[doc(hidden)]
+    pub fn __handle_written(&mut self, now: Instant, line: &[u8]) {
+        self.keepalive.handle_written(now, line);
     }
 
     /// Takes the result shared by the callers of the current liveness check.

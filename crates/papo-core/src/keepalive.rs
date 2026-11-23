@@ -22,9 +22,16 @@ pub enum ConnectionCheckResult {
 #[derive(Debug)]
 struct ConnectionCheck {
     token: String,
-    sent_at: Instant,
+    sent_at: Option<Instant>,
     deadline: Option<Instant>,
     heard_traffic: bool,
+}
+
+#[derive(Debug)]
+struct IdlePing {
+    token: String,
+    queued_at: Instant,
+    sent_at: Option<Instant>,
 }
 
 #[derive(Debug, Default)]
@@ -33,8 +40,9 @@ pub(super) struct Keepalive {
     timeout: Duration,
     next_ping: Option<Instant>,
     silence_deadline: Option<Instant>,
-    pending_ping: Option<(u64, Instant)>,
+    pending_ping: Option<IdlePing>,
     counter: u64,
+    check_counter: u64,
     lag: Option<Duration>,
     check: Option<ConnectionCheck>,
     pub(super) check_result: Option<ConnectionCheckResult>,
@@ -48,6 +56,7 @@ impl Keepalive {
         self.silence_deadline = crate::deadline(now, timeout);
         self.pending_ping = None;
         self.counter = 0;
+        self.check_counter = 0;
         self.lag = None;
         self.check = None;
         self.check_result = None;
@@ -57,15 +66,43 @@ impl Keepalive {
         if self.check.is_some() {
             return;
         }
-        let token = format!("papo-check-{}", self.counter);
-        self.counter = self.counter.wrapping_add(1);
-        outbox.transmit_immediate("PING", [token.as_str()]);
+        let transmitted = self
+            .pending_ping
+            .as_ref()
+            .and_then(|ping| ping.sent_at.map(|sent_at| (ping.token.clone(), sent_at)));
+        let (token, sent_at) = if let Some((token, sent_at)) = transmitted {
+            (token, Some(sent_at))
+        } else {
+            let token = format!("papo-check-{}", self.check_counter);
+            self.check_counter = self.check_counter.wrapping_add(1);
+            outbox.transmit_immediate("PING", [token.as_str()]);
+            (token, None)
+        };
         self.check = Some(ConnectionCheck {
             token,
-            sent_at: now,
+            sent_at,
             deadline: crate::deadline(now, duration),
             heard_traffic: false,
         });
+    }
+
+    pub(super) fn handle_written(&mut self, now: Instant, line: &[u8]) {
+        let Some(token) = line
+            .strip_prefix(b"PING ")
+            .and_then(|line| line.strip_suffix(b"\r\n"))
+        else {
+            return;
+        };
+        if let Some(check) = &mut self.check
+            && check.token.as_bytes() == token
+        {
+            check.sent_at.get_or_insert(now);
+        }
+        if let Some(ping) = &mut self.pending_ping
+            && ping.token.as_bytes() == token
+        {
+            ping.sent_at.get_or_insert(now);
+        }
     }
 
     fn expire_check(&mut self, now: Instant, outbox: &mut Outbox) -> bool {
@@ -116,19 +153,19 @@ impl Keepalive {
         } else if message.command_is("PONG") {
             let token = message.params().last();
             if let Some(check) = &self.check
+                && let Some(sent_at) = check.sent_at
                 && token == Some(check.token.as_str())
             {
                 self.check_result = Some(ConnectionCheckResult::Pong(
-                    now.saturating_duration_since(check.sent_at),
+                    now.saturating_duration_since(sent_at),
                 ));
                 self.check = None;
             }
-            if let Some((counter, sent_at)) = self.pending_ping {
-                let token = format!("papo-{counter}");
-                if message.params().last() == Some(token.as_str()) {
-                    self.lag = Some(now.saturating_duration_since(sent_at));
-                    self.pending_ping = None;
-                }
+            if let Some(ping) = &self.pending_ping
+                && token == Some(ping.token.as_str())
+            {
+                self.lag = Some(now.saturating_duration_since(ping.queued_at));
+                self.pending_ping = None;
             }
             Handled::Yes
         } else if message.command_is("ERROR") {
@@ -143,7 +180,8 @@ impl Keepalive {
     }
 
     pub(super) fn handle_timeout(&mut self, now: Instant, outbox: &mut Outbox) {
-        if self.expire_check(now, outbox) {
+        if self.check_deadline().is_some() {
+            self.expire_check(now, outbox);
             return;
         }
         if self
@@ -154,25 +192,33 @@ impl Keepalive {
             return;
         }
         if self.next_ping.is_some_and(|deadline| now >= deadline) {
-            let token = format!("papo-{}", self.counter);
-            if let Ok(ping) = Line::new("PING").param(token).encode() {
-                outbox.transmit_raw(ping);
-            }
-            self.pending_ping = Some((self.counter, now));
-            self.counter = self.counter.wrapping_add(1);
             self.next_ping = None;
+            if self.check.is_none() {
+                let token = format!("papo-{}", self.counter);
+                if let Ok(ping) = Line::new("PING").param(token.as_str()).encode() {
+                    outbox.transmit_raw(ping);
+                }
+                self.pending_ping = Some(IdlePing {
+                    token,
+                    queued_at: now,
+                    sent_at: None,
+                });
+                self.counter = self.counter.wrapping_add(1);
+            }
         }
     }
 
     pub(super) fn next_deadline(&self) -> Option<Instant> {
-        [
-            self.next_ping,
-            self.silence_deadline,
-            self.check.as_ref().and_then(|check| check.deadline),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
+        self.check_deadline().or_else(|| {
+            [self.next_ping, self.silence_deadline]
+                .into_iter()
+                .flatten()
+                .min()
+        })
+    }
+
+    fn check_deadline(&self) -> Option<Instant> {
+        self.check.as_ref().and_then(|check| check.deadline)
     }
 
     pub(super) const fn lag(&self) -> Option<Duration> {

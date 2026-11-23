@@ -220,6 +220,11 @@ impl Transcript {
         self
     }
 
+    pub fn check_result(mut self, expected: Option<papo_core::ConnectionCheckResult>) -> Self {
+        assert_eq!(self.session.__take_connection_check_result(), expected);
+        self
+    }
+
     /// Disconnects the session at the current transcript time.
     pub fn disconnect(mut self) -> Self {
         self.session.handle_disconnected(self.now);
