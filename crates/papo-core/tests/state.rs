@@ -1532,6 +1532,80 @@ fn live_realname_change_survives_an_older_join_who_row() {
 }
 
 #[test]
+fn who_sweep_keeps_updating_live_prefix_changes_at_the_member_limit() {
+    Transcript::new(Config::default().nick("emily").max_members_per_channel(2))
+        .server(":ergo.test 005 emily PREFIX=(ov)@+ :are supported")
+        .server(":emily!~em@localhost JOIN #papo")
+        .server(":ergo.test 353 emily = #papo :emily alice")
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
+        .client("WHO #papo")
+        .server(":ergo.test MODE #papo +vv emily alice")
+        .server(":ergo.test MODE #papo +o alice")
+        .server(
+            ":ergo.test 352 emily #papo ~alice users.example ergo.test alice H :0 Alice Example",
+        )
+        .server(":ergo.test 315 emily #papo :End of WHO list")
+        .event_until(
+            |event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"),
+        )
+        .inspect(|session| {
+            let state = session.state();
+            assert_eq!(state.user("alice").unwrap().host(), Some("users.example"));
+            let alice = state.channel("#papo").unwrap().member("alice").unwrap();
+            assert_eq!(prefix_symbols(alice.prefixes()), ['@', '+']);
+        })
+        .no_client()
+        .no_event();
+}
+
+#[test]
+fn who_sweep_realname_overlays_stop_at_the_member_limit_after_refolding() {
+    let mut transcript =
+        Transcript::new(Config::default().nick("emily").max_members_per_channel(3))
+            .server(":irc.example.net 005 emily CASEMAPPING=ascii :are supported")
+            .server(":emily!~em@localhost JOIN #release[team]")
+            .server(":emily!~em@localhost JOIN #release{team}");
+    for (channel, first, second) in [
+        ("#release[team]", "alice", "bob"),
+        ("#release{team}", "carol", "dan"),
+    ] {
+        transcript = transcript
+            .server(&format!(":irc.example.net 353 emily = {channel} :emily {first} {second}"))
+            .server(&format!(":irc.example.net 366 emily {channel} :End of NAMES list"))
+            .client(&format!("MODE {channel}"))
+            .client(&format!("WHO {channel}"))
+            .server(&format!(":{first}!~staff@localhost SETNAME :Release coordinator"))
+            .server(&format!(":{second}!~staff@localhost SETNAME :Release reviewer"))
+            .server(":emily!~em@localhost SETNAME :Release manager")
+            .server(&format!(":{first}!~staff@localhost SETNAME :On-call coordinator"))
+            .server(&format!(
+                ":irc.example.net 352 emily {channel} ~staff users.example irc.example.net {first} H :0 Old realname"
+            ))
+            .inspect(|session| {
+                let user = session.state().user(first).unwrap();
+                assert_eq!(user.host(), Some("users.example"));
+                assert_eq!(user.realname(), Some("On-call coordinator"));
+            });
+    }
+    transcript = transcript.server(":irc.example.net 005 emily CASEMAPPING=rfc1459 :are supported");
+    for nick in ["alice", "bob", "carol", "dan"] {
+        transcript = transcript.server(&format!(":{nick}!~staff@localhost SETNAME :Release staff"));
+    }
+    transcript
+        .server(":irc.example.net 352 emily #release[team] ~em old.example irc.example.net emily H :0 Old realname")
+        .server(":irc.example.net 315 emily #release[team] :End of WHO list")
+        .event_until(|event| matches!(event, Event::MembersRefreshed { .. }))
+        .inspect(|session| {
+            let user = session.state().user("emily").unwrap();
+            assert_eq!(user.host(), Some("localhost"));
+            assert_eq!(user.realname(), Some("Release manager"));
+        })
+        .no_client()
+        .no_event();
+}
+
+#[test]
 fn ignores_membership_modes_for_unknown_channels_and_members() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
