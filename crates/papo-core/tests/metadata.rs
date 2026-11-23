@@ -993,3 +993,65 @@ fn a_sync_response_reports_when_the_server_defers_it() {
         );
     }
 }
+
+#[test]
+fn metadata_subscription_limit_applies_to_acknowledgements_and_batches() {
+    registered("max-subs=2")
+        .server(":ergo.test 770 alice avatar pronouns")
+        .no_event()
+        .inspect(|session| assert_eq!(session.state().metadata_subscriptions().len(), 2))
+        .server(":ergo.test 770 alice avatar")
+        .no_event()
+        .server(":ergo.test 770 alice status")
+        .event(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::MetadataSubscriptions,
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test BATCH +s metadata-subs")
+        .server("@batch=s :ergo.test 772 alice avatar")
+        .server("@batch=s :ergo.test 772 alice display-name")
+        .server("@batch=s :ergo.test 772 alice pronouns")
+        .server(":ergo.test BATCH -s")
+        .no_event()
+        .inspect(|session| {
+            assert!(
+                session
+                    .state()
+                    .metadata_subscriptions()
+                    .map(AsRef::as_ref)
+                    .eq(["avatar", "display-name"])
+            );
+        });
+}
+
+#[test]
+fn metadata_subscription_storage_has_a_fixed_ceiling() {
+    for advertised in ["max-subs=20000", "max-subs=invalid", "max-keys=100"] {
+        registered(advertised)
+            .update(|session| {
+                let now = std::time::Instant::now();
+                for index in 0..512 {
+                    let line = format!(":ergo.test 770 alice example.org/key{index}");
+                    session.handle_line(now, line.as_bytes());
+                }
+                assert_eq!(session.state().metadata_subscriptions().len(), 512);
+            })
+            .no_event()
+            .server(":ergo.test 770 alice example.org/overflow")
+            .event(|event| {
+                matches!(
+                    event,
+                    Event::StateLimitReached {
+                        limit: StateLimit::MetadataSubscriptions,
+                        ..
+                    }
+                )
+            })
+            .inspect(|session| assert_eq!(session.state().metadata_subscriptions().len(), 512));
+    }
+}

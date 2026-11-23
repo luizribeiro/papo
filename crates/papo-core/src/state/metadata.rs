@@ -1,8 +1,11 @@
 use super::{
-    BTreeMap, Command, Event, LineRef, MetadataValue, NameKey, Numeric, Outbox, State, StateLimit,
-    Subject, metadata_update,
+    BTreeMap, Capabilities, Command, Event, LineRef, MetadataContext, MetadataKey, MetadataValue,
+    NameKey, Numeric, Outbox, State, StateLimit, Subject, metadata_update,
 };
-use crate::Visibility;
+use crate::{MetadataLimits, Visibility};
+
+// Keep the cache small even when a server allows unlimited subscriptions.
+const MAX_METADATA_SUBSCRIPTIONS: usize = 512;
 
 impl State {
     pub(super) fn remove_metadata(&mut self, target: &str) {
@@ -21,33 +24,34 @@ impl State {
     pub(super) fn handle_metadata(
         &mut self,
         message: &LineRef<'_>,
-        max_keys: usize,
-        metadata_subs_batch: bool,
+        context: MetadataContext,
+        enabled_caps: &Capabilities,
         outbox: &mut Outbox,
     ) -> bool {
         match message.command() {
-            Command::Numeric(Numeric::RPL_METADATASUBOK) => {
+            Command::Numeric(Numeric::RPL_METADATAUNSUBOK) => {
                 for key in message.params().skip(1) {
-                    if !self.metadata_subscriptions.iter().any(|item| item == key) {
-                        self.metadata_subscriptions
-                            .push(papo_proto::MetadataKey::new(key));
-                    }
+                    self.metadata_subscriptions.remove(key);
                 }
                 return true;
             }
-            Command::Numeric(Numeric::RPL_METADATAUNSUBOK) => {
-                self.metadata_subscriptions
-                    .retain(|key| !message.params().skip(1).any(|item| key.as_ref() == item));
-                return true;
-            }
-            Command::Numeric(Numeric::RPL_METADATASUBS) => {
-                if !metadata_subs_batch {
+            // Raw and unlabelled SUB commands can have replies without a tracked request.
+            Command::Numeric(Numeric::RPL_METADATASUBOK | Numeric::RPL_METADATASUBS) => {
+                if message.command() == Command::Numeric(Numeric::RPL_METADATASUBS)
+                    && !context.subscription_batch
+                {
                     self.metadata_subscriptions.clear();
                 }
+                let limit = MetadataLimits::from_caps(enabled_caps)
+                    .and_then(|limits| limits.max_subscriptions)
+                    .unwrap_or(MAX_METADATA_SUBSCRIPTIONS)
+                    .min(MAX_METADATA_SUBSCRIPTIONS);
                 for key in message.params().skip(1) {
-                    if !self.metadata_subscriptions.iter().any(|item| item == key) {
-                        self.metadata_subscriptions
-                            .push(papo_proto::MetadataKey::new(key));
+                    if self.metadata_subscriptions.len() < limit {
+                        self.metadata_subscriptions.insert(MetadataKey::new(key));
+                    } else if !self.metadata_subscriptions.contains(key) {
+                        self.warn_limit(StateLimit::MetadataSubscriptions, outbox);
+                        break;
                     }
                 }
                 return true;
@@ -57,7 +61,7 @@ impl State {
         let Some((target, key, visibility, value)) = metadata_update(message) else {
             return false;
         };
-        self.update_metadata(target, key, visibility, value, max_keys, outbox);
+        self.update_metadata(target, key, visibility, value, context.max_keys, outbox);
         true
     }
 

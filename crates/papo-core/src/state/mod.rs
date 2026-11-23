@@ -94,7 +94,7 @@ pub struct State {
     #[cfg(feature = "unstable")]
     max_bouncer_networks: usize,
     metadata: HashMap<NameKey<String>, BTreeMap<MetadataKey, MetadataValue>>,
-    metadata_subscriptions: Vec<MetadataKey>,
+    metadata_subscriptions: BTreeSet<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
     pub(crate) typing: Arc<TypingTable>,
     change_generation: u64,
@@ -542,7 +542,7 @@ impl State {
             #[cfg(feature = "unstable")]
             max_bouncer_networks: config.max_bouncer_networks,
             metadata: HashMap::new(),
-            metadata_subscriptions: Vec::new(),
+            metadata_subscriptions: BTreeSet::new(),
             limits_warned: HashSet::new(),
             typing: TypingTable::new(),
             change_generation: 0,
@@ -1072,12 +1072,7 @@ impl State {
         outbox: &mut Outbox,
     ) -> Handled {
         let mapping = self.prepare_message(message, own_nick, isupport, enabled_caps, outbox);
-        if self.handle_metadata(
-            message,
-            metadata.max_keys,
-            metadata.subscription_batch,
-            outbox,
-        ) {
+        if self.handle_metadata(message, metadata, enabled_caps, outbox) {
             return Handled::Yes;
         }
         #[cfg(feature = "unstable")]

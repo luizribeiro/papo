@@ -245,6 +245,7 @@ impl State {
             | StateLimit::ReadMarkers
             | StateLimit::MetadataTargets
             | StateLimit::MetadataKeys
+            | StateLimit::MetadataSubscriptions
             | StateLimit::IsupportTokens => self.limits_warned.insert(limit),
             #[cfg(feature = "unstable")]
             StateLimit::BouncerNetworks => self.limits_warned.insert(limit),

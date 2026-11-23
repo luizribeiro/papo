@@ -1349,6 +1349,7 @@ pub papo_core::StateLimit::IsupportTokens
 pub papo_core::StateLimit::ListEntries
 pub papo_core::StateLimit::Members
 pub papo_core::StateLimit::MetadataKeys
+pub papo_core::StateLimit::MetadataSubscriptions
 pub papo_core::StateLimit::MetadataTargets
 pub papo_core::StateLimit::ReadMarkers
 impl core::clone::Clone for papo_core::StateLimit

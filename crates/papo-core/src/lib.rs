@@ -3622,6 +3622,8 @@ pub enum StateLimit {
     MetadataTargets,
     /// Metadata keys retained for one user or channel.
     MetadataKeys,
+    /// Metadata keys retained in the server-side subscription list.
+    MetadataSubscriptions,
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]
     BouncerNetworks,
