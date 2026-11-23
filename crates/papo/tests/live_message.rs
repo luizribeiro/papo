@@ -10,6 +10,46 @@ use papo::{Client, Endpoint, Event, Sasl};
 use papo_test_server::{create_account, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
+async fn private_message_to_unseen_user_delivers_their_away_reply() {
+    within(async {
+        let server = from_env();
+        let address = Endpoint::plaintext(
+            server.plaintext_addr().ip().to_string(),
+            server.plaintext_addr().port(),
+        )
+        .unwrap();
+        let sender = unique("papo-sender");
+        let recipient = unique("papo-away");
+        let (sender, mut events) = Client::builder(address.clone(), support::nick(&sender))
+            .connect()
+            .await
+            .unwrap();
+        let (away, _events) = Client::builder(address, support::nick(&recipient))
+            .connect()
+            .await
+            .unwrap();
+        away.set_away("Gone fishing until Monday").await.unwrap();
+
+        sender
+            .privmsg(recipient.as_str(), "are you around?")
+            .await
+            .unwrap();
+        loop {
+            let (event, state) = events.next().await.expect("Ergo connection stays open");
+            if let Event::AwayChanged(event) = event {
+                assert_eq!(event.actor.nick().as_str(), recipient);
+                assert_eq!(event.away.message(), Some("Gone fishing until Monday"));
+                assert!(state.user(recipient.as_str()).unwrap().is_none());
+                break;
+            }
+        }
+        away.quit().await.unwrap();
+        sender.quit().await.unwrap();
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn reply_between_two_clients_carries_the_original_msgid() {
     within(async {
         let server = from_env();

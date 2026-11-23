@@ -213,7 +213,11 @@ impl Session {
             .or_else(|| self.pending_sent_label(message));
         label
             .and_then(|label| self.requests.get(&label))
-            .is_none_or(|request| request.emit_events)
+            .is_none_or(|request| {
+                // A send's result carries echo identity. Its away reply is presence information.
+                request.emit_events
+                    || (request.sent && message.command() == Command::Numeric(Numeric::RPL_AWAY))
+            })
     }
 
     pub(super) fn confirmed_away_message<'a>(&'a self, message: &LineRef<'_>) -> Option<&'a str> {

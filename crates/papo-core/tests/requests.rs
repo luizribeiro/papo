@@ -2537,6 +2537,14 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
     );
 }
 
+fn expect_alice_away(session: &mut Session) {
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::AwayChanged { nick, away, .. })
+            if nick == "alice" && away.message() == Some("is away")
+    ));
+}
+
 #[test]
 fn away_numeric_waits_for_solanums_unlabelled_echo() {
     let now = Instant::now();
@@ -2547,6 +2555,7 @@ fn away_numeric_waits_for_solanums_unlabelled_echo() {
         .unwrap();
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    expect_alice_away(&mut session);
     assert_eq!(session.poll_event(), None);
     session.handle_line(
         now,
@@ -2572,10 +2581,7 @@ fn away_numeric_waits_for_solanums_unlabelled_notice_echo() {
     );
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::AwayChanged { nick, .. }) if nick == "alice"
-    ));
+    expect_alice_away(&mut session);
     assert_eq!(session.poll_event(), None);
     session.handle_line(
         now,
@@ -2606,6 +2612,7 @@ fn another_users_matching_message_does_not_confirm_an_away_send() {
         .unwrap();
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    expect_alice_away(&mut session);
     session.handle_line(
         now,
         b":mallory!~mallory@client.example PRIVMSG alice :the review can wait",
@@ -2638,6 +2645,7 @@ fn labelled_own_echo_uses_its_label_when_pending_text_matches() {
         .unwrap();
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    expect_alice_away(&mut session);
     session.handle_line(
         now,
         b"@label=1;msgid=RfcBTzyxY120007 :papo!~papo@client.example PRIVMSG alice :the review can wait",
@@ -2668,6 +2676,7 @@ fn unrelated_own_echo_does_not_confirm_an_away_send() {
         .unwrap();
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    expect_alice_away(&mut session);
     for line in [
         ":papo!~papo@client.example PRIVMSG bob :the review can wait",
         ":papo!~papo@client.example PRIVMSG alice :the review is ready",
