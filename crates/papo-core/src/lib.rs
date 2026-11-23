@@ -2779,13 +2779,15 @@ pub enum Event {
         /// New server-returned value, or `None` when cleared.
         value: Option<MetadataValue>,
     },
-    /// The server deferred metadata synchronization for a user or channel.
+    /// An unsolicited reply deferring metadata synchronization for a user or channel.
     #[non_exhaustive]
     MetadataSyncLater {
         /// Nickname or channel whose synchronization was deferred.
         target: String,
         /// Suggested delay before retrying, when supplied.
         retry_after: Option<Duration>,
+        /// The parsed server reply, including its tags and prefix.
+        line: Line,
     },
     /// A completed history or playback batch.
     #[non_exhaustive]
@@ -3206,7 +3208,6 @@ hidden_event_constructors! {
     __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, token: ReplyToken, actor_party: Party, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
-    __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, actor_party: Party) => Parted;
@@ -6096,9 +6097,17 @@ impl Session {
             && !standard_reply
             && emit_unhandled
         {
-            let received =
-                self.received_line(message.to_owned(), context.batch_type().map(str::to_owned));
-            self.outbox.event(Event::Line(received));
+            if let Some((target, retry_after)) = metadata::sync_later(message) {
+                self.outbox.event(Event::MetadataSyncLater {
+                    target: target.to_owned(),
+                    retry_after,
+                    line: message.to_owned(),
+                });
+            } else {
+                let received =
+                    self.received_line(message.to_owned(), context.batch_type().map(str::to_owned));
+                self.outbox.event(Event::Line(received));
+            }
         }
         if message.command() == Command::Nick
             && self.welcome_state.nick() != self.state.nick().as_str()

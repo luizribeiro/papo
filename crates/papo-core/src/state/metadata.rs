@@ -25,16 +25,6 @@ impl State {
         metadata_subs_batch: bool,
         outbox: &mut Outbox,
     ) -> bool {
-        if message.command() == Command::Numeric(Numeric::RPL_METADATASYNCLATER) {
-            let Some((target, retry_after)) = crate::metadata::sync_later(message) else {
-                return false;
-            };
-            outbox.event(Event::MetadataSyncLater {
-                target: target.to_owned(),
-                retry_after,
-            });
-            return true;
-        }
         match message.command() {
             Command::Numeric(Numeric::RPL_METADATASUBOK) => {
                 for key in message.params().skip(1) {

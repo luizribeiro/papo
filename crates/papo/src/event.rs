@@ -2549,6 +2549,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::BouncerNetworkChanged { id, network, .. } => {
             Event::BouncerNetworkChanged(BouncerNetworkChanged { id, network })
         }
+        papo_core::Event::MetadataSyncLater { line, .. } => other_from_line(line, received_at),
         papo_core::Event::MetadataChanged {
             subject,
             subject_token,
@@ -5832,12 +5833,12 @@ mod tests {
             )),
             Event::MetadataChanged(MetadataChanged { value: None, .. })
         ));
+        let raw = "@time=2026-11-22T10:15:00.000Z :ergo.test 774 papo alice 90";
+        let mut session = Session::new(Config::default());
+        session.handle_line(Instant::now(), raw.as_bytes());
         assert!(matches!(
-            from_core(papo_core::Event::__metadata_sync_later(
-                "alice".into(),
-                Some(Duration::from_secs(90))
-            )),
-            CoreEvent::Unknown
+            forwarded(session.poll_event().unwrap()),
+            Event::Other(line) if line.line.to_string() == raw
         ));
     }
 

@@ -95,3 +95,34 @@ async fn presence_lines_for_untracked_users_are_delivered() {
         );
     }
 }
+
+#[tokio::test]
+async fn postponed_metadata_sync_is_delivered() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .metadata_subscriptions([papo::MetadataKey::new("avatar")]),
+    );
+    wire.register(&["draft/metadata-2"]).await;
+    connected(&mut events).await;
+    wire.server(":papo!~papo@localhost JOIN #papo").await;
+    wire.server(":offline.test 353 papo = #papo :@papo alice")
+        .await;
+    wire.server(":offline.test 366 papo #papo :End of /NAMES list.")
+        .await;
+    events_before_marker(&mut events, &mut wire).await;
+
+    wire.server(":offline.test 774 papo #papo 30").await;
+
+    let seen = events_before_marker(&mut events, &mut wire).await;
+    assert!(
+        seen.iter()
+            .any(|event| matches!(event, papo::Event::Other(line)
+            if line.numeric() == Some(774)
+                && matches!(line.source(), Some(papo::LineSource::Server("offline.test")))
+                && line.get(1) == Some("#papo")
+                && line.get(2) == Some("30"))),
+        "RPL_METADATASYNCLATER for #papo became no event"
+    );
+}

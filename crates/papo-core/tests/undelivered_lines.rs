@@ -71,3 +71,18 @@ fn presence_lines_for_untracked_users_are_delivered() {
         .no_event()
         .inspect(|session| assert!(session.state().user("alice").is_none()));
 }
+
+#[test]
+fn postponed_metadata_sync_is_delivered() {
+    Transcript::new(Config::default())
+        .advance(std::time::Duration::from_secs(1))
+        .server("@time=2026-11-22T10:15:00.000Z :ergo.test 774 papo #papo 30")
+        .event(|event| {
+            // A deferral is a retry hint, even when no sync request is in flight.
+            matches!(event, Event::MetadataSyncLater { target, retry_after: Some(delay), line, .. }
+                if target == "#papo" && delay.as_secs() == 30
+                    && line.as_ref().raw_source() == Some("ergo.test")
+                    && line.as_ref().tag("time").as_deref() == Some("2026-11-22T10:15:00.000Z"))
+        })
+        .no_event();
+}

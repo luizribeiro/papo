@@ -917,6 +917,7 @@ fn metadata_response(command: MetadataCommand, lines: &[&str]) -> papo_core::Res
     std::iter::from_fn(|| session.poll_event())
         .find_map(|event| match event {
             Event::Response(response) => Some(response),
+            Event::MetadataSyncLater { .. } => panic!("the reply belongs to the request"),
             _ => None,
         })
         .expect("the reply ends the request")
