@@ -2120,38 +2120,10 @@ mod tests {
     }
 
     #[test]
-    fn conversation_inputs_preserve_channel_and_private_addresses() {
+    fn history_text_preserves_channel_and_private_addresses() {
         let client = crate::Client::disconnected_for_test();
-        let state = client.state();
-        for (conversation, expected) in [
-            (
-                crate::Conversation::Channel(channel(
-                    state
-                        .name_rules()
-                        .expect("server advertised CASEMAPPING")
-                        .channel("#Papo[dev]"),
-                )),
-                "#Papo[dev]",
-            ),
-            (
-                crate::Conversation::Private(user(
-                    state
-                        .name_rules()
-                        .expect("server advertised CASEMAPPING")
-                        .nick("Emily_"),
-                )),
-                "Emily_",
-            ),
-        ] {
-            assert_eq!(
-                state
-                    .name_rules()
-                    .expect("server advertised CASEMAPPING")
-                    .conversation(&conversation.to_string())
-                    .unwrap()
-                    .to_string(),
-                expected
-            );
+        for target in ["#Papo[dev]", "Emily_"] {
+            assert_eq!(client.history(target).target.unwrap(), target);
         }
     }
 
