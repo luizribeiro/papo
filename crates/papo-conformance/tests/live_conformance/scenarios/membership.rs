@@ -1705,6 +1705,32 @@ async fn rejected_channel_key_stays_redacted(s: Scenario) -> papo_testing::Resul
     }
     assert!(!error.params().iter().any(|param| param.contains(key)));
     assert!(!format!("{error:?} {error}").contains(key));
+    if ergo {
+        let key = "staff-snapshot-key-4821";
+        alice
+            .set_modes(&channel)
+            .key(papo::Secret::new(key))
+            .await?;
+        let reply = alice
+            .request_raw(papo::Line::new("MODE").param(&channel))
+            .await?;
+        let modes = reply
+            .iter()
+            .find(|line| line.numeric() == Some(324))
+            .unwrap();
+        assert_eq!(modes.get(3), Some("<redacted>"));
+        let state = alice.snapshot();
+        assert_eq!(
+            state
+                .channel(&channel)
+                .unwrap()
+                .unwrap()
+                .key()
+                .map(papo::Secret::expose),
+            Some(key)
+        );
+        assert!(!s.rendered_wire_log().contains(key));
+    }
     Ok(())
 }
 

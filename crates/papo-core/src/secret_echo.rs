@@ -212,8 +212,8 @@ impl ReplySecrets {
                 let value = secret.expose();
                 param == value || index == last && param.contains(value)
             }) {
-                line.get_or_insert_with(|| message.to_owned())
-                    .__replace_param(index, REDACTED);
+                let line = line.get_or_insert_with(|| message.to_owned());
+                papo_proto::__mask_param(line, index);
             }
         }
         line

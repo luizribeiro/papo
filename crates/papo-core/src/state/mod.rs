@@ -1340,8 +1340,7 @@ impl State {
         if let Some(modestring) = message.param(1)
             && let Some(channel) = self.channel_mut(target)
         {
-            prefix_changes =
-                channel.apply_modes(modestring, message.params().skip(2), isupport, false);
+            prefix_changes = channel.apply_modes(modestring, message, 2, isupport, false);
             list_limit = channel.apply_list_modes(message, modestring, isupport, maximum);
         }
         if list_limit {
@@ -1427,7 +1426,7 @@ impl State {
                 return false;
             };
             if let Some(modestring) = message.param(2) {
-                _ = channel.apply_modes(modestring, message.params().skip(3), isupport, true);
+                _ = channel.apply_modes(modestring, message, 3, isupport, true);
             }
         } else {
             let created_at = message.param(2).and_then(parse_unix_seconds);
@@ -1977,7 +1976,8 @@ impl Channel {
     fn apply_modes<'a>(
         &mut self,
         modestring: &'a str,
-        args: impl Iterator<Item = &'a str> + 'a,
+        message: &LineRef<'a>,
+        args_start: usize,
         isupport: &'a Isupport,
         replace: bool,
     ) -> Vec<(NameKey<String>, Prefix, papo_proto::ModeAction)> {
@@ -1986,11 +1986,18 @@ impl Channel {
             self.modes.clear();
             self.key = None;
         }
+        let args = message.params().skip(args_start);
+        let mut next_arg = args_start;
         for change in ModeChanges::parse(modestring, args, isupport) {
+            let index = next_arg;
+            next_arg += usize::from(change.arg.is_some());
             if change.mode == 'k' {
                 if change.action == papo_proto::ModeAction::Add {
                     if let Some(key) = change.arg {
-                        self.key = Some(Secret::new(key));
+                        self.key = Some(
+                            papo_proto::__masked_param(message, index)
+                                .map_or_else(|| Secret::new(key), Clone::clone),
+                        );
                     }
                 } else {
                     self.key = None;

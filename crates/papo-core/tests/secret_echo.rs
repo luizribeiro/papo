@@ -470,3 +470,54 @@ fn credentials_stay_redacted_until_the_connection_ends() {
     session.send(late, new).unwrap();
     assert!(session.poll_transmit().is_some());
 }
+
+#[test]
+fn channel_mode_replies_preserve_keys_only_in_typed_state() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    let key = "staff-snapshot-key-4821";
+    session
+        .send(
+            now,
+            Line::new("JOIN").param("#staff").param(Secret::new(key)),
+        )
+        .unwrap();
+    assert_eq!(
+        &*session.poll_transmit().unwrap(),
+        format!("JOIN #staff {key}\r\n").as_bytes()
+    );
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnpst :are supported by this server",
+    );
+    session.handle_line(now, b":papo!~papo@localhost JOIN #staff");
+    while session.poll_transmit().is_some() {}
+    session
+        .request(now, Line::new("MODE").param("#staff"))
+        .unwrap();
+    assert_eq!(
+        &*session.poll_transmit().unwrap(),
+        b"@label=0 MODE #staff\r\n"
+    );
+    session.handle_line(
+        now,
+        format!("@label=0 :ergo.test 324 papo #staff +k {key}").as_bytes(),
+    );
+    assert_eq!(
+        session
+            .state()
+            .channel("#staff")
+            .unwrap()
+            .key()
+            .map(Secret::expose),
+        Some(key)
+    );
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(response.lines[0].get(3), Some("<redacted>"));
+    assert!(!format!("{response:?} {session:?}").contains(key));
+}

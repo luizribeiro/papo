@@ -306,6 +306,7 @@ pub struct Param(ParamValue);
 enum ParamValue {
     Text(String),
     Secret(Secret),
+    Masked(Secret),
 }
 
 impl Param {
@@ -313,6 +314,7 @@ impl Param {
         match &self.0 {
             ParamValue::Text(value) => value,
             ParamValue::Secret(value) => value.expose(),
+            ParamValue::Masked(_) => "<redacted>",
         }
     }
 
@@ -339,7 +341,7 @@ impl std::ops::Deref for Param {
 impl fmt::Debug for Param {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            ParamValue::Text(_) => self.as_str().fmt(formatter),
+            ParamValue::Text(_) | ParamValue::Masked(_) => self.as_str().fmt(formatter),
             ParamValue::Secret(_) => formatter.write_str("[REDACTED]"),
         }
     }
@@ -348,7 +350,7 @@ impl fmt::Debug for Param {
 impl fmt::Display for Param {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            ParamValue::Text(_) => formatter.write_str(self.as_str()),
+            ParamValue::Text(_) | ParamValue::Masked(_) => formatter.write_str(self.as_str()),
             ParamValue::Secret(_) => formatter.write_str("<redacted>"),
         }
     }
@@ -487,6 +489,29 @@ pub struct Line {
     params: Vec<Param>,
 }
 
+/// Masks a repeated credential while retaining its value for typed protocol interpretation.
+#[doc(hidden)]
+pub fn __mask_param(line: &mut Line, index: usize) {
+    if let Some(param) = line.params.get_mut(index)
+        && let ParamValue::Text(text) = &mut param.0
+    {
+        param.0 = ParamValue::Masked(Secret::new(std::mem::take(text)));
+    }
+}
+
+/// Borrows a masked parameter for a protocol field with an explicitly secret type.
+#[doc(hidden)]
+#[must_use]
+pub fn __masked_param<'a>(line: &LineRef<'a>, index: usize) -> Option<&'a Secret> {
+    let ParamStorage::Owned(params) = line.params else {
+        return None;
+    };
+    let Param(ParamValue::Masked(secret)) = params.get(index)? else {
+        return None;
+    };
+    Some(secret)
+}
+
 /// Copies a line with only its first `count` parameters.
 #[doc(hidden)]
 #[must_use]
@@ -564,18 +589,11 @@ impl Line {
     /// Marks a parameter as sensitive while preserving its text value.
     #[doc(hidden)]
     pub fn __mark_secret(&mut self, index: usize) {
-        let Some(param) = self.params.get_mut(index) else {
-            return;
-        };
-        if param.is_secret() {
-            return;
+        if let Some(param) = self.params.get_mut(index)
+            && let ParamValue::Text(text) = &mut param.0
+        {
+            param.0 = ParamValue::Secret(Secret::new(std::mem::take(text)));
         }
-        let ParamValue::Text(value) =
-            std::mem::replace(&mut param.0, ParamValue::Text(String::new()))
-        else {
-            unreachable!("secret parameters returned above");
-        };
-        param.0 = ParamValue::Secret(Secret::new(value));
     }
 
     /// Returns the last value for a case-sensitive tag key.
