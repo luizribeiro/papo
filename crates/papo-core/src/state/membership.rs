@@ -309,10 +309,21 @@ impl State {
             return;
         }
         let old_key = mapping.fold(old_nick);
-        let new_key = mapping.nick(new_nick);
+        let new_key = NameKey::new(new_nick, mapping);
         let Some(mut user) = self.users.remove(old_key.as_ref()) else {
             return;
         };
+        let previous_key = NameKey::new(user.nick.as_str(), mapping);
+        if previous_key != new_key {
+            self.message_users.retain(|key| key != &new_key);
+        }
+        if let Some(key) = self
+            .message_users
+            .iter_mut()
+            .find(|key| **key == previous_key)
+        {
+            *key = new_key.clone();
+        }
         user.nick = mapping.nick(new_nick);
         for channel_key in &user.channels {
             if let Some(channel) = self.channel_mut(channel_key.as_str())
@@ -324,8 +335,7 @@ impl State {
                     .insert(NameKey::new(new_nick, mapping), member);
             }
         }
-        self.users
-            .insert(NameKey::new(new_key.as_str(), mapping), user);
+        self.users.insert(new_key, user);
     }
 
     pub(super) fn is_monitored(&self, nick: &str) -> bool {

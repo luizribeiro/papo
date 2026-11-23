@@ -268,3 +268,37 @@ fn a_monitored_sender_keeps_their_identity_across_a_host_change() {
 
     assert_eq!(token(&session, "bob"), before);
 }
+
+#[test]
+fn continuous_private_messages_evict_the_oldest_message_only_user() {
+    let mut session = registered("account-tag message-tags");
+    let now = Instant::now();
+    session.handle_line(
+        now,
+        b":alicia!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :signing off",
+    );
+    session.handle_line(now, b":alicia!~u@kq2ccwrbbbw6a.irc QUIT :Client Quit");
+    session.handle_line(now, ALICE_ADMIN.as_bytes());
+    session.handle_line(now, b":alice!~u@8ajhv7kxgp7ag.irc NICK alicia");
+    let nick = session.state().casemapping().nick("alicia");
+    let guard = session
+        .state()
+        .__capture_recipient(nick.clone(), AccountStatus::Unknown)
+        .unwrap();
+    for index in 0..1_050 {
+        let line =
+            format!(":guest{index}!~u@users.example PRIVMSG papo-admin :is the release out?");
+        session.handle_line(now, line.as_bytes());
+        drain(&mut session);
+        assert_eq!(
+            session.state().user(nick.as_str()).is_some(),
+            index < 999,
+            "{index}"
+        );
+        assert!(session.state().user(format!("guest{index}")).is_some());
+    }
+    assert!(!matches!(
+        session.state().__resolve_recipient(&guard),
+        RecipientStatus::Current(_)
+    ));
+}
