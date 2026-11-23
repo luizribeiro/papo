@@ -169,6 +169,7 @@ impl Builder {
     /// ```
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() {
+    /// # use tokio::io::AsyncWriteExt as _;
     /// let builder = papo::Client::builder("irc://offline.test", "papo-doc")
     ///     .casemapping(papo::Casemapping::Ascii);
     /// # let (client, mut events, driver, mut connections) =
@@ -178,8 +179,8 @@ impl Builder {
     /// assert_eq!(rules.check_nick("release_candidate"), papo::NameCheck::Unknown);
     /// # let driver = tokio::spawn(driver);
     /// # let (mut server, _) = connections.recv().await.unwrap();
-    /// # papo::__testing::server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
-    /// # papo::__testing::server_line(&mut server, b":offline.test 005 papo-doc CASEMAPPING=ascii NICKLEN=12 :are supported\r\n:offline.test 001 papo-doc :Welcome\r\n:offline.test 422 papo-doc :MOTD is missing\r\n").await;
+    /// # server.write_all(b":offline.test CAP * LS :\r\n").await.unwrap();
+    /// # server.write_all(b":offline.test 005 papo-doc CASEMAPPING=ascii NICKLEN=12 :are supported\r\n:offline.test 001 papo-doc :Welcome\r\n:offline.test 422 papo-doc :MOTD is missing\r\n").await.unwrap();
     /// # while let Some((event, _)) = events.next().await {
     /// #     if matches!(event, papo::Event::Connected(_)) { break; }
     /// # }

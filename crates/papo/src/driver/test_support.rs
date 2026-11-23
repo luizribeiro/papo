@@ -331,7 +331,9 @@ pub(crate) async fn complete_connect_unobserved(server: &mut DuplexStream) {
 }
 
 pub(crate) async fn client_line(server: &mut DuplexStream, expected: &[u8]) {
-    within(crate::__testing::client_line(server, expected)).await;
+    let mut actual = vec![0; expected.len()];
+    within(server.read_exact(&mut actual)).await.unwrap();
+    assert_eq!(actual, expected);
 }
 
 pub(crate) async fn next_client_line(server: &mut DuplexStream) -> Vec<u8> {
@@ -345,7 +347,7 @@ pub(crate) async fn next_client_line(server: &mut DuplexStream) -> Vec<u8> {
 }
 
 pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
-    within(crate::__testing::server_line(server, line)).await;
+    within(server.write_all(line)).await.unwrap();
 }
 
 pub(crate) async fn next_event(events: &mut super::Events) -> Option<Event> {

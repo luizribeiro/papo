@@ -5,6 +5,11 @@ use std::{sync::Arc, time::SystemTime};
 use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[path = "testing/wire_io.rs"]
+mod wire_io;
+
+pub use wire_io::WireIo;
+
 #[path = "error/test_support.rs"]
 mod error_fixtures;
 
@@ -395,6 +400,8 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 mod tests {
     use std::fmt::Write as _;
 
+    use crate::driver::test_support::{client_line, server_line};
+
     use super::{
         connected, exercise_session_mapping, exercise_session_mapping_invariants, joined, message,
         set_message_account, set_message_actor, set_message_id, state, user_handle,
@@ -457,7 +464,7 @@ mod tests {
         let (mut server, endpoint) = connections.recv().await.unwrap();
         assert_eq!(endpoint, "irc://offline.test");
         let expected = b"CAP LS 302\r\nNICK papo-wire\r\nUSER papo-wire 0 * papo-wire\r\n";
-        super::client_line(&mut server, expected).await;
+        client_line(&mut server, expected).await;
         task.abort();
     }
 
@@ -471,14 +478,14 @@ mod tests {
         let (client, mut events, driver, mut connections) = super::wire_client(builder);
         let task = tokio::spawn(driver);
         let (mut server, _) = connections.recv().await.unwrap();
-        super::client_line(
+        client_line(
             &mut server,
             b"CAP LS 302\r\nNICK papo-wire\r\nUSER papo-wire 0 * papo-wire\r\n",
         )
         .await;
-        super::server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
-        super::client_line(&mut server, b"CAP END\r\n").await;
-        super::server_line(
+        server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(
             &mut server,
             b":offline.test 001 papo-wire :Welcome to ErgoTest\r\n:offline.test 005 papo-wire CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:offline.test 422 papo-wire :MOTD File is missing\r\n",
         )
@@ -488,7 +495,7 @@ mod tests {
             Some(crate::Event::Connected(_))
         ) {}
 
-        super::server_line(
+        server_line(
             &mut server,
             b":papo-wire!papo@localhost JOIN #review * :Papo Wire\r\n",
         )
