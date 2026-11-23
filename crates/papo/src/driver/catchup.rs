@@ -112,6 +112,7 @@ pub(super) fn advance_catchup(
         commands,
         state: Arc::clone(&events.state),
         origin: session.state().nick().origin(),
+        connection_checks: Arc::clone(&events.connection_checks),
         network_builder: None,
     };
     let conversation = {

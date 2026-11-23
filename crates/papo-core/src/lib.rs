@@ -5784,6 +5784,13 @@ impl Session {
         id
     }
 
+    /// Reports whether the transport should process the pending close before writing again.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __is_closing(&self) -> bool {
+        self.outbox.close_requested
+    }
+
     /// Starts or joins a liveness check. Returns false until registration is complete.
     #[doc(hidden)]
     pub fn __check_connection(&mut self, now: Instant, duration: Duration) -> bool {

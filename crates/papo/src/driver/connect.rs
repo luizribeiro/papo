@@ -211,7 +211,7 @@ pub(super) async fn run_plan(
             sts_required = true;
         }
         let refused = retry_was_refused(&end);
-        let reconnect_in = if upgrade_port.is_some() {
+        let reconnect_in = if upgrade_port.is_some() || end.probe_timed_out {
             Duration::ZERO
         } else {
             retry_delay(reconnect, attempts, registered, refused, entropy.as_mut())
@@ -468,6 +468,7 @@ fn finish_connection_failure(
             reason,
             error,
             close_kind: None,
+            probe_timed_out: false,
             quit: None,
             quit_timed_out: false,
             registered_at: None,
@@ -657,8 +658,13 @@ async fn wait_before_retry(
     reconnect_control: &mut ReconnectControl,
     disconnected: crate::event::Disconnected,
 ) -> bool {
-    let deadline = papo_core::deadline(now(), disconnected.reconnect_in.unwrap_or_default());
-    let sleep = super::wait_until(deadline);
+    let delay = disconnected.reconnect_in.unwrap_or_default();
+    let deadline = papo_core::deadline(now(), delay);
+    let sleep = async {
+        if !delay.is_zero() {
+            super::wait_until(deadline).await;
+        }
+    };
     tokio::pin!(sleep);
     loop {
         tokio::select! {
@@ -767,6 +773,10 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             DisconnectedAction::Wait
         }
+        Some(Command::CheckConnection { result, .. }) => {
+            _ = result.send(Some(Err(Error::disconnected(disconnected.clone()))));
+            DisconnectedAction::Wait
+        }
         Some(Command::Reconnect { result }) => {
             _ = result.send(Ok(()));
             DisconnectedAction::Retry
@@ -804,6 +814,7 @@ mod tests {
             reason: error.to_string(),
             error,
             close_kind: None,
+            probe_timed_out: false,
             quit: None,
             quit_timed_out: false,
             registered_at: registered.then(now),

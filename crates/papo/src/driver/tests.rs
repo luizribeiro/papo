@@ -2261,6 +2261,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut stream,
         &mut session,
         &mut pending_write,
+        &mut super::ConnectionCheck::default(),
         &channels.event_sink,
         &mut pending_events,
         &mut requests,
@@ -2292,6 +2293,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut stream,
         &mut session,
         &mut pending_write,
+        &mut super::ConnectionCheck::default(),
         &channels.event_sink,
         &mut pending_events,
         &mut requests,
@@ -2323,6 +2325,8 @@ async fn write_timeout_resumes_before_the_next_line() {
 async fn reconnect_on_a_live_connection_is_typed_and_keeps_the_transport() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
+    let check = client.check_connection(Duration::from_secs(3));
+    assert!(check.await.is_err());
     complete_connect(&mut server, &mut events).await;
 
     assert!(matches!(

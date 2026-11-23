@@ -2490,6 +2490,7 @@ pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint, impl papo::AsNick) -> papo::Builder
+pub fn papo::Client::check_connection(&self, core::time::Duration) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<papo::TopicOutcome>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::SendOutcome>

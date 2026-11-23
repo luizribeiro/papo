@@ -1,7 +1,7 @@
 use std::{
     future::IntoFuture,
     sync::{
-        Arc, RwLock,
+        Arc, Mutex, RwLock,
         atomic::{AtomicU64, Ordering},
     },
     time::Duration,
@@ -9,7 +9,7 @@ use std::{
 
 use papo_core::{Response, ResponseMatcher, TextKind};
 use papo_proto::{Ctcp, Line, Typing};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{
     Error, Feature, InvalidInput, Unsupported, UnsupportedReason,
@@ -20,6 +20,9 @@ use crate::{
 };
 
 static NEXT_PING: AtomicU64 = AtomicU64::new(0);
+
+pub(crate) type ConnectionCheckReply = Option<Result<Duration, Error>>;
+pub(crate) type ConnectionChecks = Arc<Mutex<Option<watch::Receiver<ConnectionCheckReply>>>>;
 
 /// A cheap, cloneable handle to a running IRC client.
 ///
@@ -46,6 +49,7 @@ pub struct Client {
     pub(crate) commands: mpsc::Sender<Command>,
     pub(crate) state: Arc<RwLock<Arc<State>>>,
     pub(crate) origin: crate::Origin,
+    pub(crate) connection_checks: ConnectionChecks,
     pub(crate) network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
 }
 
@@ -902,6 +906,50 @@ impl Client {
                 .await
                 .map_err(|_| Error::connection_lost())?;
             receiver.await.map_err(|_| Error::connection_lost())?
+        })
+    }
+
+    /// Checks a doubtful connection, such as when a mobile app returns to the foreground.
+    ///
+    /// Concurrent calls share the first deadline and the result.
+    ///
+    /// # Cancellation
+    ///
+    /// A queued check continues if the caller drops the future.
+    pub fn check_connection(&self, deadline: Duration) -> crate::RequestFuture<Duration> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let permit = client
+                .commands
+                .reserve()
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            let mut response = {
+                let mut pending = client
+                    .connection_checks
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                // The cached receiver stays at its initial version so a completed check
+                // can be replaced even if some callers have yet to poll its result.
+                if let Some(receiver) = pending
+                    .as_ref()
+                    .filter(|receiver| matches!(receiver.has_changed(), Ok(false)))
+                {
+                    drop(permit);
+                    receiver.clone()
+                } else {
+                    let (result, receiver) = watch::channel(None);
+                    *pending = Some(receiver.clone());
+                    permit.send(Command::CheckConnection { deadline, result });
+                    receiver
+                }
+            };
+            response
+                .wait_for(Option::is_some)
+                .await
+                .ok()
+                .and_then(|reply| reply.clone())
+                .unwrap_or_else(|| Err(Error::connection_lost()))
         })
     }
 

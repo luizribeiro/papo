@@ -34,19 +34,19 @@ use std::{
 use web_time::Instant;
 
 use papo_core::{
-    Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
-    TextKind, TransmitToken, sts::StsStore,
+    Connection, ConnectionCheckResult, HistoryQuery, RequestError, RequestId, Response,
+    ResponseMatcher, Session, TextKind, TransmitToken, sts::StsStore,
 };
 use papo_proto::{Command as ProtoCommand, Line, Numeric, Typing};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
-    sync::{mpsc, oneshot},
+    sync::{mpsc, oneshot, watch},
 };
 
 use crate::{
     Error, Event, InvalidInput, Reconnect,
     address::ServerAddress,
-    client::{Client, SendOutcome},
+    client::{Client, ConnectionCheckReply, ConnectionChecks, SendOutcome},
     event_impl as event,
     rt::{BoxFuture, Io},
     state::State,
@@ -210,6 +210,10 @@ pub(crate) enum Command {
     WaitChannelSync {
         channel: String,
         result: oneshot::Sender<Result<(), Error>>,
+    },
+    CheckConnection {
+        deadline: Duration,
+        result: watch::Sender<ConnectionCheckReply>,
     },
     Reconnect {
         result: oneshot::Sender<Result<(), Error>>,
@@ -429,6 +433,7 @@ impl EventReceiver {
 }
 
 struct EventSink {
+    connection_checks: ConnectionChecks,
     regular: mpsc::Sender<EventItem>,
     receiver: Arc<EventReceiver>,
     dropped: Arc<Mutex<DroppedEvents>>,
@@ -852,6 +857,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         commands: command_sender,
         state: Arc::clone(&state),
         origin: session.state().nick().origin(),
+        connection_checks: Arc::default(),
         network_builder: None,
     };
     client
@@ -859,6 +865,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         .watch_registry()
         .set_commands(client.commands.downgrade());
     let events = EventSink {
+        connection_checks: Arc::clone(&client.connection_checks),
         regular: event_sender,
         receiver: Arc::clone(&event_receiver),
         dropped: Arc::clone(&dropped),
@@ -935,6 +942,7 @@ struct ConnectionEnd {
     reason: String,
     error: Error,
     close_kind: Option<papo_core::CloseKind>,
+    probe_timed_out: bool,
     quit: Option<Quit>,
     quit_timed_out: bool,
     #[allow(dead_code)]
@@ -942,6 +950,28 @@ struct ConnectionEnd {
     sts: StsActions,
     sts_store: Option<Arc<dyn StsStore>>,
     pending_events: PendingEvents,
+}
+
+#[derive(Default)]
+struct ConnectionCheck {
+    reply: Option<watch::Sender<ConnectionCheckReply>>,
+    silent: bool,
+}
+
+impl ConnectionCheck {
+    fn complete(&mut self, result: Result<Duration, Error>) {
+        if let Some(reply) = self.reply.take() {
+            _ = reply.send(Some(result));
+        }
+    }
+
+    fn receive(&mut self, result: ConnectionCheckResult) {
+        match result {
+            ConnectionCheckResult::Pong(round_trip) => self.complete(Ok(round_trip)),
+            ConnectionCheckResult::TimedOut => self.complete(Err(Error::Timeout)),
+            ConnectionCheckResult::Silent => self.silent = true,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -1013,6 +1043,7 @@ where
     let mut commands_open = true;
     let mut quit = None;
     let mut requests = BTreeMap::new();
+    let mut connection_check = ConnectionCheck::default();
     let mut transmits = BTreeMap::new();
     let mut join_keys = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
@@ -1038,6 +1069,7 @@ where
             &mut stream,
             session,
             &mut pending_write,
+            &mut connection_check,
             events,
             &mut pending_events,
             &mut requests,
@@ -1102,6 +1134,7 @@ where
                                 &mut stream,
                                 session,
                                 &mut pending_write,
+                                &mut connection_check,
                                 events,
                                 &mut pending_events,
                                 &mut requests,
@@ -1388,6 +1421,13 @@ where
                         sync_waiters.push((channel, result));
                     }
                 }
+                Some(Command::CheckConnection { deadline, result }) => {
+                    if quit.is_none() && session.__check_connection(now(), deadline) {
+                        connection_check.reply = Some(result);
+                    } else {
+                        _ = result.send(Some(Err(Error::connection_lost())));
+                    }
+                }
                 Some(Command::Reconnect { result }) => {
                     _ = result.send(Err(Error::AlreadyConnected));
                 }
@@ -1504,15 +1544,21 @@ where
         _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
     publish_session_state(events, session);
-    close_stream_before(
-        &mut stream,
-        quit.as_ref().and_then(|quit: &Quit| quit.deadline),
-    )
-    .await;
+    let check_interrupted = connection_check.reply.is_some() && close_kind.is_some();
+    connection_check.complete(Err(Error::Interrupted(disconnected)));
+    if !connection_check.silent && (!check_interrupted || quit.is_some()) {
+        close_stream_before(
+            &mut stream,
+            quit.as_ref().and_then(|quit: &Quit| quit.deadline),
+        )
+        .await;
+    }
     ConnectionEnd {
         reason,
         error,
         close_kind,
+        probe_timed_out: connection_check.silent
+            && close_kind == Some(papo_core::CloseKind::PingTimeout),
         quit,
         quit_timed_out,
         registered_at,
@@ -1576,6 +1622,7 @@ async fn drain<S>(
     stream: &mut S,
     session: &mut Session,
     pending_write: &mut Option<PendingWrite>,
+    connection_check: &mut ConnectionCheck,
     events: &EventSink,
     pending_events: &mut PendingEvents,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
@@ -1601,7 +1648,12 @@ where
     S: AsyncWrite + Unpin,
 {
     publish_session_state(events, session);
-    if !drain_transmit(stream, session, pending_write, transmits, deadline).await? {
+    if let Some(result) = session.__take_connection_check_result() {
+        connection_check.receive(result);
+    }
+    // A core close must reach the check even when a pending write cannot finish.
+    let closing = connection_check.reply.is_some() && session.__is_closing();
+    if !closing && !drain_transmit(stream, session, pending_write, transmits, deadline).await? {
         return Ok(None);
     }
     while let Some(phase) = session.poll_connect_phase() {
@@ -1617,7 +1669,7 @@ where
     drop_closed_waiters(requests, sync_waiters, registration);
     reconcile_pending_events(events, pending_events, requests, resolved_sent);
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
-    while (pending_events.is_empty() || read_ahead || after_timeout)
+    while (pending_events.is_empty() || read_ahead || after_timeout || closing)
         && let Some(core_event) = session.poll_event()
     {
         publish_session_state(events, session);
@@ -1947,6 +1999,7 @@ where
         let Some(written) = pending.take() else {
             return Ok(true);
         };
+        session.__handle_written(now(), &written.buffer);
         if let Some(token) = written.token
             && let Some(result) = transmits.remove(&token)
         {
@@ -2112,6 +2165,7 @@ fn enqueue_history(
         commands,
         state: Arc::clone(&events.state),
         origin: session.state().nick().origin(),
+        connection_checks: Arc::clone(&events.connection_checks),
         network_builder: None,
     };
     let conversation = {
