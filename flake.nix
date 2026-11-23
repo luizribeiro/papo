@@ -222,6 +222,7 @@
             runtimeInputs ? [ ],
             runtimeEnv ? { },
             stages ? [ "pre-commit" ],
+            files ? "(^|/)(Cargo\\.(toml|lock)|.*\\.rs)$",
           }:
           {
             enable = true;
@@ -231,9 +232,8 @@
                 runtimeInputs = [ stableToolchain ] ++ runtimeInputs;
               }
             }/bin/${name}";
-            files = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs)$";
             pass_filenames = false;
-            inherit stages;
+            inherit files stages;
           };
         offlineHooks = {
           no-merge-commits = {
@@ -386,8 +386,22 @@
           };
           public-api = cargoHook {
             name = "public-api-hook";
-            runtimeInputs = [ pkgs.cargo-public-api ];
+            files = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs|flake\\.nix|nix/list-hidden-api\\.py|crates/papo/hidden-public-api\\.txt)$";
+            runtimeInputs = [
+              pkgs.cargo-public-api
+              pkgs.python3
+            ];
             text = ''
+              rustdoc_json() {
+                local package=$1 features=$2 target=$3
+                shift 3
+                CARGO_INCREMENTAL=0 \
+                  RUSTC=${nightlyToolchain}/bin/rustc \
+                  RUSTDOC=${nightlyToolchain}/bin/rustdoc \
+                  ${nightlyToolchain}/bin/cargo rustdoc \
+                    -p "$package" --no-default-features --features "$features" --lib --locked \
+                    --target-dir "$target" -- -Z unstable-options --output-format json "$@"
+              }
               check_api() {
                 package=$1
                 crate=$2
@@ -395,12 +409,7 @@
                 expected=$4
                 target=$5
                 actual=$(mktemp)
-                CARGO_INCREMENTAL=0 \
-                  RUSTC=${nightlyToolchain}/bin/rustc \
-                  RUSTDOC=${nightlyToolchain}/bin/rustdoc \
-                  ${nightlyToolchain}/bin/cargo rustdoc \
-                    -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
-                    -- -Z unstable-options --output-format json
+                rustdoc_json "$package" "$features" "$target"
                 if [[ "$package" == papo ]]; then
                   cargo public-api \
                     --rustdoc-json "$target/doc/$crate.json" \
@@ -436,15 +445,22 @@
                 features=$3
                 output=$4
                 target=$5
-                CARGO_INCREMENTAL=0 \
-                  RUSTC=${nightlyToolchain}/bin/rustc \
-                  RUSTDOC=${nightlyToolchain}/bin/rustdoc \
-                  ${nightlyToolchain}/bin/cargo rustdoc \
-                    -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
-                    -- -Z unstable-options --output-format json --document-hidden-items
+                rustdoc_json "$package" "$features" "$target" --document-hidden-items
                 cargo public-api \
                   --rustdoc-json "$target/doc/$crate.json" \
                   --color=never -s | bash nix/normalize-public-api.sh > "$output"
+              }
+              check_hidden_api() {
+                local variant=$1 features=$2 actual
+                local target="target/public-api/papo-$variant"
+                actual=$(mktemp)
+                rustdoc_json papo "$features" "$target" --document-hidden-items
+                python nix/list-hidden-api.py "$target/doc/papo.json" \
+                  "target/public-api/papo-core-$variant/doc/papo_core.json" \
+                  target/public-api/papo-proto/doc/papo_proto.json > "$actual"
+                diff -u --label "papo $variant allowed hidden API" --label "papo $variant actual hidden API" \
+                  <(sed '/^#/d; /^$/d' crates/papo/hidden-public-api.txt | LC_ALL=C sort) "$actual"
+                rm -f "$actual"
               }
               stable=websocket,tls-aws-lc,tls-ring
               check_api papo-format papo_format "" crates/papo-format/public-api.txt target/public-api/papo-format
@@ -463,6 +479,9 @@
               check_api papo papo "$stable,unstable" crates/papo/public-api-unstable.txt target/public-api/papo-unstable
               rm -f "$core_stable_api" "$core_unstable_api"
               check_api papo-bot papo_bot "" crates/papo-bot/public-api.txt target/public-api/papo-bot
+              rustdoc_json papo-proto "" target/public-api/papo-proto --document-hidden-items
+              check_hidden_api stable "$stable"
+              check_hidden_api unstable "$stable,unstable"
             '';
           };
           plain-tests = cargoHook {
