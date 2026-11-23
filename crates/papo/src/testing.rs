@@ -497,6 +497,12 @@ mod tests {
             events.next().await.map(|(event, _)| event),
             Some(crate::Event::Joined(_))
         ) {}
+        let snapshot = client.snapshot();
+        assert_eq!(
+            super::channel_local(&snapshot, "#REVIEW").unwrap().name(),
+            "#review"
+        );
+        assert!(super::channel_local(&snapshot, "#operations").is_none());
         assert!(matches!(
             client.join("#operations").await,
             Err(crate::Error::StateLimit(crate::StateLimit::Channels))
