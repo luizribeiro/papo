@@ -1108,6 +1108,72 @@ fn a_later_join_fills_a_bare_names_userhost() {
 }
 
 #[test]
+fn member_privileges_follow_advertised_prefix_order() {
+    let cases = [
+        (
+            "PREFIX=(qaohv)~&@%+",
+            "~alice &bob @+dan %erin +frank",
+            &[
+                ("alice", true, true),
+                ("bob", true, true),
+                ("dan", true, true),
+                ("erin", false, true),
+                ("frank", false, true),
+            ][..],
+        ),
+        (
+            "PREFIX=(ov)@+",
+            "@+alice +bob dan",
+            &[
+                ("alice", true, true),
+                ("bob", false, true),
+                ("dan", false, false),
+            ],
+        ),
+        (
+            "PREFIX=(ohqv)@%!+",
+            "!alice @bob",
+            &[("alice", false, true), ("bob", true, true)],
+        ),
+        (
+            "PREFIX=(qv)~+",
+            "~alice +bob",
+            &[("alice", false, true), ("bob", false, true)],
+        ),
+        (
+            "PREFIX=(qo)~@",
+            "~alice @bob",
+            &[("alice", true, false), ("bob", true, false)],
+        ),
+        ("PREFIX=", "alice", &[("alice", false, false)]),
+        ("CHANTYPES=#", "@alice", &[("alice", false, false)]),
+    ];
+    for (token, names, expected) in cases {
+        Transcript::new(
+            Config::default()
+                .nick("emily")
+                .who_on_join(WhoOnJoin::Never),
+        )
+        .server(&format!(":ergo.test 005 emily {token} :are supported"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(&format!(":ergo.test 353 emily = #papo :{names}"))
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            for &(nick, op, voice) in expected {
+                let member = channel.member(nick).unwrap();
+                assert_eq!(member.is_at_least_op(), op, "{token}: {nick}");
+                assert_eq!(member.is_at_least_voice(), voice, "{token}: {nick}");
+            }
+        })
+        .server(":ergo.test 366 emily #papo :End of NAMES list")
+        .client("MODE #papo")
+        .event(|event| matches!(event, Event::ChannelSynced { .. }))
+        .no_event();
+    }
+}
+
+#[test]
 fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily PREFIX=(qaohv)~&@%+ :are supported")

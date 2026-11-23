@@ -44,6 +44,15 @@ impl Prefix {
         self.mode
     }
 
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __reaches(order: &[Self], mode: char, held: impl FnMut(&Self) -> bool) -> bool {
+        order
+            .iter()
+            .position(|prefix| prefix.mode == mode)
+            .is_some_and(|index| order[..=index].iter().any(held))
+    }
+
     /// Returns the standard rank represented by this membership mode.
     #[must_use]
     pub const fn rank(self) -> Option<Rank> {

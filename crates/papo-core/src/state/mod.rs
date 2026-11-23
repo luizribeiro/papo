@@ -224,6 +224,7 @@ pub struct Channel {
     names_reply_seen: bool,
     synced: bool,
     prefix_order: Arc<[Prefix]>,
+    advertised_prefix_order: Arc<[Prefix]>,
 }
 
 /// State known about a channel member.
@@ -231,6 +232,7 @@ pub struct Channel {
 pub struct Member {
     nick: Nick,
     prefixes: Vec<Prefix>,
+    advertised_prefix_order: Arc<[Prefix]>,
 }
 
 /// State known about a user sharing a channel or followed through MONITOR.
@@ -948,9 +950,17 @@ impl State {
         self.update_casemapping(casemapping);
         self.isupport.clone_from(isupport);
         let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
+        let advertised_prefix_order: Arc<[Prefix]> =
+            isupport.__advertised_prefix().unwrap_or_default().into();
         for channel in self.channels.values_mut() {
             let channel = Arc::make_mut(channel);
             channel.prefix_order = Arc::clone(&prefix_order);
+            if channel.advertised_prefix_order != advertised_prefix_order {
+                channel.advertised_prefix_order = Arc::clone(&advertised_prefix_order);
+                for member in channel.members.values_mut() {
+                    member.advertised_prefix_order = Arc::clone(&advertised_prefix_order);
+                }
+            }
         }
     }
 
@@ -1944,6 +1954,7 @@ impl Channel {
             names_reply_seen: false,
             synced,
             prefix_order: isupport.prefix().into(),
+            advertised_prefix_order: isupport.__advertised_prefix().unwrap_or_default().into(),
         }
     }
 
@@ -2181,6 +2192,26 @@ impl Member {
     #[must_use]
     pub fn prefixes(&self) -> &[Prefix] {
         &self.prefixes
+    }
+
+    /// Reports whether a held prefix reaches operator in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
+    #[must_use]
+    pub fn is_at_least_op(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'o', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
+    /// Reports whether a held prefix reaches voice in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
+    #[must_use]
+    pub fn is_at_least_voice(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'v', |prefix| {
+            self.prefixes.contains(prefix)
+        })
     }
 
     /// Returns the highest standard rank the member holds.

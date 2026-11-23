@@ -13,6 +13,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 
 Build channel conversation fixtures with `papo_testing::channel_conversation`.
 
+Membership privilege checks can use `is_at_least_op()` and `is_at_least_voice()` with the server's advertised PREFIX order.
+
 Build negotiated capabilities for tests with `papo_testing::capabilities`.
 
 `papo-format` provides IRC text formatting with no stability promise. Use
