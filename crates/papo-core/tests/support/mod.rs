@@ -225,6 +225,11 @@ impl Transcript {
         self
     }
 
+    pub fn server_after(mut self, elapsed: Duration, line: &str) -> Self {
+        self.now += elapsed;
+        self.server(line)
+    }
+
     /// Disconnects the session at the current transcript time.
     pub fn disconnect(mut self) -> Self {
         self.session.handle_disconnected(self.now);
