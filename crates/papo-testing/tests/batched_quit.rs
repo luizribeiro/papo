@@ -144,3 +144,101 @@ async fn quit_in_an_oversized_netsplit_then_a_new_holder_joins() {
     assert!(review.sync().await);
     review.assert_reply_refused().await;
 }
+#[tokio::test]
+async fn control_plain_quit_ends_the_reference() {
+    let mut review = Review::start(true).await;
+    review
+        .wire
+        .server("@account=alice :alice!~alice@cloak-7f3a.example QUIT :Quit: bye")
+        .await;
+    review.sync().await;
+    review.assert_reply_refused().await;
+}
+
+#[tokio::test]
+async fn control_netsplit_quit_ends_the_reference() {
+    let mut review = Review::start(true).await;
+    review.start_split().await;
+    review.wire.server(":offline.test BATCH -split").await;
+    review.sync().await;
+    review.assert_reply_refused().await;
+}
+
+#[tokio::test]
+async fn open_netsplit_quit_ends_the_reference_before_close() {
+    let mut review = Review::start(true).await;
+    review.start_split().await;
+    assert!(!review.sync().await);
+    review.assert_reply_refused().await;
+}
+
+#[tokio::test]
+async fn abandoned_history_does_not_end_the_live_reference() {
+    let mut review = Review::start(true).await;
+    for index in 0..64 {
+        review
+            .wire
+            .server(format!(":offline.test BATCH +hold{index} vendor/sync"))
+            .await;
+    }
+    for line in [
+        ":offline.test BATCH +history chathistory #review",
+        "@batch=history :offline.test BATCH +split netsplit hub.example leaf.example",
+        ":offline.test BATCH -history",
+        "@batch=hold0 :offline.test BATCH -split",
+        ":offline.test BATCH -hold0",
+        ":offline.test BATCH +history netsplit hub.example leaf.example",
+        ":offline.test BATCH +split netsplit hub.example leaf.example",
+        "@batch=history :alice!~alice@cloak-7f3a.example QUIT :Quit: old session",
+        QUIT,
+    ] {
+        review.wire.server(line).await;
+    }
+    assert!(review.sync().await);
+    let reply = review
+        .client
+        .reply(&review.message, "the release notes are ready")
+        .await;
+    assert!(reply.is_ok(), "{reply:?}");
+    assert_eq!(
+        review.wire.next_sent().await,
+        "@+reply=ErgoDm1 PRIVMSG alice :the release notes are ready"
+    );
+
+    for line in [
+        "@batch=history :offline.test BATCH -split",
+        ":offline.test BATCH -history",
+    ] {
+        review.wire.server(line).await;
+    }
+    review.start_split().await;
+    review.sync().await;
+    review.assert_reply_refused().await;
+}
+
+#[tokio::test]
+async fn loss_of_batch_provenance_closes_before_a_reply_can_be_written() {
+    let mut review = Review::start(true).await;
+    for index in 0..64 {
+        review
+            .wire
+            .server(format!(":offline.test BATCH +hold{index} vendor/sync"))
+            .await;
+    }
+    for index in 0..=256 {
+        review
+            .wire
+            .server(format!(
+                ":offline.test BATCH +history{index} chathistory #review"
+            ))
+            .await;
+    }
+    assert_eq!(review.wire.next_sent_or_closed().await, None);
+    assert!(
+        review
+            .client
+            .reply(&review.message, "the release notes are ready")
+            .await
+            .is_err()
+    );
+}

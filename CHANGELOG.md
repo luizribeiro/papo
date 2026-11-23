@@ -530,6 +530,9 @@ Private replies remain usable when a watch changes or the server sends more ISUP
   challenge, including across SASL capability changes and reauthentication.
 - A login numeric arriving after a SCRAM success was rejected for missing server proof leaves the
   client's account status unchanged.
+
+- Live membership and identity changes in IRC batches take effect on arrival, including when
+  a batch is unfinished or abandoned. Replayed history stays out of live state.
 - A reconnect history catchup whose `CHATHISTORY` request times out, fails or is aborted is
   dropped with its request. It used to stay for the rest of the connection and record the msgid
   of every later live message in that channel, growing without bound.
