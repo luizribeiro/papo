@@ -2634,7 +2634,7 @@ pub(crate) fn from_core_with_receipt(
         } => {
             let line_account = actor_account(&envelope, actor_party);
             let envelope = map_envelope(&envelope);
-            let actor = user_at_arrival(nick, envelope.account.clone(), token);
+            let actor = user_at_arrival(nick, line_account.clone(), token);
             Event::Joined(Joined {
                 from_history: false,
                 actor_account: line_account,
@@ -3741,6 +3741,15 @@ mod tests {
     }
 
     #[test]
+    fn own_plain_join_keeps_unknown_account_in_its_reference() {
+        let line = ":papo!~u@localhost JOIN #review";
+        let event = mapped_live_event_with_account_tag(line, Instant::now(), true);
+        let joined = event.as_joined().unwrap();
+        assert_eq!(joined.actor_account(), &AccountStatus::Unknown);
+        assert_eq!(joined.actor.account(), joined.actor_account());
+    }
+
+    #[test]
     fn account_commands_supply_evidence_with_or_without_account_tag() {
         let now = Instant::now();
         for cap in [false, true] {
@@ -3926,26 +3935,42 @@ mod tests {
                 },
             ),
         ];
-        for (line, accessor) in cases {
-            let mut session = Session::new(Config::default().nick("papo"));
-            session.handle_line(now, b":papo!~papo@localhost JOIN #review");
-            session.handle_line(now, b":emily!~e@cloak.example JOIN #review");
-            while session.poll_event().is_some() {}
-            session.handle_line(now, line.as_bytes());
-            let event = std::iter::from_fn(|| session.poll_event())
-                .find_map(|event| {
-                    if let CoreEvent::Forward(event) = from_core(event)
-                        && accessor(&event).is_some()
-                    {
-                        return Some(event);
-                    }
-                    None
-                })
-                .unwrap_or_else(|| panic!("expected a presence change for {line}"));
-            assert!(
-                matches!(accessor(&event), Some(AccountStatus::LoggedIn(name)) if name == "reviewer"),
-                "{event:?}"
-            );
+        let reviewer = AccountStatus::LoggedIn(Casemapping::default().account("reviewer"));
+        for (tagged, accessor) in cases {
+            let (_, untagged) = tagged.split_once(' ').unwrap();
+            for cap in [false, true] {
+                for line in [tagged, untagged] {
+                    let mut session = Session::new(Config::default().nick("papo"));
+                    session.handle_line(now, b":papo!~papo@localhost JOIN #review");
+                    session.handle_line(now, b":emily!~e@cloak.example JOIN #review");
+                    while session.poll_event().is_some() {}
+                    session.handle_line(now, line.as_bytes());
+                    let casemapping = session.isupport().casemapping();
+                    let event = std::iter::from_fn(|| session.poll_event())
+                        .find_map(|event| {
+                            if let CoreEvent::Forward(event) = from_core_with_mapping(
+                                event,
+                                casemapping,
+                                crate::Origin::NONE,
+                                cap,
+                                UNIX_EPOCH,
+                            ) && accessor(&event).is_some()
+                            {
+                                return Some(event);
+                            }
+                            None
+                        })
+                        .unwrap_or_else(|| panic!("expected a presence change for {line}"));
+                    let expected = if line == tagged || line.ends_with(" ACCOUNT reviewer") {
+                        &reviewer
+                    } else if cap {
+                        &AccountStatus::LoggedOut
+                    } else {
+                        &AccountStatus::Unknown
+                    };
+                    assert_eq!(accessor(&event), Some(expected), "{line}");
+                }
+            }
         }
     }
 
@@ -3997,19 +4022,83 @@ mod tests {
     }
 
     #[test]
-    fn partial_lines_keep_their_reported_accounts() {
+    fn event_actor_accounts_follow_account_tag_and_source() {
+        let now = Instant::now();
+        let reviewer = AccountStatus::LoggedIn(Casemapping::default().account("reviewer"));
+        for (kind, _, line) in MESSAGE_EVENT_METADATA_CASES {
+            if kind == "Other" || line.contains(" :papo!") {
+                continue;
+            }
+            let tagged = line.replacen('@', "@account=reviewer;", 1);
+            let absent_with_cap = if kind == "ServerNotice" {
+                &AccountStatus::Unknown
+            } else {
+                &AccountStatus::LoggedOut
+            };
+            for (line, cap, expected) in [
+                (tagged.as_str(), false, &reviewer),
+                (tagged.as_str(), true, &reviewer),
+                (line, false, &AccountStatus::Unknown),
+                (line, true, absent_with_cap),
+            ] {
+                let event = mapped_live_event_with_account_tag(line, now, cap);
+                let actual = match (kind, &event) {
+                    ("Message", Event::Message(event)) => event.actor_account(),
+                    ("Notice", Event::Notice(event)) => event.actor_account(),
+                    ("ServerNotice", Event::ServerNotice(event)) => event.actor_account(),
+                    ("CtcpQuery", Event::CtcpQuery(event)) => event.actor_account(),
+                    ("CtcpReply", Event::CtcpReply(event)) => event.actor_account(),
+                    ("BroadcastCtcp", Event::BroadcastCtcp(event)) => event.actor_account(),
+                    ("BroadcastTagMsg", Event::BroadcastTagMsg(event)) => event.actor_account(),
+                    ("TagMsg", Event::TagMsg(event)) => event.actor_account(),
+                    ("Reacted", Event::Reacted(event)) => event.actor_account(),
+                    ("Redacted", Event::Redacted(event)) => event.actor_account(),
+                    ("Joined", Event::Joined(event)) => event.actor_account(),
+                    ("Parted", Event::Parted(event)) => event.actor_account(),
+                    ("Kicked", Event::Kicked(event)) => event.actor_account(),
+                    ("Invited", Event::Invited(event)) => event.actor_account(),
+                    ("Quit", Event::Quit(event)) => event.actor_account(),
+                    ("NickChanged", Event::NickChanged(event)) => event.actor_account(),
+                    ("ChannelRenamed", Event::ChannelRenamed(event)) => event.actor_account(),
+                    ("ModeChanged", Event::ModeChanged(event)) => event.actor_account(),
+                    ("TopicChanged", Event::TopicChanged(event)) => event.actor_account(),
+                    _ => panic!("expected {kind}, got {event:?}"),
+                };
+                assert_eq!(actual, expected, "{line}, account-tag={cap}");
+            }
+        }
+    }
+
+    #[test]
+    fn typing_and_incomplete_lines_keep_their_reported_accounts() {
         let now = Instant::now();
         for line in [
-            "@account=alice :alice!~a@cloak.example PRIVMSG #review :release ready",
-            "@account=alice :alice!~a@cloak.example NOTICE #review :maintenance begins soon",
+            ":alice!~a@cloak.example PRIVMSG #review :release ready",
+            ":alice!~a@cloak.example NOTICE #review :maintenance begins soon",
+            "@+typing=active :alice!~a@cloak.example TAGMSG #review",
         ] {
-            let event = mapped_live_event(line, now);
-            let Some(Event::Incomplete(incomplete)) = super::mark_incomplete(event) else {
-                panic!("expected a partial message or notice");
+            let tagged = if line.starts_with('@') {
+                line.replacen('@', "@account=alice;", 1)
+            } else {
+                format!("@account=alice {line}")
             };
-            assert!(
-                matches!(incomplete.actor_account(), AccountStatus::LoggedIn(account) if account == "alice")
-            );
+            let alice = AccountStatus::LoggedIn(Casemapping::default().account("alice"));
+            for (line, cap, expected) in [
+                (tagged.as_str(), false, &alice),
+                (tagged.as_str(), true, &alice),
+                (line, false, &AccountStatus::Unknown),
+                (line, true, &AccountStatus::LoggedOut),
+            ] {
+                let event = mapped_live_event_with_account_tag(line, now, cap);
+                if let Event::TypingChanged(typing) = event {
+                    assert_eq!(typing.actor_account(), expected, "{line}");
+                } else {
+                    let Some(Event::Incomplete(incomplete)) = super::mark_incomplete(event) else {
+                        panic!("expected a partial message or notice");
+                    };
+                    assert_eq!(incomplete.actor_account(), expected, "{line}");
+                }
+            }
         }
     }
 
