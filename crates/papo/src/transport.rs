@@ -204,8 +204,7 @@ fn build_tls_client_config(
     use rustls::pki_types::{PrivateKeyDer, pem::PemObject};
     use rustls_platform_verifier::BuilderVerifierExt;
 
-    let provider = tls_provider();
-    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
+    let builder = rustls::ClientConfig::builder_with_provider(tls_provider())
         .with_safe_default_protocol_versions()
         .map_err(ConnectError::Tls)?;
     let builder = match &settings.roots {
@@ -218,16 +217,6 @@ fn build_tls_client_config(
                 roots.add(certificate).map_err(ConnectError::Tls)?;
             }
             builder.with_root_certificates(roots)
-        }
-        TlsRoots::PlatformAndCa(pem) => {
-            let verifier = rustls_platform_verifier::Verifier::new_with_extra_roots(
-                certificates(pem)?,
-                provider,
-            )
-            .map_err(ConnectError::Tls)?;
-            builder
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(verifier))
         }
     };
     let mut config = if let Some(identity) = &settings.client_certificate {

@@ -2,10 +2,10 @@ use super::Builder;
 use crate::transport::{ClientCertificate, TlsRoots};
 
 impl Builder {
-    /// Trusts only the certificates in a PEM document.
+    /// Trusts only the supplied PEM certificate authorities, without consulting the system trust store.
     ///
-    /// This and [`Self::tls_extra_ca_pem`] replace the previously configured roots; the last call
-    /// wins.
+    /// The last call supplies the entire set of trusted roots. An empty or malformed PEM
+    /// yields [TLS configuration error](crate::InvalidInput::TlsConfig) before connecting.
     ///
     /// An IP endpoint can use a private CA while authenticating the DNS name in the certificate:
     ///
@@ -24,18 +24,6 @@ impl Builder {
     /// ```
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::Ca(pem.into());
-        self
-    }
-
-    /// Adds certificates from a PEM document to the platform trust roots.
-    ///
-    /// This and [`Self::tls_ca_pem`] replace the previously configured roots; the last call wins.
-    ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").tls_extra_ca_pem(Vec::new());
-    /// ```
-    pub fn tls_extra_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
-        self.tls.roots = TlsRoots::PlatformAndCa(pem.into());
         self
     }
 

@@ -60,26 +60,6 @@ async fn plaintext_shutdown_reaches_ergo_body() {
 
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
-async fn tls_cap_exchange_trusts_the_test_ca() {
-    within(tls_cap_exchange_trusts_the_test_ca_body()).await;
-}
-
-#[cfg(tls)]
-async fn tls_cap_exchange_trusts_the_test_ca_body() {
-    let server = from_env();
-    let stream = connect(
-        "localhost",
-        server.tls_addr().port(),
-        &Security::Tls(tls_config(&server)),
-    )
-    .await
-    .unwrap();
-    assert!(stream.is_secure());
-    assert_cap_exchange(stream).await;
-}
-
-#[cfg(tls)]
-#[tokio::test(flavor = "current_thread")]
 async fn tls_shutdown_reaches_ergo() {
     within(tls_shutdown_reaches_ergo_body()).await;
 }
@@ -106,17 +86,14 @@ async fn tls_can_trust_only_the_test_ca() {
 #[cfg(tls)]
 async fn tls_can_trust_only_the_test_ca_body() {
     let server = from_env();
-    let config = TlsConfig {
-        roots: TlsRoots::Ca(fs::read(server.ca_pem_path()).unwrap()),
-        ..TlsConfig::default()
-    };
     let stream = connect(
         "localhost",
         server.tls_addr().port(),
-        &Security::Tls(config),
+        &Security::Tls(tls_config(&server)),
     )
     .await
     .unwrap();
+    assert!(stream.is_secure());
     assert_cap_exchange(stream).await;
 }
 
@@ -251,7 +228,7 @@ async fn localhost_falls_back_to_the_ipv4_listener_body() {
 #[cfg(tls)]
 fn tls_config(server: &ServerInfo) -> TlsConfig {
     TlsConfig {
-        roots: TlsRoots::PlatformAndCa(fs::read(server.ca_pem_path()).unwrap()),
+        roots: TlsRoots::Ca(fs::read(server.ca_pem_path()).unwrap()),
         ..TlsConfig::default()
     }
 }

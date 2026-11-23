@@ -420,6 +420,8 @@ Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`
 
 ### Removed
 
+Removed `Builder::tls_extra_ca_pem`, the option that added custom authorities to platform trust.
+
 `NameRules::conversation` and `NameRules::target` were removed. Pass nickname or channel text
 directly to the method that accepts it.
 

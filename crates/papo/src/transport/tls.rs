@@ -9,8 +9,6 @@ pub(crate) enum TlsRoots {
     Platform,
     /// Only the certificates in the supplied PEM document.
     Ca(Vec<u8>),
-    /// Platform roots plus the certificates in the supplied PEM document.
-    PlatformAndCa(Vec<u8>),
 }
 
 /// A client certificate chain and its private key, both PEM encoded.

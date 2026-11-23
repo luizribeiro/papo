@@ -57,7 +57,7 @@ fn debug_is_opaque_with_every_builder_secret() {
 
     let builder = Builder::new("ircs://irc.example.net")
         .tls_ca_pem(b"replaced CA".to_vec())
-        .tls_extra_ca_pem(b"test CA".to_vec())
+        .tls_ca_pem(b"test CA".to_vec())
         .tls_client_cert(
             crate::CertificateChain::new(b"certificate".to_vec()),
             crate::PrivateKey::new(b"private key".to_vec()),
@@ -65,18 +65,10 @@ fn debug_is_opaque_with_every_builder_secret() {
         .tls_server_name("chat.example.net");
     assert!(matches!(
         builder.tls.roots,
-        crate::transport::TlsRoots::PlatformAndCa(pem) if pem == b"test CA"
+        crate::transport::TlsRoots::Ca(pem) if pem == b"test CA"
     ));
     assert!(builder.tls.client_certificate.is_some());
     assert_eq!(builder.tls.server_name.as_deref(), Some("chat.example.net"));
-
-    let builder = Builder::new("ircs://irc.example.net")
-        .tls_extra_ca_pem(b"replaced extra CA".to_vec())
-        .tls_ca_pem(b"only CA".to_vec());
-    assert!(matches!(
-        builder.tls.roots,
-        crate::transport::TlsRoots::Ca(pem) if pem == b"only CA"
-    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
