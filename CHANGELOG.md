@@ -11,6 +11,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 
 ### Added
 
+`is_from_history()` identifies replayed event payloads, including server-originated and untyped lines.
+
 Public types implement `Debug`. Request and connection futures document what happens when dropped.
 
 Build channel conversation fixtures with `papo_testing::channel_conversation`.

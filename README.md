@@ -40,6 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+Bots that process history can use `is_from_history()` to keep replayed messages from triggering commands.
+
 For a private certificate authority, pass its PEM certificates to
 `Client::builder(...).tls_only_ca_pem(pem)`. The connection then trusts only the supplied
 authorities. By default, native connections use the platform verifier and WASI connections
