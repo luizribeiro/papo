@@ -426,12 +426,10 @@ impl UserRef {
 
     #[cfg(test)]
     pub(crate) fn is_unproven_history(&self) -> bool {
-        self.__names_a_past_line() && self.proof().is_none()
+        self.names_a_past_line() && self.proof().is_none()
     }
 
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __names_a_past_line(&self) -> bool {
+    pub(crate) fn names_a_past_line(&self) -> bool {
         self.0.history != History::Live
     }
 
@@ -1123,7 +1121,7 @@ mod tests {
                 "{nick} historical={historical}"
             );
             assert_eq!(handle.is_unproven_history(), historical, "{nick}");
-            assert_eq!(handle.__names_a_past_line(), historical, "{nick}");
+            assert_eq!(handle.names_a_past_line(), historical, "{nick}");
         }
     }
 

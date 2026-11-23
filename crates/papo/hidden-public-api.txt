@@ -43,6 +43,3 @@ papo::Prefix::__reaches
 # The logging and transport layers preserve credential markers.
 papo::Param::__is_secret
 papo::WireLine::__has_secret_parameter
-
-# The bot rejects commands taken from a history page even when their stamps look live.
-papo::UserRef::__names_a_past_line

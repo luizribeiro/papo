@@ -2451,7 +2451,7 @@ mod tests {
             panic!("expected a user subject");
         };
         assert_eq!(subject.nick(), "alice");
-        assert!(subject.__names_a_past_line());
+        assert!(subject.names_a_past_line());
         assert!(subject.proof().is_none());
     }
 

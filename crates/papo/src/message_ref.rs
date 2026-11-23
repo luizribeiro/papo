@@ -48,7 +48,7 @@ impl Receipt {
                 // Later actor attachment can associate a history item with a live user.
                 archived_private: recipient
                     .as_ref()
-                    .is_some_and(crate::UserRef::__names_a_past_line),
+                    .is_some_and(crate::UserRef::names_a_past_line),
                 recipient,
                 channel: match conversation {
                     Conversation::Channel(channel) => Some(channel.clone()),
