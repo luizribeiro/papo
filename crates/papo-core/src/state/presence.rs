@@ -530,7 +530,11 @@ impl State {
         let nick_key = NameKey::new(nick.to_owned(), self.casemapping);
         for channel in channels {
             if let Some(sweep) = self.who_sweeps.get_mut(&channel) {
-                sweep.realname_changes.insert(nick_key.clone());
+                let full = sweep.realname_changes.len() >= self.max_members_per_channel
+                    && !sweep.realname_changes.contains(&nick_key);
+                if sweep.track_overlay(&nick_key, full) {
+                    sweep.realname_changes.insert(nick_key.clone());
+                }
             }
         }
         let envelope = crate::LineEnvelope::from_line(message);

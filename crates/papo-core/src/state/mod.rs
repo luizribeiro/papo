@@ -127,7 +127,9 @@ impl WhoSweep {
     }
 
     fn member_changed(&mut self, nick: NameKey<String>, limit: usize) {
-        if self.changed_members.contains(&nick) {
+        self.prefix_changes.remove(&nick);
+        self.realname_changes.remove(&nick);
+        if self.changed_members_overflowed || self.changed_members.contains(&nick) {
             return;
         }
         if self.changed_members.len() >= limit {
@@ -139,6 +141,13 @@ impl WhoSweep {
 
     fn row_is_stale(&self, nick: &NameKey<String>) -> bool {
         self.changed_members_overflowed || self.changed_members.contains(nick)
+    }
+
+    fn track_overlay(&mut self, nick: &NameKey<String>, full: bool) -> bool {
+        if full {
+            self.changed_members_overflowed = true;
+        }
+        !self.row_is_stale(nick)
     }
 }
 
@@ -1343,11 +1352,15 @@ impl State {
         }
         if let Some(sweep) = self.who_sweeps.get_mut(&self.casemapping.channel(target)) {
             for (nick, prefix, action) in prefix_changes {
-                sweep
-                    .prefix_changes
-                    .entry(nick)
-                    .or_default()
-                    .insert(prefix, action);
+                let full = sweep.prefix_changes.len() >= self.max_members_per_channel
+                    && !sweep.prefix_changes.contains_key(&nick);
+                if sweep.track_overlay(&nick, full) {
+                    sweep
+                        .prefix_changes
+                        .entry(nick)
+                        .or_default()
+                        .insert(prefix, action);
+                }
             }
         }
         true
@@ -2392,7 +2405,7 @@ fn canonical_list_mask(mask: &Mask) -> Mask {
 }
 
 #[cfg(test)]
-mod metadata_tests {
+mod tests {
     use papo_proto::{Isupport, Line, LineRef};
 
     use super::{Arc, Channel, MetadataContext, NameKey, State};
@@ -2616,5 +2629,36 @@ mod metadata_tests {
             .unwrap();
             assert_eq!(state.snapshot_for(&network).comparison_steps(), Some(1));
         }
+    }
+
+    #[test]
+    fn who_sweep_overlays_stay_bounded_until_the_server_finishes() {
+        let now = web_time::Instant::now();
+        let mut session = crate::Session::new(Config::default().max_members_per_channel(3));
+        for line in [
+            ":ergo.test 005 papo WHOX PREFIX=(ov)@+ :are supported",
+            ":papo!~papo@localhost JOIN #papo",
+            ":ergo.test 353 papo = #papo :papo",
+            ":ergo.test 366 papo #papo :End of NAMES list",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        assert_eq!(session.state().who_sweeps.len(), 1);
+        for index in 0..1_000 {
+            for line in [
+                format!(":guest{index}!~guest@localhost JOIN #papo"),
+                format!(":papo!~papo@localhost MODE #papo +v guest{index}"),
+                format!(":guest{index}!~guest@localhost SETNAME :New display name"),
+                format!(":guest{index}!~guest@localhost PART #papo"),
+            ] {
+                session.handle_line(now, line.as_bytes());
+            }
+            while session.poll_event().is_some() {}
+            while session.poll_transmit().is_some() {}
+        }
+        let sweep = session.state().who_sweeps.values().next().unwrap();
+        assert!(sweep.prefix_changes.len() <= 3);
+        assert!(sweep.realname_changes.len() <= 3);
+        assert!(sweep.changed_members_overflowed);
     }
 }
