@@ -170,6 +170,12 @@ pub enum Fallback {
 /// client.privmsg("#ops", "fixed").reply_to(id).await?;
 /// # Ok(()) }
 /// ```
+///
+/// # Cancellation
+///
+/// After submission to the driver, dropping the future can leave any or all parts of the message
+/// on the wire, and the driver can finish sending without a waiter. Any matched echoes that would
+/// have been returned in the send outcome are unavailable to the caller.
 #[must_use = "requests do nothing unless awaited"]
 pub struct SendMessage {
     client: Client,
@@ -244,6 +250,11 @@ macro_rules! reason_step {
 pub(crate) use reason_step;
 
 /// Builds a channel join request.
+///
+/// # Cancellation
+///
+/// After submission, the driver can send the `JOIN` and synchronize the channel even if you drop
+/// the future. A pending wait for initial channel state is released by the driver.
 #[must_use = "requests do nothing unless awaited"]
 pub struct JoinChannel {
     client: Client,
@@ -287,6 +298,11 @@ pub struct KickbanNick {
 /// A complete kickban request; awaiting it yields a [`crate::KickbanOutcome`].
 ///
 /// Naming each role keeps a nickname and a ban mask, both often plain text, from being swapped.
+///
+/// # Cancellation
+///
+/// Once the driver accepts the operation, the ban and the conditional kick can both complete
+/// even if you drop the future. Dropping it does not undo a ban that has already been set.
 #[must_use = "requests do nothing unless awaited"]
 pub struct KickbanRequest {
     client: Client,
@@ -297,6 +313,11 @@ pub struct KickbanRequest {
 }
 
 /// A channel departure request; add an optional reason with [`PartRequest::reason`].
+///
+/// # Cancellation
+///
+/// Once submitted, the `PART` can still go out and remove the channel from state after the future
+/// is dropped. During reconnect it can still remove the channel from the rejoin list.
 #[must_use = "requests do nothing unless awaited"]
 pub struct PartRequest {
     client: Client,
@@ -322,6 +343,11 @@ impl IntoFuture for PartRequest {
 }
 
 /// A channel removal request; add an optional reason with [`KickRequest::reason`].
+///
+/// # Cancellation
+///
+/// Once submitted, the `KICK` can still be written and applied by the server after the future
+/// is dropped. The driver continues to process the server echo.
 #[must_use = "requests do nothing unless awaited"]
 pub struct KickRequest {
     client: Client,
@@ -349,6 +375,11 @@ impl IntoFuture for KickRequest {
 }
 
 /// A clean disconnect request; add an optional reason with [`QuitRequest::reason`].
+///
+/// # Cancellation
+///
+/// Once submitted, shutdown proceeds after the future is dropped, and can still send `QUIT`
+/// or stop a reconnect in progress.
 #[must_use = "requests do nothing unless awaited"]
 pub struct QuitRequest {
     client: Client,

@@ -18,6 +18,11 @@ pub struct RenameChannel {
 }
 
 /// A complete channel rename request with distinct source and destination roles.
+///
+/// # Cancellation
+///
+/// Once submitted, the rename can still take effect and update channel state after the future
+/// is dropped. Dropping it gives up the returned channel reference.
 #[must_use = "requests do nothing unless awaited"]
 pub struct RenameChannelRequest {
     client: Client,

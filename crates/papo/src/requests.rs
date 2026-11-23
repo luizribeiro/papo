@@ -196,6 +196,11 @@ impl WhoEntry {
 ///
 /// Servers advertise supported mask filters with the `ELIST` ISUPPORT token. Papo sends
 /// configured channel masks even when `ELIST` is absent, leaving interpretation to the server.
+///
+/// # Cancellation
+///
+/// After submission, the driver can still write `LIST` and correlate its replies. Dropping
+/// the future discards the result, and the request slot clears on reply, timeout, or disconnect.
 #[must_use = "requests do nothing unless awaited"]
 pub struct ListRequest {
     client: crate::Client,

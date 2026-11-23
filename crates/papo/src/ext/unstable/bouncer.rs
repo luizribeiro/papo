@@ -110,6 +110,11 @@ macro_rules! network_setters {
 }
 
 /// Builds a request to add an upstream bouncer network.
+///
+/// # Cancellation
+///
+/// Once submitted, the bouncer can still create the network after the future is dropped.
+/// The new network ID from this request is then unavailable to the caller.
 #[must_use = "requests do nothing unless awaited"]
 pub struct AddNetwork {
     client: Client,
@@ -155,6 +160,11 @@ impl IntoFuture for AddNetwork {
 }
 
 /// Builds a request that changes only the selected attributes of a bouncer network.
+///
+/// # Cancellation
+///
+/// Once submitted, the bouncer can still apply the requested settings after the future is
+/// dropped. Dropping it gives up the server’s confirmation.
 #[must_use = "requests do nothing unless awaited"]
 pub struct ChangeNetwork {
     client: Client,

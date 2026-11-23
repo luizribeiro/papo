@@ -4,9 +4,6 @@ use crate::Error;
 
 /// An owned, lazy IRC request.
 ///
-/// The request is not submitted to the client driver until this future is
-/// first polled. Dropping it after polling abandons the wait but does not
-/// cancel a command already sent to the server.
 ///
 /// `Ok` means all request lines were written and the expected reply arrived where one exists.
 /// [`Error::Timeout`] means the lines were written but no reply arrived before
@@ -27,12 +24,15 @@ use crate::Error;
 /// | Account, operator, metadata, monitor, bouncer, persistence, and web-push mutations | No | Retrying can repeat an action or apply it to state that changed after the first request. |
 /// | [`Client::request_raw`](crate::Client::request_raw) and extension requests not listed above | It depends | Apply the IRC command's own idempotency and correlation rules. Treat an unknown command as unsafe. |
 ///
-/// Dropping a polled future has the same uncertainty: it stops waiting, not work already accepted
-/// by the driver. Composite operations such as `kickban`, batched mode changes, and multiline
-/// redaction continue after the future is dropped.
-///
 /// This future is [`Send`] on every supported target and deliberately not
 /// [`Sync`]; polling requires exclusive access.
+///
+/// # Cancellation
+///
+/// Dropping the future before it submits its command leaves nothing for the driver to send.
+/// After submission, the driver can still send the command and finish its protocol work,
+/// including later commands in a composite operation, while request slots clear on reply,
+/// timeout, or disconnect.
 #[must_use = "requests do nothing unless awaited"]
 pub struct RequestFuture<T> {
     inner: Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'static>>,

@@ -144,6 +144,11 @@ impl BanTarget {
 /// Awaiting returns an error only when no change was confirmed; after a partial success, the
 /// result contains the facts confirmed before a later request or connection failure.
 /// Adding a new entry to a full cached list returns [`Error::StateLimit`] before sending.
+///
+/// # Cancellation
+///
+/// Once the driver accepts the operation, it can continue sending mode changes in chunks
+/// after the future is dropped. Changes already applied by the server stay in effect.
 #[must_use = "requests do nothing unless awaited"]
 pub struct SetModes {
     client: Client,

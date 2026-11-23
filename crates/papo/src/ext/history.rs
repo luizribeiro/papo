@@ -40,6 +40,11 @@ pub enum MarkReadOutcome {
 }
 
 /// Builds a request to move a conversation's read marker using server time.
+///
+/// # Cancellation
+///
+/// Once submitted, a `MARKREAD` update can reach the server even after the future is dropped,
+/// including one waiting for an observed server time. The driver still processes marker replies.
 #[must_use = "requests do nothing unless awaited"]
 pub struct MarkReadRequest {
     client: Client,
@@ -1174,6 +1179,11 @@ impl From<ServerTime> for HistoryReference {
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
 /// can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+///
+/// # Cancellation
+///
+/// Once submitted, the driver can still send `CHATHISTORY` and process the response batch
+/// even if the future is dropped. The requested page is then discarded.
 #[must_use = "requests do nothing unless awaited"]
 pub struct HistoryRequest {
     client: Client,
