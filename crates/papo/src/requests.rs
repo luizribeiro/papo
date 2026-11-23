@@ -622,6 +622,9 @@ mod tests {
         let voiced = whois_channel("+#papo", &support, crate::Origin::NONE, &order);
         assert!(!voiced.is_at_least_op());
         assert!(voiced.is_at_least_voice());
+        assert_eq!(voiced.rank(), Some(crate::Rank::Voice));
+        let operator = whois_channel("@+#papo", &support, crate::Origin::NONE, &order);
+        assert_eq!(operator.rank(), Some(crate::Rank::Op));
         let fallback = whois_channel(
             "@#papo",
             &Isupport::default(),
