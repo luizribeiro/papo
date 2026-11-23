@@ -110,16 +110,6 @@ pub(crate) enum BatchEvent {
         exhausted: bool,
     },
     HistoryTargets(Vec<(String, papo_proto::ServerTime)>),
-    Netsplit {
-        reference: String,
-        servers: [String; 2],
-        quits: Vec<Line>,
-    },
-    Netjoin {
-        reference: String,
-        servers: [String; 2],
-        joins: Vec<Line>,
-    },
     Abandoned {
         reference: String,
         batch_type: String,
@@ -310,7 +300,7 @@ impl Batches {
             && (batch.kind == cap::MULTILINE.as_str()
                 || !self.has_typed_aggregate_ancestor(batch.parent.as_deref(), batch.replay))
         {
-            completed.extend(complete(&mut batch, reference));
+            completed.extend(complete(&mut batch));
         }
         if batch.kind == cap::MULTILINE.as_str() && !batch.multiline_collectors.is_empty() {
             let replacement = completed
@@ -884,7 +874,7 @@ impl OpenBatch {
     }
 }
 
-fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
+fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
     #[cfg(feature = "unstable")]
     if batch.kind == cap::BOUNCER_NETWORKS.as_str() {
         return vec![BatchEvent::Bouncer(std::mem::take(&mut batch.messages))];
@@ -920,53 +910,31 @@ fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
             .collect();
         return vec![BatchEvent::HistoryTargets(targets)];
     }
-    let servers = || {
-        [
-            batch.params.first().cloned().unwrap_or_default(),
-            batch.params.get(1).cloned().unwrap_or_default(),
-        ]
-    };
-    let expected_command = match batch.kind.as_str() {
-        "netsplit" => "QUIT",
-        "netjoin" => "JOIN",
-        _ => {
-            let items = history_items_with_indices(
-                std::mem::take(&mut batch.messages),
-                &std::mem::take(&mut batch.incomplete),
-            );
-            return vec![BatchEvent::History {
-                target: batch.params.first().cloned().unwrap_or_default(),
-                exhausted: batch.exhausted || items.is_empty(),
-                items,
-            }];
-        }
-    };
-    let (members, others): (Vec<_>, Vec<_>) = std::mem::take(&mut batch.messages)
+    if is_history(&batch.kind) {
+        let items = history_items_with_indices(
+            std::mem::take(&mut batch.messages),
+            &std::mem::take(&mut batch.incomplete),
+        );
+        return vec![BatchEvent::History {
+            target: batch.params.first().cloned().unwrap_or_default(),
+            exhausted: batch.exhausted || items.is_empty(),
+            items,
+        }];
+    }
+    std::mem::take(&mut batch.messages)
         .into_iter()
-        .partition(|message| message.as_ref().command_is(expected_command));
-    let aggregate = if expected_command == "QUIT" {
-        BatchEvent::Netsplit {
-            reference: reference.to_owned(),
-            servers: servers(),
-            quits: members,
-        }
-    } else {
-        BatchEvent::Netjoin {
-            reference: reference.to_owned(),
-            servers: servers(),
-            joins: members,
-        }
-    };
-    std::iter::once(aggregate)
-        .chain(others.into_iter().map(|line| BatchEvent::Line {
+        .map(|line| BatchEvent::Line {
             line,
             batch_type: Some(batch.kind.clone()),
-        }))
+        })
         .collect()
 }
 
 fn multiline(batch: &OpenBatch) -> Option<Line> {
     let first = batch.messages.first()?.as_ref();
+    if !matches!(first.command(), Command::Privmsg | Command::Notice) {
+        return None;
+    }
     let command = first.raw_command();
     let source = first.raw_source();
     let target = batch
@@ -1060,8 +1028,6 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
                     .map(|item| item.line),
             );
         }
-        BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
-        BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
         BatchEvent::Line { line, .. }
         | BatchEvent::Multiline(line)
         | BatchEvent::Incomplete(line) => {

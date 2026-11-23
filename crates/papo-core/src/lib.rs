@@ -6459,7 +6459,6 @@ impl Session {
         true
     }
 
-    #[allow(clippy::too_many_lines)]
     fn dispatch_batch_event(&mut self, now: Instant, event: BatchEvent) {
         match event {
             event @ BatchEvent::Response { .. } => self.dispatch_response_batch(now, event),
@@ -6481,54 +6480,6 @@ impl Session {
             BatchEvent::HistoryTargets(targets) => {
                 self.outbox
                     .event(Event::HistoryTargets(self.history_targets(targets)));
-            }
-            BatchEvent::Netsplit {
-                reference,
-                servers,
-                quits,
-            } => {
-                let split = SplitServers {
-                    batch: BatchId::from(reference.clone()),
-                    first: servers[0].clone(),
-                    second: servers[1].clone(),
-                };
-                let mut deferred = VecDeque::new();
-                // History can describe stale membership, while netsplit and netjoin batches
-                // report connectivity changes that define the current live membership.
-                for message in &quits {
-                    for mut event in self.apply_aggregate_state(message) {
-                        if let Event::Quit { netsplit, .. } = &mut event {
-                            *netsplit = Some(split.clone());
-                            self.outbox.event(event);
-                        } else {
-                            deferred.push_back(event);
-                        }
-                    }
-                }
-                self.outbox.events.extend(deferred);
-            }
-            BatchEvent::Netjoin {
-                reference,
-                servers,
-                joins,
-            } => {
-                let split = SplitServers {
-                    batch: BatchId::from(reference.clone()),
-                    first: servers[0].clone(),
-                    second: servers[1].clone(),
-                };
-                let mut deferred = VecDeque::new();
-                for message in &joins {
-                    for mut event in self.apply_aggregate_state(message) {
-                        if let Event::Joined { netjoin, .. } = &mut event {
-                            *netjoin = Some(split.clone());
-                            self.outbox.event(event);
-                        } else {
-                            deferred.push_back(event);
-                        }
-                    }
-                }
-                self.outbox.events.extend(deferred);
             }
             BatchEvent::Abandoned {
                 reference,
@@ -6880,35 +6831,6 @@ impl Session {
             }
         }
         self.outbox.events.extend(unanswering_events);
-    }
-
-    fn apply_aggregate_state(&mut self, message: &Line) -> VecDeque<Event> {
-        let event_count = self.outbox.events.len();
-        let reserved_channel_epoch = (message.as_ref().command() == Command::Join)
-            .then(|| message.as_ref().param(0))
-            .flatten()
-            .and_then(|channel| self.pending_channel_join(channel))
-            .map(|reservation| reservation.epoch);
-        let handled = self.state.handle_message(
-            &message.as_ref(),
-            reserved_channel_epoch,
-            self.welcome_state.nick(),
-            self.isupport.value(),
-            self.caps.enabled(),
-            self.no_implicit_names(),
-            MetadataContext {
-                max_keys: self.config.max_metadata_keys_per_target,
-                subscription_batch: false,
-            },
-            None,
-            None,
-            &mut self.outbox,
-        ) == Handled::Yes;
-        let generated = self.outbox.events.split_off(event_count);
-        if handled {
-            self.state_generation = self.state_generation.wrapping_add(1);
-        }
-        generated
     }
 
     fn no_implicit_names(&self) -> bool {
