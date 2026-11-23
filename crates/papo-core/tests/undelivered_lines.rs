@@ -6,8 +6,7 @@ use papo_core::{AccountStatus, AwayStatus, Config, Event, Party};
 use papo_proto::Line;
 use support::Transcript;
 
-#[test]
-fn away_reply_for_an_unseen_user_is_delivered() {
+fn registered() -> Transcript {
     Transcript::new(Config::default())
         .connect_default()
         .server(":ergo.test CAP * LS :")
@@ -15,6 +14,11 @@ fn away_reply_for_an_unseen_user_is_delivered() {
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 376 papo :End of /MOTD command")
         .event(|event| matches!(event, Event::Connected(_)))
+}
+
+#[test]
+fn away_reply_for_an_unseen_user_is_delivered() {
+    registered()
         .send(Line::new("PRIVMSG").with_params(["carol", "are you around?"]))
         .client("PRIVMSG carol :are you around?")
         .server(":ergo.test 301 papo carol :Gone fishing until Monday")
@@ -113,4 +117,22 @@ fn prefixless_topic_and_modes_update_state_and_surface_the_line() {
             assert_eq!(channel.mode('i'), Some(papo_core::ModeValue::Set));
             assert!(channel.key().is_some());
         });
+}
+
+#[test]
+fn login_and_logout_numerics_outside_sasl_are_delivered() {
+    registered()
+        .server(":ergo.test 900 papo papo!~papo@localhost papo-services :You are now logged in as papo-services")
+        .event(|event| {
+            matches!(event, Event::Line(line) if line.as_ref().command_is("900")
+                && line.as_ref().param(2) == Some("papo-services"))
+        })
+        .inspect(|session| {
+            assert!(matches!(session.state().account(),
+                AccountStatus::LoggedIn(name) if name == "papo-services"));
+        })
+        .server(":ergo.test 901 papo papo!~papo@localhost :You are now logged out")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("901")))
+        .inspect(|session| assert_eq!(session.state().account(), &AccountStatus::LoggedOut))
+        .no_event();
 }

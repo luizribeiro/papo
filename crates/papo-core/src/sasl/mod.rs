@@ -505,8 +505,12 @@ impl SaslSession {
         Handled::Yes
     }
 
+    pub(super) const fn is_exchanging(&self) -> bool {
+        self.active.is_some() || self.aborting
+    }
+
     fn handle_status(&mut self, now: Instant, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
-        if self.active.is_none() && !self.aborting {
+        if !self.is_exchanging() {
             if message.command_is("902")
                 || message.command_is("904")
                 || message.command_is("905")
@@ -526,7 +530,7 @@ impl SaslSession {
         }
         if message.command_is("900") {
             if let Some(account) = message.param(2) {
-                if self.active.is_some() || self.aborting {
+                if self.is_exchanging() {
                     self.pending_account = Some(account.to_owned());
                 } else {
                     self.publish_account(Some(account.to_owned()));

@@ -5922,6 +5922,12 @@ impl Session {
         ) == Handled::Yes;
         self.welcome_state
             .handle_cap_decision(message, &self.config, &mut self.outbox);
+        let account_notification = was_connected
+            && !self.sasl.is_exchanging()
+            && matches!(
+                message.command(),
+                Command::Numeric(Numeric::RPL_LOGGEDIN | Numeric::RPL_LOGGEDOUT)
+            );
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
         let account_registration_handled = self.account_registration.handle_message(
             message,
@@ -6039,7 +6045,7 @@ impl Session {
         self.handle_ctcp(now, message, context);
         let handled = registration_handled
             || caps_handled
-            || sasl_handled
+            || (sasl_handled && !account_notification)
             || account_registration_handled
             || nick_regain_handled
             || monitor_handled
