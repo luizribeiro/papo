@@ -8682,6 +8682,11 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
         other => panic!("expected typing event, got {other:?}"),
     };
     let state = client.state();
+    let debug = format!("{:?}", state.typing("#staff"));
+    assert!(debug.starts_with("Typers"));
+    assert!(!debug.contains("#papo"));
+    assert!(!debug.contains("alice"));
+
     let typer = state.typing(&conversation).next().unwrap();
     assert_eq!(typer.nick(), "alice");
     assert!(!typer.is_paused());

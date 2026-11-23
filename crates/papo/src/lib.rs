@@ -257,6 +257,7 @@
 //! To answer a message, use [`Client::reply`] to retain its audience. See [`Conversation`]
 //! for guidance on ops-only lines.
 
+#![deny(missing_debug_implementations)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(all(test, browser))]

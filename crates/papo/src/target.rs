@@ -12,7 +12,7 @@ pub(crate) mod sealed {
         HistoryPeer,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct Parts<'a> {
         pub(crate) text: Cow<'a, str>,
         pub(crate) origin: crate::Origin,

@@ -128,6 +128,12 @@ pub struct Typers<'a> {
     conversation: Option<papo_core::Conversation>,
 }
 
+impl std::fmt::Debug for Typers<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Typers", formatter)
+    }
+}
+
 impl<'a> Iterator for Typers<'a> {
     type Item = &'a Typer;
 
