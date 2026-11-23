@@ -251,23 +251,18 @@ impl State {
                     return Some(Handled::No);
                 };
                 let token = self.__reply_token_for(nick);
-                if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-                    let envelope = crate::LineEnvelope::from_line(message);
-                    let message = away.to_owned();
-                    let next = AwayStatus::Away {
-                        message: Some(message.clone()),
-                    };
-                    if user.away != next {
-                        user.away = next.clone();
-                        outbox.event(Event::AwayChanged {
-                            envelope,
-                            actor: nick.to_owned(),
-                            nick: self.casemapping.nick(nick),
-                            away: next,
-                            token,
-                            actor_party: self.nick_party(nick),
-                        });
-                    }
+                let next = AwayStatus::Away {
+                    message: Some(away.to_owned()),
+                };
+                if self.update_away(nick, &next) {
+                    outbox.event(Event::AwayChanged {
+                        envelope: crate::LineEnvelope::from_line(message),
+                        actor: nick.to_owned(),
+                        nick: self.casemapping.nick(nick),
+                        away: next,
+                        token,
+                        actor_party: self.nick_party(nick),
+                    });
                 }
             }
             Command::Numeric(Numeric::RPL_UNAWAY)
@@ -311,6 +306,18 @@ impl State {
         Some(Handled::Yes)
     }
 
+    fn update_away(&mut self, nick: &str, next: &AwayStatus) -> bool {
+        self.users
+            .get_mut(self.casemapping.fold(nick).as_ref())
+            .is_none_or(|user| {
+                if user.away == *next {
+                    return false;
+                }
+                user.away = next.clone();
+                true
+            })
+    }
+
     pub(super) fn handle_user_update(
         &mut self,
         message: &LineRef<'_>,
@@ -336,8 +343,9 @@ impl State {
         };
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.is_bot = Some(true);
+            self.mark_changed();
         }
-        Some(Handled::Yes)
+        Some(Handled::No)
     }
 
     fn handle_visible_host(

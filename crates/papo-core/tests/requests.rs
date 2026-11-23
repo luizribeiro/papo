@@ -2572,6 +2572,10 @@ fn away_numeric_waits_for_solanums_unlabelled_notice_echo() {
     );
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::AwayChanged { nick, .. }) if nick == "alice"
+    ));
     assert_eq!(session.poll_event(), None);
     session.handle_line(
         now,

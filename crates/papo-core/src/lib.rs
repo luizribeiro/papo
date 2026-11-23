@@ -3090,7 +3090,8 @@ pub enum Event {
     },
     /// A user's away state changed.
     ///
-    /// WHO replies emit this event when they change a known away status.
+    /// WHO replies emit this event when they change a known away status. An away reply can
+    /// also report the status of a user outside the tracked roster.
     #[non_exhaustive]
     AwayChanged {
         /// Identity and time facts from the line.
