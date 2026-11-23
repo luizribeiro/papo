@@ -1,6 +1,7 @@
 use super::{
     CtcpQuery, CtcpReply, Incomplete, Joined, Kicked, Message, ModeChanged, NickChanged, Notice,
-    Other, Parted, Quit, Reacted, Redacted, Restricted, ServerNotice, TagMsg, TopicChanged,
+    Other, Parted, Quit, Reacted, Redacted, Restricted, RestrictedLine, ServerNotice, TagMsg,
+    TopicChanged,
 };
 
 macro_rules! history_accessors {
@@ -47,7 +48,31 @@ history_accessors!(
     Restricted: |self| self.line.is_from_history(),
 );
 
-#[cfg(all(test, not(browser)))]
+impl RestrictedLine {
+    /// Returns whether the enclosed line came from a history page or a replay batch.
+    ///
+    /// See [`Message::is_from_history`] for how to handle replay and sending to its sender.
+    #[must_use]
+    pub const fn is_from_history(&self) -> bool {
+        match self {
+            Self::Message(line) => line.is_from_history(),
+            Self::Notice(line) => line.is_from_history(),
+            Self::Incomplete(line) => line.is_from_history(),
+            Self::ServerNotice(line) => line.is_from_history(),
+            Self::CtcpQuery(line) => line.is_from_history(),
+            Self::CtcpReply(line) => line.is_from_history(),
+            Self::TagMsg(line) => line.is_from_history(),
+            Self::Reacted(line) => line.is_from_history(),
+            Self::Redacted(line) => line.is_from_history(),
+            // Typing notifications originate from live lines or local deadlines.
+            Self::TypingChanged(_) => false,
+            Self::Other(line) => line.is_from_history(),
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(not(browser))]
 mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
