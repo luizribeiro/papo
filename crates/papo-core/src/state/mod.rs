@@ -1479,7 +1479,11 @@ impl State {
             _ => return false,
         };
         let mut set = true;
-        for mode in modestring.unwrap_or_default().chars() {
+        for mode in modestring
+            .unwrap_or_default()
+            .chars()
+            .filter(|mode| mode.is_ascii_alphabetic() || matches!(*mode, '+' | '-'))
+        {
             match mode {
                 '+' => set = true,
                 '-' => set = false,

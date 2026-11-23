@@ -2892,3 +2892,24 @@ fn rekeys_existing_state_when_casemapping_changes() {
         })
         .ignore_rest();
 }
+
+#[test]
+fn ignores_nonletter_user_modes_while_updates_continue() {
+    Transcript::new(Config::default())
+        .server(":ergo.test 221 papo +iw")
+        .update(|session| {
+            let now = std::time::Instant::now();
+            for symbol in (0x4e00..0x51e8).filter_map(char::from_u32) {
+                let line = format!(":ergo.test MODE papo +{symbol}");
+                session.handle_line(now, line.as_bytes());
+                while session.poll_event().is_some() {}
+            }
+        })
+        .server(":ergo.test MODE papo -w+Z")
+        .inspect(|session| {
+            assert_eq!(session.state().user_modes().count(), 2);
+            assert!(session.state().user_modes().any(|mode| mode == 'i'));
+            assert!(session.state().user_modes().any(|mode| mode == 'Z'));
+        })
+        .ignore_rest();
+}
