@@ -1,6 +1,6 @@
 use super::{
-    AccountStatus, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey,
-    Numeric, Outbox, ProtoSource, State, StateLimit, rename::ChannelLifecycle,
+    Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey, Numeric, Outbox,
+    ProtoSource, State, StateLimit, rename::ChannelLifecycle,
 };
 
 impl State {
@@ -79,11 +79,16 @@ impl State {
         else {
             return Handled::No;
         };
-        let envelope = if join.realname.is_some() {
-            crate::LineEnvelope::from_line(message).with_account(join.account)
-        } else {
-            crate::LineEnvelope::from_line(message)
-        };
+        let envelope =
+            crate::LineEnvelope::__from_line_with_account(message, self.casemapping.into());
+        let account = join.realname.map(|_| {
+            envelope
+                .__reported_account(self.casemapping.into(), self.casemapping.origin())
+                .expect("extended JOIN has command evidence")
+        });
+        if let Some(account) = &account {
+            self.reconcile_account_source(message, account);
+        }
         let joined = outbox.events.len();
         outbox.event(Event::Joined {
             envelope,
@@ -128,9 +133,9 @@ impl State {
             *token = self.__reply_token_for(nick);
         }
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
-            && join.realname.is_some()
+            && let Some(account) = account
         {
-            user.update_account(AccountStatus::from_notify(join.account, self.casemapping));
+            user.update_account(account);
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {

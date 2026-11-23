@@ -1,6 +1,6 @@
 use super::{
     AccountNotify, AccountStatus, AwayNotify, AwayStatus, Chghost, Command, Event, Handled,
-    Isupport, Join, LineRef, NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, User,
+    Isupport, LineRef, NameKey, Numeric, Outbox, Party, ProtoSource, Setname, State, User,
     WHOX_FIELDS, WHOX_TOKEN, WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
@@ -33,8 +33,7 @@ impl State {
                 self.casemapping.account(account.as_ref()),
             )),
             None => (enabled_caps.contains_key(&crate::cap::ACCOUNT_TAG)
-                && !crate::names_equal(self.casemapping, nick, self.nick.as_str())
-                && Join::parse(message).is_none_or(|join| join.realname.is_none()))
+                && !crate::names_equal(self.casemapping, nick, self.nick.as_str()))
             .then_some(AccountStatus::LoggedOut),
         }
     }
@@ -50,7 +49,11 @@ impl State {
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let actor_party = self.source_party(message);
-        let line_account = self.line_account(message, nick, enabled_caps);
+        let line_account = if crate::LineEnvelope::command_account(message).is_some() {
+            None
+        } else {
+            self.line_account(message, nick, enabled_caps)
+        };
         let token = self.__reply_token_for(nick);
         let mut changed = false;
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
@@ -151,6 +154,27 @@ impl State {
         self.users.get_mut(folded.as_ref())
     }
 
+    pub(super) fn reconcile_account_source(
+        &mut self,
+        message: &LineRef<'_>,
+        account: &AccountStatus,
+    ) {
+        let Some(ProtoSource::User {
+            nick,
+            username,
+            host,
+            ..
+        }) = message.source()
+        else {
+            return;
+        };
+        if let Some(user) = self.reconcile_message_user(nick, username, host, Some(account))
+            && message.tags().any(|(key, _)| key == "bot")
+        {
+            user.is_bot = Some(true);
+        }
+    }
+
     fn observe_user_source(
         &mut self,
         message: &LineRef<'_>,
@@ -166,14 +190,11 @@ impl State {
         else {
             return;
         };
-        let line_account = self.line_account(message, nick, enabled_caps);
-        let join_account = Join::parse(message)
-            .filter(|join| join.realname.is_some())
-            .map(|join| AccountStatus::from_notify(join.account, self.casemapping));
-        self.reconcile_message_user(nick, username, host, line_account.as_ref());
-        if let Some(account) = join_account.as_ref() {
-            self.reconcile_message_user(nick, username, host, Some(account));
+        if crate::LineEnvelope::command_account(message).is_some() {
+            return;
         }
+        let line_account = self.line_account(message, nick, enabled_caps);
+        self.reconcile_message_user(nick, username, host, line_account.as_ref());
         if let Some(change) = Chghost::parse(message) {
             self.reconcile_message_user(
                 nick,
@@ -226,23 +247,21 @@ impl State {
     }
 
     fn handle_account(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Option<Handled> {
-        let account = AccountNotify::parse(message)?;
-        let Some(ProtoSource::User {
-            nick,
-            username,
-            host,
-            ..
-        }) = message.source()
-        else {
+        AccountNotify::parse(message)?;
+        let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Some(Handled::No);
         };
-        let envelope = crate::LineEnvelope::from_line(message).with_account(account.account);
-        let account = AccountStatus::from_notify(account.account, self.casemapping);
+        let envelope =
+            crate::LineEnvelope::__from_line_with_account(message, self.casemapping.into());
+        let account = envelope
+            .__reported_account(self.casemapping.into(), self.casemapping.origin())
+            .expect("ACCOUNT has command evidence");
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let changed_or_untracked = self.user(nick).is_none_or(|user| user.account != account);
-        self.reconcile_message_user(nick, username, host, Some(&account));
+        let previous_token = self.__reply_token_for(nick);
+        self.reconcile_account_source(message, &account);
         let token = self.__reply_token_for(nick);
-        if changed_or_untracked {
+        if changed_or_untracked || token != previous_token {
             if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                 user.update_account(account.clone());
             }

@@ -92,3 +92,61 @@ fn account_tags_and_source_roles_survive_dispatch() {
     assert_eq!(item.actor_party, Party::Unknown);
     assert!(item.line.as_ref().tag("account").is_none());
 }
+
+mod support;
+
+use support::Transcript;
+
+#[test]
+fn ergo_account_login_is_the_event_and_tracked_account() {
+    account_transcript()
+        .server(":papo!~u@2j8y98eazaf5w.irc JOIN #audit * :Papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server("@msgid=kq39fjtm8izshyfc99b32wwzz6;time=2026-11-23T10:37:07.869Z :actor!~u@2j8y98eazaf5w.irc JOIN #audit * :actor real")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .advance(std::time::Duration::from_secs(2))
+        .server("@time=2026-11-23T10:37:09.874Z :actor!~u@2j8y98eazaf5w.irc ACCOUNT actor")
+        .event(|event| matches!(event, Event::AccountChanged { envelope, account, .. }
+            if envelope.account() == Some("actor")
+                && matches!(account, papo_core::AccountStatus::LoggedIn(name) if name == "actor")))
+        .inspect(assert_tracks_actor_account)
+        .server("@account=actor :actor!~u@2j8y98eazaf5w.irc ACCOUNT *")
+        .event(|event| matches!(event, Event::AccountChanged { envelope, account: papo_core::AccountStatus::Unknown, .. }
+            if envelope.account().is_none() && !envelope.__account_known()))
+        .inspect(|session| assert_eq!(
+            session.state().user("actor").unwrap().account(),
+            &papo_core::AccountStatus::Unknown
+        ))
+        .no_client();
+}
+
+#[test]
+fn untagged_extended_join_is_the_event_and_tracked_account() {
+    account_transcript()
+        .server(":papo!~u@2j8y98eazaf5w.irc JOIN #audit * :Papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server("@time=2026-11-23T10:37:23.889Z :actor!~u@2j8y98eazaf5w.irc JOIN #audit actor :New Real")
+        .event(|event| matches!(event, Event::Joined { envelope, .. }
+            if envelope.account() == Some("actor")))
+        .inspect(assert_tracks_actor_account)
+        .no_client();
+}
+
+fn account_transcript() -> Transcript {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test CAP * LS :account-notify account-tag extended-join")
+        .client("CAP REQ :account-tag extended-join account-notify")
+        .server(":ergo.test CAP * ACK :account-notify account-tag extended-join")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
+}
+
+fn assert_tracks_actor_account(session: &Session) {
+    assert!(matches!(
+        session.state().user("actor").unwrap().account(),
+        papo_core::AccountStatus::LoggedIn(name) if name == "actor"
+    ));
+}

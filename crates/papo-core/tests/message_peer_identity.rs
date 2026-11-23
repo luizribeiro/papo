@@ -411,6 +411,11 @@ fn message_only_identity_uses_live_user_lines() {
         (":alice!~u@8ajhv7kxgp7ag.irc CHGHOST ~u kq2ccwrbbbw6a.irc", false),
         (":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT mallory", false),
         (":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT alice", true),
+        (":alice!~u@kq2ccwrbbbw6a.irc ACCOUNT alice", false),
+        ("@account=alice :alice!~u@8ajhv7kxgp7ag.irc ACCOUNT mallory", false),
+        ("@account=alice :alice!~u@8ajhv7kxgp7ag.irc JOIN #review mallory :Mallory", false),
+        ("@account=mallory :alice!~u@8ajhv7kxgp7ag.irc ACCOUNT alice", false),
+        ("@account=mallory :alice!~u@8ajhv7kxgp7ag.irc JOIN #review alice :Alice", false),
         ("@account=mallory :alice!~u@8ajhv7kxgp7ag.irc INVITE papo-admin #staff", false),
         ("@account=alice :alice!~u@kq2ccwrbbbw6a.irc INVITE papo-admin #staff", false),
         ("@account=alice :alice!~u@8ajhv7kxgp7ag.irc INVITE papo-admin #staff", true),
@@ -418,6 +423,21 @@ fn message_only_identity_uses_live_user_lines() {
         let (same_token, status) = observe_after_private_message(evidence);
         assert_eq!(same_token, same_person, "{evidence}");
         assert_eq!(matches!(status, RecipientStatus::Current(_)), same_person, "{evidence}: {status:?}");
+    }
+}
+
+#[test]
+fn bot_tags_follow_the_reconciled_account_command_actor() {
+    for command in ["ACCOUNT mallory", "JOIN #review mallory :Mallory"] {
+        let mut session = registered("message-tags account-notify account-tag extended-join");
+        server(&mut session, ALICE_ADMIN);
+        let before = token(&session, "alice");
+        let line = format!("@bot;account=alice :alice!~u@8ajhv7kxgp7ag.irc {command}");
+        server(&mut session, &line);
+        assert_ne!(token(&session, "alice"), before, "{line}");
+        let user = session.state().user("alice").unwrap();
+        assert_eq!(user.account(), &AccountStatus::Unknown, "{line}");
+        assert_eq!(user.is_bot(), Some(true), "{line}");
     }
 }
 

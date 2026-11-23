@@ -2045,7 +2045,10 @@ enum AccountEvidence {
     Unknown,
     Tag(String),
     Command(Option<String>),
+    Conflict,
 }
+
+pub(crate) struct CommandAccount<'a>(Option<&'a str>);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum OperTag {
@@ -2076,11 +2079,49 @@ impl LineEnvelope {
         }
     }
 
-    pub(crate) fn with_account(mut self, account: Option<&str>) -> Self {
-        if !self.__account_known() {
-            self.account = AccountEvidence::Command(account.map(str::to_owned));
+    /// Captures line metadata and resolves any account stated by the command.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __from_line_with_account(line: &LineRef<'_>, casemapping: Casemapping) -> Self {
+        let mut envelope = Self::from_line(line);
+        if let Some(CommandAccount(account)) = Self::command_account(line) {
+            envelope.account = match (&envelope.account, account) {
+                (AccountEvidence::Tag(tag), Some(name)) if names_equal(casemapping, tag, name) => {
+                    AccountEvidence::Tag(name.to_owned())
+                }
+                (AccountEvidence::Tag(_), _) => AccountEvidence::Conflict,
+                _ => AccountEvidence::Command(account.map(str::to_owned)),
+            };
         }
-        self
+        envelope
+    }
+
+    pub(crate) fn command_account<'a>(line: &LineRef<'a>) -> Option<CommandAccount<'a>> {
+        papo_proto::Account::parse(line)
+            .map(|account| CommandAccount(account.account))
+            .or_else(|| {
+                papo_proto::Join::parse(line)
+                    .filter(|join| join.realname.is_some())
+                    .map(|join| CommandAccount(join.account))
+            })
+    }
+
+    /// Returns the explicit account status, including unknown for contradictory evidence.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __reported_account(
+        &self,
+        casemapping: Casemapping,
+        origin: papo_proto::Origin,
+    ) -> Option<AccountStatus> {
+        match &self.account {
+            AccountEvidence::Tag(name) | AccountEvidence::Command(Some(name)) => {
+                Some(AccountStatus::LoggedIn(origin.__account(casemapping, name)))
+            }
+            AccountEvidence::Command(None) => Some(AccountStatus::LoggedOut),
+            AccountEvidence::Conflict => Some(AccountStatus::Unknown),
+            AccountEvidence::Unknown => None,
+        }
     }
 
     /// Returns the server-assigned message identifier, when supplied.
@@ -2095,13 +2136,13 @@ impl LineEnvelope {
         self.server_time
     }
 
-    /// Returns the actor's authenticated account, when tagged.
+    /// Returns the actor's authenticated account, when stated by the tag or command.
     #[must_use]
     pub fn account(&self) -> Option<&str> {
         match &self.account {
             AccountEvidence::Tag(name) => Some(name),
             AccountEvidence::Command(name) => name.as_deref(),
-            AccountEvidence::Unknown => None,
+            AccountEvidence::Unknown | AccountEvidence::Conflict => None,
         }
     }
 
@@ -2109,7 +2150,10 @@ impl LineEnvelope {
     #[doc(hidden)]
     #[must_use]
     pub const fn __account_known(&self) -> bool {
-        !matches!(self.account, AccountEvidence::Unknown)
+        matches!(
+            self.account,
+            AccountEvidence::Tag(_) | AccountEvidence::Command(_)
+        )
     }
 
     /// Returns the account tag and whether the line came with a user prefix.
