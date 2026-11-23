@@ -2544,6 +2544,8 @@ pub struct papo_core::WhoisChannel
 pub papo_core::WhoisChannel::name: alloc::string::String
 pub papo_core::WhoisChannel::prefixes: alloc::vec::Vec<papo::isupport::Prefix>
 impl papo_core::WhoisChannel
+pub fn papo_core::WhoisChannel::is_at_least_op(&self) -> bool
+pub fn papo_core::WhoisChannel::is_at_least_voice(&self) -> bool
 pub fn papo_core::WhoisChannel::rank(&self) -> core::option::Option<papo::isupport::Rank>
 impl core::clone::Clone for papo_core::WhoisChannel
 pub fn papo_core::WhoisChannel::clone(&self) -> Self

@@ -184,6 +184,7 @@ pub use server_url::InvalidUrl;
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
+    sync::Arc,
     time::Duration,
 };
 use web_time::Instant;
@@ -1804,9 +1805,30 @@ pub struct WhoisChannel {
     pub name: String,
     /// Membership prefixes from highest to lowest rank.
     pub prefixes: Vec<Prefix>,
+    advertised_prefix_order: Arc<[Prefix]>,
 }
 
 impl WhoisChannel {
+    /// Reports whether a prefix reported in this channel reaches operator in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `o` mode.
+    #[must_use]
+    pub fn is_at_least_op(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'o', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
+    /// Reports whether a prefix reported in this channel reaches voice in the server's advertised order.
+    ///
+    /// Returns false if the server has no known `PREFIX` table or advertises no `v` mode.
+    #[must_use]
+    pub fn is_at_least_voice(&self) -> bool {
+        Prefix::__reaches(&self.advertised_prefix_order, 'v', |prefix| {
+            self.prefixes.contains(prefix)
+        })
+    }
+
     /// Returns the highest standard rank held in this channel.
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
@@ -6924,6 +6946,8 @@ fn redact_sensitive_server_line(message: &LineRef<'_>) -> Option<Line> {
 
 fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<WhoisChannel> {
     let advertised = isupport.prefix();
+    let advertised_prefix_order: Arc<[Prefix]> =
+        isupport.__advertised_prefix().unwrap_or_default().into();
     lines
         .iter()
         .filter_map(|line| {
@@ -6942,6 +6966,7 @@ fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<
             let (prefixes, name) = channel.split_at(prefix_bytes);
             (!name.is_empty()).then(|| WhoisChannel {
                 name: name.to_owned(),
+                advertised_prefix_order: Arc::clone(&advertised_prefix_order),
                 prefixes: advertised
                     .iter()
                     .copied()

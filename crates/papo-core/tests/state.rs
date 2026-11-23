@@ -1174,6 +1174,46 @@ fn member_privileges_follow_advertised_prefix_order() {
 }
 
 #[test]
+fn member_privileges_require_the_current_prefix_table() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily PREFIX=(qov)~@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":ergo.test 353 emily = #papo :~alice")
+        .inspect(|session| {
+            let alice = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("alice")
+                .unwrap();
+            assert!(alice.is_at_least_op());
+        })
+        .server(":ergo.test 005 emily PREFIX=(oqv)@~+ :are supported")
+        .inspect(|session| {
+            let alice = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("alice")
+                .unwrap();
+            assert!(!alice.is_at_least_op());
+            assert!(alice.is_at_least_voice());
+        })
+        .server(":ergo.test 005 emily PREFIX=(ov)@+ :are supported")
+        .inspect(|session| {
+            let alice = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("alice")
+                .unwrap();
+            assert_eq!(prefix_symbols(alice.prefixes()), ['~']);
+            assert!(!alice.is_at_least_voice());
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily PREFIX=(qaohv)~&@%+ :are supported")
@@ -2357,7 +2397,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .server(":ergo.test 005 emily WHOX BOT=B PREFIX=(ov)@+ :are supported")
     .server(":emily!em@127.0.0.1 JOIN #papo")
     .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
-    .server(":ergo.test 353 emily = #papo :@emily!em@127.0.0.1 +dan!~dan@cloak.example")
+    .server(":ergo.test 353 emily = #papo :@emily!em@127.0.0.1 dan!~dan@cloak.example")
     .server(":ergo.test 366 emily #papo :End of NAMES list")
     .no_client()
     .advance(Duration::from_millis(500))
@@ -2371,6 +2411,10 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .server(":ergo.test 315 emily #papo :End of WHO list")
     .event(|event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"))
     .inspect(|session| {
+        let channel = session.state().channel("#papo").unwrap();
+        let member = channel.member("dan").unwrap();
+        assert!(!member.is_at_least_op());
+        assert!(member.is_at_least_voice());
         let dan = session.state().user("dan").unwrap();
         assert_eq!(
             dan.account(),
@@ -2483,7 +2527,7 @@ fn falls_back_to_plain_who_without_whox() {
         .server(":ergo.test 005 emily BOT=B PREFIX=(ov)@+ :are supported")
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
-        .server(":ergo.test 353 emily = #papo :emily!em@127.0.0.1 +dan!~dan@cloak.example")
+        .server(":ergo.test 353 emily = #papo :emily!em@127.0.0.1 dan!~dan@cloak.example")
         .server(":ergo.test 366 emily #papo :End of NAMES list")
         .client("MODE #papo")
         .client("WHO #papo")
@@ -2494,6 +2538,10 @@ fn falls_back_to_plain_who_without_whox() {
             |event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"),
         )
         .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            let member = channel.member("dan").unwrap();
+            assert!(!member.is_at_least_op());
+            assert!(member.is_at_least_voice());
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.account(), &AccountStatus::Unknown);
             assert_eq!(dan.username(), Some("~dan"));

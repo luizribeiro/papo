@@ -286,27 +286,28 @@ fn parses_whois_channels_with_advertised_membership_prefixes() {
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected a WHOIS response")
     };
+    let channels = response
+        .whois_channels
+        .iter()
+        .map(|channel| {
+            let prefixes = channel
+                .prefixes
+                .iter()
+                .map(|prefix| (prefix.mode(), prefix.symbol()))
+                .collect::<Vec<_>>();
+            (channel.name.as_str(), prefixes)
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        response.whois_channels,
+        channels,
         [
-            papo_core::WhoisChannel {
-                name: "#staff".into(),
-                prefixes: vec![
-                    papo_core::Prefix::__new('q', '~'),
-                    papo_core::Prefix::__new('a', '&'),
-                    papo_core::Prefix::__new('o', '@'),
-                ],
-            },
-            papo_core::WhoisChannel {
-                name: "#papo".into(),
-                prefixes: vec![papo_core::Prefix::__new('v', '+')],
-            },
-            papo_core::WhoisChannel {
-                name: "!support".into(),
-                prefixes: Vec::new(),
-            },
+            ("#staff", vec![('q', '~'), ('a', '&'), ('o', '@')]),
+            ("#papo", vec![('v', '+')]),
+            ("!support", vec![]),
         ]
     );
+    assert!(!response.whois_channels[2].is_at_least_op());
+    assert!(!response.whois_channels[2].is_at_least_voice());
 }
 
 #[test]
@@ -331,6 +332,10 @@ fn reports_the_highest_whois_channel_rank() {
         panic!("expected a WHOIS response")
     };
     assert_eq!(response.whois_channels[0].name, "#chan");
+    assert!(response.whois_channels[0].is_at_least_op());
+    assert!(response.whois_channels[0].is_at_least_voice());
+    assert!(!response.whois_channels[1].is_at_least_op());
+    assert!(response.whois_channels[1].is_at_least_voice());
     assert_eq!(
         response.whois_channels[0].rank(),
         Some(papo_core::Rank::Owner)
