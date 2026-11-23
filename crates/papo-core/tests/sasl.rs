@@ -1756,3 +1756,40 @@ fn aborts_a_server_challenge_over_4096_bytes() {
         .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
         .client("CAP END");
 }
+
+#[test]
+fn login_refusals_redact_decoded_credentials() {
+    let credential = "login-credential-4821";
+    for (mechanism, sasl, response) in [
+        (
+            "PLAIN",
+            Sasl::plain("alice", papo_core::Secret::new(credential)),
+            format!("\0alice\0{credential}"),
+        ),
+        (
+            "OAUTHBEARER",
+            Sasl::oauth_bearer(papo_core::Secret::new(credential)),
+            format!("n,,\x01auth=Bearer {credential}\x01\x01"),
+        ),
+    ] {
+        Transcript::new(Config::default().sasl(sasl))
+            .connect_default()
+            .server(&format!(":ergo.test CAP * LS :sasl={mechanism}"))
+            .client("CAP REQ :sasl")
+            .server(":ergo.test CAP * ACK :sasl")
+            .client(&format!("AUTHENTICATE {mechanism}"))
+            .server("AUTHENTICATE +")
+            .client(&format!("AUTHENTICATE {}", STANDARD.encode(response)))
+            .server(&format!(
+                ":ergo.test 904 papo :SASL authentication failed: {credential}"
+            ))
+            .event_until(|event| {
+                let Event::Close { reason, .. } = event else {
+                    return false;
+                };
+                assert!(reason.contains("<redacted>"));
+                assert!(!reason.contains(credential));
+                true
+            });
+    }
+}

@@ -459,6 +459,12 @@ fn credentials_stay_redacted_until_the_connection_ends() {
         matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == b"<redacted>")
     );
 
+    let unrelated = b":ergo.test NOTICE papo :Invalid data\0";
+    session.handle_line(late, unrelated);
+    assert!(
+        matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == unrelated)
+    );
+
     let new = join(Secret::new("staff-key-256"));
     session.send(late, new.clone()).unwrap();
     assert!(
@@ -491,6 +497,20 @@ fn channel_mode_replies_preserve_keys_only_in_typed_state() {
         b":ergo.test 005 papo CHANMODES=beI,k,l,imnpst :are supported by this server",
     );
     session.handle_line(now, b":papo!~papo@localhost JOIN #staff");
+    session.handle_line(
+        now,
+        format!(":operator!~o@services.example MODE #staff +k {key}").as_bytes(),
+    );
+    let mode = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::ModeChanged { changes, .. } => Some(changes),
+            _ => None,
+        })
+        .unwrap();
+    assert!(
+        matches!(&mode[0].arg, Some(papo_core::ModeArg::Key(secret)) if secret.expose() == key)
+    );
+    assert!(!format!("{mode:?}").contains(key));
     while session.poll_transmit().is_some() {}
     session
         .request(now, Line::new("MODE").param("#staff"))
@@ -501,7 +521,7 @@ fn channel_mode_replies_preserve_keys_only_in_typed_state() {
     );
     session.handle_line(
         now,
-        format!("@label=0 :ergo.test 324 papo #staff +k {key}").as_bytes(),
+        format!("@label=0 :ergo.test 324 papo #staff +lk 25 {key}").as_bytes(),
     );
     assert_eq!(
         session
@@ -518,6 +538,7 @@ fn channel_mode_replies_preserve_keys_only_in_typed_state() {
             _ => None,
         })
         .unwrap();
-    assert_eq!(response.lines[0].get(3), Some("<redacted>"));
+    assert_eq!(response.lines[0].get(3), Some("25"));
+    assert_eq!(response.lines[0].get(4), Some("<redacted>"));
     assert!(!format!("{response:?} {session:?}").contains(key));
 }

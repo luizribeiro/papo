@@ -79,16 +79,21 @@ fn rejected_channel_key_stays_redacted() {
 
 #[test]
 fn malformed_mode_does_not_expose_a_channel_key() {
-    Transcript::new(Config::default())
-        .server(":ergo.test 005 papo UTF8ONLY :are supported by this server")
-        .server_bytes(b":alice!~a@staff.example MODE #staff +k staff-key-4821\xff")
-        .event_until(|event| {
-            let Event::Malformed { line, .. } = event else {
-                return false;
-            };
-            assert_eq!(line, b"<redacted>");
-            true
-        });
+    for line in [
+        &b":alice!~a@staff.example MODE #staff +k staff-key-4821\xff"[..],
+        b"@label=17 :ergo.test 324 papo #staff +k staff-key-4821\xff",
+    ] {
+        Transcript::new(Config::default())
+            .server(":ergo.test 005 papo UTF8ONLY :are supported by this server")
+            .server_bytes(line)
+            .event_until(|event| {
+                let Event::Malformed { line, .. } = event else {
+                    return false;
+                };
+                assert_eq!(line, b"<redacted>");
+                true
+            });
+    }
 }
 
 #[test]

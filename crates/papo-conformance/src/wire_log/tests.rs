@@ -451,3 +451,25 @@ fn a_reply_repeating_a_credential_is_redacted_in_the_wire_log() {
     assert!(text.contains("<- :ergo.test 696 papo #staff k * :<redacted>"));
     assert!(!text.contains("staff only 4821"));
 }
+
+#[test]
+fn wire_log_bounds_distinct_credentials_and_ignores_empty_ones() {
+    let mut credentials = Credentials::default();
+    credentials.redact(b"PASS :", true);
+    for _ in 0..257 {
+        credentials.redact(b"PASS wire-key-staff", true);
+    }
+    for index in 0..255 {
+        credentials.redact(format!("PASS wire-key-{index:04}").as_bytes(), true);
+    }
+    let repeat = b":ergo.test 464 * :Incorrect password wire-key-0254";
+    assert_eq!(
+        credentials.redact(repeat, false),
+        ":ergo.test 464 * :<redacted>"
+    );
+    let ordinary = ":ergo.test 001 papo :Welcome to Ergo";
+    assert_eq!(credentials.redact(ordinary.as_bytes(), false), ordinary);
+
+    credentials.redact(b"PASS wire-key-overflow", true);
+    assert_eq!(credentials.redact(ordinary.as_bytes(), false), "<redacted>");
+}

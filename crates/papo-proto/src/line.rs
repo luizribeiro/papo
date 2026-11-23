@@ -1206,4 +1206,39 @@ mod tests {
         assert!(!secret.__replace_param(0, "visible"));
         assert_eq!(secret.as_ref().param(0), Some("operator-password-6824"));
     }
+    #[test]
+    fn encoded_credential_spans_skip_the_command_and_plain_parameters() {
+        let wire = super::Line::new("REGISTER")
+            .with_params(["alice", "*"])
+            .param(crate::Secret::new("correct horse battery staple"))
+            .encode()
+            .unwrap();
+        assert_eq!(
+            crate::__wire_secret_parameters(&wire).collect::<Vec<_>>(),
+            ["correct horse battery staple"]
+        );
+    }
+
+    #[test]
+    fn masked_channel_key_is_available_for_typed_protocol_interpretation() {
+        let key = "staff-snapshot-key-4821";
+        let message = format!(":ergo.test 324 papo #staff +k {key}");
+        let parsed = super::LineRef::parse(&message).unwrap();
+        assert!(super::__masked_param(&parsed, 3).is_none());
+        let mut line = parsed.to_owned();
+        super::__mask_param(&mut line, 3);
+        line.__mark_secret(3);
+        assert_eq!(
+            super::__masked_param(&line.as_ref(), 3).map(crate::Secret::expose),
+            Some(key)
+        );
+        assert_eq!(line.get(3), Some("<redacted>"));
+        assert_eq!(
+            line.to_line().unwrap(),
+            ":ergo.test 324 papo #staff +k <redacted>\r\n"
+        );
+        let prefix = super::__line_with_params_prefix(&line.as_ref(), 3);
+        assert_eq!(prefix.params().len(), 3);
+        assert_eq!(prefix.get(2), Some("+k"));
+    }
 }
