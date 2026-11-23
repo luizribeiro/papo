@@ -11,6 +11,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 
 ### Added
 
+Public types implement `Debug`. Request and connection futures document what happens when dropped.
+
 Build channel conversation fixtures with `papo_testing::channel_conversation`.
 
 Membership privilege checks can use `is_at_least_op()` and `is_at_least_voice()` with the server's advertised PREFIX order.

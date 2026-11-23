@@ -109,6 +109,8 @@ The safety net applies to live private replies. A reply to private history addre
 conversation's peer by nickname. If that nickname is now yours, the reply fails with
 `Error::TargetGone`.
 
+After a reconnect, replies to earlier DMs fail. Send to the nick instead.
+
 **Typed names.** `client.kick(channel, nick)` accepts a `ChannelName` and a `Nick` in that
 order. Swapping those typed arguments fails at compile time. Plain text is checked when the
 request runs.
@@ -153,6 +155,16 @@ An `AccountStatus` is `LoggedIn(name)`, `LoggedOut` or `Unknown`. Each sent line
 `Confirmation`. A matched echo with a server-assigned message ID yields `Confirmed`.
 `Unconfirmed` reports why confirmation was unavailable. Reactions and redactions require a
 reference with a server-assigned message ID.
+
+## What is stable
+
+- The stability promise covers papo's plain API.
+- Outside the promise are the `unstable` feature, the internal `__testing` feature and every
+  `__` name, direct use of `papo-core` and `papo-proto`, `papo-testing`, and the exact text of
+  `Display` and `Debug`.
+
+API names for draft specifications follow semantic versioning, and their wire behaviour follows the
+current draft and may change in a minor release with a changelog note.
 
 ## Examples
 
