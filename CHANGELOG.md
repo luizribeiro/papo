@@ -511,6 +511,10 @@ from `papo` to `papo-testing`.
 
 ### Fixed
 
+Deliver away replies and presence notifications for users outside the tracked roster. Standalone
+WHOIS bot markers, metadata deferrals, login and logout replies, and prefixless topic and mode
+changes are available as `Event::Other`.
+
 - A reconnect history catchup whose `CHATHISTORY` request times out, fails or is aborted is
   dropped with its request. It used to stay for the rest of the connection and record the msgid
   of every later live message in that channel, growing without bound.
