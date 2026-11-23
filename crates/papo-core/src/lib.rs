@@ -6089,7 +6089,11 @@ impl Session {
             &self.config,
             &mut self.outbox,
         );
-        if !handled
+        // The state can apply a change without knowing who made it.
+        let actorless_change = matches!(message.command(), Command::Mode | Command::Topic)
+            && message.source().is_none()
+            && self.outbox.events.len() == queued_events;
+        if (!handled || actorless_change)
             && !response
             && !tag_message
             && !redacted

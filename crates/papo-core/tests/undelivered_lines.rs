@@ -86,3 +86,31 @@ fn postponed_metadata_sync_is_delivered() {
         })
         .no_event();
 }
+
+#[test]
+fn prefixless_topic_and_modes_update_state_and_surface_the_line() {
+    Transcript::new(Config::default())
+        .server(":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu :are supported")
+        .server(":papo!~papo@localhost JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server("TOPIC #papo :Weekly planning")
+        .event(|event| {
+            matches!(event, Event::Line(line) if line.as_ref().command_is("TOPIC")
+                && line.as_ref().source().is_none()
+                && line.as_ref().param(1) == Some("Weekly planning"))
+        })
+        .server("MODE #papo +ik team-room")
+        .event(|event| {
+            matches!(event, Event::Line(line) if line.as_ref().command_is("MODE")
+                && line.as_ref().source().is_none()
+                && format!("{line:?}").contains("<redacted>")
+                && !format!("{line:?}").contains("team-room"))
+        })
+        .no_event()
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(channel.topic(), Some("Weekly planning"));
+            assert_eq!(channel.mode('i'), Some(papo_core::ModeValue::Set));
+            assert!(channel.key().is_some());
+        });
+}
