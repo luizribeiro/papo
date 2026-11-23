@@ -6,8 +6,8 @@ use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{
-    Config, DEFAULT_WANTED_CAPS, Event, Feature, Party, RateLimit, RequestError, Sasl, Secret,
-    Session, TextKind, UnsupportedReason,
+    CloseKind, Config, DEFAULT_WANTED_CAPS, Event, Feature, Party, RateLimit, RequestError, Sasl,
+    Secret, Session, TextKind, UnsupportedReason,
 };
 use papo_proto::{BuildError, Line, Origin};
 use support::unsupported_error;
@@ -474,4 +474,33 @@ fn request_errors_describe_the_failure_and_preserve_build_sources() {
         RequestError::InvalidMessageReference.to_string(),
         "unsupported message reference"
     );
+}
+
+#[test]
+fn stops_reading_when_server_output_is_no_longer_drained() {
+    for line in [
+        "PING :ergo.test",
+        ":alice!~alice@localhost PRIVMSG papo :Hello",
+    ] {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default());
+        for _ in 0..17_000 {
+            session.handle_line(now, line.as_bytes());
+        }
+        let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+        let sent = std::iter::from_fn(|| session.poll_transmit()).count();
+        assert!(matches!(
+            events.last(),
+            Some(Event::Close {
+                kind: CloseKind::Other,
+                ..
+            })
+        ));
+        let queued = if line.starts_with("PING") {
+            sent
+        } else {
+            events.len() - 1
+        };
+        assert_eq!(queued, 16_384);
+    }
 }

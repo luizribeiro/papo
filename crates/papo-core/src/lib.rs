@@ -248,6 +248,7 @@ const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 256;
 const MAX_CTCP_SOURCES: usize = 1024;
+const MAX_PENDING_PROTOCOL_OUTPUT: usize = 16_384;
 
 /// Details about text queued by [`Session::send_text_detailed`].
 #[doc(hidden)]
@@ -3853,6 +3854,19 @@ impl Transmission {
 }
 
 impl Outbox {
+    fn protocol_output_full(&self) -> bool {
+        self.events.len() >= MAX_PENDING_PROTOCOL_OUTPUT
+            || self.connect_phases.len() >= MAX_PENDING_PROTOCOL_OUTPUT
+            || self.immediate.len() >= MAX_PENDING_PROTOCOL_OUTPUT
+            || (self.transmits.len() >= MAX_PENDING_PROTOCOL_OUTPUT
+                && self
+                    .transmits
+                    .iter()
+                    .filter(|transmit| !transmit.requires_registration())
+                    .nth(MAX_PENDING_PROTOCOL_OUTPUT - 1)
+                    .is_some())
+    }
+
     fn transmit_raw(&mut self, line: WireLine) {
         self.transmit_tagged(line, None);
     }
@@ -4210,6 +4224,9 @@ impl Session {
     }
 
     /// Supplies one line from a transport that performs its own framing.
+    ///
+    /// A delivery backlog can close the session. Drain protocol events and transmissions
+    /// as the transport supplies input.
     pub fn handle_line(&mut self, now: Instant, line: &[u8]) {
         if self.framer.is_closed() {
             return;
@@ -4218,6 +4235,14 @@ impl Session {
         let line = line.strip_suffix(b"\n").unwrap_or(line);
         let line = line.strip_suffix(b"\r").unwrap_or(line);
         if line.is_empty() {
+            return;
+        }
+        // A just-completed batch can release a burst of events before the transport drains them.
+        if self.outbox.protocol_output_full() {
+            self.close(
+                CloseKind::Other,
+                "pending protocol output reached its limit".to_owned(),
+            );
             return;
         }
         if line.len() > MAX_INCOMING_LINE_LEN {
