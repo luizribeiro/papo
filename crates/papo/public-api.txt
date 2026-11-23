@@ -754,6 +754,8 @@ pub papo::event::Joined::received_at: std::time::SystemTime
 pub papo::event::Joined::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Joined
 pub const fn papo::event::Joined::actor_account(&self) -> &papo::AccountStatus
+impl papo::event::Joined
+pub const fn papo::event::Joined::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Joined
 pub fn papo::event::Joined::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Joined
@@ -782,6 +784,8 @@ pub papo::event::Kicked::subject: papo::UserRef
 pub papo::event::Kicked::subject_party: papo::Party
 impl papo::event::Kicked
 pub const fn papo::event::Kicked::actor_account(&self) -> &papo::AccountStatus
+impl papo::event::Kicked
+pub const fn papo::event::Kicked::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Kicked
 pub fn papo::event::Kicked::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Kicked
@@ -919,6 +923,8 @@ pub papo::event::ModeChanged::subject: papo::Subject
 impl papo::event::ModeChanged
 pub const fn papo::event::ModeChanged::actor_account(&self) -> &papo::AccountStatus
 impl papo::event::ModeChanged
+pub const fn papo::event::ModeChanged::is_from_history(&self) -> bool
+impl papo::event::ModeChanged
 pub fn papo::event::ModeChanged::subject_party(&self, &papo::ModeChange) -> papo::Party
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
@@ -998,6 +1004,8 @@ pub papo::event::NickChanged::received_at: std::time::SystemTime
 pub papo::event::NickChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::NickChanged
 pub const fn papo::event::NickChanged::actor_account(&self) -> &papo::AccountStatus
+impl papo::event::NickChanged
+pub const fn papo::event::NickChanged::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::NickChanged
 pub fn papo::event::NickChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::NickChanged
@@ -1081,6 +1089,8 @@ pub papo::event::Parted::received_at: std::time::SystemTime
 pub papo::event::Parted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Parted
 pub const fn papo::event::Parted::actor_account(&self) -> &papo::AccountStatus
+impl papo::event::Parted
+pub const fn papo::event::Parted::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Parted
 pub fn papo::event::Parted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Parted
@@ -1108,6 +1118,8 @@ pub papo::event::Quit::received_at: std::time::SystemTime
 pub papo::event::Quit::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Quit
 pub const fn papo::event::Quit::actor_account(&self) -> &papo::AccountStatus
+impl papo::event::Quit
+pub const fn papo::event::Quit::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Quit
 pub fn papo::event::Quit::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Quit
@@ -1364,6 +1376,8 @@ pub papo::event::TopicChanged::server_time: core::option::Option<papo_proto::tim
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 impl papo::event::TopicChanged
 pub const fn papo::event::TopicChanged::actor_account(&self) -> &papo::AccountStatus
+impl papo::event::TopicChanged
+pub const fn papo::event::TopicChanged::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::TopicChanged
 pub fn papo::event::TopicChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TopicChanged

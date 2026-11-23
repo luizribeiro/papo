@@ -383,6 +383,7 @@ pub fn connected(nick: impl Into<Nick>) -> Connected {
 pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool) -> Joined {
     let nick = nick.into();
     Joined {
+        from_history: false,
         actor_account: crate::AccountStatus::Unknown,
         msgid: None,
         server_time: None,

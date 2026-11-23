@@ -568,6 +568,7 @@ fn parted(
     let actor =
         crate::UserRef::from_history(actor.nick(), actor.account().clone(), Some(&client.state));
     Some(Event::Parted(Parted {
+        from_history: true,
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -602,6 +603,7 @@ fn quit(
     );
     let actor = user_from_line(message, &envelope, mapping, origin)?;
     Some(Event::Quit(Quit {
+        from_history: true,
         actor_account: Box::new(envelope.tagged_account()),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -648,6 +650,7 @@ fn kicked(
         crate::Actor::Server(server) => crate::Actor::Server(server),
     };
     Some(Event::Kicked(Kicked {
+        from_history: true,
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -691,6 +694,7 @@ fn nick_changed(
     let actor =
         crate::UserRef::from_history(new.clone(), source.account().clone(), Some(&client.state));
     Some(Event::NickChanged(NickChanged {
+        from_history: true,
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -723,6 +727,7 @@ fn topic_changed(
     );
     let actor = actor_from_line(message, &envelope, mapping, origin)?;
     Some(Event::TopicChanged(TopicChanged {
+        from_history: true,
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -790,6 +795,7 @@ fn mode_changed(
         crate::Actor::Server(server) => crate::Actor::Server(server),
     };
     Some(Event::ModeChanged(ModeChanged {
+        from_history: true,
         actor_account: envelope.tagged_account(),
         msgid: envelope.msgid,
         server_time: envelope.server_time,

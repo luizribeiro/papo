@@ -10,6 +10,7 @@ use super::Actor;
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Joined {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the join line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -47,6 +48,7 @@ pub struct MembersRefreshed {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Parted {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the part line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -70,6 +72,7 @@ pub struct Parted {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Kicked {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the kick line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -121,6 +124,7 @@ pub struct Invited {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TopicChanged {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the topic line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -144,6 +148,7 @@ super::actor_account_accessor!(TopicChanged);
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct ModeChanged {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the mode line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.

@@ -1603,6 +1603,7 @@ pub(crate) fn joined_from_line(
         return None;
     };
     Some(Joined {
+        from_history: true,
         actor_account,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -2632,6 +2633,7 @@ pub(crate) fn from_core_with_receipt(
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::Joined(Joined {
+                from_history: false,
                 actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2667,6 +2669,7 @@ pub(crate) fn from_core_with_receipt(
                 .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
             let actor = user_at_arrival(nick, account, token);
             Event::Parted(Parted {
+                from_history: false,
                 actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2703,6 +2706,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::Kicked(Kicked {
+                from_history: false,
                 actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2778,6 +2782,7 @@ pub(crate) fn from_core_with_receipt(
                 .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
             let actor = user_at_arrival(nick, account, token);
             Event::Quit(Quit {
+                from_history: false,
                 actor_account: Box::new(line_account),
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2804,6 +2809,7 @@ pub(crate) fn from_core_with_receipt(
             let envelope = map_envelope(&envelope);
             let actor = user_at_arrival(new.clone(), envelope.account.clone(), token);
             Event::NickChanged(NickChanged {
+                from_history: false,
                 actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2949,6 +2955,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::ModeChanged(ModeChanged {
+                from_history: false,
                 actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2998,6 +3005,7 @@ pub(crate) fn from_core_with_receipt(
             };
             let actor = source_at_arrival(actor, actor_token);
             Event::TopicChanged(TopicChanged {
+                from_history: false,
                 actor_account: line_account,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -6556,6 +6564,7 @@ mod tests {
     fn mode_event(subject: Subject, own_nick: Option<&str>) -> super::ModeChanged {
         let mapping = Casemapping::Rfc1459;
         super::ModeChanged {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -7232,6 +7241,7 @@ mod tests {
         let own_handle = crate::__testing::user_handle(mapping.nick("Papo[Bot]"));
         let events = [
             Event::Joined(super::Joined {
+                from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
@@ -7242,6 +7252,7 @@ mod tests {
                 netjoin: None,
             }),
             Event::Parted(super::Parted {
+                from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
@@ -7253,6 +7264,7 @@ mod tests {
                 actor_party: Party::Me,
             }),
             Event::Kicked(super::Kicked {
+                from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
@@ -7283,6 +7295,7 @@ mod tests {
                 subject_party: Party::Me,
             }),
             Event::NickChanged(super::NickChanged {
+                from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,
@@ -7294,6 +7307,7 @@ mod tests {
                 actor_party: Party::Me,
             }),
             Event::Joined(super::Joined {
+                from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
                 msgid: None,
                 server_time: None,

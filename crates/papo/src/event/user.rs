@@ -8,6 +8,7 @@ use crate::{AccountStatus, AwayStatus, BatchId, MessageId, Nick, Party, ServerNa
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Quit {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the quit line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -35,6 +36,7 @@ super::actor_account_accessor!(Quit);
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct NickChanged {
+    pub(crate) from_history: bool,
     /// The server-assigned identifier of the nick line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.

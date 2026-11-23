@@ -1978,6 +1978,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -1992,6 +1993,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Joined(crate::event::Joined {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -2008,6 +2010,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -2023,6 +2026,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -2045,6 +2049,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Parted(crate::event::Parted {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -2061,6 +2066,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
+            from_history: false,
             actor_account: crate::AccountStatus::Unknown,
             msgid: None,
             server_time: None,
@@ -2136,6 +2142,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         ..super::PostConnect::default()
     };
     let joined = Event::Joined(crate::event::Joined {
+        from_history: false,
         actor_account: crate::AccountStatus::Unknown,
         msgid: None,
         server_time: None,

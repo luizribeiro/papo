@@ -1,4 +1,7 @@
-use super::{CtcpQuery, CtcpReply, Message, Notice, Reacted, Redacted, ServerNotice, TagMsg};
+use super::{
+    CtcpQuery, CtcpReply, Joined, Kicked, Message, ModeChanged, NickChanged, Notice, Parted, Quit,
+    Reacted, Redacted, ServerNotice, TagMsg, TopicChanged,
+};
 
 macro_rules! history_accessors {
     ($($ty:ident: |$this:ident| $history:expr),+ $(,)?) => {
@@ -29,6 +32,13 @@ history_accessors!(
     TagMsg: |self| self.receipt.is_from_history(),
     Reacted: |self| self.receipt.is_from_history(),
     Redacted: |self| self.receipt.is_from_history(),
+    Joined: |self| self.from_history,
+    Parted: |self| self.from_history,
+    Quit: |self| self.from_history,
+    Kicked: |self| self.from_history,
+    NickChanged: |self| self.from_history,
+    TopicChanged: |self| self.from_history,
+    ModeChanged: |self| self.from_history,
 );
 
 #[cfg(all(test, not(browser)))]
@@ -157,6 +167,40 @@ mod tests {
         ];
         for &(server, line, accessor) in rows {
             assert_provenance(server, "chathistory", line, accessor);
+        }
+    }
+
+    #[test]
+    fn activity_provenance_covers_users_and_servers() {
+        let rows: &[(&str, Accessor)] = &[
+            (
+                ":alice!~alice@localhost JOIN #review alice :Alice Example",
+                accessor!(Joined),
+            ),
+            (
+                ":emily!~emily@localhost PART #review :See you tomorrow",
+                accessor!(Parted),
+            ),
+            (
+                ":emily!~emily@localhost QUIT :Connection reset by peer",
+                accessor!(Quit),
+            ),
+            (
+                ":ergo.test KICK #review emily :Channel closed",
+                accessor!(Kicked),
+            ),
+            (
+                ":emily!~emily@localhost NICK emily_",
+                accessor!(NickChanged),
+            ),
+            (
+                ":soju.example TOPIC #review :Release review",
+                accessor!(TopicChanged),
+            ),
+            (":soju.example MODE #review +im", accessor!(ModeChanged)),
+        ];
+        for &(line, accessor) in rows {
+            assert_provenance(SOJU, "draft/event-playback", line, accessor);
         }
     }
 }
