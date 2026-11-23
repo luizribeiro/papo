@@ -51,6 +51,16 @@ macro_rules! line_types {
         }
 
         impl RestrictedLine {
+            /// Returns whether the enclosed line came from a history page or a replay batch.
+            ///
+            /// See [`Message::is_from_history`] for how to handle replay and sending to its sender.
+            #[must_use]
+            pub const fn is_from_history(&self) -> bool {
+                match self {
+                    $(Self::$variant(line) => line.is_from_history(),)+
+                }
+            }
+
             const fn view(&self) -> LineView<'_> {
                 match self {
                     $(Self::$variant(line) => LineView::$variant(line),)+

@@ -154,6 +154,8 @@ pub papo::event::Incomplete::Notice(papo::event::Notice)
 impl papo::event::Incomplete
 pub const fn papo::event::Incomplete::actor_account(&self) -> &papo::AccountStatus
 pub fn papo::event::Incomplete::conversation(&self) -> &papo::Conversation
+impl papo::event::Incomplete
+pub const fn papo::event::Incomplete::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Incomplete
 pub fn papo::event::Incomplete::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Incomplete
@@ -223,6 +225,8 @@ pub papo::event::RestrictedLine::Redacted(papo::event::Redacted)
 pub papo::event::RestrictedLine::ServerNotice(papo::event::ServerNotice)
 pub papo::event::RestrictedLine::TagMsg(papo::event::TagMsg)
 pub papo::event::RestrictedLine::TypingChanged(papo::event::TypingChanged)
+impl papo::event::RestrictedLine
+pub const fn papo::event::RestrictedLine::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::RestrictedLine
 pub fn papo::event::RestrictedLine::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::RestrictedLine
@@ -1250,6 +1254,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
 #[non_exhaustive] pub struct papo::event::Restricted
 pub papo::event::Restricted::audience: papo::Prefix
 pub papo::event::Restricted::line: papo::event::RestrictedLine
+impl papo::event::Restricted
+pub const fn papo::event::Restricted::is_from_history(&self) -> bool
 impl core::clone::Clone for papo::event::Restricted
 pub fn papo::event::Restricted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Restricted

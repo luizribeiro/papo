@@ -273,6 +273,10 @@ impl Redacted {
 }
 
 impl TypingChanged {
+    pub(super) const fn is_from_history(&self) -> bool {
+        self.receipt.is_from_history()
+    }
+
     /// Returns the conversation, kept read-only so it stays consistent with the return address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

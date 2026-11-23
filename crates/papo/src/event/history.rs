@@ -1,6 +1,6 @@
 use super::{
-    CtcpQuery, CtcpReply, Joined, Kicked, Message, ModeChanged, NickChanged, Notice, Other, Parted,
-    Quit, Reacted, Redacted, ServerNotice, TagMsg, TopicChanged,
+    CtcpQuery, CtcpReply, Incomplete, Joined, Kicked, Message, ModeChanged, NickChanged, Notice,
+    Other, Parted, Quit, Reacted, Redacted, Restricted, ServerNotice, TagMsg, TopicChanged,
 };
 
 macro_rules! history_accessors {
@@ -40,11 +40,16 @@ history_accessors!(
     TopicChanged: |self| self.from_history,
     ModeChanged: |self| self.from_history,
     Other: |self| self.from_history,
+    Incomplete: |self| match self {
+        Self::Message(message) => message.is_from_history(),
+        Self::Notice(notice) => notice.is_from_history(),
+    },
+    Restricted: |self| self.line.is_from_history(),
 );
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::time::{Instant, UNIX_EPOCH};
+    use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use papo_core::{Config, Session};
 
@@ -55,7 +60,11 @@ mod tests {
     const SOJU: &str = "soju.example";
 
     fn session(now: Instant) -> Session {
-        let mut session = Session::new(Config::default().nick("papo"));
+        let mut session = Session::new(
+            Config::default()
+                .nick("papo")
+                .batch_timeout(Duration::from_secs(1)),
+        );
         for line in [
             ":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=@+ PREFIX=(ov)@+ :are supported",
             ":papo!~papo@localhost JOIN #review",
@@ -73,8 +82,13 @@ mod tests {
         let event = match from_core(event, isupport.casemapping(), origin, false, UNIX_EPOCH) {
             CoreEvent::Forward(event) => event,
             CoreEvent::Line(line) => {
-                let (line, _) = line.into_parts();
-                incoming_from_core(line, origin, isupport, false, UNIX_EPOCH, None)
+                let (line, incomplete) = line.into_parts();
+                let event = incoming_from_core(line, origin, isupport, false, UNIX_EPOCH, None);
+                if incomplete {
+                    super::super::mark_incomplete(event)?
+                } else {
+                    event
+                }
             }
             _ => return None,
         };
@@ -120,6 +134,17 @@ mod tests {
                 _ => None,
             }
         };
+        (restricted $variant:ident) => {
+            |event: &Event| match event {
+                Event::$variant(payload) => {
+                    let line = crate::event::RestrictedLine::$variant(payload.clone());
+                    let provenance = payload.is_from_history();
+                    assert_eq!(line.is_from_history(), provenance);
+                    Some(provenance)
+                }
+                _ => None,
+            }
+        };
     }
 
     #[test]
@@ -128,42 +153,42 @@ mod tests {
             (
                 ERGO,
                 "@time=2026-10-19T14:31:11.456Z;msgid=RfcBTzyxY120005 :emily!~emily@localhost PRIVMSG #review :looks good",
-                accessor!(Message),
+                accessor!(restricted Message),
             ),
             (
                 SOJU,
                 "@time=2026-10-20T18:44:00.250Z :emily!~e@cloak.example NOTICE #review :build 4412 finished",
-                accessor!(Notice),
+                accessor!(restricted Notice),
             ),
             (
                 ERGO,
                 ":emily!~emily@localhost PRIVMSG #review :\x01VERSION\x01",
-                accessor!(CtcpQuery),
+                accessor!(restricted CtcpQuery),
             ),
             (
                 SOJU,
                 ":emily!~e@cloak.example NOTICE #review :\x01VERSION weechat 4.6.3\x01",
-                accessor!(CtcpReply),
+                accessor!(restricted CtcpReply),
             ),
             (
                 ERGO,
                 ":ergo.test NOTICE #review :Channel is now closed for maintenance",
-                accessor!(ServerNotice),
+                accessor!(restricted ServerNotice),
             ),
             (
                 SOJU,
                 "@+example/status=ready :emily!~e@cloak.example TAGMSG #review",
-                accessor!(TagMsg),
+                accessor!(restricted TagMsg),
             ),
             (
                 ERGO,
                 "@+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~emily@localhost TAGMSG #review",
-                accessor!(Reacted),
+                accessor!(restricted Reacted),
             ),
             (
                 SOJU,
                 ":soju.example REDACT #review RfcBTzyxY120004 :sent too early",
-                accessor!(Redacted),
+                accessor!(restricted Redacted),
             ),
         ];
         for &(server, line, accessor) in rows {
@@ -211,7 +236,7 @@ mod tests {
             ":soju.example TAGMSG #review",
             "NOTICE #review :Channel maintenance starts shortly",
         ] {
-            assert_provenance(SOJU, "chathistory", line, accessor!(Other));
+            assert_provenance(SOJU, "chathistory", line, accessor!(restricted Other));
         }
 
         let now = Instant::now();
@@ -235,5 +260,72 @@ mod tests {
                 .find_map(|event| (accessor!(Other))(&event));
             assert_eq!(provenance, Some(historical), "{batch}");
         }
+    }
+
+    #[test]
+    fn incomplete_chat_keeps_the_provenance_of_each_partial_payload() {
+        for command in ["PRIVMSG", "NOTICE"] {
+            for historical in [false, true] {
+                let now = Instant::now();
+                let mut session = session(now);
+                let open = if historical {
+                    session.handle_line(now, b":ergo.test BATCH +history chathistory #review");
+                    "@batch=history :ergo.test BATCH +multi draft/multiline #review"
+                } else {
+                    ":ergo.test BATCH +multi draft/multiline #review"
+                };
+                session.handle_line(now, open.as_bytes());
+                let line = format!(
+                    "@batch=multi :emily!~emily@localhost {command} #review :review starts at"
+                );
+                session.handle_line(now, line.as_bytes());
+                let timeout = papo_core::deadline(now, Duration::from_secs(2)).unwrap();
+                session.handle_timeout(timeout);
+                let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+                let (client, _) = crate::driver::test_support::client_with_commands(&session);
+                let provenance = events.into_iter().find_map(|event| {
+                    let event = match event {
+                        papo_core::Event::History { items, .. } => {
+                            let [item] = items.try_into().expect("one partial item");
+                            crate::ext::history::history_item(item, None, &client, UNIX_EPOCH)
+                        }
+                        event => map_live(&session, event)?,
+                    };
+                    (accessor!(restricted Incomplete))(&event)
+                });
+                assert_eq!(provenance, Some(historical), "{command}");
+            }
+        }
+    }
+
+    #[test]
+    fn restricted_history_keeps_its_audience_and_provenance() {
+        assert_provenance(
+            SOJU,
+            "chathistory",
+            ":emily!~emily@cloak.example PRIVMSG @#review :ops review starts at noon",
+            |event| match event {
+                Event::Restricted(payload) => {
+                    assert_eq!(payload.audience.symbol(), '@');
+                    Some(payload.is_from_history())
+                }
+                _ => None,
+            },
+        );
+        let now = Instant::now();
+        let mut session = session(now);
+        session.handle_line(
+            now,
+            b"@+typing=active :emily!~emily@cloak.example TAGMSG @#review",
+        );
+        let event = session.poll_event().unwrap();
+        let Some(Event::Restricted(payload)) = map_live(&session, event) else {
+            panic!("expected restricted typing notification");
+        };
+        assert!(matches!(
+            payload.line,
+            crate::event::RestrictedLine::TypingChanged(_)
+        ));
+        assert!(!payload.is_from_history());
     }
 }
