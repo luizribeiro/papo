@@ -50,6 +50,8 @@
 //! # }
 //! ```
 
+#![deny(missing_debug_implementations)]
+
 use std::{
     collections::{HashMap, VecDeque},
     sync::{Arc, Mutex},
