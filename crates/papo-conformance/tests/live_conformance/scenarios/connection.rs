@@ -595,7 +595,7 @@ async fn register_over(
 ) -> papo_testing::Result<()> {
     let mut builder = s.configure_at("alice", endpoint)?;
     if let Some(ca) = ca {
-        builder = builder.tls_ca_pem(ca);
+        builder = builder.tls_only_ca_pem(ca);
     }
     let mut alice = s.connect_with(builder).await?;
     assert_connected(&alice, "alice");

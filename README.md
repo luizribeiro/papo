@@ -40,6 +40,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+For a private certificate authority, pass its PEM certificates to
+`Client::builder(...).tls_only_ca_pem(pem)`. The connection then trusts only the supplied
+authorities. By default, native connections use the platform verifier and WASI connections
+use WebPKI roots.
+
 ## API design
 
 We put a lot of effort into making papo hard to misuse. Not just by someone hostile, but also accidental misuse and footguns. One rule we had is that nothing should fall to documentation if it's a pitfall. We should always prefer structural fixes.

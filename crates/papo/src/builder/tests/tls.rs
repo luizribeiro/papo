@@ -56,8 +56,8 @@ fn debug_is_opaque_with_every_builder_secret() {
     }
 
     let builder = Builder::new("ircs://irc.example.net")
-        .tls_ca_pem(b"replaced CA".to_vec())
-        .tls_ca_pem(b"test CA".to_vec())
+        .tls_only_ca_pem(b"replaced CA".to_vec())
+        .tls_only_ca_pem(b"test CA".to_vec())
         .tls_client_cert(
             crate::CertificateChain::new(b"certificate".to_vec()),
             crate::PrivateKey::new(b"private key".to_vec()),
@@ -77,7 +77,9 @@ async fn build_validates_every_tls_setting_for_every_scheme() {
     const PRIVATE_KEY: &[u8] = include_bytes!("../../../tests/data/client.key");
 
     fn bad_ca(builder: Builder) -> Builder {
-        builder.tls_ca_pem(b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n")
+        builder.tls_only_ca_pem(
+            b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n",
+        )
     }
     fn bad_certificate(builder: Builder) -> Builder {
         builder.tls_client_cert(

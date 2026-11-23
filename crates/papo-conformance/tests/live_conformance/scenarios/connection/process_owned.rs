@@ -134,7 +134,7 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
                 Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
                 &nick,
             )
-            .tls_ca_pem(fs::read(server.ca_pem_path())?)
+            .tls_only_ca_pem(fs::read(server.ca_pem_path())?)
             .sts_store(store.clone()),
         )
         .await?;
@@ -262,7 +262,7 @@ pub(super) async fn server_password_waits_for_live_sts(_s: Scenario) -> papo_tes
     let endpoint = format!("irc://localhost:{}", proxy.address().port());
     let result = Client::builder(endpoint, papo_test_server::unique("alice-pass-sts"))
         .password(papo::Secret::new("server-password-must-stay-encrypted"))
-        .tls_ca_pem(fs::read(server.ca_pem_path())?)
+        .tls_only_ca_pem(fs::read(server.ca_pem_path())?)
         .connect()
         .await;
 

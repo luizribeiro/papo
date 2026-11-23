@@ -15,14 +15,14 @@ impl Builder {
     ///
     /// let ca_pem = fs::read("private-ca.pem")?;
     /// let (_client, _events) = papo::Client::builder("ircs://127.0.0.1:6697", "papo-client")
-    ///     .tls_ca_pem(ca_pem)
+    ///     .tls_only_ca_pem(ca_pem)
     ///     .tls_server_name("irc.internal.example")
     ///     .connect()
     ///     .await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
+    pub fn tls_only_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
         self.tls.roots = TlsRoots::Ca(pem.into());
         self
     }
@@ -61,7 +61,7 @@ impl Builder {
     /// Overrides the DNS name authenticated by TLS.
     ///
     /// This permits connecting to an IP endpoint while verifying a certificate for a DNS name.
-    /// See the private-CA example on [`Self::tls_ca_pem`].
+    /// See the private-CA example on [`Self::tls_only_ca_pem`].
     pub fn tls_server_name(mut self, server_name: impl Into<String>) -> Self {
         self.tls.server_name = Some(server_name.into());
         self

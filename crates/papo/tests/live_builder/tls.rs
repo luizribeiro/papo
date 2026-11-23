@@ -17,7 +17,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
             support::nick(&account),
         )
         .sasl(Sasl::plain(&account, papo::Secret::new(password)))
-        .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
+        .tls_only_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
         .bot_mode(true)
         .autojoin([&channel])
         .connect()
@@ -74,7 +74,7 @@ async fn wrapped_connections_carry_the_tls_session() {
                 Endpoint::tls("localhost", server.tls_addr().port()).unwrap(),
                 support::nick(&nick),
             )
-            .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap()),
+            .tls_only_ca_pem(std::fs::read(server.ca_pem_path()).unwrap()),
             {
                 let opened = Arc::clone(&opened);
                 move |stream| {

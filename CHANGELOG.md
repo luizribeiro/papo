@@ -42,6 +42,8 @@ other events caused by a user.
 
 `Rank` names operator and voice for display. Other membership ranks remain available as prefix letters and symbols.
 
+Renamed `Builder::tls_ca_pem` to `Builder::tls_only_ca_pem` to make its exclusive trust explicit.
+
 Import `Disconnected` and `PersistenceStatus` (with `unstable`) from `papo::event`.
 
 Import `AccountOutcome` and `HistoryPage` from `papo::event`.

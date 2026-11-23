@@ -218,7 +218,7 @@ async fn sasl_external(s: Scenario) -> papo_testing::Result<()> {
     let alice = s
         .connect_with(
             s.configure_at("external", endpoint)?
-                .tls_ca_pem(std::fs::read(s.server.ca_pem_path())?)
+                .tls_only_ca_pem(std::fs::read(s.server.ca_pem_path())?)
                 .tls_client_cert(
                     papo::CertificateChain::new(CLIENT_CERTIFICATE.to_vec()),
                     papo::PrivateKey::new(CLIENT_KEY.to_vec()),

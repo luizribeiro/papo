@@ -1994,7 +1994,7 @@ async fn malformed_tls_configuration_fails_before_opening_the_wire() {
         let endpoint = format!("{scheme}://offline.test");
         assert!(matches!(
             papo::Client::builder(endpoint.as_str(), "papo-wire")
-                .tls_ca_pem(malformed)
+                .tls_only_ca_pem(malformed)
                 .reconnect(Reconnect::never())
                 .connect()
                 .await,
