@@ -188,10 +188,17 @@ impl State {
         let account = AccountStatus::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let token = self.__reply_token_for(nick);
-        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
-            && user.account != account
-        {
-            user.update_account(account.clone());
+        let changed_or_untracked = self
+            .users
+            .get_mut(self.casemapping.fold(nick).as_ref())
+            .is_none_or(|user| {
+                if user.account == account {
+                    return false;
+                }
+                user.update_account(account.clone());
+                true
+            });
+        if changed_or_untracked {
             outbox.event(Event::AccountChanged {
                 envelope,
                 actor,
@@ -222,18 +229,7 @@ impl State {
                 },
             };
             let token = self.__reply_token_for(nick);
-            let user_changed = self
-                .users
-                .get_mut(self.casemapping.fold(nick).as_ref())
-                .is_some_and(|user| {
-                    if user.away == next {
-                        false
-                    } else {
-                        user.away = next.clone();
-                        true
-                    }
-                });
-            if user_changed {
+            if self.update_away(nick, &next) {
                 outbox.event(Event::AwayChanged {
                     envelope: crate::LineEnvelope::from_line(message),
                     actor: message.raw_source().unwrap_or(nick).to_owned(),

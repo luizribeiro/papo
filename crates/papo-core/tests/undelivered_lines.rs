@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{AwayStatus, Config, Event, Party};
+use papo_core::{AccountStatus, AwayStatus, Config, Event, Party};
 use papo_proto::Line;
 use support::Transcript;
 
@@ -38,4 +38,36 @@ fn whoisbot_outside_whois_is_delivered() {
         })
         .no_event()
         .inspect(|session| assert!(session.state().user("carol").is_none()));
+}
+
+#[test]
+fn presence_lines_for_untracked_users_are_delivered() {
+    let prefix = "alice!~alice@users.example";
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test CAP * LS :account-notify away-notify extended-join no-implicit-names")
+        .client("CAP REQ :extended-join away-notify account-notify no-implicit-names")
+        .server(":ergo.test CAP * ACK :account-notify away-notify extended-join no-implicit-names")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 376 papo :End of /MOTD command")
+        .event_until(|event| matches!(event, Event::Connected { .. }))
+        .server(":papo!~papo@localhost JOIN #papo * :papo")
+        .client("NAMES #papo")
+        .event_until(|event| matches!(event, Event::Joined { .. }))
+        .server(":alice!~alice@users.example AWAY :Gone fishing until Monday")
+        .event(|event| {
+            matches!(event, Event::AwayChanged { actor, nick, away, actor_party: Party::Other, .. }
+                if actor == prefix && nick == "alice"
+                    && matches!(away, AwayStatus::Away { message: Some(text), .. }
+                        if text == "Gone fishing until Monday"))
+        })
+        .server(":alice!~alice@users.example ACCOUNT alice-services")
+        .event(|event| {
+            matches!(event, Event::AccountChanged { actor, nick, account, actor_party: Party::Other, .. }
+                if actor == prefix && nick == "alice"
+                    && matches!(account, AccountStatus::LoggedIn(name) if name == "alice-services"))
+        })
+        .no_event()
+        .inspect(|session| assert!(session.state().user("alice").is_none()));
 }

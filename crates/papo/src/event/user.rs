@@ -58,7 +58,9 @@ pub struct NickChanged {
 
 super::actor_account_accessor!(NickChanged);
 
-/// A user's away state changed.
+/// A user's away state was reported.
+///
+/// Away notifications and replies may name a user outside the tracked roster.
 ///
 /// Channel and single-nickname WHO replies can report changes to an already known away status.
 /// Initial statuses learned in a channel refresh are covered by [`crate::Event::MembersRefreshed`].
@@ -84,6 +86,8 @@ pub struct AwayChanged {
 super::actor_account_accessor!(AwayChanged);
 
 /// A user's account state changed.
+///
+/// Account notifications may name a user outside the tracked roster.
 ///
 /// This derived event keeps the triggering line's time but not its message identifier, so it
 /// cannot collide with the typed event produced from the same line during deduplication.

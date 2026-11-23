@@ -56,3 +56,42 @@ async fn away_reply_for_an_unseen_user_is_delivered() {
         "RPL_AWAY for carol became no event: {seen:?}"
     );
 }
+
+#[tokio::test]
+async fn presence_lines_for_untracked_users_are_delivered() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "account-notify",
+        "away-notify",
+        "extended-join",
+        "no-implicit-names",
+    ])
+    .await;
+    connected(&mut events).await;
+    wire.server(":papo!~papo@localhost JOIN #papo * :papo")
+        .await;
+    assert_eq!(wire.next_sent().await, "NAMES #papo");
+    events_before_marker(&mut events, &mut wire).await;
+
+    for (line, marker) in [
+        (
+            ":alice!~alice@users.example AWAY :Gone fishing until Monday",
+            "Gone fishing until Monday",
+        ),
+        (
+            ":alice!~alice@users.example ACCOUNT alice-services",
+            "alice-services",
+        ),
+    ] {
+        wire.server(line).await;
+        let seen = events_before_marker(&mut events, &mut wire).await;
+        assert!(
+            format!("{seen:?}").contains(marker),
+            "{line} became no event: {seen:?}"
+        );
+    }
+}
