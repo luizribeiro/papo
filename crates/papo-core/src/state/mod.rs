@@ -968,8 +968,7 @@ impl State {
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport, casemapping: Casemapping) {
         self.update_casemapping(casemapping);
         let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
-        let prefix_changed = !self.who_sweeps.is_empty()
-            && self.isupport.prefix().as_slice() != prefix_order.as_ref();
+        let prefix_changed = self.isupport.prefix().as_slice() != prefix_order.as_ref();
         self.isupport.clone_from(isupport);
         if prefix_changed {
             for sweep in self.who_sweeps.values_mut() {
