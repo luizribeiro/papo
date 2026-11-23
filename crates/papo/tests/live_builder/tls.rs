@@ -1,3 +1,5 @@
+use std::error::Error as _;
+
 use papo::{Endpoint, Sasl};
 use papo_test_server::create_account;
 
@@ -56,6 +58,40 @@ async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
             None => panic!("driver stopped while waiting for JOIN"),
         }
     }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn tls_only_ca_pem_rejects_a_different_authority() {
+    within(async {
+        let server = from_env();
+        let nick = unique("papo-wrong-ca");
+        // The self-signed client certificate is an independent trust anchor.
+        let unrelated_ca = include_bytes!("../data/client.pem").as_slice();
+        let error = Client::builder(
+            Endpoint::tls("localhost", server.tls_addr().port()).unwrap(),
+            support::nick(&nick),
+        )
+        .tls_only_ca_pem(unrelated_ca)
+        .connect()
+        .await
+        .unwrap_err();
+
+        let papo::Error::Connect(error) = error else {
+            panic!("expected a certificate error, got {error:?}");
+        };
+        assert_eq!(error.kind(), papo::ConnectErrorKind::CertificateRejected);
+        let cause = error
+            .source()
+            .and_then(std::error::Error::source)
+            .and_then(|cause| cause.downcast_ref::<rustls::Error>());
+        assert!(matches!(
+            cause,
+            Some(rustls::Error::InvalidCertificate(
+                rustls::CertificateError::UnknownIssuer
+            ))
+        ));
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]

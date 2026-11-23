@@ -80,43 +80,19 @@ async fn tls_shutdown_reaches_ergo_body() {
 #[cfg(tls)]
 #[tokio::test(flavor = "current_thread")]
 async fn tls_can_trust_only_the_test_ca() {
-    within(tls_can_trust_only_the_test_ca_body()).await;
-}
-
-#[cfg(tls)]
-async fn tls_can_trust_only_the_test_ca_body() {
-    let server = from_env();
-    let stream = connect(
-        "localhost",
-        server.tls_addr().port(),
-        &Security::Tls(tls_config(&server)),
-    )
-    .await
-    .unwrap();
-    assert!(stream.is_secure());
-    assert_cap_exchange(stream).await;
-}
-
-#[cfg(tls)]
-#[tokio::test(flavor = "current_thread")]
-async fn tls_rejects_a_certificate_from_an_untrusted_ca() {
-    within(tls_rejects_a_certificate_from_an_untrusted_ca_body()).await;
-}
-
-#[cfg(tls)]
-#[allow(clippy::field_reassign_with_default)]
-async fn tls_rejects_a_certificate_from_an_untrusted_ca_body() {
-    let server = from_env();
-    let mut config = TlsConfig::default();
-    config.roots = TlsRoots::Ca(CLIENT_CERTIFICATE.to_vec());
-    let error = connect(
-        "localhost",
-        server.tls_addr().port(),
-        &Security::Tls(config),
-    )
-    .await
-    .unwrap_err();
-    assert_certificate_error(&error);
+    within(async {
+        let server = from_env();
+        let stream = connect(
+            "localhost",
+            server.tls_addr().port(),
+            &Security::Tls(tls_config(&server)),
+        )
+        .await
+        .unwrap();
+        assert!(stream.is_secure());
+        assert_cap_exchange(stream).await;
+    })
+    .await;
 }
 
 #[cfg(tls)]
