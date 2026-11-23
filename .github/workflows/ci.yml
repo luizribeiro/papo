@@ -51,9 +51,19 @@ jobs:
         run: nix develop -c pre-commit run --all-files --show-diff-on-failure
       - name: Run pre-push hooks
         env:
-          SKIP: flake-check
+          SKIP: flake-check,msrv
         run: >-
           nix develop -c pre-commit run --all-files --hook-stage pre-push
           --show-diff-on-failure
       - name: Check dependency advisories
         run: nix develop -c cargo deny check advisories
+
+  msrv:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+      - uses: ./.github/actions/setup-nix
+      - name: Build published crates with the minimum Rust version
+        run: >-
+          nix develop -c pre-commit run msrv --all-files --hook-stage pre-push
+          --show-diff-on-failure

@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+import json
+import re
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+
+def main():
+    cargo, target = sys.argv[1:]
+    with Path("Cargo.toml").open("rb") as manifest:
+        minimum = tomllib.load(manifest)["workspace"]["package"]["rust-version"]
+    documented = re.findall(
+        r"\bminimum\s+supported Rust version is ([0-9]+\.[0-9]+(?:\.[0-9]+)?)\.",
+        Path("README.md").read_text(encoding="utf-8"),
+    )
+    if documented != [minimum]:
+        sys.exit(f"README.md must declare Rust {minimum} as the minimum supported version.")
+
+    expected_toolchain = minimum + ".0" if minimum.count(".") == 1 else minimum
+    rustc = Path(cargo).with_name("rustc")
+    version = subprocess.check_output([rustc, "--version"], text=True).split()[1]
+    if version != expected_toolchain:
+        sys.exit(f"Expected Rust {expected_toolchain}, got {version}. Reenter the dev shell.")
+
+    metadata = subprocess.check_output(
+        [cargo, "metadata", "--format-version", "1", "--no-deps", "--locked"]
+    )
+    packages = [
+        package["name"]
+        for package in json.loads(metadata)["packages"]
+        if package["publish"] != []
+    ]
+    if not packages:
+        sys.exit("The workspace has no publishable crates to check.")
+    build = [cargo, "build", "--locked", "--target", target, "--target-dir", "target/msrv"]
+    for package in packages:
+        # Separate builds keep workspace feature unification from hiding failures.
+        subprocess.run([*build, "-p", package], check=True)
+
+
+if __name__ == "__main__":
+    main()

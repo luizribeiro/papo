@@ -28,6 +28,9 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
         caBundle = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+        minimumRustVersion =
+          (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.rust-version;
+        minimumToolchain = pkgs.rust-bin.stable.${pkgs.lib.versions.pad 3 minimumRustVersion}.minimal;
         stableToolchain = pkgs.rust-bin.stable."1.98.1".minimal.override {
           extensions = [
             "clippy"
@@ -367,6 +370,19 @@
               PAPO_BROWSER_WS=ws://127.0.0.1 cargo check -p papo --tests --target wasm32-unknown-unknown --locked
               cargo check -p papo -p papo-conformance --target wasm32-wasip2 --locked
             '';
+          };
+          msrv = cargoHook {
+            name = "msrv-hook";
+            runtimeInputs = [ pkgs.python3 ];
+            runtimeEnv = {
+              RUSTC = "${minimumToolchain}/bin/rustc";
+              RUSTDOC = "${minimumToolchain}/bin/rustdoc";
+            };
+            text = ''
+              python3 scripts/check-msrv ${minimumToolchain}/bin/cargo ${pkgs.stdenv.hostPlatform.rust.rustcTarget}
+            '';
+            stages = [ "pre-push" ];
+            files = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs|flake\\.nix|README\\.md|scripts/check-msrv)$";
           };
           wasip3-checks = cargoHook {
             name = "wasip3-checks-hook";
