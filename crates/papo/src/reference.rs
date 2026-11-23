@@ -200,16 +200,8 @@ impl Drop for WatchLease {
 /// [`crate::State::user`]. Read the account reported on a message itself with
 /// [`crate::event::Message::actor_account`].
 ///
-/// A live reference follows nickname changes papo sees. Sending through it can return
-/// [`crate::Error::TargetGone`] after a QUIT, a PART from the last shared channel, a detected
-/// nickname takeover, or a reconnect. The same error applies when papo has no current user
-/// it can associate with the reference. A reference makes no promise about who holds
-/// the nickname now. Sending to the actor of a private history item returns
-/// [`crate::Error::TargetGone`]. Use [`crate::Client::reply`] on the item to address the current
-/// holder of the conversation's peer nickname.
-/// You can also send to the peer's nickname directly. A channel-history sender reference can be
-/// used to send only if papo matches the account on the line to a user it currently tracks.
-/// Otherwise sending through that reference returns [`crate::Error::TargetGone`].
+/// See [when a reply fails](crate::Client#when-a-reply-fails) for when a send through
+/// this reference returns [`crate::Error::TargetGone`].
 ///
 /// Tracked live references compare and hash as the same user on this client across observed
 /// nickname changes. Other references compare equal only to their own clones.

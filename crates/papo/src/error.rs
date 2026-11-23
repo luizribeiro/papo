@@ -490,7 +490,9 @@ pub enum Error {
     /// [`crate::Confirmation::Unconfirmed`] instead.
     #[error("the server answered but the change could not be verified")]
     NotVerified,
-    /// The intended user left, changed nickname, or no longer holds a private reply nickname.
+    /// The reference can no longer address its target.
+    ///
+    /// See [when a reply fails](crate::Client#when-a-reply-fails) for replies and sends to users.
     #[error("the target user is no longer present")]
     TargetGone,
     /// The server's reply did not have the shape required by its command.

@@ -1213,8 +1213,8 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] when name rules are unknown, the target is invalid, or
-    /// the message is empty or unencodable. A guarded recipient that has left or whose nickname
-    /// has changed hands returns [`Error::TargetGone`].
+    /// the message is empty or unencodable. See [when a reply fails](#when-a-reply-fails)
+    /// for when a send to a [`crate::UserRef`] returns [`Error::TargetGone`].
     /// [`Error::TooManyPendingRequests`] when 256 labelled requests are pending, [`Error::Timeout`] while
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
@@ -1316,7 +1316,7 @@ impl Client {
         ))
     }
 
-    /// Sends a private message threaded as a reply to `message` when supported.
+    /// Sends a message to the return address of `message`, threaded as a reply when supported.
     ///
     /// Passing the received line or [`SendOutcome`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
@@ -1328,15 +1328,53 @@ impl Client {
     /// # }
     /// ```
     ///
-    /// A live private return address follows observed nickname changes. It expires on
-    /// reconnect or when papo observes the sender leave or the nickname change hands.
-    /// A [`crate::MessageRef`] from private history addresses the thread's peer by nickname
-    /// and refuses your own nickname.
+    /// # When a reply fails
+    ///
+    /// A reply to a live private message goes through unless papo has seen something that
+    /// contradicts “same person, same account.” The same rule applies to sends to a live
+    /// [`crate::UserRef`].
+    ///
+    /// | Situation | What happens |
+    /// | --- | --- |
+    /// | No change in the person or account | The send goes through. |
+    /// | The person changes nick and papo sees the rename | The send goes to the new nick if the account still matches. |
+    /// | The host changes while papo follows the person through a shared channel or `MONITOR` | The send goes through if the account still matches. |
+    /// | A person papo follows logs in, and the reference had no account | The send goes through. |
+    /// | The person logs out of the account on the reference | [`Error::TargetGone`]. |
+    /// | The person switches from the account on the reference to another | [`Error::TargetGone`]. |
+    /// | The person quits (`QUIT`) | [`Error::TargetGone`]. |
+    /// | The last shared channel is left and papo stops following the person | [`Error::TargetGone`]. |
+    /// | Papo sees someone else take the nick | [`Error::TargetGone`]. |
+    /// | This client reconnects or the bouncer loses its upstream connection | An earlier reference to the person returns [`Error::TargetGone`]. |
+    /// | The app sends to the sender's `UserRef` from private history | [`Error::TargetGone`]. |
+    /// | The app sends to the sender's `UserRef` from channel history | The send goes through only if the account on the line matches the account papo tracks for that nick. Otherwise it returns [`Error::TargetGone`]. |
+    /// | The app replies to a channel message | The reply goes to the channel, keeping any status prefix, whatever happened to the sender. |
+    /// | The app replies to a message from private history | The reply goes to whoever holds the thread's peer nick. If that is now your own nick, it returns [`Error::TargetGone`]. |
+    ///
+    /// If papo knows someone only from messages, it can treat a host change or a newly reported
+    /// login as a sign that someone else took the nick. A host change reported as a `QUIT` and a
+    /// `JOIN` also ends the earlier reference. With `account-tag` negotiated, papo reads a line
+    /// from another user, such as a message or a nick change, without the tag as “logged out.”
+    ///
+    /// If a private reply or a send to a user returns [`Error::TargetGone`], send directly to
+    /// the nick if the app intends to reach whoever holds it at the time of the send.
+    ///
+    /// ```
+    /// use papo::{Client, Error, SendOutcome, UserRef};
+    ///
+    /// async fn send_update(client: &Client, user: &UserRef) -> Result<SendOutcome, Error> {
+    ///     let text = "The public status page has been updated.";
+    ///     match client.privmsg(user, text).await {
+    ///         Err(Error::TargetGone) => client.privmsg(user.nick(), text).await,
+    ///         result => result,
+    ///     }
+    /// }
+    /// ```
     ///
     /// # Errors
     ///
-    /// Returns [`Error::TargetGone`] in the private-recipient case described above. It returns an
-    /// error if the text is empty or invalid, or the driver has stopped.
+    /// See [when a reply fails](#when-a-reply-fails) for [`Error::TargetGone`].
+    /// Returns an error if the text is empty or invalid, or the driver has stopped.
     /// A send that widens a remembered status-prefixed line's audience returns
     /// [`InvalidInput::WiderThanReferenced`].
     pub fn reply(

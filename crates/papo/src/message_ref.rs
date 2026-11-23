@@ -189,8 +189,8 @@ pub(crate) trait ReplyReference {
 /// remain valid send destinations, but [`crate::Client::react`], [`crate::Client::unreact`], and
 /// [`crate::Client::redact`] return [`crate::InvalidInput::UnusableMessageReference`].
 ///
-/// A reference to a private history item addresses the thread's peer nickname. It reaches the
-/// current holder of that name and refuses to send if that name is now your own.
+/// See [when a reply fails](crate::Client#when-a-reply-fails) for how replies address
+/// live and historical messages.
 ///
 /// Equality compares the exact address, server message identifiers, originating client, channel
 /// context, private routing rules, and channel guard. The attached conversation and server time

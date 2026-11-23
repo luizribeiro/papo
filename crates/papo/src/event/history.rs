@@ -14,7 +14,7 @@ macro_rules! history_accessors {
                 /// Unbatched replay arrives as live traffic and returns false, even with an old
                 /// server timestamp.
                 ///
-                /// See [`crate::UserRef`] for sending to a history line's sender.
+                /// See [when a reply fails](crate::Client#when-a-reply-fails) for sending to a history line's sender.
                 #[must_use]
                 pub const fn is_from_history(&$this) -> bool {
                     $history
@@ -51,7 +51,7 @@ history_accessors!(
 impl RestrictedLine {
     /// Returns whether the enclosed line came from a history page or a replay batch.
     ///
-    /// See [`Message::is_from_history`] for how to handle replay and sending to its sender.
+    /// See [when a reply fails](crate::Client#when-a-reply-fails) for sending to a history line's sender.
     #[must_use]
     pub const fn is_from_history(&self) -> bool {
         match self {

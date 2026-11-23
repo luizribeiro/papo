@@ -252,8 +252,8 @@
 //!
 //! The sealed [`Target`] trait accepts nicknames, channel names, user and channel references,
 //! and return addresses. A nickname in text or as a [`Nick`] addresses its current holder.
-//! A [`UserRef`] follows nickname changes that papo observes and can fail with
-//! [`Error::TargetGone`]. Read a received message's account with [`event::Message::actor_account`].
+//! See [when a reply fails](Client#when-a-reply-fails) for sends to a [`UserRef`].
+//! Read a received message's account with [`event::Message::actor_account`].
 //! To answer a message, use [`Client::reply`] to retain its audience. See [`Conversation`]
 //! for guidance on ops-only lines.
 
