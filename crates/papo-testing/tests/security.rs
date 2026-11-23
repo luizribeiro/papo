@@ -2298,12 +2298,7 @@ async fn typing_status_change_preserves_the_latest_audience() {
         papo::Event::Restricted(restricted) if restricted.line.as_typing_changed().is_some()
     ));
 
-    let conversation = client
-        .snapshot()
-        .name_rules()
-        .expect("server advertised CASEMAPPING")
-        .conversation("#staff")
-        .unwrap();
+    let conversation = papo_testing::channel_conversation(&client, "#staff").unwrap();
     let state = client.snapshot();
     let typer = state.typing(&conversation).next().unwrap();
     assert_eq!(typer.return_address().as_ref(), "@#staff");

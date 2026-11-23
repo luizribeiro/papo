@@ -1,7 +1,7 @@
 //! Highest-layer retained typing return-address regressions.
 
 use papo::{Event, MessageRef, Reconnect};
-use papo_testing::wire;
+use papo_testing::{channel_conversation, wire};
 
 fn reply_reference(expected: &str, event: Event) -> MessageRef {
     match (expected, event) {
@@ -49,14 +49,17 @@ async fn retained_typers_reply_to_private_and_ops_only_audiences() {
 
     wire.server("@+typing=active :alice!~a@cloak.example TAGMSG papo-wire")
         .await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        Event::TypingChanged(_)
-    ));
+    let Event::TypingChanged(typing) = next_active_event(&mut events).await else {
+        panic!("expected private typing event");
+    };
     let private = {
         let state = client.snapshot();
-        let conversation = state.name_rules().unwrap().conversation("ALICE").unwrap();
-        state.typing(conversation).next().unwrap().return_address()
+        assert_eq!(state.typing("ALICE").count(), 1);
+        state
+            .typing(typing.conversation())
+            .next()
+            .unwrap()
+            .return_address()
     };
     client.reply(private, "private pong").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :private pong");
@@ -69,7 +72,7 @@ async fn retained_typers_reply_to_private_and_ops_only_audiences() {
     ));
     let operators = {
         let state = client.snapshot();
-        let conversation = state.name_rules().unwrap().conversation("#ops").unwrap();
+        let conversation = channel_conversation(&client, "#ops").unwrap();
         state.typing(conversation).next().unwrap().return_address()
     };
     client.reply(operators, "ops pong").await.unwrap();

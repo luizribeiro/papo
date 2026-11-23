@@ -28,6 +28,19 @@ pub fn channel_handle(
     papo::__testing::channel_handle(client, channel)
 }
 
+/// Builds a channel conversation from the client's current channel state.
+///
+/// See [`papo::Conversation`] for ops-only lines.
+///
+/// # Errors
+/// Returns the same errors as [`channel_handle`].
+pub fn channel_conversation(
+    client: &papo::Client,
+    channel: impl papo::AsChannel,
+) -> Result<papo::Conversation, Error> {
+    channel_handle(client, channel).map(papo::Conversation::Channel)
+}
+
 /// Builds an origin-free account name for test input.
 #[must_use]
 pub fn account(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::AccountName {

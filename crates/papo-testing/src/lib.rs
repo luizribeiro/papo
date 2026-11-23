@@ -20,6 +20,7 @@ pub use builders::MessageBuilder;
 pub use error::{Error, FixtureError, Result, skip_reason, skipped};
 pub use event_builders::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder, capabilities};
 pub use value_builders::{
-    ErrorBuilder, StateBuilder, account, channel, channel_handle, mask, nick, unsupported,
+    ErrorBuilder, StateBuilder, account, channel, channel_conversation, channel_handle, mask, nick,
+    unsupported,
 };
 pub use wire::{Wire, wire};
