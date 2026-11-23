@@ -942,8 +942,13 @@ impl State {
             }
         }
         let own = self.nick.clone();
-        self.users
-            .retain(|_, user| user.nick == own || user.monitored || !user.channels.is_empty());
+        let message_users: HashSet<_> = self.message_users.iter().collect();
+        self.users.retain(|key, user| {
+            user.nick == own
+                || user.monitored
+                || !user.channels.is_empty()
+                || message_users.contains(key)
+        });
     }
 
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport, casemapping: Casemapping) {

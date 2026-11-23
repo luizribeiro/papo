@@ -139,6 +139,7 @@ ids = [
   "security.guard-proof.event-identity-at-arrival",
   "security.guard-proof.past-line-names",
   "security.guard-proof.unseen-message-peer-handoff",
+  "security.recipient-3.message-only-monitor-sync",
   "security.d-4.departed-handle-account-retarget",
   "security.guard-proof.reply-subject-at-arrival",
   "security.casemapping.unknown-token",

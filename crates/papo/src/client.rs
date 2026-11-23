@@ -1336,7 +1336,8 @@ impl Client {
     ///
     /// | Situation | What happens |
     /// | --- | --- |
-    /// | No change in the person or account | The send goes through. |
+    /// | The sender remains tracked and neither the person nor account changes | The send goes through. |
+    /// | The sender ages out of the bounded message-only cache | [`Error::TargetGone`]. |
     /// | The person changes nick and papo sees the rename | The send goes to the new nick if the account still matches. |
     /// | The host changes while papo follows the person through a shared channel or `MONITOR` | The send goes through if the account still matches. |
     /// | A person papo follows logs in, and the reference had no account | The send goes through. |
@@ -1351,6 +1352,7 @@ impl Client {
     /// | The app replies to a channel message | The reply goes to the channel, keeping any status prefix, whatever happened to the sender. |
     /// | The app replies to a message from private history | The reply goes to whoever holds the thread's peer nick. If that is now your own nick, it returns [`Error::TargetGone`]. |
     ///
+    /// Starting a watch or receiving more ISUPPORT preserves message-only references.
     /// If papo knows someone only from messages, it can treat a host change or a newly reported
     /// login as a sign that someone else took the nick. A host change reported as a `QUIT` and a
     /// `JOIN` also ends the earlier reference. With `account-tag` negotiated, papo reads a line

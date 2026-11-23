@@ -302,3 +302,42 @@ fn continuous_private_messages_evict_the_oldest_message_only_user() {
         RecipientStatus::Current(_)
     ));
 }
+
+#[test]
+fn monitor_sync_preserves_a_message_only_identity() {
+    let mut failures = Vec::new();
+    for (nick, line) in [
+        (Some("bob"), None),
+        (
+            Some("alice"),
+            Some(":ergo.test 730 papo-admin :alice!~u@8ajhv7kxgp7ag.irc"),
+        ),
+        (
+            None,
+            Some(":ergo.test 005 papo-admin NETWORK=ErgoTest :are supported"),
+        ),
+    ] {
+        let mut session = registered("account-tag message-tags");
+        let mut now = Instant::now();
+        session.handle_line(now, b":ergo.test 005 papo-admin MONITOR=100 :are supported");
+        now += std::time::Duration::from_millis(1);
+        session.handle_line(now, ALICE_ADMIN.as_bytes());
+        drain(&mut session);
+        let before = token(&session, "alice");
+        if let Some(nick) = nick {
+            session.monitor_add([nick]);
+            assert_eq!(
+                session.poll_transmit().unwrap().as_ref(),
+                format!("MONITOR + {nick}\r\n").as_bytes()
+            );
+        }
+        if let Some(line) = line {
+            now += std::time::Duration::from_millis(1);
+            session.handle_line(now, line.as_bytes());
+        }
+        if token(&session, "alice") != before {
+            failures.push((nick, line));
+        }
+    }
+    assert!(failures.is_empty(), "{failures:?}");
+}

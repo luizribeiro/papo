@@ -1,4 +1,7 @@
 [tests]
+"unrelated_watch::replies_survive_monitor_sync_and_isupport" = [
+  "security.recipient-3.message-only-monitor-sync",
+]
 "security::cross_client_values_never_reach_either_wire" = [
   "security.origin.cross-client-wire",
 ]
