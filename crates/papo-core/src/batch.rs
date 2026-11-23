@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
     time::Duration,
 };
 use web_time::Instant;
@@ -14,7 +14,7 @@ pub(crate) const DEFAULT_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 #[derive(Debug)]
 pub(crate) struct Batches {
     open: BTreeMap<String, OpenBatch>,
-    abandoned: VecDeque<(String, String)>,
+    abandoned: VecDeque<(String, String, bool)>,
     max_open: usize,
     max_lines: usize,
     byte_budget: usize,
@@ -32,6 +32,7 @@ struct OpenBatch {
     exhausted: bool,
     messages: Vec<Line>,
     incomplete: Vec<usize>,
+    replay_members: BTreeSet<usize>,
     completed: Vec<BatchEvent>,
     multiline_collectors: Vec<String>,
     lines: usize,
@@ -39,6 +40,7 @@ struct OpenBatch {
     buffered_bytes: usize,
     opened: Instant,
     typed_aggregate: bool,
+    replay: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -71,6 +73,8 @@ pub(crate) enum BatchEvent {
         echo: Option<Line>,
         messages: Vec<Line>,
         batch_type: String,
+        replay_members: BTreeSet<usize>,
+        replay: bool,
         history: Option<(String, Vec<HistoryItem>, bool)>,
         history_targets: Option<Vec<(String, papo_proto::ServerTime)>>,
     },
@@ -181,12 +185,16 @@ impl Batches {
         {
             return BatchAction::Dispatch(self.context(message));
         }
-        let label = correlated_label
+        let replay_parent = parent
+            .as_ref()
+            .is_some_and(|parent| self.open[parent].replay);
+        let replay = replay_parent || is_replay(kind);
+        let label = (correlated_label && !replay_parent)
             .then(|| message.tag("label"))
             .flatten()
             .map(std::borrow::Cow::into_owned);
         if self.open.len() >= self.max_open {
-            self.remember_abandoned(reference, kind);
+            self.remember_abandoned(reference, kind, replay);
             return BatchAction::Complete(vec![BatchEvent::Abandoned {
                 reference: reference.to_owned(),
                 batch_type: kind.to_owned(),
@@ -197,6 +205,7 @@ impl Batches {
         let multiline_collectors = if kind == cap::MULTILINE.as_str() {
             parent
                 .as_deref()
+                .filter(|_| replay == replay_parent)
                 .map(|parent| self.aggregate_references(parent))
                 .unwrap_or_default()
         } else {
@@ -215,13 +224,19 @@ impl Batches {
                     .any(|(key, _)| key == "draft/chathistory-end"),
                 messages: Vec::new(),
                 incomplete: Vec::new(),
+                replay_members: BTreeSet::new(),
                 completed: Vec::new(),
                 multiline_collectors: multiline_collectors.clone(),
                 lines: 0,
                 multiline_bytes: 0,
                 buffered_bytes: retained_bytes(message),
                 opened: now,
-                typed_aggregate: is_aggregate(kind, bouncer_enabled),
+                typed_aggregate: if replay {
+                    is_history(kind) || kind == cap::MULTILINE.as_str()
+                } else {
+                    is_aggregate(kind, bouncer_enabled)
+                },
+                replay,
             },
         );
         self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
@@ -230,6 +245,9 @@ impl Batches {
                 .open
                 .get_mut(&collector)
                 .expect("resolved multiline collector remains open");
+            if replay && !batch.replay {
+                batch.replay_members.insert(batch.messages.len());
+            }
             batch.messages.push(message.to_owned());
             batch.buffered_bytes = batch.buffered_bytes.saturating_add(retained_bytes(message));
             self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
@@ -258,7 +276,7 @@ impl Batches {
         let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
         if batch.is_typed_aggregate()
             && (batch.kind == cap::MULTILINE.as_str()
-                || !self.has_typed_aggregate_ancestor(batch.parent.as_deref()))
+                || !self.has_typed_aggregate_ancestor(batch.parent.as_deref(), batch.replay))
         {
             completed.extend(complete(&mut batch, reference));
         }
@@ -299,6 +317,8 @@ impl Batches {
                 echo,
                 messages: response_messages.expect("label captured response messages"),
                 batch_type: batch.kind.clone(),
+                replay_members: batch.replay_members,
+                replay: batch.replay,
                 history,
                 history_targets,
             });
@@ -342,7 +362,7 @@ impl Batches {
         };
         if !self.open.contains_key(reference.as_ref()) {
             let batch_type =
-                self.abandoned.iter().rev().find_map(|(stored, kind)| {
+                self.abandoned.iter().rev().find_map(|(stored, kind, _)| {
                     (stored == reference.as_ref()).then(|| kind.clone())
                 });
             if batch_type.as_deref() == Some(cap::MULTILINE.as_str())
@@ -377,12 +397,16 @@ impl Batches {
             .tag("batch")
             .map(|reference| self.aggregate_references(reference.as_ref()))
             .unwrap_or_default();
+        let replay = self.open[reference.as_ref()].replay;
         for reference in &aggregates {
-            self.open
+            let batch = self
+                .open
                 .get_mut(reference)
-                .expect("resolved aggregate remains open")
-                .messages
-                .push(message.to_owned());
+                .expect("resolved aggregate remains open");
+            if replay && !batch.replay {
+                batch.replay_members.insert(batch.messages.len());
+            }
+            batch.messages.push(message.to_owned());
         }
         if let Some(reference) = ancestors
             .iter()
@@ -500,7 +524,7 @@ impl Batches {
             .then(|| self.open[reference].params.first().cloned())
             .flatten();
         for (candidate, kind) in &types {
-            self.remember_abandoned(candidate, kind);
+            self.remember_abandoned(candidate, kind, self.open[candidate].replay);
         }
         let incomplete = self.incomplete_multilines(&references);
         let multiline_replacements: Vec<_> = references
@@ -580,26 +604,30 @@ impl Batches {
         events
     }
 
-    fn remember_abandoned(&mut self, reference: &str, kind: &str) {
+    fn remember_abandoned(&mut self, reference: &str, kind: &str, replay: bool) {
         self.abandoned
-            .retain(|(stored, _)| stored.as_str() != reference);
+            .retain(|(stored, ..)| stored.as_str() != reference);
         if self.abandoned.len() == MAX_ABANDONED_BATCHES {
             self.abandoned.pop_front();
         }
         self.abandoned
-            .push_back((reference.to_owned(), kind.to_owned()));
+            .push_back((reference.to_owned(), kind.to_owned(), replay));
     }
 
     fn aggregate_references(&self, reference: &str) -> Vec<String> {
         let ancestors = self.ancestors(reference);
+        let replay = self.open.get(reference).is_some_and(|batch| batch.replay);
+        let same_provenance = |reference: &&String| self.open[*reference].replay == replay;
         let mut aggregates = Vec::new();
         let multiline = ancestors
             .iter()
+            .filter(same_provenance)
             .find(|reference| self.open[*reference].kind == cap::MULTILINE.as_str());
         if let Some(reference) = multiline.or_else(|| {
             ancestors
                 .iter()
                 .rev()
+                .filter(same_provenance)
                 .find(|reference| self.open[*reference].is_typed_aggregate())
         }) {
             aggregates.push(reference.clone());
@@ -608,7 +636,12 @@ impl Batches {
             }
         }
         for reference in ancestors {
-            if self.open[&reference].label.is_some() && !aggregates.contains(&reference) {
+            let batch = &self.open[&reference];
+            // A labelled response may expose replay in its raw lines.
+            if batch.label.is_some()
+                && (batch.replay == replay || batch.kind == cap::LABELED_RESPONSE.as_str())
+                && !aggregates.contains(&reference)
+            {
                 aggregates.push(reference);
             }
         }
@@ -642,6 +675,15 @@ impl Batches {
             batch
                 .messages
                 .splice(index..=index, replacement.iter().cloned());
+            let shifted = batch.replay_members.split_off(&(index + 1));
+            batch.replay_members.extend(
+                shifted
+                    .into_iter()
+                    .map(|position| position - 1 + replacement_len),
+            );
+            if batch.replay_members.remove(&index) {
+                batch.replay_members.extend(index..index + replacement_len);
+            }
             for stored in &mut batch.incomplete {
                 if *stored > index {
                     *stored = stored.saturating_sub(1).saturating_add(replacement_len);
@@ -662,11 +704,18 @@ impl Batches {
         }
     }
 
-    fn has_typed_aggregate_ancestor<'a>(&'a self, mut parent: Option<&'a str>) -> bool {
+    fn has_typed_aggregate_ancestor<'a>(
+        &'a self,
+        mut parent: Option<&'a str>,
+        replay: bool,
+    ) -> bool {
         while let Some(reference) = parent {
             let Some(batch) = self.open.get(reference) else {
                 return false;
             };
+            if batch.replay != replay {
+                return false;
+            }
             if batch.is_typed_aggregate() {
                 return true;
             }
@@ -711,6 +760,10 @@ fn is_history(kind: &str) -> bool {
         || kind == cap::CHATHISTORY.as_str()
         || kind == "draft/chathistory-targets"
         || kind == cap::EVENT_PLAYBACK.as_str()
+}
+
+fn is_replay(kind: &str) -> bool {
+    is_history(kind) || matches!(kind, "znc.in/playback" | "soju.im/search")
 }
 
 fn is_aggregate(kind: &str, bouncer_enabled: bool) -> bool {

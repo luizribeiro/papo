@@ -6739,10 +6739,14 @@ impl Session {
         messages: &[Line],
         context: &DispatchContext,
         request: Option<&PendingRequest>,
+        replay_members: &std::collections::BTreeSet<usize>,
     ) -> (Vec<(usize, ReplyToken)>, Vec<Event>) {
         let mut subject_tokens = Vec::new();
         let mut unanswering_events = Vec::new();
         for (index, message) in messages.iter().enumerate() {
+            if replay_members.contains(&index) {
+                continue;
+            }
             let answers =
                 request.is_none_or(|request| self.answers_request(request, &message.as_ref()));
             let queued_events = self.outbox.events.len();
@@ -6771,6 +6775,8 @@ impl Session {
             echo,
             messages,
             batch_type,
+            replay_members,
+            replay,
             mut history,
             history_targets,
         } = response
@@ -6789,8 +6795,15 @@ impl Session {
         let emit_events = request.as_ref().is_none_or(|request| request.emit_events);
         let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
-        let (subject_tokens, unanswering_events) = if history.is_none() && !bouncer_batch {
-            self.dispatch_batch_messages(now, &messages, &context, request.as_ref())
+        let (subject_tokens, unanswering_events) = if history.is_none() && !bouncer_batch && !replay
+        {
+            self.dispatch_batch_messages(
+                now,
+                &messages,
+                &context,
+                request.as_ref(),
+                &replay_members,
+            )
         } else {
             (Vec::new(), Vec::new())
         };

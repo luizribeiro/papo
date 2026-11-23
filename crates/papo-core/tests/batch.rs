@@ -1031,25 +1031,24 @@ fn abandoned_outer_batch_flattens_completed_history_exactly() {
 }
 
 #[test]
-fn outermost_aggregate_groups_its_commands_and_releases_others() {
+fn nested_history_inside_a_netsplit_leaves_the_live_member_present() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    session.handle_line(now, b":alice!~a@remote.example JOIN #papo");
+    while session.poll_event().is_some() {}
+
     session.handle_line(now, b"BATCH +split netsplit irc.example irc.remote");
     session.handle_line(now, b"@batch=split BATCH +h chathistory #papo");
     session.handle_line(now, b"@batch=h :alice!~a@remote.example QUIT :link lost");
-    session.handle_line(now, b"@batch=h :irc.example NOTICE * :split metadata");
     session.handle_line(now, b"@batch=split BATCH -h");
     session.handle_line(now, b"BATCH -split");
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Quit { nick, netsplit: Some(split), actor_party, .. })
-            if nick == "alice" && split.batch == "split" && actor_party == Party::Other
+        Some(Event::History { items, .. }) if matches!(items.as_slice(), [HistoryItem::Quit(_)])
     ));
-    let extra = line(&mut session);
-    assert_eq!(extra.batch_type(), Some("netsplit"));
-    assert!(extra.as_ref().command_is("NOTICE"));
-    assert_eq!(extra.as_ref().param(1), Some("split metadata"));
+    assert!(session.state().user("alice").is_some());
     assert_eq!(session.poll_event(), None);
 }
 
