@@ -661,12 +661,20 @@ impl Events {
 
 /// A future that owns and drives an IRC session and its transport.
 ///
-/// Dropping the driver ends the associated [`Events`] stream without emitting a final
-/// [`Event::Disconnected`](crate::Event::Disconnected).
+/// # Cancellation
+///
+/// Dropping or aborting the driver closes the transport, publishes a disconnected snapshot, and ends
+/// the [`Events`] stream after buffered events, with no new [`Event::Disconnected`] from cancellation.
+/// Pending and subsequent requests that need the driver fail with [`Error::Disconnected`], and
+/// [`Client::quit`] succeeds if the driver is already gone.
 #[must_use = "a Driver does nothing unless awaited or spawned"]
 pub struct Driver {
+    // Publish the disconnected snapshot before dropping the channels wakes waiters.
+    _disconnect_on_drop: DisconnectSnapshot,
     inner: BoxFuture<Result<(), Error>>,
 }
+
+struct DisconnectSnapshot(Arc<RwLock<Arc<State>>>);
 
 impl std::fmt::Debug for Driver {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -674,7 +682,29 @@ impl std::fmt::Debug for Driver {
     }
 }
 
+impl Drop for DisconnectSnapshot {
+    fn drop(&mut self) {
+        let mut state = self
+            .0
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        State::mark_disconnected(&mut state);
+    }
+}
+
 impl Driver {
+    fn with_inner(
+        client: Client,
+        events: Events,
+        inner: BoxFuture<Result<(), Error>>,
+    ) -> (Client, Events, Self) {
+        let driver = Self {
+            _disconnect_on_drop: DisconnectSnapshot(Arc::clone(&client.state)),
+            inner,
+        };
+        (client, events, driver)
+    }
+
     #[cfg(not(browser))]
     pub(crate) fn with_stream_and_connect<S>(
         stream: S,
@@ -695,7 +725,7 @@ impl Driver {
             ConnectWait(registration),
             defaults,
         ));
-        (channels.client, channels.events, Self { inner })
+        Self::with_inner(channels.client, channels.events, inner)
     }
 
     #[cfg(not(browser))]
@@ -714,7 +744,7 @@ impl Driver {
                 Err(error)
             }
         });
-        (channels.client, channels.events, Self { inner })
+        Self::with_inner(channels.client, channels.events, inner)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -792,7 +822,7 @@ impl Driver {
             entropy,
             network_builder,
         ));
-        (channels.client, channels.events, Self { inner })
+        Self::with_inner(channels.client, channels.events, inner)
     }
 }
 

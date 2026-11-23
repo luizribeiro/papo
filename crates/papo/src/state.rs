@@ -444,6 +444,26 @@ impl State {
             && self.connected == connected
     }
 
+    pub(crate) fn mark_disconnected(snapshot: &mut Arc<Self>) {
+        if snapshot.connected {
+            *snapshot = Arc::new(Self {
+                core: Arc::clone(&snapshot.core),
+                channels: Arc::clone(&snapshot.channels),
+                typing: Arc::clone(&snapshot.typing),
+                caps: snapshot.caps.clone(),
+                isupport: Arc::clone(&snapshot.isupport),
+                #[cfg(feature = "unstable")]
+                bouncer_network: snapshot.bouncer_network.clone(),
+                unsupported: snapshot.unsupported.clone(),
+                name_rules_known: snapshot.name_rules_known,
+                connected: false,
+                generation: snapshot.generation,
+                typing_generation: snapshot.typing_generation,
+                watch_registry: Arc::clone(&snapshot.watch_registry),
+            });
+        }
+    }
+
     /// Reports whether the server has registered the current connection with numeric 001.
     #[must_use]
     pub const fn is_connected(&self) -> bool {

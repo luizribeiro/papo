@@ -40,6 +40,8 @@ other events caused by a user.
 
 ### Changed
 
+Dropping a live driver publishes a disconnected snapshot and releases pending requests.
+
 `Rank` names operator and voice for display. Other membership ranks remain available as prefix letters and symbols.
 
 Renamed `Builder::tls_ca_pem` to `Builder::tls_only_ca_pem` to make its exclusive trust explicit.
