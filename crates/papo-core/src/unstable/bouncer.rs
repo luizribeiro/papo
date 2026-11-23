@@ -11,6 +11,8 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::{Feature, RequestError, RequestId, Secret, Session, state::StateGrowth};
 
+const MAX_OTHER_ATTRIBUTES: usize = 64;
+
 /// Stable identifier assigned to a network by a bouncer.
 ///
 /// Equality, ordering, and hashing use the exact received bytes.
@@ -135,7 +137,7 @@ pub struct BouncerNetwork {
     pub realname: Option<String>,
     /// Most recent connection error.
     pub error: Option<String>,
-    /// Attributes unknown to this version of papo.
+    /// Up to 64 attributes unknown to this version of papo.
     pub other: BTreeMap<String, String>,
 }
 
@@ -222,7 +224,13 @@ impl BouncerNetwork {
                     }
                 }
                 _ => match value {
-                    Some(value) => _ = self.other.insert(key, value),
+                    Some(value)
+                        if self.other.len() < MAX_OTHER_ATTRIBUTES
+                            || self.other.contains_key(&key) =>
+                    {
+                        _ = self.other.insert(key, value);
+                    }
+                    Some(_) => {}
                     None => _ = self.other.remove(&key),
                 },
             }

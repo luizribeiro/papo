@@ -468,3 +468,30 @@ fn bounds_the_server_driven_network_cache() {
         .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 10_000))
         .ignore_rest();
 }
+
+#[test]
+fn bounds_other_attributes_per_network_while_updates_continue() {
+    let mut transcript = registered();
+    for index in 0..1_000 {
+        transcript = transcript
+            .server(&format!(
+                "BOUNCER NETWORK 42 vendor.example/key{index}=active"
+            ))
+            .event_until(|event| matches!(event, Event::BouncerNetworkChanged { .. }));
+    }
+    transcript
+        .server("BOUNCER NETWORK 42 vendor.example/key0=updated;host=irc.example.org")
+        .inspect(|session| {
+            let network = session.state().bouncer_networks().next().unwrap();
+            assert_eq!(network.other.len(), 64);
+            assert_eq!(network.other["vendor.example/key0"], "updated");
+            assert_eq!(network.host.as_deref(), Some("irc.example.org"));
+        })
+        .server("BOUNCER NETWORK 42 vendor.example/key0;vendor.example/key999=active")
+        .inspect(|session| {
+            let network = session.state().bouncer_networks().next().unwrap();
+            assert_eq!(network.other.len(), 64);
+            assert!(network.other.contains_key("vendor.example/key999"));
+        })
+        .ignore_rest();
+}
