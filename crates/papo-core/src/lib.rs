@@ -200,6 +200,8 @@ use papo_proto::{
 #[cfg(feature = "unstable")]
 pub use self::bouncer::{__bouncer_attributes, BouncerNetwork, NetworkId, NetworkState};
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
+#[doc(hidden)]
+pub use batch::is_replay as __is_replay_batch;
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;
 pub use echo::claimed_channel_context;

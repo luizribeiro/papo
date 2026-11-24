@@ -955,7 +955,9 @@ fn dispatch_kind(kind: &str, replay: bool) -> &str {
     }
 }
 
-pub(crate) fn is_replay(kind: &str) -> bool {
+/// Returns whether this batch type carries replayed traffic.
+#[must_use]
+pub fn is_replay(kind: &str) -> bool {
     is_history(kind) || matches!(kind, "znc.in/playback" | "soju.im/search")
 }
 

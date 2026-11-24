@@ -721,13 +721,7 @@ pub(crate) fn incoming_from_core(
         && kind != crate::cap::MULTILINE.as_str()
         && !matches!(kind, "netsplit" | "netjoin")
     {
-        let historical = [
-            crate::cap::CHATHISTORY.as_str(),
-            crate::cap::EVENT_PLAYBACK.as_str(),
-            "znc.in/playback",
-            "draft/chathistory-targets",
-        ]
-        .contains(&papo_core::cap::canonical(kind));
+        let historical = papo_core::__is_replay_batch(kind);
         return other_with_history(received.into_line(), received_at, historical);
     }
     if carries_a_secret(&received) {
