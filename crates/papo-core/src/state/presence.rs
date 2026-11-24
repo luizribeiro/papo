@@ -122,6 +122,7 @@ impl State {
         username: Option<&str>,
         host: Option<&str>,
         account: Option<&AccountStatus>,
+        changed_host: Option<Chghost<'_>>,
     ) -> Option<&mut User> {
         let folded = self.casemapping.fold(nick);
         let user = self.users.get(folded.as_ref())?;
@@ -129,8 +130,13 @@ impl State {
         if followed && !user.unconfirmed_presence {
             return None;
         }
-        if !user.may_send_as(username, host, account) {
-            let mut replacement = self.new_user(nick, username, host);
+        let (current_username, current_host) = changed_host.map_or((username, host), |change| {
+            (Some(change.user), Some(change.host))
+        });
+        if !user.may_send_as(username, host, account)
+            || !user.may_send_as(current_username, current_host, account)
+        {
+            let mut replacement = self.new_user(nick, current_username, current_host);
             if followed {
                 let key = NameKey::new(nick, self.casemapping);
                 let previous = self.users.remove(&key).expect("known user");
@@ -158,7 +164,7 @@ impl State {
         }
         let user = self.users.get_mut(folded.as_ref())?;
         if followed {
-            user.confirm_presence(username, host);
+            user.confirm_presence(current_username, current_host);
         }
         Some(user)
     }
@@ -173,7 +179,7 @@ impl State {
         else {
             return;
         };
-        if let Some(user) = self.reconcile_message_user(nick, username, host, Some(account))
+        if let Some(user) = self.reconcile_message_user(nick, username, host, Some(account), None)
             && message.tags().any(|(key, _)| key == "bot")
         {
             user.is_bot = Some(true);
@@ -206,15 +212,13 @@ impl State {
             return;
         }
         let line_account = self.line_account(message, nick, enabled_caps);
-        self.reconcile_message_user(nick, username, host, line_account.as_ref());
-        if let Some(change) = Chghost::parse(message) {
-            self.reconcile_message_user(
-                nick,
-                Some(change.user),
-                Some(change.host),
-                line_account.as_ref(),
-            );
-        }
+        self.reconcile_message_user(
+            nick,
+            username,
+            host,
+            line_account.as_ref(),
+            Chghost::parse(message),
+        );
         if !matches!(
             message.command(),
             Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact
@@ -409,7 +413,7 @@ impl State {
         if let Some((_, _, entries)) = super::parse_353(message) {
             for raw in entries {
                 let entry = super::NamesEntry::parse(raw, isupport);
-                self.reconcile_message_user(entry.nick, entry.user, entry.host, None);
+                self.reconcile_message_user(entry.nick, entry.user, entry.host, None, None);
             }
             return Some(());
         }
@@ -419,7 +423,7 @@ impl State {
                 for (nick, username, host) in
                     nick.split(',').filter_map(crate::monitor::parse_entry)
                 {
-                    self.reconcile_message_user(nick, username, host, None);
+                    self.reconcile_message_user(nick, username, host, None, None);
                 }
             }
             Command::Numeric(Numeric::RPL_WHOISUSER) => {
@@ -427,6 +431,7 @@ impl State {
                     nick,
                     Some(message.param(2)?),
                     Some(message.param(3)?),
+                    None,
                     None,
                 );
             }
@@ -448,6 +453,7 @@ impl State {
                             username.filter(|user| !user.is_empty()),
                             Some(host).filter(|host| !host.is_empty()),
                             None,
+                            None,
                         );
                     }
                 }
@@ -464,7 +470,7 @@ impl State {
         host: Option<&str>,
         account: Option<&AccountStatus>,
     ) {
-        let user = self.reconcile_message_user(nick, username, host, account);
+        let user = self.reconcile_message_user(nick, username, host, account, None);
         if let (Some(user), Some(account)) = (user, account)
             && user.account != *account
         {

@@ -954,7 +954,6 @@ impl State {
             }
             if let Some(user) = self.users.get_mut(&key) {
                 user.monitored = true;
-                user.confirm_presence(username, host);
             }
         }
         let own = self.nick.clone();

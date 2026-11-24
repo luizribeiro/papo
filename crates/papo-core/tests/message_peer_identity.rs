@@ -918,3 +918,23 @@ fn a_labelled_multiline_keeps_its_arrival_identity_after_a_nick_handoff() {
                 && line.__source_token() == original && line.__reply_token() == original)));
     }
 }
+
+#[test]
+#[rustfmt::skip]
+fn incomplete_presence_preserves_both_userhost_checks() {
+    for presence in ["@alice", "@alice!~u", "@alice@8ajhv7kxgp7ag.irc"] {
+        for source in ["alice!~u@8ajhv7kxgp7ag.irc", "alice!~u@other.irc"] {
+            for new_host in ["8ajhv7kxgp7ag.irc", "other.irc"] {
+                let mut session = registered("message-tags chghost");
+                server(&mut session, ALICE_ADMIN);
+                let original = token(&session, "alice");
+                server(&mut session, ":papo-admin!~u@localhost JOIN #review");
+                server(&mut session, &format!(":ergo.test 353 papo-admin = #review :{presence}"));
+                server(&mut session, &format!(":{source} CHGHOST ~u {new_host}"));
+                let same = source.ends_with("@8ajhv7kxgp7ag.irc") && new_host == "8ajhv7kxgp7ag.irc";
+                assert_eq!(token(&session, "alice") == original, same, "{presence}: {source} {new_host}");
+                assert_eq!(session.state().user("alice").unwrap().host(), Some(new_host));
+            }
+        }
+    }
+}
