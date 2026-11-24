@@ -367,7 +367,7 @@ impl Batches {
         {
             completed.extend(complete(&mut batch));
         }
-        if batch.kind == cap::MULTILINE.as_str() && !batch.multiline_collectors.is_empty() {
+        if !batch.multiline_collectors.is_empty() {
             let assembled = completed.iter().find_map(|event| match event {
                 BatchEvent::Multiline(message) => Some(message.clone()),
                 _ => None,

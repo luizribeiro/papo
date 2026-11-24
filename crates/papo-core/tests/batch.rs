@@ -162,24 +162,35 @@ fn multiline_line_bound_delivers_one_incomplete_message() {
 
 #[test]
 fn malformed_multiline_abandonment_does_not_release_members_live() {
-    let now = Instant::now();
-    let mut session = Session::new(Config::default().max_batch_lines(1));
-    for line in [
-        ":alice!~a@cloak BATCH +deploy draft/multiline #papo",
-        "@batch=deploy :alice!~a@cloak PRIVMSG #papo :release started",
-        "@batch=deploy :alice!~a@cloak NOTICE #papo :health checks pending",
-    ] {
-        session.handle_line(now, line.as_bytes());
-    }
+    for nested in [false, true] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().max_batch_lines(1));
+        let opening = if nested {
+            session.handle_line(
+                now,
+                b":irc.papo.test BATCH +split netsplit irc.papo.test services.int",
+            );
+            "@batch=split :alice!~a@cloak BATCH +deploy draft/multiline #papo"
+        } else {
+            ":alice!~a@cloak BATCH +deploy draft/multiline #papo"
+        };
+        for line in [
+            opening,
+            "@batch=deploy :alice!~a@cloak PRIVMSG #papo :release started",
+            "@batch=deploy :alice!~a@cloak NOTICE #papo :health checks pending",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
 
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::BatchAbandoned {
-            reason: BatchAbandonReason::LineLimit,
-            ..
-        })
-    ));
-    assert_eq!(session.poll_event(), None);
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::BatchAbandoned {
+                reason: BatchAbandonReason::LineLimit,
+                ..
+            })
+        ));
+        assert_eq!(session.poll_event(), None);
+    }
 }
 
 #[test]
@@ -1982,5 +1993,38 @@ fn replay_keeps_rows_when_multiline_cannot_be_assembled() {
             .map(|item| item.line.as_ref().param(1).unwrap())
             .collect();
         assert_eq!(text, ["deploy started", "health checks passed"], "{end}");
+    }
+}
+
+#[test]
+fn legacy_playback_releases_a_nested_multiline_as_replay() {
+    for end in ["close", "timeout", "disconnect"] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().batch_timeout(Duration::from_secs(2)));
+        session.handle_connected(now);
+        for row in [
+            ":znc.example BATCH +play znc.in/playback #review",
+            "@batch=play;time=2026-10-15T12:00:00.000Z :alice!~u@cloak BATCH +paste draft/multiline #review",
+            "@batch=paste :alice!~u@cloak PRIVMSG #review :deploy started",
+            "@batch=paste :alice!~u@cloak PRIVMSG #review :health checks passed",
+        ] {
+            session.handle_line(now, row.as_bytes());
+        }
+        match end {
+            "close" => {
+                session.handle_line(now, b"@batch=play :alice!~u@cloak BATCH -paste");
+                session.handle_line(now, b":znc.example BATCH -play");
+            }
+            "timeout" => session.handle_timeout(now + Duration::from_secs(2)),
+            _ => session.handle_disconnected(now),
+        }
+        let row = line(&mut session);
+        assert_eq!(row.batch_type(), Some("chathistory"), "{end}");
+        assert_eq!(row.as_ref().param(0), Some("#review"), "{end}");
+        assert_eq!(
+            row.as_ref().param(1),
+            Some("deploy started\nhealth checks passed"),
+            "{end}"
+        );
     }
 }
