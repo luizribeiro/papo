@@ -672,3 +672,62 @@ fn refusing_a_line_does_not_reserve_any_of_its_new_credentials() {
         .unwrap();
     assert!(session.poll_transmit().is_some());
 }
+
+#[test]
+fn failure_replies_mask_whole_parameters_and_quoted_tokens() {
+    let now = Instant::now();
+    let key = "#staff-key-4821";
+    for (head, description, index) in [
+        ("475 papo #staff", "Cannot join channel with key", 2),
+        ("696 papo #staff k", "Invalid mode k parameter", 3),
+        ("464 papo", "Password incorrect", 1),
+        ("904 papo", "SASL authentication failed", 1),
+        ("FAIL JOIN BAD_CHANNEL_KEY #staff", "Invalid channel key", 3),
+    ] {
+        let mut session = ergo(now);
+        session.request(now, keyed_staff_join(key)).unwrap();
+        assert!(session.poll_transmit().is_some());
+        session.handle_line(
+            now,
+            format!("@label=0 :ergo.test {head} {key} :{description} \"{key}\" supplied")
+                .as_bytes(),
+        );
+        let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+        let response = events
+            .iter()
+            .find_map(|event| match event {
+                Event::Response(response) => Some(response),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("{head}: {events:?}"));
+        let line = &response.lines[0];
+        assert_eq!(line.get(index), Some("<redacted>"));
+        assert_eq!(line.as_ref().params().last(), Some("<redacted>"));
+        assert!(!format!("{events:?} {:?} {line}", response.error()).contains(key));
+    }
+    for reason in [
+        key.to_owned(),
+        format!("Closing link: bad password '{key}'"),
+    ] {
+        let mut session = ergo(now);
+        session.send(now, keyed_staff_join(key)).unwrap();
+        assert!(session.poll_transmit().is_some());
+        session.handle_line(now, format!("ERROR :{reason}").as_bytes());
+        assert!(
+            matches!(session.poll_event(), Some(Event::Close { reason, .. }) if reason == "<redacted>")
+        );
+    }
+}
+
+#[test]
+fn invite_errors_keep_the_channel_after_the_invited_nick() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session.send(now, keyed_staff_join("#staff")).unwrap();
+    assert!(session.poll_transmit().is_some());
+    session.handle_line(
+        now,
+        b":ergo.test 443 papo ferris #staff :is already on channel",
+    );
+    assert_eq!(echo_line(&mut session).get(2), Some("#staff"));
+}

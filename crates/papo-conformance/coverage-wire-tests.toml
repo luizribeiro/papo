@@ -178,6 +178,9 @@
 "security::login_credential_refusals_are_redacted" = [
   "security.hostile-1.reply-secrets",
 ]
+"security::a_refused_non_ascii_key_stays_redacted_in_a_legacy_reply" = [
+  "security.hostile-n2.reply-decoding",
+]
 "security::malformed_mode_does_not_expose_a_channel_key" = [
   "security.hostile-1.malformed-mode",
 ]

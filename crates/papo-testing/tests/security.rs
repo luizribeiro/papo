@@ -2992,3 +2992,36 @@ async fn an_unseen_nick_handoff_does_not_pass_the_admins_account_check() {
             .is_err()
     );
 }
+#[tokio::test]
+async fn a_refused_non_ascii_key_stays_redacted_in_a_legacy_reply() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never()),
+    );
+    wire.register(&["labeled-response"]).await;
+    connected(&mut events).await;
+    wire.server(":offline.test 005 papo -UTF8ONLY CHANMODES=beI,k,l,imnpst :are supported")
+        .await;
+    let key = "contraseña-4821";
+    let request =
+        tokio::spawn(async move { client.set_modes("#staff").key(papo::Secret::new(key)).await });
+    assert_eq!(
+        wire.next_sent().await,
+        format!("@label=0 MODE #staff +k {key}")
+    );
+    let mut reply =
+        format!("@label=0 :offline.test 696 papo #staff k {key} :Clave inv").into_bytes();
+    reply.extend_from_slice(b"\xe1lida");
+    wire.server_bytes(&reply).await;
+    let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
+        panic!("expected a numeric refusal");
+    };
+    assert_eq!(
+        error.params(),
+        ["papo", "#staff", "k", "<redacted>", "Clave inválida"]
+    );
+    let latin1: String = key.bytes().map(char::from).collect();
+    let shown = format!("{error:?} {error}");
+    assert!(!shown.contains(key) && !shown.contains(&latin1));
+}

@@ -105,6 +105,7 @@ ids = [
   "security.adv-4.channel-key-responses",
   "security.hostile-1.channel-key-refusal",
   "security.hostile-1.reply-secrets",
+  "security.hostile-n2.reply-decoding",
   "security.hostile-1.malformed-mode",
   "security.hostile-1.ambiguous-mode",
   "security.s4.account-registration-once",
