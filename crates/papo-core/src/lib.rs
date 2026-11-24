@@ -6937,7 +6937,8 @@ impl Session {
                     None
                 },
                 history,
-                history_targets: history_targets.map(|targets| self.history_targets(targets)),
+                history_targets: history_targets
+                    .map(|rows| self.history_targets(batch::parse_history_targets(&rows))),
                 subject_tokens,
                 ..self.completed_response(request.id, messages)
             };

@@ -115,7 +115,7 @@ pub(crate) enum BatchEvent {
         routed_members: RoutedMembers,
         replay: bool,
         history: Option<(String, Vec<HistoryItem>, bool)>,
-        history_targets: Option<Vec<(String, papo_proto::ServerTime)>>,
+        history_targets: Option<Vec<Line>>,
     },
     History {
         target: String,
@@ -397,7 +397,7 @@ impl Batches {
                 .iter()
                 .position(|event| matches!(event, BatchEvent::HistoryTargets(_)))
                 .and_then(|index| match completed.remove(index) {
-                    BatchEvent::HistoryTargets(rows) => Some(parse_history_targets(&rows)),
+                    BatchEvent::HistoryTargets(rows) => Some(rows),
                     _ => None,
                 });
             completed.push(BatchEvent::Response {
@@ -1044,7 +1044,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         .collect()
 }
 
-fn parse_history_targets(rows: &[Line]) -> Vec<(String, papo_proto::ServerTime)> {
+pub(crate) fn parse_history_targets(rows: &[Line]) -> Vec<(String, papo_proto::ServerTime)> {
     rows.iter()
         .filter_map(|row| {
             let row = row.as_ref();
@@ -1167,13 +1167,30 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<(Line, Option<String>)
             routed_members,
             replay,
             batch_type,
+            history,
+            history_targets,
             ..
         } => {
-            messages.extend(fallback_rows(
-                batch,
-                &routed_members,
-                replay.then_some(batch_type),
-            ));
+            if !replay || (history.is_none() && history_targets.is_none()) {
+                messages.extend(fallback_rows(
+                    batch,
+                    &routed_members,
+                    replay.then_some(batch_type),
+                ));
+            }
+            if let Some((target, items, exhausted)) = history {
+                collect_messages(
+                    BatchEvent::History {
+                        target,
+                        items,
+                        exhausted,
+                    },
+                    messages,
+                );
+            }
+            if let Some(rows) = history_targets {
+                collect_messages(BatchEvent::HistoryTargets(rows), messages);
+            }
         }
         BatchEvent::Metadata {
             messages: batch, ..

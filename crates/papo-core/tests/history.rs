@@ -1388,3 +1388,91 @@ fn wrapped_history_rows_survive_each_abandonment_once() {
         assert_eq!(outcomes, expected, "{ending}");
     }
 }
+
+#[test]
+fn disconnect_releases_closed_history_replies_buffered_in_an_enclosing_batch() {
+    for wrapped in [false, true] {
+        for targets in [false, true] {
+            let (mut session, now) = history_session("CHATHISTORY=1000");
+            let (query, outgoing, kind, row, text) = if targets {
+                (
+                    HistoryQuery::__targets(
+                        server_time(1_763_800_000, 0),
+                        server_time(1_765_000_000, 0),
+                        20,
+                    ),
+                    "@label=0 CHATHISTORY TARGETS",
+                    "draft/chathistory-targets",
+                    "@batch=history :ergo.test CHATHISTORY TARGETS #review 2026-11-22T09:00:01.000Z",
+                    "#review",
+                )
+            } else {
+                (
+                    HistoryQuery::__latest("#review".into(), None, 20),
+                    "@label=0 CHATHISTORY LATEST",
+                    "chathistory #review",
+                    "@batch=history;msgid=fkggsh3fbnpgx8hzy9ah8u0000 :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+                    "deploy started",
+                )
+            };
+            session.chathistory(now, query).unwrap();
+            assert!(transmitted(&mut session).starts_with(outgoing));
+            session.handle_line(now, b":soju.test BATCH +outer vendor/response");
+            let tags = if wrapped {
+                session.handle_line(
+                    now,
+                    b"@batch=outer;label=0 :ergo.test BATCH +reply labeled-response",
+                );
+                for row in [
+                    "@batch=reply :ergo.test BATCH +playback znc.in/playback #review",
+                    "@batch=playback :bob!~u@9gp3mqtb7s6dr.irc PRIVMSG #review :release notes published",
+                    "@batch=reply :ergo.test BATCH -playback",
+                ] {
+                    session.handle_line(now, row.as_bytes());
+                }
+                "@batch=reply"
+            } else {
+                "@batch=outer;label=0"
+            };
+            session.handle_line(
+                now,
+                format!("{tags} :ergo.test BATCH +history {kind}").as_bytes(),
+            );
+            session.handle_line(now, row.as_bytes());
+            session.handle_line(now, b":ergo.test BATCH -history");
+            if wrapped {
+                session.handle_line(now, b":ergo.test BATCH -reply");
+            }
+            assert_eq!(session.poll_event(), None);
+
+            session.handle_disconnected(now);
+            if wrapped {
+                let Some(Event::Line(row)) = session.poll_event() else {
+                    panic!("expected replay from the raw playback batch");
+                };
+                assert_eq!(row.as_ref().param(1), Some("release notes published"));
+                assert_eq!(row.batch_type(), Some("chathistory"));
+            }
+            let Some(Event::Line(row)) = session.poll_event() else {
+                panic!("expected replay from wrapped={wrapped}, targets={targets}");
+            };
+            assert_eq!(row.as_ref().param(1), Some(text));
+            assert_eq!(
+                row.batch_type(),
+                Some(if targets {
+                    "draft/chathistory-targets"
+                } else {
+                    "chathistory"
+                })
+            );
+            assert!(matches!(
+                session.poll_event(),
+                Some(Event::RequestAborted {
+                    transmitted: true,
+                    ..
+                })
+            ));
+            assert_eq!(session.poll_event(), None);
+        }
+    }
+}
