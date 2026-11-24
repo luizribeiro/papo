@@ -4272,6 +4272,7 @@ impl Session {
             return;
         }
 
+        let reply_redactions = self.reply_secrets.redactions(line);
         let decoded = match std::str::from_utf8(line) {
             Ok(line) => std::borrow::Cow::Borrowed(line),
             Err(_) if self.isupport.decoding() == Decoding::Utf8OrLatin1 => {
@@ -4289,7 +4290,13 @@ impl Session {
                 let message = mode.as_ref().map_or(message, Line::as_ref);
                 let keys = self.mask_tracked_channel_keys(&message);
                 let message = keys.as_ref().map_or(message, Line::as_ref);
-                let reply = self.reply_secrets.redact(&message);
+                let reply = (!reply_redactions.is_empty()).then(|| {
+                    let mut reply = message.to_owned();
+                    for index in reply_redactions {
+                        papo_proto::__mask_param(&mut reply, index);
+                    }
+                    reply
+                });
                 let message = reply.as_ref().map_or(message, Line::as_ref);
                 let redacted = self
                     .secret_echoes

@@ -191,29 +191,58 @@ impl ReplySecrets {
         })
     }
 
-    pub(super) fn redact(&self, message: &LineRef<'_>) -> Option<Line> {
+    /// Selects parameters for masking while their bytes still match what we sent.
+    pub(super) fn redactions(&self, mut input: &[u8]) -> Vec<usize> {
         if self.0.is_empty() {
-            return None;
+            return Vec::new();
         }
-        let failure = match message.command() {
-            Command::Numeric(numeric) => crate::is_failure_numeric(numeric),
-            Command::Fail | Command::Warn | Command::Note | Command::Error => true,
-            _ => false,
-        };
-        if !failure {
-            return None;
-        }
-        let mut line = None;
-        let last = message.len().saturating_sub(1);
-        for (index, param) in message.params().enumerate() {
-            if self.0.iter().any(|secret| {
-                let value = secret.expose();
-                param == value || index == last && param.contains(value)
-            }) {
-                let line = line.get_or_insert_with(|| message.to_owned());
-                papo_proto::__mask_param(line, index);
+        for prefix in *b"@:" {
+            if trim_spaces(input).starts_with(&[prefix]) {
+                next_word(&mut input);
             }
         }
-        line
+        let command = std::str::from_utf8(next_word(&mut input)).unwrap_or_default();
+        match Command::parse(command) {
+            Command::Numeric(numeric) if crate::is_failure_numeric(numeric) => {}
+            Command::Fail | Command::Warn | Command::Note | Command::Error => {}
+            _ => return Vec::new(),
+        }
+
+        let mut params = std::iter::from_fn(|| {
+            let remaining = trim_spaces(input);
+            if let Some(trailing) = remaining.strip_prefix(b":") {
+                input = b"";
+                Some(trailing)
+            } else {
+                (!remaining.is_empty()).then(|| next_word(&mut input))
+            }
+        })
+        .enumerate()
+        .peekable();
+        let mut redactions = Vec::new();
+        while let Some((index, param)) = params.next() {
+            let last = params.peek().is_none();
+            if self.0.iter().any(|secret| {
+                let value = secret.expose().as_bytes();
+                param == value || last && param.windows(value.len()).any(|bytes| bytes == value)
+            }) {
+                redactions.push(index);
+            }
+        }
+        redactions
     }
+}
+
+fn trim_spaces(mut input: &[u8]) -> &[u8] {
+    while let Some((&b' ', rest)) = input.split_first() {
+        input = rest;
+    }
+    input
+}
+
+fn next_word<'a>(input: &mut &'a [u8]) -> &'a [u8] {
+    let mut fields = trim_spaces(input).splitn(2, |&byte| byte == b' ');
+    let word = fields.next().unwrap_or_default();
+    *input = fields.next().unwrap_or_default();
+    word
 }
