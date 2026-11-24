@@ -249,6 +249,8 @@ const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_PENDING_REQUESTS: usize = 256;
 const MAX_CTCP_SOURCES: usize = 1024;
 const MAX_PENDING_PROTOCOL_OUTPUT: usize = 16_384;
+// NAMES where the server sends none by itself, then MODE and WHO once the names end.
+const JOIN_FOLLOW_UP_LINES: usize = 3;
 
 /// Details about text queued by [`Session::send_text_detailed`].
 #[doc(hidden)]
@@ -3854,16 +3856,16 @@ impl Transmission {
 }
 
 impl Outbox {
-    fn protocol_output_full(&self) -> bool {
+    fn protocol_output_full(&self, max_protocol_transmits: usize) -> bool {
         self.events.len() >= MAX_PENDING_PROTOCOL_OUTPUT
             || self.connect_phases.len() >= MAX_PENDING_PROTOCOL_OUTPUT
             || self.immediate.len() >= MAX_PENDING_PROTOCOL_OUTPUT
-            || (self.transmits.len() >= MAX_PENDING_PROTOCOL_OUTPUT
+            || (self.transmits.len() >= max_protocol_transmits
                 && self
                     .transmits
                     .iter()
                     .filter(|transmit| !transmit.requires_registration())
-                    .nth(MAX_PENDING_PROTOCOL_OUTPUT - 1)
+                    .nth(max_protocol_transmits - 1)
                     .is_some())
     }
 
@@ -4055,6 +4057,15 @@ impl Outbox {
 }
 
 impl Session {
+    // Every joined channel can have its follow-up queries waiting behind the rate limit, so
+    // they are allowed for on top of the room kept for all other protocol lines.
+    const fn max_protocol_transmits(&self) -> usize {
+        self.config
+            .max_channels
+            .saturating_mul(JOIN_FOLLOW_UP_LINES)
+            .saturating_add(MAX_PENDING_PROTOCOL_OUTPUT)
+    }
+
     fn names(&self) -> Names {
         Names::new(self.isupport.value().casemapping(), self.config.origin)
     }
@@ -4238,7 +4249,10 @@ impl Session {
             return;
         }
         // A just-completed batch can release a burst of events before the transport drains them.
-        if self.outbox.protocol_output_full() {
+        if self
+            .outbox
+            .protocol_output_full(self.max_protocol_transmits())
+        {
             self.close(
                 CloseKind::Other,
                 "pending protocol output reached its limit".to_owned(),
