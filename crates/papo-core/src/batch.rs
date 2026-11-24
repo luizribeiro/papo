@@ -57,16 +57,20 @@ pub(crate) type RoutedMembers = BTreeMap<usize, RoutedMember>;
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RoutedMember {
     pub(crate) live: bool,
+    pub(crate) replay_copy: bool,
     pub(crate) subject: Option<ReplyToken>,
     pub(crate) joined_ready: Option<bool>,
 }
 
 impl RoutedMember {
-    const REPLAY: Self = Self {
-        live: false,
-        subject: None,
-        joined_ready: None,
-    };
+    fn replay(copy: bool) -> Self {
+        Self {
+            live: false,
+            replay_copy: copy,
+            subject: None,
+            joined_ready: None,
+        }
+    }
 }
 
 pub(crate) struct LiveMember<'a> {
@@ -307,7 +311,7 @@ impl Batches {
             },
         );
         self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
-        for collector in multiline_collectors {
+        for (index, collector) in multiline_collectors.into_iter().enumerate() {
             let batch = self
                 .open
                 .get_mut(&collector)
@@ -315,7 +319,7 @@ impl Batches {
             if replay && !batch.replay {
                 batch
                     .routed_members
-                    .insert(batch.messages.len(), RoutedMember::REPLAY);
+                    .insert(batch.messages.len(), RoutedMember::replay(index != 0));
             }
             batch.messages.push(message.to_owned());
             batch.buffered_bytes = batch.buffered_bytes.saturating_add(retained_bytes(message));
@@ -484,13 +488,15 @@ impl Batches {
         }
         let aggregates = self.aggregate_references(reference.as_ref());
         let replay = self.open[reference.as_ref()].replay;
-        for reference in &aggregates {
+        // The first collector owns replay delivery. Later labeled collectors keep raw copies
+        // for the response, even if the owning batch closes or is abandoned before the wrapper.
+        for (index, reference) in aggregates.iter().enumerate() {
             let batch = self
                 .open
                 .get_mut(reference)
                 .expect("resolved aggregate remains open");
             let route = if replay && !batch.replay {
-                Some(RoutedMember::REPLAY)
+                Some(RoutedMember::replay(index != 0))
             } else {
                 applied_state
             };
@@ -1146,7 +1152,7 @@ fn fallback_rows(
         .enumerate()
         .filter_map(move |(index, line)| {
             let kind = match routed_members.get(&index) {
-                Some(member) if member.live => return None,
+                Some(member) if member.live || member.replay_copy => return None,
                 Some(_) => Some(cap::CHATHISTORY_BATCH.to_owned()),
                 None => replay_kind.clone(),
             };
@@ -1358,6 +1364,7 @@ mod tests {
         _ = handle("@label=0 :ergo.test BATCH +reply labeled-response", None);
         let applied = super::RoutedMember {
             live: true,
+            replay_copy: false,
             subject: None,
             joined_ready: None,
         };

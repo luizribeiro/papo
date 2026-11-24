@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use papo_core::{
     Config, Conversation, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, Refusal,
-    RequestError, Session, StateLimit, UnsupportedReason,
+    RequestError, RequestId, Session, StateLimit, UnsupportedReason,
 };
 use support::{Transcript, unsupported_because, unsupported_error};
 
@@ -1266,5 +1266,125 @@ fn history_request_capability_matrix() {
             session.handle_line(now + Duration::from_secs(1), b"PING :history-probe");
             assert_eq!(transmitted(&mut session), "PONG history-probe");
         }
+    }
+}
+
+fn start_wrapped_history(session: &mut Session, now: Instant) -> RequestId {
+    let id = session
+        .chathistory(now, HistoryQuery::__latest("#review".into(), None, 20))
+        .unwrap();
+    assert_eq!(
+        transmitted(session),
+        "@label=0 CHATHISTORY LATEST #review * 20"
+    );
+    for row in [
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply :ergo.test BATCH +history chathistory #review",
+        "@batch=history;time=2026-11-22T09:00:00.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u0000 :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+        "@batch=history;time=2026-11-22T09:00:01.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u0001 :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :health checks passed",
+    ] {
+        session.handle_line(now, row.as_bytes());
+    }
+    id
+}
+
+#[test]
+fn wrapped_history_rows_survive_each_abandonment_once() {
+    for (ending, lines, open, batch_seconds) in [
+        ("disconnect", 10, 2, 120),
+        ("open paste", 10, 3, 120),
+        ("closed paste", 10, 3, 120),
+        ("timeout", 10, 2, 120),
+        ("early timeout", 10, 2, 2),
+        ("closed history", 2, 2, 120),
+        ("line limit", 1, 2, 120),
+        ("refused history", 10, 1, 120),
+        ("refused wrapper", 10, 0, 120),
+    ] {
+        let (mut session, now) = history_session_with(
+            "CHATHISTORY=1000",
+            Config::default()
+                .max_batch_lines(lines)
+                .max_open_batches(open)
+                .ping_timeout(Duration::MAX)
+                .batch_timeout(Duration::from_secs(batch_seconds)),
+        );
+        let id = start_wrapped_history(&mut session, now);
+        let has_paste = matches!(ending, "open paste" | "closed paste");
+        if has_paste {
+            for row in [
+                "@batch=history;time=2026-11-22T09:00:02.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u0002 :alice!~u@8fq2mzkq5hcsa.irc BATCH +paste draft/multiline #review",
+                "@batch=paste :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deployment completed",
+                "@batch=paste :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :monitoring is active",
+            ] {
+                session.handle_line(now, row.as_bytes());
+            }
+            if ending == "closed paste" {
+                session.handle_line(now, b"@batch=history :ergo.test BATCH -paste");
+            }
+        }
+        match ending {
+            "disconnect" | "open paste" | "closed paste" => session.handle_disconnected(now),
+            "timeout" => {
+                session.handle_timeout(now + Duration::from_secs(30));
+                assert!(
+                    matches!(session.poll_event(), Some(Event::RequestTimedOut { id: request, .. }) if request == id)
+                );
+                assert_eq!(session.poll_event(), None);
+                session.handle_timeout(now + Duration::from_secs(120));
+            }
+            "early timeout" => session.handle_timeout(now + Duration::from_secs(2)),
+            _ => {
+                session.handle_line(now, b"@batch=reply :ergo.test BATCH -history");
+                session.handle_line(now, b":ergo.test BATCH -reply");
+            }
+        }
+        let mut rows = Vec::new();
+        let mut outcomes = Vec::new();
+        while let Some(event) = session.poll_event() {
+            match event {
+                Event::Line(row) if row.as_ref().command_is("PRIVMSG") => {
+                    assert_eq!(row.batch_type(), Some("chathistory"), "{ending}");
+                    rows.push(row.as_ref().param(1).unwrap().to_owned());
+                }
+                Event::History { items, .. } => rows.extend(
+                    items
+                        .into_iter()
+                        .map(|item| item.into_line().as_ref().param(1).unwrap().to_owned()),
+                ),
+                Event::RequestAborted {
+                    id: request,
+                    transmitted: true,
+                    ..
+                } => {
+                    assert_eq!(request, id);
+                    outcomes.push("interrupted");
+                }
+                Event::Response(response) => {
+                    assert_eq!(response.id, id);
+                    assert_eq!(response.state_limit, Some(StateLimit::ListEntries));
+                    assert!(response.history.is_none());
+                    outcomes.push("limit");
+                }
+                Event::BatchAbandoned { .. }
+                | Event::StateLimitReached {
+                    limit: StateLimit::ListEntries,
+                    ..
+                }
+                | Event::Line(_) => {}
+                event => panic!("{ending}: {event:?}"),
+            }
+        }
+        let mut expected_rows = vec!["deploy started", "health checks passed"];
+        if has_paste {
+            expected_rows.push("deployment completed\nmonitoring is active");
+        }
+        assert_eq!(rows, expected_rows, "{ending}");
+        let expected: &[_] = match ending {
+            "disconnect" | "open paste" | "closed paste" => &["interrupted"],
+            "timeout" => &[],
+            _ => &["limit"],
+        };
+        assert_eq!(outcomes, expected, "{ending}");
     }
 }

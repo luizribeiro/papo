@@ -52,6 +52,7 @@ impl Session {
             .map(crate::Channel::is_synced);
         Some(RoutedMember {
             live: true,
+            replay_copy: false,
             subject: self.state.who_subject_token(message),
             joined_ready,
         })
