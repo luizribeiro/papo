@@ -38,6 +38,25 @@ fn overlapping_checks_share_the_first_deadline_and_round_trip() {
 }
 
 #[test]
+fn closing_is_visible_before_the_close_event_is_polled() {
+    connected()
+        .check_connection(Duration::from_secs(3), true)
+        .client("PING papo-check-0")
+        .inspect(|session| assert!(!session.__is_closing()))
+        .server(":ergo.test ERROR :Closing Link: papo (Server shutting down)")
+        .inspect(|session| assert!(session.__is_closing()))
+        .event(|event| {
+            matches!(
+                event,
+                Event::Close {
+                    kind: CloseKind::ServerError,
+                    ..
+                }
+            )
+        });
+}
+
+#[test]
 fn silence_closes_at_the_deadline_even_if_readable_late() {
     for late_pong in [false, true] {
         let transcript = connected()

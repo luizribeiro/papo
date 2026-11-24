@@ -1669,7 +1669,7 @@ where
     drop_closed_waiters(requests, sync_waiters, registration);
     reconcile_pending_events(events, pending_events, requests, resolved_sent);
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
-    while (pending_events.is_empty() || read_ahead || after_timeout || closing)
+    while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
         publish_session_state(events, session);

@@ -10318,6 +10318,93 @@ async fn connection_checks_share_a_written_idle_ping() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn eof_during_a_check_still_drains_the_transport() {
+    let (inner, mut server) = tokio::io::duplex(4096);
+    let stream = NeverDrainingStream {
+        inner,
+        written: Arc::default(),
+    };
+    let (client, mut events, driver) = Driver::with_stream(stream, Session::new(config()));
+    let mut driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let check = tokio::spawn(client.check_connection(Duration::from_secs(3)));
+    client_line(&mut server, b"PING papo-check-0\r\n").await;
+    server.shutdown().await.unwrap();
+
+    assert!(matches!(
+        within(check).await.unwrap(),
+        Err(Error::Interrupted(disconnected))
+            if matches!(disconnected.cause, crate::DisconnectCause::ConnectionLost { .. })
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(1), &mut driver)
+            .await
+            .is_err()
+    );
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn quit_drains_until_its_deadline_after_a_server_error_interrupts_a_check() {
+    let (inner, mut server) = tokio::io::duplex(4096);
+    let stream = NeverDrainingStream {
+        inner,
+        written: Arc::default(),
+    };
+    let (client, mut events, driver) = Driver::with_stream(stream, Session::new(config()));
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let check = tokio::spawn(client.check_connection(Duration::from_secs(30)));
+    client_line(&mut server, b"PING papo-check-0\r\n").await;
+    let mut quit = tokio::spawn(async move { client.quit().reason("maintenance").await });
+    client_line(&mut server, b"QUIT maintenance\r\n").await;
+    let started = tokio::time::Instant::now();
+    server_line(
+        &mut server,
+        b":ergo.test ERROR :Closing Link: papo-driver (Quit: maintenance)\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(check).await.unwrap(),
+        Err(Error::Interrupted(_))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_secs(9), &mut quit)
+            .await
+            .is_err()
+    );
+    assert!(within(quit).await.unwrap().is_ok());
+    assert_eq!(started.elapsed(), Duration::from_secs(10));
+    assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn idle_close_is_delivered_without_a_pending_request() {
+    let settings = config()
+        .ping_interval(Duration::from_secs(5))
+        .ping_timeout(Duration::from_secs(15));
+    let (mut server, _client, mut events, driver) = scripted(settings);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(&mut server, b"PING :ergo.test\r\n").await;
+    client_line(&mut server, b"PONG ergo.test\r\n").await;
+
+    tokio::time::advance(Duration::from_secs(5)).await;
+    client_line(&mut server, b"PING papo-0\r\n").await;
+    tokio::time::advance(Duration::from_secs(10)).await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(disconnected))
+            if disconnected.cause == crate::DisconnectCause::PingTimeout
+    ));
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn a_silent_check_reconnects_without_waiting_for_transport_shutdown() {
     let (stream, mut server) = tokio::io::duplex(128);
     let (next_stream, mut next_server) = tokio::io::duplex(4096);
