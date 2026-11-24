@@ -89,7 +89,8 @@ impl Client {
     /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
     /// or [`Error::Disconnected`].
     ///
-    /// A request that exceeds [`crate::StateLimit::Credentials`] returns [`Error::StateLimit`].
+    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
+    /// returns [`Error::StateLimit`].
     pub fn create_account(&self, account: NewAccount) -> crate::RequestFuture<AccountOutcome> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
@@ -138,7 +139,8 @@ impl Client {
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     ///
-    /// A request that exceeds [`crate::StateLimit::Credentials`] returns [`Error::StateLimit`].
+    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
+    /// returns [`Error::StateLimit`].
     pub fn verify_account(
         &self,
         account: impl crate::AsAccount,

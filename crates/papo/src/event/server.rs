@@ -77,7 +77,7 @@ pub enum Warning {
     },
     /// The server uses RFC 8265 name matching, but this build lacks the `precis` feature.
     Utf8CasemappingUnsupported,
-    /// Server input exceeded a configured state-retention bound.
+    /// A state collection reached its retention limit.
     #[non_exhaustive]
     StateLimitReached {
         /// The state collection that rejected another entry.
