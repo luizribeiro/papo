@@ -1083,3 +1083,29 @@ fn abandoned_labeled_history_completes_with_a_limit() {
         assert_eq!(outcomes, [(id, Some(StateLimit::ListEntries), None)]);
     }
 }
+
+#[test]
+fn unusable_labeled_history_target_releases_rows_without_a_page() {
+    let (mut session, now) = history_session("CHATHISTORY=1000");
+    let id = session
+        .chathistory(now, HistoryQuery::__latest("#review".into(), None, 20))
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 CHATHISTORY LATEST #review * 20"
+    );
+    for row in [
+        "@label=0 :ergo.test BATCH +h chathistory *",
+        "@batch=h :alice!~u@cloak PRIVMSG #review :deploy started",
+        ":ergo.test BATCH -h",
+    ] {
+        session.handle_line(now, row.as_bytes());
+    }
+    assert!(matches!(session.poll_event(), Some(Event::Line(row))
+        if row.batch_type() == Some("chathistory") && row.as_ref().param(1) == Some("deploy started")));
+    assert!(
+        matches!(session.poll_event(), Some(Event::Response(response))
+        if response.id == id && response.history.is_none())
+    );
+    assert!(session.state().user("alice").is_none());
+}

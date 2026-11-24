@@ -6780,7 +6780,7 @@ impl Session {
             batch_type,
             routed_members,
             replay,
-            mut history,
+            history,
             history_targets,
         } = response
         else {
@@ -6810,12 +6810,19 @@ impl Session {
         } else {
             (Vec::new(), Vec::new())
         };
-        if let Some((target, items, _)) = &history {
-            self.remember_history_server_time(target, items);
-        }
-        if let Some((_, items, _)) = &mut history {
-            self.mark_history_parties(items);
-        }
+        let history = history.and_then(|(target, mut items, exhausted)| {
+            let Some(conversation) = self.history_conversation(&target) else {
+                self.emit_raw_history(items);
+                return None;
+            };
+            self.remember_history_server_time(&target, &items);
+            self.mark_history_parties(&mut items);
+            Some(HistoryPage {
+                conversation,
+                items,
+                exhausted,
+            })
+        });
         if deferred && let Some(request) = &request {
             self.resolve_deferred(request.id);
         }
@@ -6846,13 +6853,7 @@ impl Session {
                 } else {
                     None
                 },
-                history: history.and_then(|(target, items, exhausted)| {
-                    Some(HistoryPage {
-                        conversation: self.history_conversation(&target)?,
-                        items,
-                        exhausted,
-                    })
-                }),
+                history,
                 history_targets: history_targets.map(|targets| self.history_targets(targets)),
                 subject_tokens,
                 ..self.completed_response(request.id, messages)
