@@ -1745,6 +1745,64 @@ mod tests {
     }
 
     #[test]
+    fn multiline_replacement_charges_the_sender_at_the_byte_limit() {
+        let byte_budget = 67_108_864;
+        let sender = crate::ReplyToken::__unknown(papo_proto::Origin::NONE);
+        let sender_entry = std::mem::size_of::<(usize, super::RoutedMember)>();
+        let opener = "@batch=reply :alice!~alice@users.example BATCH +deploy draft/multiline #papo";
+        let assembled = ":alice!~alice@users.example PRIVMSG #papo :release is ready";
+        let placeholder_bytes = retained_bytes(&LineRef::parse(opener).unwrap());
+        let assembled_bytes = retained_bytes(&LineRef::parse(assembled).unwrap());
+
+        for (sender, sender_bytes) in [(None, 0), (Some(sender), sender_entry)] {
+            for (total, abandoned) in [(byte_budget, false), (byte_budget + 1, true)] {
+                let mut batches = Batches::new(&Config::default());
+                let now = Instant::now();
+                let handle = |batches: &mut Batches, line| {
+                    batches.handle(
+                        now,
+                        &LineRef::parse(line).unwrap(),
+                        usize::MAX,
+                        false,
+                        true,
+                        None,
+                    )
+                };
+                for line in [
+                    "@label=deploy :ergo.test BATCH +reply labeled-response",
+                    opener,
+                    "@batch=deploy :alice!~alice@users.example PRIVMSG #papo :release is ready",
+                ] {
+                    assert!(matches!(handle(&mut batches, line), BatchAction::Consumed));
+                }
+                if let Some(sender) = sender {
+                    batches.remember_multiline_sender("deploy", sender);
+                }
+
+                // Model other retained rows without allocating 64 MiB in each case.
+                let after_replacement =
+                    batches.buffered_bytes - placeholder_bytes + assembled_bytes + sender_bytes;
+                let padding = total - after_replacement;
+                batches.buffered_bytes += padding;
+                batches.open.get_mut("reply").unwrap().buffered_bytes += padding;
+
+                let action = handle(&mut batches, "@batch=reply :ergo.test BATCH -deploy");
+                if abandoned {
+                    assert!(matches!(
+                        action,
+                        BatchAction::Complete(events) if events.iter().any(|event| matches!(
+                            event, BatchEvent::Abandoned { reason: BatchAbandonReason::ByteLimit, .. }
+                        ))
+                    ));
+                } else {
+                    assert!(matches!(action, BatchAction::Consumed));
+                    assert_eq!(batches.buffered_bytes, byte_budget);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn default_batch_byte_budget_is_sixty_four_mibibytes() {
         let batches = Batches::new(&Config::default());
 
