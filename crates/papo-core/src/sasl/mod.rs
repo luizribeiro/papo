@@ -4,7 +4,6 @@ use std::{collections::VecDeque, time::Duration};
 use web_time::Instant;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_proto::LineRef;
 use zeroize::Zeroizing;
 
 use crate::{Config, Handled, Outbox, Secret, sts::ConnectionSecurity};
@@ -418,10 +417,13 @@ impl SaslSession {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: crate::IncomingLine<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        if self.handle_status(now, message, outbox) {
+        let routing = incoming.routing();
+        let message = &routing;
+
+        if self.handle_status(now, incoming, outbox) {
             return Handled::Yes;
         }
         if !message.command_is("AUTHENTICATE") {
@@ -530,7 +532,15 @@ impl SaslSession {
         self.active.is_some() || self.aborting
     }
 
-    fn handle_status(&mut self, now: Instant, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
+    fn handle_status(
+        &mut self,
+        now: Instant,
+        incoming: crate::IncomingLine<'_>,
+        outbox: &mut Outbox,
+    ) -> bool {
+        let routing = incoming.routing();
+        let message = &routing;
+        let shown = &incoming.shown;
         if !self.is_exchanging() {
             if message.command_is("902")
                 || message.command_is("904")
@@ -538,7 +548,7 @@ impl SaslSession {
                 || message.command_is("906")
             {
                 outbox.event(crate::Event::AuthenticationFailed {
-                    reason: message
+                    reason: shown
                         .param(1)
                         .unwrap_or("an unmanaged SASL request failed")
                         .to_owned(),
@@ -585,14 +595,14 @@ impl SaslSession {
                 }
             }
         } else if message.command_is("904") || message.command_is("905") {
-            self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
+            self.record_active_failure(shown.param(1).unwrap_or("SASL mechanism failed"));
             self.start_next(now, outbox);
         } else if message.command_is("908") {
             if let Some(available) = message.param(1) {
                 self.retain_available(available);
             }
         } else if message.command_is("902") {
-            self.fail_all(message.param(1).unwrap_or("account is unavailable"), outbox);
+            self.fail_all(shown.param(1).unwrap_or("account is unavailable"), outbox);
         } else if message.command_is("906") {
             if self.aborting {
                 self.aborting = false;
@@ -605,7 +615,7 @@ impl SaslSession {
                 }
             } else {
                 self.fail_all(
-                    message.param(1).unwrap_or("SASL exchange was aborted"),
+                    shown.param(1).unwrap_or("SASL exchange was aborted"),
                     outbox,
                 );
             }
@@ -618,7 +628,7 @@ impl SaslSession {
             self.deadline = None;
             outbox.close(
                 crate::CloseKind::AccountRequired,
-                message
+                shown
                     .param(2)
                     .unwrap_or("the server requires an account")
                     .to_owned(),

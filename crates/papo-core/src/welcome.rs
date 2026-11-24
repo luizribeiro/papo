@@ -89,17 +89,23 @@ impl WelcomeState {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: crate::IncomingLine<'_>,
         config: &Config,
         caps: &Capabilities,
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
+        let routing = incoming.routing();
+        let message = &routing;
+
         if self.webirc_pending
             && message.command_is("ERROR")
             && message.param(0) == Some(ERGO_WEBIRC_REJECTION)
         {
-            outbox.close(CloseKind::WebIrcRejected, ERGO_WEBIRC_REJECTION.to_owned());
+            outbox.close(
+                CloseKind::WebIrcRejected,
+                incoming.shown.param(0).unwrap_or_default().to_owned(),
+            );
             return Handled::Yes;
         }
         if config.selected_bouncer_network().is_some()
@@ -118,7 +124,7 @@ impl WelcomeState {
         if message.command_is("465") {
             outbox.close(
                 CloseKind::Banned,
-                message.param(1).unwrap_or_default().to_owned(),
+                incoming.shown.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
         } else if message.command_is("001") {
@@ -156,13 +162,13 @@ impl WelcomeState {
         } else if self.deadline.is_some() && message.command_is("464") {
             outbox.close(
                 CloseKind::PasswordIncorrect,
-                message.param(1).unwrap_or_default().to_owned(),
+                incoming.shown.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
         } else if self.deadline.is_some() && message.command_is("463") {
             outbox.close(
                 CloseKind::ConnectionRestricted,
-                message.param(1).unwrap_or_default().to_owned(),
+                incoming.shown.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
         } else if self.deadline.is_some() && rejects_nick(message) {

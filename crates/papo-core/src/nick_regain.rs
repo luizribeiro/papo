@@ -84,7 +84,7 @@ impl NickRegain {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        message: &crate::RoutingLine<'_>,
         connected: bool,
         current_nick: &str,
         config: &Config,

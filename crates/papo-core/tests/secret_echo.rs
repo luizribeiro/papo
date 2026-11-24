@@ -823,3 +823,23 @@ fn punctuation_bounds_failure_reply_credentials() {
         assert_eq!(line.get(4).unwrap(), format!("Rejected {expected}"));
     }
 }
+
+#[test]
+fn buffered_failure_bytes_stay_out_of_session_debug() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session
+        .send(now, keyed_staff_join("staff-key-4821"))
+        .unwrap();
+    assert!(session.poll_transmit().is_some());
+    let partial = b":ergo.test 475 papo #staff :Invalid key staff-key-4821";
+    session.handle_bytes(now, partial);
+    let debug = format!("{session:?}");
+    assert!(debug.contains(&format!("buffered_bytes: {}", partial.len())));
+    assert!(!debug.contains(&format!("{partial:?}")));
+    session.handle_bytes(now, b"\r\n");
+    assert_eq!(
+        echo_line(&mut session).get(2),
+        Some("Invalid key <redacted>")
+    );
+}

@@ -226,7 +226,7 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::{AccountUpdate, SaslSession};
 pub use sasl::{Entropy, Sasl};
-use secret_echo::IncomingLine;
+use secret_echo::{IncomingLine, RoutingLine};
 pub use state::{AccountStatus, AwayStatus, Channel, Member, MetadataView, State, User};
 use state::{MetadataContext, StateGrowth};
 use sts::ConnectionSecurity;
@@ -6169,7 +6169,7 @@ impl Session {
         ) == Handled::Yes
             || self.welcome_state.handle_message(
                 now,
-                message,
+                incoming,
                 &self.config,
                 self.caps.enabled(),
                 self.isupport.value(),
@@ -6191,7 +6191,8 @@ impl Session {
                 message.command(),
                 Command::Numeric(Numeric::RPL_LOGGEDIN | Numeric::RPL_LOGGEDOUT)
             );
-        let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
+        let sasl_handled =
+            self.sasl.handle_message(now, incoming, &mut self.outbox) == Handled::Yes;
         let account_registration_handled = self.account_registration.handle_message(
             message,
             Names::new(self.isupport.value().casemapping(), self.config.origin),
@@ -6253,7 +6254,7 @@ impl Session {
         };
         let monitor_events = self.outbox.events.len();
         let monitor_handled = self.monitor.handle_message(
-            message,
+            incoming,
             self.isupport.value(),
             self.nick_regain.monitored_nick(&self.config.nick),
             &self.state,
@@ -6327,7 +6328,7 @@ impl Session {
             || isupport_handled
             || self
                 .keepalive
-                .handle_message(now, message, &mut self.outbox)
+                .handle_message(now, incoming, &mut self.outbox)
                 == Handled::Yes;
         let labelled_echo = matches!(message.command(), Command::Privmsg | Command::Notice)
             && message.tag("label").is_some_and(|label| {

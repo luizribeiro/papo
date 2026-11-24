@@ -1,7 +1,7 @@
 use std::time::Duration;
 use web_time::Instant;
 
-use papo_proto::{Line, LineRef};
+use papo_proto::Line;
 
 use crate::{CloseKind, Handled, Outbox};
 
@@ -139,9 +139,10 @@ impl Keepalive {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: crate::IncomingLine<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
+        let message = incoming.routing();
         if message.command_is("PING") {
             let Some(token) = message.param(0) else {
                 return Handled::No;
@@ -171,7 +172,7 @@ impl Keepalive {
         } else if message.command_is("ERROR") {
             outbox.close(
                 CloseKind::ServerError,
-                bounded_server_error_reason(message.param(0).unwrap_or("server sent ERROR")),
+                bounded_server_error_reason(incoming.shown.param(0).unwrap_or("server sent ERROR")),
             );
             Handled::Yes
         } else {

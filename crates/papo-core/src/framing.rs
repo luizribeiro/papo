@@ -4,11 +4,21 @@ use crate::MAX_INCOMING_LINE_LEN;
 #[cfg_attr(not(test), path = "framing/inspection.rs")]
 mod inspection;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(super) struct Framer {
     buffer: Vec<u8>,
     closed: bool,
     inspection: inspection::Counter,
+}
+
+impl std::fmt::Debug for Framer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Framer")
+            .field("buffered_bytes", &self.buffer.len())
+            .field("closed", &self.closed)
+            .finish_non_exhaustive()
+    }
 }
 
 pub(super) struct Frames {

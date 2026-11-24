@@ -1083,7 +1083,7 @@ impl State {
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     pub(crate) fn handle_message(
         &mut self,
-        message: &LineRef<'_>,
+        message: &crate::RoutingLine<'_>,
         reserved_channel_epoch: Option<u64>,
         own_nick: &str,
         isupport: &Isupport,
@@ -2481,7 +2481,7 @@ mod tests {
             .unwrap();
 
         state.handle_message(
-            &line,
+            &crate::IncomingLine::new(line, None).routing(),
             None,
             "papo",
             &Isupport::default(),
