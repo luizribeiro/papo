@@ -429,16 +429,73 @@ fn message_only_identity_uses_live_user_lines() {
 #[test]
 fn bot_tags_follow_the_reconciled_account_command_actor() {
     for command in ["ACCOUNT mallory", "JOIN #review mallory :Mallory"] {
-        let mut session = registered("message-tags account-notify account-tag extended-join");
-        server(&mut session, ALICE_ADMIN);
-        let before = token(&session, "alice");
-        let line = format!("@bot;account=alice :alice!~u@8ajhv7kxgp7ag.irc {command}");
-        server(&mut session, &line);
-        assert_ne!(token(&session, "alice"), before, "{line}");
-        let user = session.state().user("alice").unwrap();
-        assert_eq!(user.account(), &AccountStatus::Unknown, "{line}");
-        assert_eq!(user.is_bot(), Some(true), "{line}");
+        for (tags, expected_bot) in [("bot;account=alice", Some(true)), ("account=alice", None)] {
+            let mut session = registered("message-tags account-notify account-tag extended-join");
+            server(
+                &mut session,
+                "@bot;account=alice :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :!status",
+            );
+            let before = token(&session, "alice");
+            assert_eq!(session.state().user("alice").unwrap().is_bot(), Some(true));
+
+            let line = format!("@{tags} :alice!~u@8ajhv7kxgp7ag.irc {command}");
+            server(&mut session, &line);
+            assert_ne!(token(&session, "alice"), before, "{line}");
+            let user = session.state().user("alice").unwrap();
+            assert_eq!(user.account(), &AccountStatus::Unknown, "{line}");
+            assert_eq!(user.is_bot(), expected_bot, "{line}");
+        }
     }
+}
+
+#[test]
+fn account_notify_reports_account_changes_and_identity_handoffs_once() {
+    let mut session = registered("account-notify account-tag extended-join message-tags");
+    server(&mut session, ALICE_ADMIN);
+    drain(&mut session);
+    let original = token(&session, "alice");
+    let alice = logged_in(&session, "alice");
+
+    let handoff = ":alice!~u@kq2ccwrbbbw6a.irc ACCOUNT alice";
+    server(&mut session, handoff);
+    let replacement = token(&session, "alice");
+    assert_ne!(replacement, original);
+    assert_eq!(account(&session, "alice"), Some(alice.clone()));
+    assert!(matches!(
+        drain(&mut session).as_slice(),
+        [Event::AccountChanged { nick, account, token, .. }]
+            if nick == "alice" && account == &alice && *token == replacement
+    ));
+
+    server(&mut session, handoff);
+    assert!(drain(&mut session).is_empty());
+    assert_eq!(token(&session, "alice"), replacement);
+    assert_eq!(account(&session, "alice"), Some(alice));
+
+    server(
+        &mut session,
+        ":papo-admin!~u@localhost JOIN #review papo-admin :papo",
+    );
+    server(
+        &mut session,
+        ":alice!~u@kq2ccwrbbbw6a.irc JOIN #review alice :Alice",
+    );
+    drain(&mut session);
+    let member = token(&session, "alice");
+    let logout = ":alice!~u@kq2ccwrbbbw6a.irc ACCOUNT *";
+    server(&mut session, logout);
+    assert_eq!(token(&session, "alice"), member);
+    assert_eq!(account(&session, "alice"), Some(AccountStatus::LoggedOut));
+    assert!(matches!(
+        drain(&mut session).as_slice(),
+        [Event::AccountChanged { nick, account: AccountStatus::LoggedOut, token, .. }]
+            if nick == "alice" && *token == member
+    ));
+
+    server(&mut session, logout);
+    assert!(drain(&mut session).is_empty());
+    assert_eq!(token(&session, "alice"), member);
+    assert_eq!(account(&session, "alice"), Some(AccountStatus::LoggedOut));
 }
 
 #[test]
