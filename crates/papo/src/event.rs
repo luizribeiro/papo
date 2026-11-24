@@ -5761,6 +5761,29 @@ mod tests {
     }
 
     #[test]
+    fn maps_an_insecure_credential_request_refusal() {
+        let now = Instant::now();
+        let mut session = labelled_session(now, Config::default());
+        let id = session
+            .request(
+                now,
+                Line::new("OPER")
+                    .param("admin")
+                    .param(papo_core::Secret::new("operator-password-3751")),
+            )
+            .unwrap();
+
+        assert!(session.poll_transmit().is_none());
+        assert!(matches!(
+            from_core(session.poll_event().unwrap()),
+            CoreEvent::RequestEnded {
+                id: mapped,
+                end: RequestEnd::CredentialsRefused,
+            } if mapped == id
+        ));
+    }
+
+    #[test]
     fn maps_request_aborted() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
