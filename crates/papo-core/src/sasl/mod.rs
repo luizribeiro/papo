@@ -215,6 +215,7 @@ enum AbortOutcome {
     #[default]
     Retry,
     Fail,
+    CredentialLimit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -595,10 +596,12 @@ impl SaslSession {
         } else if message.command_is("906") {
             if self.aborting {
                 self.aborting = false;
-                if self.abort_outcome == AbortOutcome::Retry {
-                    self.start_next(now, outbox);
-                } else {
-                    self.fail_all("SCRAM exchange failed", outbox);
+                match self.abort_outcome {
+                    AbortOutcome::Retry => self.start_next(now, outbox),
+                    AbortOutcome::Fail => self.fail_all("SCRAM exchange failed", outbox),
+                    AbortOutcome::CredentialLimit => {
+                        self.fail_all("credential tracking limit reached", outbox);
+                    }
                 }
             } else {
                 self.fail_all(
@@ -752,6 +755,15 @@ impl SaslSession {
                 .split(',')
                 .any(|name| name.eq_ignore_ascii_case(mechanism.name()))
         });
+    }
+
+    pub(super) fn abort_for_credential_limit(&mut self, now: Instant, outbox: &mut Outbox) {
+        self.abort(
+            now,
+            "could not send response",
+            AbortOutcome::CredentialLimit,
+            outbox,
+        );
     }
 
     fn abort(&mut self, now: Instant, reason: &str, outcome: AbortOutcome, outbox: &mut Outbox) {

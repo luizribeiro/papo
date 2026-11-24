@@ -1889,3 +1889,36 @@ fn login_refusals_redact_decoded_credentials() {
             });
     }
 }
+
+#[test]
+fn sasl_payload_over_the_credential_limit_aborts_the_exchange() {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("account-key-4821".repeat(40))).optional()))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(":ergo.test 904 papo :SASL authentication failed")
+        .client("CAP END")
+        .server(":ergo.test 001 papo :Welcome to the Ergo Test Network")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event_until(|event| matches!(event, Event::Connected(_)))
+        .update(|session| {
+            let now = std::time::Instant::now();
+            for index in 0..256 {
+                session.send(now, papo_proto::Line::new("JOIN").param("#staff").param(papo_core::Secret::new(format!("staff-key-{index:03}")))).unwrap();
+                assert!(session.poll_transmit().is_some());
+            }
+        })
+        .reauthenticate()
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE *")
+        .no_client()
+        .event_until(|event| matches!(event, Event::StateLimitReached { limit: papo_core::StateLimit::Credentials, .. }))
+        .server(":ergo.test 906 papo :SASL authentication aborted")
+        .event_until(|event| matches!(event, Event::AuthenticationFailed { reason, .. } if reason.contains("credential tracking limit reached")))
+        .server("PING :ergo.test")
+        .client("PONG ergo.test")
+        .ignore_rest();
+}
