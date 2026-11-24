@@ -226,13 +226,19 @@ impl ReplySecrets {
         .peekable();
         while let Some((index, param)) = params.next() {
             let last = params.peek().is_none();
-            if self.0.iter().any(|secret| {
-                let value = secret.expose();
-                credential_prefix(param, value) == Some(param.len())
-                    || last && contains_token(param, value)
-            }) && !is_reply_address(command, channel_index, index, last, param, nick, isupport)
-            {
-                replace(index, param, REDACTED.as_bytes().to_vec());
+            if is_reply_address(command, channel_index, index, last, param, nick, isupport) {
+                continue;
+            }
+            let mut masked = Vec::new();
+            let mut copied = 0;
+            for range in self.matches(param) {
+                masked.extend_from_slice(param.get(copied..range.start).unwrap_or_default());
+                masked.extend_from_slice(REDACTED.as_bytes());
+                copied = range.end;
+            }
+            if copied != 0 {
+                masked.extend_from_slice(param.get(copied..).unwrap_or_default());
+                replace(index, param, masked);
             }
         }
     }
@@ -301,26 +307,69 @@ fn is_reply_address(
         || (!last && channel_index == Some(index) && isupport.is_channel(param))
 }
 
-fn contains_token(text: &[u8], value: &str) -> bool {
-    let words = text
-        .iter()
-        .enumerate()
-        .filter(|(_, byte)| **byte == b' ')
-        .filter_map(|(index, _)| text.get(index + 1..));
-    std::iter::once(text).chain(words).any(|start| {
-        let ends_token = |rest: &[u8]| rest.is_empty() || rest.starts_with(b" ");
-        let after_credential = |bytes: &[_]| credential_prefix(bytes, value);
-        if after_credential(start).is_some_and(|len| start.get(len..).is_some_and(ends_token)) {
-            return true;
-        }
-        let Some((&quote, rest)) = start.split_first() else {
-            return false;
-        };
-        matches!(quote, b'"' | b'\'')
-            && after_credential(rest)
-                .and_then(|len| rest.get(len..)?.strip_prefix(&[quote]))
-                .is_some_and(ends_token)
-    })
+impl ReplySecrets {
+    fn matches<'a>(&'a self, param: &'a [u8]) -> impl Iterator<Item = std::ops::Range<usize>> + 'a {
+        let mut exact = self
+            .0
+            .iter()
+            .any(|secret| credential_prefix(param, secret.expose()) == Some(param.len()));
+        let mut remaining = param;
+        std::iter::from_fn(move || {
+            if std::mem::take(&mut exact) {
+                remaining = b"";
+                return Some(0..param.len());
+            }
+            while !remaining.is_empty() {
+                let offset = param.len() - remaining.len();
+                let mut words = remaining.splitn(2, u8::is_ascii_whitespace);
+                let word = words.next()?;
+                let equals = word.iter().position(|&byte| byte == b'=');
+                // Credentials can contain assignment delimiters, such as base64 padding.
+                let range = if let Some(range) = self.token(remaining, word.len())
+                    && equals.is_none_or(|index| range.contains(&index))
+                {
+                    let suffix = remaining.get(range.end..)?;
+                    let mut suffix = suffix.splitn(2, u8::is_ascii_whitespace);
+                    remaining = suffix.nth(1).unwrap_or_default();
+                    Some(range)
+                } else if let Some(equals) = equals {
+                    let range = self.token(remaining.get(..equals)?, equals);
+                    remaining = remaining.get(equals + 1..)?;
+                    range
+                } else {
+                    remaining = words.next().unwrap_or_default();
+                    None
+                };
+                if let Some(range) = range {
+                    return Some(offset + range.start..offset + range.end);
+                }
+            }
+            None
+        })
+    }
+
+    fn token(&self, token: &[u8], first_word_len: usize) -> Option<std::ops::Range<usize>> {
+        self.0
+            .iter()
+            .filter_map(|secret| {
+                let value = secret.expose();
+                let punctuation = token
+                    .iter()
+                    .take_while(|byte| byte.is_ascii_punctuation())
+                    .count();
+                (0..=punctuation).take(first_word_len).find_map(|start| {
+                    let length = credential_prefix(token.get(start..)?, value)?;
+                    let end = start + length;
+                    token
+                        .get(end..)?
+                        .iter()
+                        .take_while(|byte| !byte.is_ascii_whitespace())
+                        .all(u8::is_ascii_punctuation)
+                        .then_some(start..end)
+                })
+            })
+            .max_by_key(std::ops::Range::len)
+    }
 }
 
 fn credential_prefix(bytes: &[u8], value: &str) -> Option<usize> {

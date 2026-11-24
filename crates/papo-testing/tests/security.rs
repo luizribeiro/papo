@@ -2261,7 +2261,7 @@ async fn credential_request_refusals_are_redacted() {
             panic!("expected server refusal for {command}")
         };
         assert_eq!(error.numeric(), numeric);
-        assert_eq!(error.description(), "<redacted>");
+        assert!(error.description().ends_with(": <redacted>"));
         assert!(
             !error
                 .params()

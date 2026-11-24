@@ -449,7 +449,7 @@ fn credentials_stay_redacted_until_the_connection_ends() {
         format!(":ergo.test WARN JOIN BAD_CHANNEL_KEY #staff :Rejected {key}").as_bytes(),
     );
     assert!(std::iter::from_fn(|| session.poll_event()).any(
-        |event| matches!(event, Event::StandardReply(reply) if reply.description == "<redacted>"),
+        |event| matches!(event, Event::StandardReply(reply) if reply.description == "Rejected <redacted>"),
     ));
     let malformed = format!(":ergo.test NOTICE papo :Rejected {key}\0");
     session.handle_line(late, malformed.as_bytes());
@@ -644,7 +644,7 @@ fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
     let Some(Event::StandardReply(reply)) = session.poll_event() else {
         panic!("expected a standard reply");
     };
-    assert_eq!(reply.description, "<redacted>");
+    assert_eq!(reply.description, "Rejected '<redacted>'");
 }
 
 #[test]
@@ -707,19 +707,25 @@ fn failure_replies_mask_whole_parameters_and_quoted_tokens() {
             .unwrap_or_else(|| panic!("{head}: {events:?}"));
         let line = &response.lines[0];
         assert_eq!(line.get(index), Some("<redacted>"));
-        assert_eq!(line.as_ref().params().last(), Some("<redacted>"));
+        assert_eq!(
+            line.as_ref().params().last().unwrap(),
+            format!("{description} \"<redacted>\" supplied")
+        );
         assert!(!format!("{events:?} {:?} {line}", response.error()).contains(key));
     }
-    for reason in [
-        key.to_owned(),
-        format!("Closing link: bad password '{key}'"),
+    for (reason, expected) in [
+        (key.to_owned(), "<redacted>"),
+        (
+            format!("Closing link: bad password '{key}'"),
+            "Closing link: bad password '<redacted>'",
+        ),
     ] {
         let mut session = ergo(now);
         session.send(now, keyed_staff_join(key)).unwrap();
         assert!(session.poll_transmit().is_some());
         session.handle_line(now, format!("ERROR :{reason}").as_bytes());
         assert!(
-            matches!(session.poll_event(), Some(Event::Close { reason, .. }) if reason == "<redacted>")
+            matches!(session.poll_event(), Some(Event::Close { reason, .. }) if reason == expected)
         );
     }
 }
@@ -791,4 +797,29 @@ fn malformed_ordinary_lines_keep_their_bytes() {
         matches!(session.poll_event(), Some(Event::Malformed { line, .. })
         if line == b":ergo.test 696 papo #rust k <redacted> :Cl\xe9 invalide")
     );
+}
+
+#[test]
+fn punctuation_bounds_failure_reply_credentials() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session
+        .send(now, keyed_staff_join("staff-key-4821"))
+        .unwrap();
+    assert!(session.poll_transmit().is_some());
+    for (token, expected) in [
+        ("(staff-key-4821)", "(<redacted>)"),
+        ("staff-key-4821.", "<redacted>."),
+        ("staff-key-4821,", "<redacted>,"),
+        ("staff-key-4821:", "<redacted>:"),
+        ("'staff-key-4821'.", "'<redacted>'."),
+        ("key=<staff-key-4821>", "key=<<redacted>>"),
+        ("staff-key-4821x", "staff-key-4821x"),
+    ] {
+        let reply = format!(":ergo.test 696 papo #staff k {token} :Rejected {token}");
+        session.handle_line(now, reply.as_bytes());
+        let line = echo_line(&mut session);
+        assert_eq!(line.get(3), Some(expected));
+        assert_eq!(line.get(4).unwrap(), format!("Rejected {expected}"));
+    }
 }
