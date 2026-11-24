@@ -451,12 +451,10 @@ fn credentials_stay_redacted_until_the_connection_ends() {
     assert!(std::iter::from_fn(|| session.poll_event()).any(
         |event| matches!(event, Event::StandardReply(reply) if reply.description == "<redacted>"),
     ));
-    session.handle_line(
-        late,
-        format!(":ergo.test NOTICE papo :Rejected {key}\0").as_bytes(),
-    );
+    let malformed = format!(":ergo.test NOTICE papo :Rejected {key}\0");
+    session.handle_line(late, malformed.as_bytes());
     assert!(
-        matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == b"<redacted>")
+        matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == malformed.as_bytes())
     );
 
     let unrelated = b":ergo.test NOTICE papo :Invalid data\0";
@@ -770,4 +768,22 @@ fn refusing_a_credential_discards_only_its_mode_request_and_fence() {
         Some(Event::RequestFailed(refused, RequestError::StateLimit(papo_core::StateLimit::Credentials)))
         if refused == id
     ));
+}
+
+#[test]
+fn malformed_ordinary_lines_keep_their_bytes() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session.send(now, keyed_staff_join("a")).unwrap();
+    assert!(session.poll_transmit().is_some());
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo UTF8ONLY :are supported by this server",
+    );
+    while session.poll_event().is_some() {}
+    let ordinary = b":alice!~alice@users.example PRIVMSG #rust :caf\xe9 at eight";
+    session.handle_line(now, ordinary);
+    assert!(
+        matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == ordinary)
+    );
 }

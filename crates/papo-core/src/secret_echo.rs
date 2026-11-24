@@ -186,13 +186,6 @@ impl ReplySecrets {
         self.0.iter().any(|secret| secret.expose() == value)
     }
 
-    pub(super) fn repeated_in_bytes(&self, line: &[u8]) -> bool {
-        self.0.iter().any(|secret| {
-            let value = secret.expose().as_bytes();
-            line.windows(value.len()).any(|bytes| bytes == value)
-        })
-    }
-
     /// Selects parameters for masking while their bytes still match what we sent.
     pub(super) fn redactions(
         &self,

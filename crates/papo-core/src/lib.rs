@@ -4282,17 +4282,10 @@ impl Session {
         let reply_redactions =
             self.reply_secrets
                 .redactions(line, self.nick(), self.isupport.value());
-        let decoded = match std::str::from_utf8(line) {
-            Ok(line) => std::borrow::Cow::Borrowed(line),
-            Err(_) if self.isupport.decoding() == Decoding::Utf8OrLatin1 => {
-                std::borrow::Cow::Owned(line.iter().map(|&byte| char::from(byte)).collect())
-            }
-            Err(_) => return self.malformed(line),
-        };
-        if decoded.contains(['\r', '\n', '\0']) {
+        let Some(decoded) = decode_incoming(line, self.isupport.decoding()) else {
             self.malformed(line);
             return;
-        }
+        };
         match LineRef::parse(&decoded) {
             Ok(message) => {
                 let mode = self.without_ambiguous_mode_args(&message);
@@ -6067,7 +6060,10 @@ impl Session {
 
     fn malformed(&mut self, line: &[u8]) {
         let line = if echo::malformed_mode_may_carry_key(line)
-            || self.reply_secrets.repeated_in_bytes(line)
+            || !self
+                .reply_secrets
+                .redactions(line, self.nick(), self.isupport.value())
+                .is_empty()
         {
             b"<redacted>"
         } else {
@@ -7207,6 +7203,17 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
     ]
     .iter()
     .any(|exempt| command.eq_ignore_ascii_case(exempt))
+}
+
+fn decode_incoming(line: &[u8], decoding: Decoding) -> Option<std::borrow::Cow<'_, str>> {
+    let decoded = match std::str::from_utf8(line) {
+        Ok(line) => std::borrow::Cow::Borrowed(line),
+        Err(_) if decoding == Decoding::Utf8OrLatin1 => {
+            std::borrow::Cow::Owned(line.iter().map(|&byte| char::from(byte)).collect())
+        }
+        Err(_) => return None,
+    };
+    (!decoded.contains(['\r', '\n', '\0'])).then_some(decoded)
 }
 
 fn requested_message_feature(message: &LineRef<'_>) -> Option<Feature> {
