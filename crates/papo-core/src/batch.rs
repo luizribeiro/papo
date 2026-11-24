@@ -61,6 +61,7 @@ pub(crate) struct RoutedMember {
     pub(crate) replay_copy: bool,
     pub(crate) subject: Option<ReplyToken>,
     pub(crate) joined_ready: Option<bool>,
+    pub(crate) sender: Option<ReplyToken>,
 }
 
 impl RoutedMember {
@@ -70,6 +71,17 @@ impl RoutedMember {
             replay_copy: copy,
             subject: None,
             joined_ready: None,
+            sender: None,
+        }
+    }
+
+    fn observed(sender: ReplyToken) -> Self {
+        Self {
+            live: false,
+            replay_copy: false,
+            subject: None,
+            joined_ready: None,
+            sender: Some(sender),
         }
     }
 }
@@ -86,6 +98,7 @@ pub(crate) struct DispatchContext {
     batch_type: Option<String>,
     pub(crate) defer_responses: bool,
     pub(crate) live_input: bool,
+    pub(crate) sender: Option<ReplyToken>,
 }
 
 impl DispatchContext {
@@ -380,12 +393,14 @@ impl Batches {
                 BatchEvent::Multiline(message, _) => Some(message.clone()),
                 _ => None,
             });
+            let sender = assembled.as_ref().and(batch.multiline_sender);
             let replacement = multiline_rows(&batch, assembled);
             self.replace_multiline_placeholders(
                 reference,
                 &batch.multiline_collectors,
                 &replacement,
                 false,
+                sender,
             );
         }
         if let Some(label) = batch.label.take() {
@@ -679,12 +694,15 @@ impl Batches {
                     return None;
                 }
                 let line = incomplete.get(candidate);
-                let replacement = multiline_rows(&self.open[candidate], line.cloned());
+                let batch = &self.open[candidate];
+                let sender = line.and(batch.multiline_sender);
+                let replacement = multiline_rows(batch, line.cloned());
                 self.replace_multiline_placeholders(
                     candidate,
                     &collectors,
                     &replacement,
                     line.is_some(),
+                    sender,
                 );
                 Some(candidate.clone())
             })
@@ -795,6 +813,7 @@ impl Batches {
         collectors: &[String],
         replacement: &[Line],
         incomplete: bool,
+        sender: Option<ReplyToken>,
     ) {
         let opening = format!("+{reference}");
         for collector in collectors {
@@ -817,6 +836,7 @@ impl Batches {
                 .messages
                 .splice(index..=index, replacement.iter().cloned());
             let route = batch.routed_members.remove(&index);
+            let route = route.or_else(|| sender.map(RoutedMember::observed));
             let shifted = batch.routed_members.split_off(&index);
             batch.routed_members.extend(
                 shifted
@@ -1191,8 +1211,8 @@ fn fallback_rows(
         .filter_map(move |(index, line)| {
             let kind = match routed_members.get(&index) {
                 Some(member) if member.live || member.replay_copy => return None,
-                Some(_) => Some(cap::CHATHISTORY_BATCH.to_owned()),
-                None => replay_kind.clone(),
+                Some(member) if member.sender.is_none() => Some(cap::CHATHISTORY_BATCH.to_owned()),
+                _ => replay_kind.clone(),
             };
             Some((line, kind))
         })
@@ -1422,6 +1442,7 @@ mod tests {
             replay_copy: false,
             subject: None,
             joined_ready: None,
+            sender: None,
         };
         assert!(matches!(
             handle(
@@ -1636,7 +1657,7 @@ mod tests {
         assert_eq!(history.messages.len(), 4);
         history.incomplete = vec![1, 2, 3];
 
-        batches.replace_multiline_placeholders("deploy", &["history".to_owned()], &[], false);
+        batches.replace_multiline_placeholders("deploy", &["history".to_owned()], &[], false, None);
 
         let history = &batches.open["history"];
         assert_eq!(history.messages.len(), 3);

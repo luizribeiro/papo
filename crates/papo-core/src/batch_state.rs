@@ -60,6 +60,7 @@ impl Session {
             replay_copy: false,
             subject: self.state.who_subject_token(message),
             joined_ready,
+            sender: None,
         })
     }
 

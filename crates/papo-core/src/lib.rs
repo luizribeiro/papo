@@ -6364,8 +6364,11 @@ impl Session {
                     line: message.to_owned(),
                 });
             } else {
-                let received =
-                    self.received_line(message.to_owned(), context.batch_type().map(str::to_owned));
+                let received = self.received_with_sender(
+                    message.to_owned(),
+                    context.batch_type().map(str::to_owned),
+                    context.sender,
+                );
                 self.outbox.event(Event::Line(received));
             }
         }
@@ -6684,7 +6687,7 @@ impl Session {
                 self.outbox.event(Event::Line(received));
             }
             BatchEvent::Multiline(message, sender) => {
-                let message = self.received_multiline(message, sender);
+                let message = self.received_with_sender(message, None, sender);
                 self.outbox
                     .event(Event::MultilineMessage(MultilineMessage { message }));
             }
@@ -6695,7 +6698,7 @@ impl Session {
                     &own_nick,
                     self.isupport.value(),
                 );
-                let message = self.received_multiline(message, sender);
+                let message = self.received_with_sender(message, None, sender);
                 self.outbox
                     .event(Event::Incomplete(IncompleteMultiline { message }));
             }
@@ -6727,8 +6730,13 @@ impl Session {
         }
     }
 
-    fn received_multiline(&self, message: Line, sender: Option<ReplyToken>) -> ReceivedLine {
-        let mut message = self.received_line(message, None);
+    fn received_with_sender(
+        &self,
+        message: Line,
+        batch_type: Option<String>,
+        sender: Option<ReplyToken>,
+    ) -> ReceivedLine {
+        let mut message = self.received_line(message, batch_type);
         if let Some(sender) = sender {
             if message.reply_token == message.source_token {
                 message.reply_token = sender;
@@ -6915,7 +6923,8 @@ impl Session {
         let mut unanswering_events = Vec::new();
         let enclosing = request.map(|request| (request.id, request.who_target.as_deref()));
         for (index, message) in messages.iter().enumerate() {
-            if let Some(member) = routed_members.get(&index) {
+            let route = routed_members.get(&index);
+            if let Some(member) = route.filter(|member| member.sender.is_none()) {
                 if member.live {
                     subject_tokens.extend(member.subject.map(|token| (index, token)));
                     if let Some(request) = request {
@@ -6932,10 +6941,12 @@ impl Session {
             let answers =
                 request.is_none_or(|request| self.answers_request(request, &message.as_ref()));
             let queued_events = self.outbox.events.len();
+            let mut context = context.clone();
+            context.sender = route.and_then(|member| member.sender);
             self.dispatch_message(
                 now,
                 &message.as_ref(),
-                context,
+                &context,
                 request.is_none() || !answers,
                 enclosing,
             );
