@@ -2193,13 +2193,6 @@ impl CoreLine {
             Self::Incomplete(line) => (line, true),
         }
     }
-
-    pub(crate) fn into_incomplete(self) -> Option<papo_core::ReceivedLine> {
-        match self {
-            Self::Complete(_) => None,
-            Self::Incomplete(line) => Some(line),
-        }
-    }
 }
 
 // Keeping the exhaustive forwarding table together makes omissions visible when core grows.

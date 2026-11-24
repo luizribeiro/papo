@@ -99,3 +99,43 @@ async fn the_rest_of_an_oversized_history_page_is_not_live_chat() {
         "{result:?}"
     );
 }
+
+#[tokio::test]
+async fn disconnect_delivers_buffered_replay_as_history() {
+    let (_client, mut events, mut wire) =
+        wire(Client::builder("irc://offline.test", "papo").reconnect(Reconnect::never()));
+    wire.register(&[
+        "batch",
+        "draft/chathistory",
+        "draft/multiline=max-bytes=4096,max-lines=100",
+    ])
+    .await;
+    for row in [
+        ":offline.test BATCH +h chathistory #review",
+        "@batch=h :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+        "@batch=h;msgid=fkggsh3fbnpgx8hzy9ah8u :alice!~u@8fq2mzkq5hcsa.irc BATCH +paste draft/multiline #review",
+        "@batch=paste :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :!deploy",
+    ] {
+        wire.server(row).await;
+    }
+    wire.close().await;
+
+    while let Some((event, _)) = events.next().await {
+        if let Event::History(page) = event {
+            assert!(!page.exhausted);
+            assert!(
+                matches!(page.items.as_slice(), [Event::Message(message), Event::Incomplete(incomplete)]
+                if message.is_from_history() && incomplete.is_from_history())
+            );
+            return;
+        }
+        assert!(
+            !matches!(
+                event,
+                Event::Message(_) | Event::Incomplete(_) | Event::Disconnected(_)
+            ),
+            "{event:?}"
+        );
+    }
+    panic!("the replay page was lost");
+}

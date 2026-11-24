@@ -1452,9 +1452,7 @@ where
                 }
             }
             event::CoreEvent::Line(line) => {
-                let Some(line) = line.into_incomplete() else {
-                    continue;
-                };
+                let (line, incomplete) = line.into_parts();
                 let event = crate::event_impl::incoming_from_core(
                     line,
                     session.state().nick().origin(),
@@ -1463,9 +1461,28 @@ where
                     crate::rt::now_wall(),
                     Some(&events.state),
                 );
-                if let Some(event) = crate::event_impl::mark_incomplete(event) {
+                let event = if incomplete {
+                    crate::event_impl::mark_incomplete(event)
+                } else {
+                    Some(event)
+                };
+                if let Some(event) = event {
                     enqueue_event(events, &mut pending_events, event);
                 }
+            }
+            event::CoreEvent::History {
+                conversation,
+                items,
+                exhausted,
+            } => {
+                enqueue_history(
+                    session,
+                    events,
+                    &mut pending_events,
+                    conversation,
+                    items,
+                    exhausted,
+                );
             }
             _ => {}
         }
