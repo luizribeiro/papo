@@ -161,6 +161,8 @@ ids = [
   "security.recipient-1.message-only-bare-names",
   "security.recipient-1.message-only-vendor-batch",
   "security.recipient-1.message-only-multiline",
+  "security.recipient-1.live-bare-names-handoff",
+  "security.recipient-1.live-multiline-handoff",
   "security.recipient-1.live-join-handoff",
   "security.recipient-3.message-only-monitor-sync",
   "security.recipient-3.live-watch-keeps-reply",

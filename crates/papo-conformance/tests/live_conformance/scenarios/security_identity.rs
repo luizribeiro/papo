@@ -1,8 +1,8 @@
 use papo::Event;
 use papo_conformance_macros::scenario;
 
-use crate::Scenario;
 use crate::scenarios::support::message_text;
+use crate::{Peer, Scenario};
 
 fn profile() -> String {
     std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into())
@@ -159,10 +159,7 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// refuses a private reply when only a later JOIN reveals the sender was replaced
-#[scenario(covers = ["security.recipient-1.live-join-handoff"])]
-async fn private_reply_refuses_unseen_join_handoff(s: Scenario) -> papo_testing::Result<()> {
-    let mut bot = s.connect("bot").await?;
+async fn handoff_peers(s: &Scenario) -> papo_testing::Result<(Peer, Peer)> {
     let bouncer = s.server.bouncer();
     let sender = |label| {
         if let Some(bouncer) = bouncer {
@@ -188,7 +185,15 @@ async fn private_reply_refuses_unseen_join_handoff(s: Scenario) -> papo_testing:
             .hostname("handoff.papo.test"),
         );
     }
-    let mut mallory = s.connect_with(replacement).await?;
+    let mallory = s.connect_with(replacement).await?;
+    Ok((alice, mallory))
+}
+
+/// refuses a private reply when only a later JOIN reveals the sender was replaced
+#[scenario(covers = ["security.recipient-1.live-join-handoff"])]
+async fn private_reply_refuses_unseen_join_handoff(s: Scenario) -> papo_testing::Result<()> {
+    let mut bot = s.connect("bot").await?;
+    let (alice, mut mallory) = handoff_peers(&s).await?;
     let channel = s.channel_name();
     bot.join(&channel).await?;
     let nick = alice.snapshot().nick().clone();
@@ -225,6 +230,79 @@ async fn private_reply_refuses_unseen_join_handoff(s: Scenario) -> papo_testing:
         Err(papo::Error::TargetGone)
     ));
     mallory
+        .expect_none(|event| message_text(event, "release approved"))
+        .await?;
+    Ok(())
+}
+
+/// refuses a reply when the first WHO after bare NAMES reveals the current holder
+#[scenario(covers = ["security.recipient-1.live-bare-names-handoff"])]
+async fn private_reply_refuses_bare_names_handoff(s: Scenario) -> papo_testing::Result<()> {
+    if profile() != "soju-ergo" {
+        return s.skip("the fixture exercises bare NAMES through soju");
+    }
+    let mut bot = s.connect("bot").await?;
+    assert!(
+        !bot.snapshot()
+            .caps()
+            .contains(&papo::cap::USERHOST_IN_NAMES)
+    );
+    let (alice, mut replacement) = handoff_peers(&s).await?;
+    let nick = alice.snapshot().nick().clone();
+    alice
+        .privmsg(bot.snapshot().nick().as_str(), "release status")
+        .await?;
+    let request = bot
+        .wait_for(|event| message_text(event, "release status"))
+        .await?;
+    alice.quit().await?;
+    replacement.set_nick(nick.as_str()).await?;
+    let channel = s.channel_name();
+    replacement.join(&channel).await?;
+    bot.join(&channel).await?;
+    bot.wait_for(|event| {
+        event
+            .as_members_refreshed()
+            .filter(|refresh| refresh.channel.name() == channel)
+    })
+    .await?;
+    assert!(matches!(
+        bot.reply(&request, "release approved").await,
+        Err(papo::Error::TargetGone)
+    ));
+    replacement
+        .expect_none(|event| message_text(event, "release approved"))
+        .await?;
+    Ok(())
+}
+
+/// keeps a first multiline request replyable and refuses it after a multiline handoff
+#[scenario(requires(caps = ["draft/multiline"]), covers = [
+    "security.recipient-1.live-multiline-handoff"
+])]
+async fn private_reply_refuses_multiline_handoff(s: Scenario) -> papo_testing::Result<()> {
+    let mut bot = s.connect("bot").await?;
+    let (mut alice, mut replacement) = handoff_peers(&s).await?;
+    let nick = alice.snapshot().nick().clone();
+    let bot_nick = bot.snapshot().nick().clone();
+    let text = "release status\nfor Friday";
+    alice.privmsg(bot_nick.as_str(), text).await?;
+    let request = bot.wait_for(|event| message_text(event, text)).await?;
+    bot.reply(&request, "checking").await?;
+    alice
+        .wait_for(|event| message_text(event, "checking"))
+        .await?;
+    alice.quit().await?;
+    replacement.set_nick(nick.as_str()).await?;
+    let text = "release status\nfor Monday";
+    replacement.privmsg(bot_nick.as_str(), text).await?;
+    let new = bot.wait_for(|event| message_text(event, text)).await?;
+    assert_ne!(new.actor, request.actor);
+    assert!(matches!(
+        bot.reply(&request, "release approved").await,
+        Err(papo::Error::TargetGone)
+    ));
+    replacement
         .expect_none(|event| message_text(event, "release approved"))
         .await?;
     Ok(())
