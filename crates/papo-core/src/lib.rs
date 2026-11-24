@@ -6475,9 +6475,12 @@ impl Session {
                 items,
                 exhausted,
             } => self.emit_history_batch(&target, items, exhausted),
-            BatchEvent::HistoryTargets(targets) => {
-                self.outbox
-                    .event(Event::HistoryTargets(self.history_targets(targets)));
+            BatchEvent::HistoryTargets(rows) => {
+                for row in rows {
+                    let received =
+                        self.received_line(row, Some("draft/chathistory-targets".to_owned()));
+                    self.outbox.event(Event::Line(received));
+                }
             }
             BatchEvent::Abandoned {
                 reference,

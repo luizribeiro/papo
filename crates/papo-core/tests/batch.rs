@@ -946,26 +946,6 @@ fn classifies_event_playback_items_in_wire_order() {
 }
 
 #[test]
-fn history_targets_require_the_command_and_subcommand_independently() {
-    for member in [
-        "@batch=targets :ergo.test NOTICE TARGETS #papo 2026-10-15T12:00:01.000Z",
-        "@batch=targets :ergo.test CHATHISTORY LATEST #papo 2026-10-15T12:00:01.000Z",
-    ] {
-        let now = Instant::now();
-        let mut session = Session::new(Config::default());
-        session.handle_line(now, b":ergo.test BATCH +targets draft/chathistory-targets");
-        session.handle_line(now, member.as_bytes());
-        session.handle_line(now, b":ergo.test BATCH -targets");
-
-        assert!(matches!(
-            session.poll_event(),
-            Some(Event::HistoryTargets(targets)) if targets.is_empty()
-        ));
-        assert_eq!(session.poll_event(), None);
-    }
-}
-
-#[test]
 fn empty_and_draft_history_types_complete() {
     for kind in ["chathistory", "draft/chathistory", "draft/event-playback"] {
         let now = Instant::now();
@@ -1942,4 +1922,25 @@ fn unfileable_history_retains_its_replay_rows() {
         );
         assert!(session.state().user("alice").is_none());
     }
+}
+
+#[test]
+fn unsolicited_history_targets_keep_the_original_rows() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":ergo.test BATCH +targets draft/chathistory-targets");
+    session.handle_line(
+        now,
+        b"@batch=targets :ergo.test CHATHISTORY TARGETS #review 2026-10-15T12:00:00.000Z",
+    );
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b":ergo.test BATCH -targets");
+
+    let row = line(&mut session);
+    assert_eq!(row.batch_type(), Some("draft/chathistory-targets"));
+    assert_eq!(row.as_ref().raw_command(), "CHATHISTORY");
+    assert_eq!(row.as_ref().param(1), Some("#review"));
+    assert_eq!(row.as_ref().param(2), Some("2026-10-15T12:00:00.000Z"));
+    assert_eq!(session.poll_event(), None);
+    assert!(session.state().channel("#review").is_none());
 }

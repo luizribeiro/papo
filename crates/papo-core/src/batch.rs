@@ -118,7 +118,7 @@ pub(crate) enum BatchEvent {
         items: Vec<HistoryItem>,
         exhausted: bool,
     },
-    HistoryTargets(Vec<(String, papo_proto::ServerTime)>),
+    HistoryTargets(Vec<Line>),
     Abandoned {
         reference: String,
         batch_type: String,
@@ -395,7 +395,7 @@ impl Batches {
                 .iter()
                 .position(|event| matches!(event, BatchEvent::HistoryTargets(_)))
                 .and_then(|index| match completed.remove(index) {
-                    BatchEvent::HistoryTargets(targets) => Some(targets),
+                    BatchEvent::HistoryTargets(rows) => Some(parse_history_targets(&rows)),
                     _ => None,
                 });
             completed.push(BatchEvent::Response {
@@ -992,20 +992,9 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             .collect();
     }
     if batch.kind == "draft/chathistory-targets" {
-        let targets = std::mem::take(&mut batch.messages)
-            .into_iter()
-            .filter_map(|message| {
-                let message = message.as_ref();
-                if !message.command_is("CHATHISTORY") || message.param(0) != Some("TARGETS") {
-                    return None;
-                }
-                Some((
-                    message.param(1)?.to_owned(),
-                    papo_proto::ServerTime::from_stored(message.param(2)?).ok()?,
-                ))
-            })
-            .collect();
-        return vec![BatchEvent::HistoryTargets(targets)];
+        return vec![BatchEvent::HistoryTargets(std::mem::take(
+            &mut batch.messages,
+        ))];
     }
     if is_history(&batch.kind) {
         let items = history_items_with_indices(
@@ -1023,6 +1012,21 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         .map(|line| BatchEvent::Line {
             line,
             batch_type: Some(batch.kind.clone()),
+        })
+        .collect()
+}
+
+fn parse_history_targets(rows: &[Line]) -> Vec<(String, papo_proto::ServerTime)> {
+    rows.iter()
+        .filter_map(|row| {
+            let row = row.as_ref();
+            if !row.command_is("CHATHISTORY") || row.param(0) != Some("TARGETS") {
+                return None;
+            }
+            Some((
+                row.param(1)?.to_owned(),
+                papo_proto::ServerTime::from_stored(row.param(2)?).ok()?,
+            ))
         })
         .collect()
 }
@@ -1155,7 +1159,11 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<(Line, Option<String>)
         BatchEvent::Multiline(line) | BatchEvent::Incomplete(line) => {
             messages.push((line, None));
         }
-        BatchEvent::HistoryTargets(_) | BatchEvent::Abandoned { .. } => {}
+        BatchEvent::HistoryTargets(rows) => messages.extend(
+            rows.into_iter()
+                .map(|line| (line, Some("draft/chathistory-targets".to_owned()))),
+        ),
+        BatchEvent::Abandoned { .. } => {}
     }
 }
 

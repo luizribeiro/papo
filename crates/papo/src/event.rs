@@ -725,6 +725,7 @@ pub(crate) fn incoming_from_core(
             crate::cap::CHATHISTORY.as_str(),
             crate::cap::EVENT_PLAYBACK.as_str(),
             "znc.in/playback",
+            "draft/chathistory-targets",
         ]
         .contains(&papo_core::cap::canonical(kind));
         return other_with_history(received.into_line(), received_at, historical);

@@ -72,3 +72,36 @@ async fn a_replay_batch_with_an_unusable_target_is_not_dropped() {
         [("a", "@#review"), ("b", "#review"), ("c", "#review")]
     );
 }
+
+#[tokio::test]
+async fn unsolicited_history_targets_reach_the_application() {
+    let (_client, mut events, mut wire) = wire(Client::builder("irc://offline.test", "papo"));
+    wire.register(&["batch", "draft/chathistory", "server-time"])
+        .await;
+    for row in [
+        ":offline.test BATCH +targets draft/chathistory-targets",
+        "@batch=targets :offline.test CHATHISTORY TARGETS #review 2026-10-15T12:00:00.000Z",
+        ":offline.test BATCH -targets",
+        ":offline.test NOTICE papo :end of scripted traffic",
+    ] {
+        wire.server(row).await;
+    }
+    let mut target = None;
+    loop {
+        let (event, _) = tokio::time::timeout(Duration::from_secs(60), events.next())
+            .await
+            .expect("the scripted traffic ends with a notice")
+            .expect("the driver keeps running");
+        match event {
+            Event::ServerNotice(_) => break,
+            Event::Other(other) if other.command() == "CHATHISTORY" => {
+                assert!(other.is_from_history());
+                assert_eq!(other.get(0), Some("TARGETS"));
+                assert_eq!(other.get(2), Some("2026-10-15T12:00:00.000Z"));
+                target = other.get(1).map(str::to_owned);
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(target.as_deref(), Some("#review"));
+}
