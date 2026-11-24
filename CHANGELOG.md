@@ -511,6 +511,11 @@ from `papo` to `papo-testing`.
 
 ### Fixed
 
+Abandoned history and playback batches retain replay provenance, including nested multiline.
+A labeled history request ended by a batch limit returns a typed state-limit error.
+Replay rows whose batch target cannot be filed and unsolicited history target rows reach
+applications as `Other` payloads, preserving any status-prefixed audience.
+
 `actor_account()` uses the account stated by an `ACCOUNT` or extended `JOIN` line.
 Conflicting command and tag values report an unknown account.
 
