@@ -913,9 +913,13 @@ fn a_labelled_multiline_keeps_its_arrival_identity_after_a_nick_handoff() {
         let after_request_timeout = Instant::now() + std::time::Duration::from_secs(seconds);
         session.handle_timeout(after_request_timeout);
         session.handle_line(after_request_timeout, b":ergo.test BATCH -reply");
-        assert!(drain(&mut session).into_iter().any(|event| matches!(event, Event::Line(line)
-            if line.as_ref().param(1) == Some("release status")
-                && line.__source_token() == original && line.__reply_token() == original)));
+        let line = drain(&mut session).into_iter().find_map(|event| match event {
+            Event::Line(line) if line.as_ref().param(1) == Some("release status") => Some(line),
+            _ => None,
+        }).expect("released multiline");
+        assert_eq!(line.__source_token(), original);
+        assert_eq!(line.__reply_token(), original);
+        assert_eq!(line.batch_type(), (seconds == 60).then_some("labeled-response"));
     }
 }
 
