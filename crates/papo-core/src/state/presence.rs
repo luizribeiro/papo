@@ -24,6 +24,7 @@ impl State {
         message: &LineRef<'_>,
         nick: &str,
         enabled_caps: &crate::Capabilities,
+        complete_source: bool,
     ) -> Option<AccountStatus> {
         if message.command() == Command::Account {
             return None;
@@ -32,7 +33,8 @@ impl State {
             Some(account) => Some(AccountStatus::LoggedIn(
                 self.casemapping.account(account.as_ref()),
             )),
-            None => (enabled_caps.contains_key(&crate::cap::ACCOUNT_TAG)
+            None => (complete_source
+                && enabled_caps.contains_key(&crate::cap::ACCOUNT_TAG)
                 && !crate::names_equal(self.casemapping, nick, self.nick.as_str()))
             .then_some(AccountStatus::LoggedOut),
         }
@@ -42,6 +44,7 @@ impl State {
         &mut self,
         message: &LineRef<'_>,
         enabled_caps: &crate::Capabilities,
+        complete_source: bool,
         outbox: &mut Outbox,
     ) {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
@@ -52,7 +55,7 @@ impl State {
         let line_account = if crate::LineEnvelope::command_account(message).is_some() {
             None
         } else {
-            self.line_account(message, nick, enabled_caps)
+            self.line_account(message, nick, enabled_caps, complete_source)
         };
         let token = self.__reply_token_for(nick);
         let mut changed = false;
@@ -100,12 +103,13 @@ impl State {
         isupport: &Isupport,
         enabled_caps: &crate::Capabilities,
         who_target: Option<&str>,
+        complete_source: bool,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
         self.update_casemapping(isupport.casemapping());
-        self.observe_user_source(message, isupport, enabled_caps);
+        self.observe_user_source(message, isupport, enabled_caps, complete_source);
         let account = self.handle_account(message, outbox);
-        self.apply_user_tags(message, enabled_caps, outbox);
+        self.apply_user_tags(message, enabled_caps, complete_source, outbox);
         let _ = self.observe_subject(message, isupport);
         account.or_else(|| self.handle_who(message, isupport, who_target, outbox))
     }
@@ -191,6 +195,7 @@ impl State {
         message: &LineRef<'_>,
         isupport: &Isupport,
         enabled_caps: &crate::Capabilities,
+        complete_source: bool,
     ) {
         let Some(ProtoSource::User {
             nick,
@@ -211,7 +216,7 @@ impl State {
             }
             return;
         }
-        let line_account = self.line_account(message, nick, enabled_caps);
+        let line_account = self.line_account(message, nick, enabled_caps, complete_source);
         self.reconcile_message_user(
             nick,
             username,
@@ -242,7 +247,7 @@ impl State {
             let old_host = user.host.clone();
             let old_is_bot = user.is_bot;
             user.update_userhost(username, host);
-            if message_tags && isupport.bot_mode().is_some() {
+            if complete_source && message_tags && isupport.bot_mode().is_some() {
                 user.is_bot = Some(message.tags().any(|(name, _)| name == "bot"));
             }
             changed |=

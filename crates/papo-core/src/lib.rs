@@ -4343,7 +4343,7 @@ impl Session {
                 .is_some_and(|label| self.requests.contains_key(label.as_ref())),
             applied_state,
         ) {
-            BatchAction::Consumed => {}
+            BatchAction::Consumed => self.observe_multiline_opener(message),
             BatchAction::Complete(events) => {
                 for event in events {
                     self.dispatch_batch_event(now, event);
@@ -6099,7 +6099,7 @@ impl Session {
         self.away_on_connect_sent = true;
     }
 
-    fn observe_buffered_identity(&mut self, message: &LineRef<'_>) {
+    fn observe_buffered_identity(&mut self, message: &LineRef<'_>, complete_source: bool) {
         let before = self.outbox.events.len();
         let generation = self.state.change_generation();
         let typing = self.state.__typing_table().clone();
@@ -6108,6 +6108,7 @@ impl Session {
             self.isupport.value(),
             self.caps.enabled(),
             None,
+            complete_source,
             &mut self.outbox,
         );
         self.outbox.events.truncate(before);
@@ -6221,6 +6222,7 @@ impl Session {
                 self.isupport.value(),
                 self.caps.enabled(),
                 who_target.as_deref(),
+                true,
                 &mut self.outbox,
             ) == Some(Handled::Yes)
         };

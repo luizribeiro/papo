@@ -64,21 +64,47 @@ impl Session {
         })
     }
 
+    pub(super) fn observe_multiline_opener(&mut self, message: &LineRef<'_>) {
+        let Some((reference, target)) = self.batches.live_multiline_opener(message) else {
+            return;
+        };
+        let (Some(papo_proto::Source::User { .. }), Some(source)) =
+            (message.source(), message.raw_source())
+        else {
+            return;
+        };
+        // The server supplies the sender and account for the message on this opener.
+        let mut opening = crate::Line::privmsg(target, "").with_source(source);
+        for (key, value) in message.tags() {
+            opening = opening.with_tag(key, value.as_deref().unwrap_or_default());
+        }
+        self.observe_buffered_identity(&opening.as_ref(), false);
+        self.batches
+            .remember_multiline_sender(reference, self.state.source_token(message));
+    }
+
     fn observe_batched_identity(&mut self, message: &LineRef<'_>) {
         let Some((reference, opening)) = self.batches.multiline_opening(message) else {
-            self.observe_buffered_identity(message);
+            self.observe_buffered_identity(message, true);
             return;
         };
         // The opener carries the account tag for the whole message. Later fragments repeat the
         // source but provide no new identity evidence for the assembled message.
         if let Some(opening) = opening {
+            if self
+                .batches
+                .multiline_sender(reference)
+                .is_some_and(|sender| sender != self.state.source_token(message))
+            {
+                return;
+            }
             let reference = reference.to_owned();
             let account = opening.as_ref().tag("account");
             if let Some(account) = account {
                 let part = message.to_owned().with_tag("account", account);
-                self.observe_buffered_identity(&part.as_ref());
+                self.observe_buffered_identity(&part.as_ref(), true);
             } else {
-                self.observe_buffered_identity(message);
+                self.observe_buffered_identity(message, true);
             }
             self.batches
                 .remember_multiline_sender(&reference, self.state.source_token(message));

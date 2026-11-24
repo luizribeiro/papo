@@ -2459,6 +2459,7 @@ mod tests {
                 &Isupport::default(),
                 &Capabilities::default(),
                 None,
+                true,
                 &mut outbox,
             );
             outbox.events.clear();

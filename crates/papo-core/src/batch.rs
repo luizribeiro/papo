@@ -901,6 +901,19 @@ impl Batches {
         false
     }
 
+    pub(crate) fn live_multiline_opener<'a>(
+        &self,
+        message: &LineRef<'a>,
+    ) -> Option<(&'a str, &'a str)> {
+        if !message.command_is("BATCH") {
+            return None;
+        }
+        let reference = message.param(0)?.strip_prefix('+')?;
+        let batch = self.open.get(reference)?;
+        (!batch.replay && batch.kind == cap::MULTILINE.as_str())
+            .then_some((reference, message.param(2)?))
+    }
+
     pub(crate) fn multiline_opening(&self, message: &LineRef<'_>) -> Option<(&str, Option<&Line>)> {
         if !matches!(message.command(), Command::Privmsg | Command::Notice) {
             return None;
@@ -919,6 +932,10 @@ impl Batches {
             && (!matches!(opening.source(), Some(papo_proto::Source::User { .. }))
                 || opening.raw_source() == message.raw_source());
         Some((reference, first_valid.then_some(&batch.opening)))
+    }
+
+    pub(crate) fn multiline_sender(&self, reference: &str) -> Option<ReplyToken> {
+        self.open.get(reference)?.multiline_sender
     }
 
     pub(crate) fn remember_multiline_sender(&mut self, reference: &str, token: ReplyToken) {

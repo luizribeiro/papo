@@ -709,9 +709,9 @@ fn multiline_uses_the_senders_identity_when_the_message_arrives() {
         drain(&mut session);
         let source = format!(":alice!~u@{host}");
         server(&mut session, &format!("@account={account};msgid=ErgoDm2 {source} BATCH +ml draft/multiline papo-admin"));
-        server(&mut session, &format!("@batch=ml {source} PRIVMSG papo-admin :release status"));
         let sender = token(&session, "alice");
         assert_eq!(sender == original, same, "{source} {account}");
+        server(&mut session, &format!("@batch=ml {source} PRIVMSG papo-admin :release status"));
         server(&mut session, &format!("@batch=ml {source} PRIVMSG papo-admin :for Friday"));
         server(&mut session, &format!("{source} BATCH -ml"));
         let events = drain(&mut session);
@@ -1003,4 +1003,36 @@ fn continuation_lines_cannot_restore_a_departed_multiline_sender() {
     server(&mut session, ":ergo.test BATCH -ml");
     assert!(matches!(drain(&mut session).as_slice(), [Event::MultilineMessage(event)]
         if event.message.__source_token() == original));
+}
+
+#[test]
+#[rustfmt::skip]
+fn a_user_sourced_multiline_can_supply_the_account_on_its_first_part() {
+    for (account, same) in [("alice", true), ("mallory", false)] {
+        let mut session = registered("batch message-tags account-tag draft/multiline");
+        server(&mut session, ALICE_ADMIN);
+        let original = token(&session, "alice");
+        server(&mut session, ":alice!~u@8ajhv7kxgp7ag.irc BATCH +ml draft/multiline papo-admin");
+        assert_eq!(token(&session, "alice"), original);
+        server(&mut session, &format!("@batch=ml;account={account} :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status"));
+        assert_eq!(token(&session, "alice") == original, same);
+    }
+}
+
+#[test]
+#[rustfmt::skip]
+fn a_first_part_cannot_restore_a_sender_replaced_since_the_opener() {
+    let mut session = registered("batch message-tags account-tag draft/multiline");
+    server(&mut session, "@account=alice :alice!~u@8ajhv7kxgp7ag.irc BATCH +ml draft/multiline papo-admin");
+    let original = token(&session, "alice");
+    assert!(original.__is_known());
+    server(&mut session, "@account=mallory :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :release status");
+    let replacement = token(&session, "alice");
+    assert_ne!(replacement, original);
+    server(&mut session, "@batch=ml :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :deploy Friday");
+    assert_eq!(token(&session, "alice"), replacement);
+    drain(&mut session);
+    server(&mut session, ":alice!~u@8ajhv7kxgp7ag.irc BATCH -ml");
+    assert!(matches!(drain(&mut session).as_slice(), [Event::MultilineMessage(event)]
+        if event.message.__reply_token() == original && event.message.__source_token() == original));
 }
