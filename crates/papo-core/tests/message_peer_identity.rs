@@ -605,3 +605,81 @@ fn whois_teaches_the_account_of_a_sender_with_unknown_login_state() {
     session.handle_line(now, b":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT mallory");
     assert_ne!(token(&session, "alice"), before);
 }
+
+#[test]
+fn bare_presence_keeps_the_message_sender_facts_until_userhost_is_confirmed() {
+    for (presence, evidence) in [
+        (
+            "353 papo-admin = #review :@alice",
+            "352 papo-admin #review ~u {host} ergo.test alice H@ :0 Alice",
+        ),
+        (
+            "353 papo-admin = #review :@alice",
+            "PRIVMSG #review :release status",
+        ),
+        (
+            "730 papo-admin :alice",
+            "352 papo-admin #review ~u {host} ergo.test alice H :0 Alice",
+        ),
+    ] {
+        for (host, same) in [("8ajhv7kxgp7ag.irc", true), ("kq2ccwrbbbw6a.irc", false)] {
+            let mut session = registered("message-tags");
+            server(
+                &mut session,
+                ":ergo.test 005 papo-admin MONITOR=100 :are supported",
+            );
+            server(&mut session, ALICE_ADMIN);
+            let guard = session
+                .state()
+                .__capture_recipient(
+                    session.state().casemapping().nick("alice"),
+                    AccountStatus::Unknown,
+                )
+                .unwrap();
+            let before = token(&session, "alice");
+            session.monitor_add(["alice"]);
+            assert_eq!(
+                session.poll_transmit().unwrap().as_ref(),
+                b"MONITOR + alice\r\n"
+            );
+            server(&mut session, ":papo-admin!~u@localhost JOIN #review");
+            server(&mut session, &format!(":ergo.test {presence}"));
+            server(
+                &mut session,
+                ":ergo.test 366 papo-admin #review :End of NAMES list",
+            );
+            assert_eq!(
+                session.poll_transmit().unwrap().as_ref(),
+                b"MODE #review\r\n"
+            );
+            assert_eq!(
+                session.poll_transmit().unwrap().as_ref(),
+                b"WHO #review\r\n"
+            );
+            assert_eq!(token(&session, "alice"), before, "{presence}");
+            let source = if evidence.starts_with("PRIVMSG") {
+                format!("alice!~u@{host}")
+            } else {
+                "ergo.test".to_owned()
+            };
+            server(
+                &mut session,
+                &format!(":{source} {}", evidence.replace("{host}", host)),
+            );
+            let status = session.state().__resolve_recipient(&guard);
+            assert_eq!(
+                matches!(status, RecipientStatus::Current(_)),
+                same,
+                "{presence} {evidence} {host}"
+            );
+            assert_eq!(session.state().user("alice").unwrap().host(), Some(host));
+            assert_eq!(session.state().user("alice").unwrap().channels().count(), 1);
+            let after = token(&session, "alice");
+            server(
+                &mut session,
+                &format!(":alice!~u@{host} CHGHOST ~u changed.irc"),
+            );
+            assert_eq!(token(&session, "alice"), after);
+        }
+    }
+}

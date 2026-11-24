@@ -241,6 +241,7 @@ impl State {
             };
             shared.update_userhost(user, host);
             shared.channels.insert(mapping.channel(channel_name));
+            shared.confirm_presence(user, host);
         }
     }
 

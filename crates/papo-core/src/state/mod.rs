@@ -255,6 +255,7 @@ pub struct User {
     realname: Option<String>,
     is_bot: Option<bool>,
     monitored: bool,
+    unconfirmed_presence: bool,
     channels: BTreeSet<ChannelName>,
     reply_epoch: u64,
     departure_sequence: u64,
@@ -953,6 +954,7 @@ impl State {
             }
             if let Some(user) = self.users.get_mut(&key) {
                 user.monitored = true;
+                user.confirm_presence(username, host);
             }
         }
         let own = self.nick.clone();
@@ -1065,6 +1067,7 @@ impl State {
             }
             if let Some(user) = self.users.get_mut(&key) {
                 user.monitored = true;
+                user.confirm_presence(username, host);
             }
         } else if let Some(user) = self.users.get_mut(&key) {
             user.monitored = false;
@@ -2311,6 +2314,7 @@ impl User {
             realname: None,
             is_bot: None,
             monitored: false,
+            unconfirmed_presence: false,
             channels: BTreeSet::new(),
             reply_epoch,
             departure_sequence,

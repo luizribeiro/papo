@@ -131,17 +131,28 @@ impl State {
     ) -> Option<&mut User> {
         let folded = self.casemapping.fold(nick);
         let user = self.users.get(folded.as_ref())?;
-        if self.follows_presence(user) {
+        let followed = self.follows_presence(user);
+        if followed && !user.unconfirmed_presence {
             return None;
         }
         if !user.may_send_as(username, host, account) {
-            self.prepare_identity_arrival(nick);
-            let mut user = self.new_user(nick, username, host);
+            let mut replacement = self.new_user(nick, username, host);
+            if followed {
+                let key = NameKey::new(nick, self.casemapping);
+                let previous = self.users.remove(&key).expect("known user");
+                self.prepare_identity_arrival(nick);
+                self.remember_departed(&previous);
+                replacement.channels = previous.channels;
+                replacement.monitored = previous.monitored;
+            } else {
+                self.prepare_identity_arrival(nick);
+            }
+            replacement.unconfirmed_presence = true;
             if let Some(account) = account {
-                user.update_account(account.clone());
+                replacement.update_account(account.clone());
             }
             self.users
-                .insert(NameKey::new(nick, self.casemapping), user);
+                .insert(NameKey::new(nick, self.casemapping), replacement);
             self.mark_changed();
         } else if (user.username.is_none() && username.is_some())
             || (user.host.is_none() && host.is_some())
@@ -151,7 +162,11 @@ impl State {
                 .update_userhost(username, host);
             self.mark_changed();
         }
-        self.users.get_mut(folded.as_ref())
+        let user = self.users.get_mut(folded.as_ref())?;
+        if followed {
+            user.confirm_presence(username, host);
+        }
+        Some(user)
     }
 
     pub(super) fn reconcile_account_source(
@@ -213,6 +228,7 @@ impl State {
         let mut changed = false;
         if !self.users.contains_key(&key) {
             let mut user = self.new_user(nick, username, host);
+            user.unconfirmed_presence = true;
             if let Some(account) = line_account {
                 user.update_account(account);
             }
@@ -802,6 +818,13 @@ impl State {
 }
 
 impl User {
+    pub(super) fn confirm_presence(&mut self, username: Option<&str>, host: Option<&str>) {
+        // A bare roster entry cannot connect the current holder to an earlier message.
+        if username.is_some() && host.is_some() {
+            self.unconfirmed_presence = false;
+        }
+    }
+
     /// Whether a line from this user's nick, sent from `username@host` with the line's `account`,
     /// can come from the person papo knows. A person papo cannot follow may have left unseen and
     /// another may hold the nick, so any changed fact means a new person.
