@@ -15,8 +15,12 @@ fn server_time(seconds: i64, millis: i64) -> papo_proto::ServerTime {
 }
 
 fn history_session(isupport: &str) -> (Session, Instant) {
+    history_session_with(isupport, Config::default())
+}
+
+fn history_session_with(isupport: &str, config: Config) -> (Session, Instant) {
     let now = Instant::now();
-    let mut config = Config::default().rate_limit(RateLimit::unlimited());
+    let mut config = config.rate_limit(RateLimit::unlimited());
     config.wanted_caps = vec!["draft/chathistory".into(), "labeled-response".into()];
     let mut session = Session::new(config);
     session.handle_connected(now);
@@ -1042,4 +1046,40 @@ fn bounds_last_seen_to_one_thousand_recent_targets() {
     );
     assert!(session.state().last_seen("#room0001").is_none());
     assert!(session.state().last_seen("#room1000").is_some());
+}
+
+#[test]
+fn abandoned_labeled_history_completes_with_a_limit() {
+    for lines in [1, 2] {
+        let (mut session, now) = history_session_with(
+            "CHATHISTORY=1000",
+            Config::default()
+                .max_batch_lines(lines)
+                .batch_timeout(Duration::from_secs(2)),
+        );
+        let id = session
+            .chathistory(now, HistoryQuery::__latest("#review".into(), None, 20))
+            .unwrap();
+        assert_eq!(
+            transmitted(&mut session),
+            "@label=0 CHATHISTORY LATEST #review * 20"
+        );
+        for row in [
+            "@label=0;draft/chathistory-end :ergo.test BATCH +h chathistory #review",
+            "@batch=h :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+            "@batch=h :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :health checks passed",
+        ] {
+            session.handle_line(now, row.as_bytes());
+        }
+        session.handle_timeout(now + Duration::from_secs(2));
+        let outcomes: Vec<_> = std::iter::from_fn(|| session.poll_event())
+            .filter_map(|event| match event {
+                Event::Response(response) => {
+                    Some((response.id, response.state_limit, response.history))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(outcomes, [(id, Some(StateLimit::ListEntries), None)]);
+    }
 }

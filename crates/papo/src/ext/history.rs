@@ -1298,6 +1298,9 @@ impl Client {
             .await
             .map_err(|_| Error::connection_lost())?;
         let response = receiver.await.map_err(|_| Error::connection_lost())??;
+        if let Some(limit) = response.state_limit {
+            return Err(Error::StateLimit(limit));
+        }
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }

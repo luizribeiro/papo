@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use papo::{Client, Event, RateLimit, Reconnect};
+use papo::{Client, Error, Event, RateLimit, Reconnect, StateLimit};
 use papo_testing::wire;
 
 #[tokio::test]
@@ -90,5 +90,12 @@ async fn the_rest_of_an_oversized_history_page_is_not_live_chat() {
         }
     }
     assert_eq!(late_rows, 1_999);
-    request.abort();
+    let result = tokio::time::timeout(Duration::from_secs(2), request)
+        .await
+        .expect("batch abandonment completes the request")
+        .unwrap();
+    assert!(
+        matches!(result, Err(Error::StateLimit(StateLimit::ListEntries))),
+        "{result:?}"
+    );
 }

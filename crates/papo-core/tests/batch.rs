@@ -1831,3 +1831,72 @@ fn nested_playback_inside_history_emits_a_single_page() {
     );
     assert_eq!(session.poll_event(), None);
 }
+
+#[test]
+fn nested_rows_keep_replay_provenance_after_the_root_is_abandoned() {
+    for kind in ["chathistory", "draft/event-playback"] {
+        for reason in [
+            BatchAbandonReason::LineLimit,
+            BatchAbandonReason::Timeout,
+            BatchAbandonReason::OpenBatchLimit,
+        ] {
+            let now = Instant::now();
+            let config = Config::default()
+                .max_batch_lines(1)
+                .max_open_batches(1)
+                .batch_timeout(Duration::from_secs(2));
+            let mut session = Session::new(config);
+            session.handle_connected(now);
+            if reason == BatchAbandonReason::OpenBatchLimit {
+                session.handle_line(now, b":soju.test BATCH +sync soju.im/search");
+            }
+            session.handle_line(
+                now,
+                format!(":ergo.test BATCH +h {kind} #review").as_bytes(),
+            );
+            let mut at = now;
+            match reason {
+                BatchAbandonReason::LineLimit => {
+                    for line in [
+                        "@batch=h :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+                        "@batch=h :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :health checks passed",
+                    ] {
+                        session.handle_line(now, line.as_bytes());
+                    }
+                }
+                BatchAbandonReason::Timeout => {
+                    at += Duration::from_secs(2);
+                    session.handle_timeout(at);
+                }
+                _ => {}
+            }
+            assert!(
+                std::iter::from_fn(|| session.poll_event()).any(|event| matches!(
+                    event, Event::BatchAbandoned { reference, reason: actual, .. }
+                        if reference == "h" && actual == reason
+                ))
+            );
+            while session.poll_event().is_some() {}
+            for row in [
+                "@batch=h :ergo.test BATCH +child vendor/replay",
+                "@batch=child;msgid=fkggsh3fbnpgx8hzy9ah8u :alice!~u@8fq2mzkq5hcsa.irc BATCH +paste draft/multiline #review",
+                "@batch=paste :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :!deploy",
+            ] {
+                session.handle_line(at, row.as_bytes());
+            }
+            let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+            assert!(
+                events.iter().any(|event| matches!(event, Event::Line(line)
+                if line.batch_type() == Some("chathistory")
+                    && line.as_ref().param(1) == Some("!deploy"))),
+                "{kind} {reason:?}: {events:?}"
+            );
+            assert!(
+                !events.iter().any(|event| matches!(
+                    event,
+                    Event::Incomplete(_) | Event::MultilineMessage(_)
+                ))
+            );
+        }
+    }
+}

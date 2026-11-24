@@ -6510,8 +6510,9 @@ impl Session {
                     );
                     self.apply_close_request();
                 }
-                if reason != BatchAbandonReason::Timeout
-                    && let Some(request) = label.and_then(|label| self.requests.get(&label))
+                if let Some(request) = label.and_then(|label| self.requests.get(&label))
+                    && (reason != BatchAbandonReason::Timeout
+                        || request.feature == Some(Feature::History))
                 {
                     self.finish_truncated(request.id);
                 }
