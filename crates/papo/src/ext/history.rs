@@ -1181,8 +1181,13 @@ impl From<ServerTime> for HistoryReference {
 /// [`crate::UnsupportedReason::NotOffered`] or
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
-/// can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-/// An incomplete reply returns [`Error::UnexpectedReply`].
+/// can also return [`Error::TooManyPendingRequests`] or [`Error::Disconnected`].
+/// An incomplete reply returns [`Error::UnexpectedReply`]. Losing the connection after sending
+/// the request returns [`Error::Interrupted`]. The default 30-second request deadline returns
+/// [`Error::Timeout`] before the 120-second batch deadline fires. A line, byte, or open-batch
+/// limit, or a batch deadline that expires while the request is pending, returns [`Error::StateLimit`].
+/// Rows already delivered as history after a partial failure can arrive again on retry, so use
+/// `msgid` or server time to recognize them.
 ///
 /// # Cancellation
 ///

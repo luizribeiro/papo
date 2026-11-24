@@ -1476,3 +1476,67 @@ fn disconnect_releases_closed_history_replies_buffered_in_an_enclosing_batch() {
         }
     }
 }
+
+#[test]
+fn closing_wrapped_history_after_request_timeout_delivers_one_replay() {
+    let (mut session, now) = history_session("CHATHISTORY=1000");
+    let id = start_wrapped_history(&mut session, now);
+
+    let now = now + Duration::from_secs(30);
+    session.handle_timeout(now);
+    assert!(
+        matches!(session.poll_event(), Some(Event::RequestTimedOut { id: request, .. }) if request == id)
+    );
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_line(now, b"@batch=reply :ergo.test BATCH -history");
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(now, b":ergo.test BATCH -reply");
+    let Some(Event::History { items, .. }) = session.poll_event() else {
+        panic!("expected a replay after the wrapper closed");
+    };
+    let rows: Vec<_> = items
+        .iter()
+        .filter_map(HistoryItem::as_message)
+        .map(|row| row.as_ref().param(1).unwrap())
+        .collect();
+    assert_eq!(rows, ["deploy started", "health checks passed"]);
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn wrapped_history_rows_survive_the_byte_limit_once() {
+    let (mut session, now) =
+        history_session_with("CHATHISTORY=1000", Config::default().__batch_byte_budget(1));
+    let id = start_wrapped_history(&mut session, now);
+    let mut rows = Vec::new();
+    let mut limited = false;
+    let mut abandoned = false;
+    for event in std::iter::from_fn(|| session.poll_event()) {
+        match event {
+            Event::Line(row) if row.as_ref().command_is("PRIVMSG") => {
+                assert_eq!(row.batch_type(), Some("chathistory"));
+                rows.push(row.as_ref().param(1).unwrap().to_owned());
+            }
+            Event::BatchAbandoned {
+                reference, reason, ..
+            } => {
+                assert_eq!(reference, "reply");
+                assert_eq!(reason, papo_core::BatchAbandonReason::ByteLimit);
+                abandoned = true;
+            }
+            Event::Response(response) => {
+                assert_eq!(response.id, id);
+                assert_eq!(response.state_limit, Some(StateLimit::ListEntries));
+                limited = true;
+            }
+            Event::StateLimitReached {
+                limit: StateLimit::ListEntries,
+                ..
+            } => {}
+            event => panic!("unexpected event: {event:?}"),
+        }
+    }
+    assert!(abandoned && limited);
+    assert_eq!(rows, ["deploy started", "health checks passed"]);
+}

@@ -6894,6 +6894,10 @@ impl Session {
             (Vec::new(), Vec::new())
         };
         let history = history.and_then(|(target, mut items, exhausted)| {
+            if request.is_none() {
+                self.emit_history_batch(&target, items, exhausted);
+                return None;
+            }
             let Some(conversation) = self.history_conversation(&target) else {
                 self.emit_raw_history(items);
                 return None;

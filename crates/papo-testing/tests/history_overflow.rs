@@ -139,3 +139,59 @@ async fn disconnect_delivers_buffered_replay_as_history() {
     }
     panic!("the replay page was lost");
 }
+
+#[tokio::test]
+async fn disconnect_delivers_wrapped_history_rows_once() {
+    let (client, mut events, mut wire) = wire(
+        Client::builder("irc://offline.test", "papo")
+            .rate_limit(RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "batch",
+        "draft/chathistory",
+        "labeled-response",
+        "message-tags",
+        "server-time",
+    ])
+    .await;
+
+    let request = tokio::spawn(async move { client.history("#review").latest().await });
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=0 CHATHISTORY LATEST #review * 100"
+    );
+    for row in [
+        "@label=0 :offline.test BATCH +reply labeled-response",
+        "@batch=reply :offline.test BATCH +history chathistory #review",
+        "@batch=history;time=2026-11-22T09:00:00.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u0000 :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+        "@batch=history;time=2026-11-22T09:00:01.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u0001 :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :health checks passed",
+    ] {
+        wire.server(row).await;
+    }
+    wire.close().await;
+
+    let mut rows = Vec::new();
+    loop {
+        let (event, _) = events.next().await.expect("disconnect event");
+        match event {
+            Event::Other(other) if other.command() == "PRIVMSG" => {
+                assert!(other.is_from_history());
+                rows.push(other.get(1).unwrap().to_owned());
+            }
+            Event::History(page) => rows.extend(page.chat_messages().map(|message| {
+                assert!(message.is_from_history());
+                message.text.clone()
+            })),
+            Event::Message(message) => {
+                assert!(message.is_from_history());
+                rows.push(message.text);
+            }
+            Event::Disconnected(_) => break,
+            _ => {}
+        }
+    }
+    let result = request.await.unwrap();
+    assert!(matches!(result, Err(Error::Interrupted(_))), "{result:?}");
+    assert_eq!(rows, ["deploy started", "health checks passed"]);
+}
