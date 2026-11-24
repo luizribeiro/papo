@@ -3,6 +3,63 @@ use std::fmt::Write as _;
 
 const TARGET: &str = "kzhqp4zbpva7jvgd9gc223pdma";
 
+#[tokio::test(flavor = "current_thread")]
+async fn unsolicited_history_reaches_the_application_even_at_disconnect() {
+    let caps = "batch draft/chathistory server-time";
+    let (mut server, _client, mut events, driver) = scripted(config().wanted_caps(caps.split(' ')));
+    let task = tokio::spawn(driver);
+    within(complete_connect_caps(&mut server, &mut events, caps, caps)).await;
+
+    let assert_replay = |event, text, exhausted| {
+        let Some(Event::History(page)) = event else {
+            panic!("expected a history page containing {text:?}, got {event:?}");
+        };
+        assert_eq!(page.reason, crate::HistoryReason::Replay);
+        assert_eq!(page.exhausted, exhausted);
+        assert!(
+            matches!(page.items.as_slice(), [Event::Message(message)]
+                if message.text == text && message.is_from_history()),
+            "unexpected history items: {:?}",
+            page.items
+        );
+    };
+
+    server_line(
+        &mut server,
+        b"@draft/chathistory-end;time=2026-11-23T10:48:40.521Z :ergo.test BATCH +2 chathistory #papo\r\n\
+          @batch=2;time=2026-11-23T10:38:24.901Z;msgid=c7ub4kcsfnqbgq5ijpzpkx5v4a :emily!~e@localhost PRIVMSG #papo :release window opened\r\n\
+          @time=2026-11-23T10:48:40.522Z :ergo.test BATCH -2\r\n",
+    )
+    .await;
+    assert_replay(
+        within(next_event(&mut events)).await,
+        "release window opened",
+        true,
+    );
+
+    server_line(
+        &mut server,
+        b"@time=2026-11-23T10:48:41.000Z :ergo.test BATCH +3 chathistory #papo\r\n\
+          @batch=3;time=2026-11-23T10:45:07.880Z;msgid=6hr3dgdrjsy5dnpmsxwq3a8b2e :emily!~e@localhost PRIVMSG #papo :database migration completed\r\n",
+    )
+    .await;
+    drop(server);
+
+    assert_replay(
+        within(next_event(&mut events)).await,
+        "database migration completed",
+        false,
+    );
+    assert!(matches!(
+        within(next_event(&mut events)).await,
+        Some(Event::Disconnected(_))
+    ));
+    assert!(matches!(
+        within(task).await.unwrap(),
+        Err(Error::Disconnected(_))
+    ));
+}
+
 fn ergo_page(label: usize, items: &[&str]) -> String {
     let mut page = format!(
         "@label={label} :ergo.test BATCH +r{label} labeled-response\r\n@batch=r{label} :ergo.test BATCH +h{label} chathistory #papo\r\n"
