@@ -1015,7 +1015,7 @@ fn abandoned_outer_batch_flattens_completed_history_exactly() {
     session.handle_timeout(now + Duration::from_secs(2));
 
     let fallback = line(&mut session);
-    assert_eq!(fallback.batch_type(), None);
+    assert_eq!(fallback.batch_type(), Some("chathistory"));
     assert_eq!(
         fallback.into_line().to_line().unwrap(),
         "@batch=h;time=2026-10-15T12:00:01.000Z :alice!~a@cloak PRIVMSG #papo :from history\r\n"
