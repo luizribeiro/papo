@@ -1115,32 +1115,50 @@ fn unusable_labeled_history_target_releases_rows_without_a_page() {
 
 #[test]
 fn refused_history_batch_completes_its_enclosing_labeled_request() {
-    let (mut session, now) =
-        history_session_with("CHATHISTORY=1000", Config::default().max_open_batches(1));
-    let id = session
-        .chathistory(now, HistoryQuery::__latest("#review".into(), None, 20))
-        .unwrap();
-    assert_eq!(
-        transmitted(&mut session),
-        "@label=0 CHATHISTORY LATEST #review * 20"
-    );
-    session.handle_line(now, b"@label=0 :ergo.test BATCH +reply labeled-response");
-    session.handle_line(now, b"@batch=reply :ergo.test BATCH +h chathistory #review");
+    for open_limit in [1, 2] {
+        let (mut session, now) = history_session_with(
+            "CHATHISTORY=1000",
+            Config::default().max_open_batches(open_limit),
+        );
+        let id = session
+            .chathistory(now, HistoryQuery::__latest("#review".into(), None, 20))
+            .unwrap();
+        assert_eq!(
+            transmitted(&mut session),
+            "@label=0 CHATHISTORY LATEST #review * 20"
+        );
+        session.handle_line(now, b"@label=0 :ergo.test BATCH +reply labeled-response");
+        let parent = if open_limit == 2 {
+            session.handle_line(
+                now,
+                b"@batch=reply :ergo.test BATCH +inner labeled-response",
+            );
+            "inner"
+        } else {
+            "reply"
+        };
+        let opening = format!("@batch={parent} :ergo.test BATCH +h chathistory #review");
+        session.handle_line(now, opening.as_bytes());
 
-    let outcomes: Vec<_> = std::iter::from_fn(|| session.poll_event())
-        .filter_map(|event| match event {
-            Event::Response(response) => {
-                Some((response.id, response.state_limit, response.history))
-            }
-            _ => None,
-        })
-        .collect();
-    assert_eq!(outcomes, [(id, Some(StateLimit::ListEntries), None)]);
+        let outcomes: Vec<_> = std::iter::from_fn(|| session.poll_event())
+            .filter_map(|event| match event {
+                Event::Response(response) => {
+                    Some((response.id, response.state_limit, response.history))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(outcomes, [(id, Some(StateLimit::ListEntries), None)]);
 
-    session.handle_line(now, b"@batch=reply :ergo.test BATCH -h");
-    session.handle_line(now, b":ergo.test BATCH -reply");
-    assert!(
-        !std::iter::from_fn(|| session.poll_event())
-            .any(|event| matches!(event, Event::Response(_)))
-    );
+        let closing = format!("@batch={parent} :ergo.test BATCH -h");
+        session.handle_line(now, closing.as_bytes());
+        if open_limit == 2 {
+            session.handle_line(now, b"@batch=reply :ergo.test BATCH -inner");
+        }
+        session.handle_line(now, b":ergo.test BATCH -reply");
+        assert!(
+            !std::iter::from_fn(|| session.poll_event())
+                .any(|event| matches!(event, Event::Response(_)))
+        );
+    }
 }

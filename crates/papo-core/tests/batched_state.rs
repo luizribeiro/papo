@@ -303,3 +303,35 @@ fn a_labelled_response_keeps_live_and_replayed_multiline_rows_distinct() {
     assert!(session.state().user("retired").is_none());
     assert!(session.state().user("alice").is_some());
 }
+
+#[test]
+fn an_abandoned_response_releases_only_rows_that_have_not_been_delivered() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .max_batch_lines(1),
+    );
+    open_response(&mut session, now);
+    for row in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":ChanServ!~services@services.int JOIN #papo",
+        "@label=0 :znc.example BATCH +response labeled-response",
+        "@batch=response :znc.example 311 papo ChanServ services services.int * :Channel Services",
+        "@batch=response :znc.example BATCH +old znc.in/playback #papo",
+    ] {
+        session.handle_line(now, row.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+
+    session.handle_line(now, b"@batch=old;time=2026-10-15T12:00:00.000Z :alice!~alice@staff.example PRIVMSG #papo :Archived release notes");
+    let lines: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Line(row) => Some(row),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(lines[0].batch_type(), Some("chathistory"));
+    assert_eq!(lines[0].as_ref().param(1), Some("Archived release notes"));
+}
