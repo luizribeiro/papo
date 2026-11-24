@@ -938,3 +938,69 @@ fn incomplete_presence_preserves_both_userhost_checks() {
         }
     }
 }
+
+#[test]
+fn a_buffered_handoff_invalidates_state_and_typing_snapshots_on_arrival() {
+    let mut session = registered("batch message-tags");
+    server(&mut session, ALICE_ADMIN);
+    server(
+        &mut session,
+        "@+typing=active :alice!~u@8ajhv7kxgp7ag.irc TAGMSG papo-admin",
+    );
+    server(&mut session, ":ergo.test BATCH +x vendor/sync");
+    let state = session.state_generation();
+    let typing = session.typing_generation();
+    let matching = "@batch=x :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status";
+    server(&mut session, matching);
+    assert_eq!(session.state_generation(), state);
+    assert_eq!(session.typing_generation(), typing);
+    let handoff = "@batch=x :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :release status";
+    server(&mut session, handoff);
+    assert_ne!(session.state_generation(), state);
+    assert_ne!(session.typing_generation(), typing);
+}
+
+#[test]
+#[rustfmt::skip]
+fn malformed_multiline_parts_do_not_supply_identity_evidence() {
+    for (opening, part) in [
+        (":ergo.test BATCH +ml draft/multiline papo-admin",
+         ":alice!~u@kq2ccwrbbbw6a.irc PRIVMSG #review :release status"),
+        (":alice!~u@8ajhv7kxgp7ag.irc BATCH +ml draft/multiline papo-admin",
+         ":alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :release status"),
+        (":ergo.test BATCH +ml draft/multiline papo-admin",
+         ":alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin"),
+    ] {
+        let mut session = registered("batch message-tags draft/multiline");
+        server(&mut session, ALICE_ADMIN);
+        let original = token(&session, "alice");
+        server(&mut session, opening);
+        server(&mut session, &format!("@batch=ml {part}"));
+        assert_eq!(token(&session, "alice"), original, "{opening} {part}");
+        server(&mut session, ":ergo.test BATCH -ml");
+        assert!(drain(&mut session).iter().all(|event| !matches!(event, Event::MultilineMessage(_))));
+    }
+}
+
+#[test]
+#[rustfmt::skip]
+fn continuation_lines_cannot_restore_a_departed_multiline_sender() {
+    let mut session = registered("batch account-tag message-tags draft/multiline");
+    for frame in [
+        "@account=alice :ergo.test BATCH +ml draft/multiline papo-admin",
+        "@batch=ml :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status",
+    ] {
+        server(&mut session, frame);
+    }
+    let original = token(&session, "alice");
+    assert!(original.__is_known());
+    server(&mut session, "@account=mallory :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :hello?");
+    let replacement = token(&session, "alice");
+    assert_ne!(replacement, original);
+    server(&mut session, "@batch=ml :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :for Friday");
+    assert_eq!(token(&session, "alice"), replacement);
+    drain(&mut session);
+    server(&mut session, ":ergo.test BATCH -ml");
+    assert!(matches!(drain(&mut session).as_slice(), [Event::MultilineMessage(event)]
+        if event.message.__source_token() == original));
+}
