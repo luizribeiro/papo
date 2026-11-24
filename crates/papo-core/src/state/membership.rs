@@ -86,9 +86,6 @@ impl State {
                 .__reported_account(self.casemapping.into(), self.casemapping.origin())
                 .expect("extended JOIN has command evidence")
         });
-        if let Some(account) = &account {
-            self.reconcile_account_source(message, account);
-        }
         let joined = outbox.events.len();
         outbox.event(Event::Joined {
             envelope,

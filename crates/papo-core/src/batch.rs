@@ -84,6 +84,7 @@ pub(crate) struct LiveMember<'a> {
 pub(crate) struct DispatchContext {
     batch_type: Option<String>,
     pub(crate) defer_responses: bool,
+    pub(crate) live_input: bool,
 }
 
 impl DispatchContext {

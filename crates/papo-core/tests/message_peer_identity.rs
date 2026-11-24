@@ -683,3 +683,14 @@ fn bare_presence_keeps_the_message_sender_facts_until_userhost_is_confirmed() {
         }
     }
 }
+
+#[test]
+fn a_message_inside_an_open_vendor_batch_checks_its_sender() {
+    let mut session = registered("batch message-tags");
+    server(&mut session, ALICE_ADMIN);
+    let original = token(&session, "alice");
+    server(&mut session, ":ergo.test BATCH +x vendor/sync");
+    let arrival = "@batch=x :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :release update";
+    server(&mut session, arrival);
+    assert_ne!(token(&session, "alice"), original);
+}

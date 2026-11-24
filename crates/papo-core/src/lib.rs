@@ -4349,12 +4349,13 @@ impl Session {
                     self.dispatch_batch_event(now, event);
                 }
             }
-            BatchAction::Dispatch(context) => {
+            BatchAction::Dispatch(mut context) => {
                 if context.batch_type().is_some_and(batch::is_replay) {
                     let received = self
                         .received_line(message.to_owned(), context.batch_type().map(str::to_owned));
                     self.outbox.event(Event::Line(received));
                 } else {
+                    context.live_input = message.tag(cap::BATCH.as_str()).is_none();
                     self.dispatch_message(now, message, &context, true, None);
                 }
             }
@@ -6098,6 +6099,26 @@ impl Session {
         self.away_on_connect_sent = true;
     }
 
+    fn observe_buffered_identity(&mut self, message: &LineRef<'_>) {
+        let before = self.outbox.events.len();
+        let generation = self.state.change_generation();
+        let typing = self.state.__typing_table().clone();
+        let _ = self.state.observe_live_identity(
+            message,
+            self.isupport.value(),
+            self.caps.enabled(),
+            None,
+            &mut self.outbox,
+        );
+        self.outbox.events.truncate(before);
+        if !typing.same_entries(self.state.__typing_table()) {
+            self.typing_generation = self.typing_generation.wrapping_add(1);
+        }
+        if generation != self.state.change_generation() {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
+    }
+
     #[allow(clippy::too_many_lines)]
     fn dispatch_message(
         &mut self,
@@ -6193,6 +6214,16 @@ impl Session {
                 &mut self.outbox,
             );
         }
+        let identity_handled = context.live_input && {
+            let who_target = self.who_reply_target(message, enclosing_request);
+            self.state.observe_live_identity(
+                message,
+                self.isupport.value(),
+                self.caps.enabled(),
+                who_target.as_deref(),
+                &mut self.outbox,
+            ) == Some(Handled::Yes)
+        };
         let monitor_events = self.outbox.events.len();
         let monitor_handled = self.monitor.handle_message(
             message,
@@ -6228,8 +6259,8 @@ impl Session {
             .flatten()
             .and_then(|channel| self.pending_channel_join(channel))
             .map(|reservation| reservation.epoch);
-        let who_target = self.who_reply_target(message, enclosing_request);
-        let state_handled = whoami
+        let state_handled = identity_handled
+            || whoami
             || self.handle_duplicate_own_join(message)
             || self.state.handle_message(
                 message,
@@ -6243,7 +6274,6 @@ impl Session {
                     subscription_batch: context.batch_type() == Some("metadata-subs"),
                 },
                 own_away_message.as_deref(),
-                who_target.as_deref(),
                 &mut self.outbox,
             ) == Handled::Yes;
         let typing_handled = self.report_typing(now, message, context.batch_type().is_some());

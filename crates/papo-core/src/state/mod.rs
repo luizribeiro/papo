@@ -1059,7 +1059,6 @@ impl State {
             self.mark_changed();
         }
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
-            self.reconcile_message_user(nick, username, host, None);
             if !self.users.contains_key(&key) {
                 self.prepare_identity_arrival(nick);
                 let user = self.new_user(nick, username, host);
@@ -1093,10 +1092,10 @@ impl State {
         no_implicit_names: bool,
         metadata: MetadataContext,
         own_away_message: Option<&str>,
-        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
-        let mapping = self.prepare_message(message, own_nick, isupport, enabled_caps, outbox);
+        self.apply_welcome(message, own_nick);
+        let mapping = self.casemapping;
         if self.handle_metadata(message, metadata, enabled_caps, outbox) {
             return Handled::Yes;
         }
@@ -1126,9 +1125,7 @@ impl State {
                 outbox,
             );
         }
-        if let Some(handled) =
-            self.handle_user_update(message, isupport, own_away_message, who_target, outbox)
-        {
+        if let Some(handled) = self.handle_user_update(message, own_away_message, outbox) {
             return handled;
         }
         if message.command() == Command::Part {
@@ -1275,7 +1272,6 @@ impl State {
                 if entry.nick.is_empty() {
                     continue;
                 }
-                self.reconcile_message_user(entry.nick, entry.user, entry.host, None);
                 if joined {
                     self.add_member(
                         channel,
@@ -2459,18 +2455,10 @@ mod tests {
         for index in 0..=1_000 {
             let line = Line::privmsg("papo", "deployment status")
                 .with_source(format!("reviewer{index:04}!review@users.example"));
-            state.handle_message(
+            state.observe_live_identity(
                 &line.as_ref(),
-                None,
-                "papo",
                 &Isupport::default(),
                 &Capabilities::default(),
-                false,
-                MetadataContext {
-                    max_keys: 100,
-                    subscription_batch: false,
-                },
-                None,
                 None,
                 &mut outbox,
             );
@@ -2503,7 +2491,6 @@ mod tests {
                 max_keys: 100,
                 subscription_batch: false,
             },
-            None,
             None,
             &mut outbox,
         );

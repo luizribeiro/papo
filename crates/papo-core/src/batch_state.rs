@@ -10,10 +10,14 @@ impl Session {
         now: Instant,
         message: &LineRef<'_>,
     ) -> Option<RoutedMember> {
-        if !updates_presence(message.command()) {
+        if message.command_is("BATCH") {
             return None;
         }
         let member = self.batches.live_member(message)?;
+        if !updates_presence(message.command()) {
+            self.observe_buffered_identity(message);
+            return None;
+        }
         let mut context = DispatchContext::from_batch_type(member.kind.to_owned());
         let request = member.label.and_then(|label| self.requests.get(label));
         let emit_unhandled = request.is_none_or(|request| !self.answers_request(request, message));
@@ -23,6 +27,7 @@ impl Session {
         let who_target = request.and_then(|request| request.who_target.clone());
         let enclosing = request.map(|request| (request.id, who_target.as_deref()));
         context.defer_responses = raw || enclosing.is_some();
+        context.live_input = true;
         let split = member.split;
         let before = self.outbox.events.len();
 

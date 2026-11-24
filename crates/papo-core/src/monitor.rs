@@ -695,7 +695,7 @@ impl Presence {
     }
 }
 
-fn parse_entry(entry: &str) -> Option<(&str, Option<&str>, Option<&str>)> {
+pub(super) fn parse_entry(entry: &str) -> Option<(&str, Option<&str>, Option<&str>)> {
     let Some((nick, userhost)) = entry.split_once('!') else {
         return (!entry.is_empty()).then_some((entry, None, None));
     };

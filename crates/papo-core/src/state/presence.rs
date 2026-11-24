@@ -85,35 +85,29 @@ impl State {
         }
     }
 
-    fn apply_message_metadata(
-        &mut self,
-        message: &LineRef<'_>,
-        own_nick: &str,
-        enabled_caps: &crate::Capabilities,
-        outbox: &mut Outbox,
-    ) {
+    pub(super) fn apply_welcome(&mut self, message: &LineRef<'_>, own_nick: &str) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
             let old_nick = self.nick.clone();
             self.rename_user(old_nick.as_str(), own_nick);
             self.nick = self.casemapping.nick(own_nick);
             self.welcome_time = crate::server_clock::line_server_time(message);
         }
-        self.apply_user_tags(message, enabled_caps, outbox);
     }
 
-    pub(super) fn prepare_message(
+    pub(crate) fn observe_live_identity(
         &mut self,
         message: &LineRef<'_>,
-        own_nick: &str,
         isupport: &Isupport,
         enabled_caps: &crate::Capabilities,
+        who_target: Option<&str>,
         outbox: &mut Outbox,
-    ) -> crate::Names {
-        let mapping = isupport.casemapping();
-        self.update_casemapping(mapping);
+    ) -> Option<Handled> {
+        self.update_casemapping(isupport.casemapping());
         self.observe_user_source(message, isupport, enabled_caps);
-        self.apply_message_metadata(message, own_nick, enabled_caps, outbox);
-        self.casemapping
+        let account = self.handle_account(message, outbox);
+        self.apply_user_tags(message, enabled_caps, outbox);
+        let _ = self.observe_subject(message, isupport);
+        account.or_else(|| self.handle_who(message, isupport, who_target, outbox))
     }
 
     /// Whether papo would see `user` leave or change nick: through a shared channel, MONITOR, or
@@ -122,7 +116,7 @@ impl State {
         !user.channels.is_empty() || user.monitored || user.nick == self.nick
     }
 
-    pub(super) fn reconcile_message_user(
+    fn reconcile_message_user(
         &mut self,
         nick: &str,
         username: Option<&str>,
@@ -169,11 +163,7 @@ impl State {
         Some(user)
     }
 
-    pub(super) fn reconcile_account_source(
-        &mut self,
-        message: &LineRef<'_>,
-        account: &AccountStatus,
-    ) {
+    fn reconcile_account_source(&mut self, message: &LineRef<'_>, account: &AccountStatus) {
         let Some(ProtoSource::User {
             nick,
             username,
@@ -206,6 +196,13 @@ impl State {
             return;
         };
         if crate::LineEnvelope::command_account(message).is_some() {
+            if message.command() == Command::Join {
+                let account =
+                    crate::LineEnvelope::__from_line_with_account(message, self.casemapping.into())
+                        .__reported_account(self.casemapping.into(), self.casemapping.origin())
+                        .expect("extended JOIN has command evidence");
+                self.reconcile_account_source(message, &account);
+            }
             return;
         }
         let line_account = self.line_account(message, nick, enabled_caps);
@@ -399,23 +396,32 @@ impl State {
     pub(super) fn handle_user_update(
         &mut self,
         message: &LineRef<'_>,
-        isupport: &Isupport,
         own_away_message: Option<&str>,
-        who_target: Option<&str>,
         outbox: &mut Outbox,
     ) -> Option<Handled> {
-        let _ = self.observe_user_numeric(message);
         self.handle_visible_host(message, outbox)
-            .or_else(|| self.handle_account(message, outbox))
             .or_else(|| self.handle_away(message, own_away_message, outbox))
             .or_else(|| self.handle_identity_change(message, outbox))
             .or_else(|| self.handle_bot_numeric(message))
-            .or_else(|| self.handle_who(message, isupport, who_target, outbox))
     }
 
-    fn observe_user_numeric(&mut self, message: &LineRef<'_>) -> Option<()> {
+    fn observe_subject(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> Option<()> {
+        if let Some((_, _, entries)) = super::parse_353(message) {
+            for raw in entries {
+                let entry = super::NamesEntry::parse(raw, isupport);
+                self.reconcile_message_user(entry.nick, entry.user, entry.host, None);
+            }
+            return Some(());
+        }
         let nick = message.param(1)?;
         match message.command() {
+            Command::Numeric(Numeric::RPL_MONONLINE) => {
+                for (nick, username, host) in
+                    nick.split(',').filter_map(crate::monitor::parse_entry)
+                {
+                    self.reconcile_message_user(nick, username, host, None);
+                }
+            }
             Command::Numeric(Numeric::RPL_WHOISUSER) => {
                 self.reconcile_message_user(
                     nick,
