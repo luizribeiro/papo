@@ -1176,7 +1176,8 @@ impl From<ServerTime> for HistoryReference {
 ///
 /// # Errors
 ///
-/// Awaiting the request returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
+/// Awaiting the request returns [`Error::Unsupported`] for a missing capability documented by
+/// [`Client::history`] with reason
 /// [`crate::UnsupportedReason::NotOffered`] or
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
@@ -1233,6 +1234,11 @@ impl IntoFuture for HistoryRequest {
 
 impl Client {
     /// Starts a chat history request for a conversation.
+    ///
+    /// History requests require negotiated `draft/chathistory` (or `chathistory`), `batch`,
+    /// and `labeled-response`. Awaiting the request returns [`Error::Unsupported`] with
+    /// the missing feature before sending a command. Labels distinguish requested pages
+    /// from unsolicited replays for the same conversation.
     ///
     /// The returned page keeps server delivery order. `IRCv3` recommends oldest-to-newest
     /// delivery for every history subcommand but permits other orders; papo does not sort it.
@@ -1309,10 +1315,13 @@ impl Client {
 
     /// Lists conversations that received messages during an inclusive time range.
     ///
-    /// This sends the `IRCv3` [`CHATHISTORY TARGETS`] query.
+    /// This sends the `IRCv3` [`CHATHISTORY TARGETS`] query and requires the same
+    /// negotiated capabilities as [`Client::history`].
+    ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
+    /// Returns [`Error::Unsupported`] for a missing capability documented by
+    /// [`Client::history`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
