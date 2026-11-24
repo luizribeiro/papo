@@ -4272,7 +4272,9 @@ impl Session {
             return;
         }
 
-        let reply_redactions = self.reply_secrets.redactions(line);
+        let reply_redactions =
+            self.reply_secrets
+                .redactions(line, self.nick(), self.isupport.value());
         let decoded = match std::str::from_utf8(line) {
             Ok(line) => std::borrow::Cow::Borrowed(line),
             Err(_) if self.isupport.decoding() == Decoding::Utf8OrLatin1 => {

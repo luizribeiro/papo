@@ -123,7 +123,7 @@ impl Session {
     }
 
     pub(super) fn mask_tracked_channel_keys(&self, message: &LineRef<'_>) -> Option<Line> {
-        if message.command() != Command::Numeric(Numeric::RPL_CHANNELMODEIS) {
+        if !message.command_is("324") {
             return None;
         }
         let mut line = None;

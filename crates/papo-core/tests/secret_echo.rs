@@ -586,3 +586,49 @@ fn credential_collisions_leave_ordinary_server_lines_intact() {
         }
     }
 }
+
+fn keyed_staff_join(key: &str) -> Line {
+    Line::new("JOIN").param("#staff").param(Secret::new(key))
+}
+
+#[test]
+fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    for key in ["papo", "#staff", "a"] {
+        session.send(now, keyed_staff_join(key)).unwrap();
+        assert!(session.poll_transmit().is_some());
+    }
+    session.handle_line(
+        now,
+        b":ergo.test 696 papo #staff k #staff :Invalid mode parameter",
+    );
+    let line = echo_line(&mut session);
+    assert_eq!(
+        line.as_ref().params().collect::<Vec<_>>(),
+        [
+            "papo",
+            "#staff",
+            "k",
+            "<redacted>",
+            "Invalid mode parameter"
+        ]
+    );
+    session.handle_line(
+        now,
+        b":ergo.test NOTE JOIN CHANNEL_STATE #staff a :Channel status",
+    );
+    let Some(Event::StandardReply(reply)) = session.poll_event() else {
+        panic!("expected a standard reply")
+    };
+    assert_eq!(reply.context, ["#staff", "<redacted>"]);
+    assert_eq!(reply.description, "Channel status");
+    session.handle_line(
+        now,
+        b":ergo.test WARN JOIN BAD_CHANNEL_KEY #staff :Rejected 'a'",
+    );
+    let Some(Event::StandardReply(reply)) = session.poll_event() else {
+        panic!("expected a standard reply");
+    };
+    assert_eq!(reply.description, "<redacted>");
+}

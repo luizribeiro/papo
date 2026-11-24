@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, time::Duration};
 
-use papo_proto::{Command, Line, LineRef, Param, Secret, WireLine};
+use papo_proto::{Command, Isupport, Line, LineRef, Param, Secret, WireLine};
 use web_time::Instant;
 
 use crate::{RequestError, Sasl, sasl::Mechanism};
@@ -192,7 +192,12 @@ impl ReplySecrets {
     }
 
     /// Selects parameters for masking while their bytes still match what we sent.
-    pub(super) fn redactions(&self, mut input: &[u8]) -> Vec<usize> {
+    pub(super) fn redactions(
+        &self,
+        mut input: &[u8],
+        nick: &str,
+        isupport: &Isupport,
+    ) -> Vec<usize> {
         if self.0.is_empty() {
             return Vec::new();
         }
@@ -202,11 +207,15 @@ impl ReplySecrets {
             }
         }
         let command = std::str::from_utf8(next_word(&mut input)).unwrap_or_default();
-        match Command::parse(command) {
-            Command::Numeric(numeric) if crate::is_failure_numeric(numeric) => {}
-            Command::Fail | Command::Warn | Command::Note | Command::Error => {}
+        let command = Command::parse(command);
+        let channel_index = match command {
+            Command::Numeric(numeric) if crate::is_failure_numeric(numeric) => {
+                numeric_channel_parameter(numeric)
+            }
+            Command::Fail | Command::Warn | Command::Note => standard_channel_parameter(input),
+            Command::Error => None,
             _ => return Vec::new(),
-        }
+        };
 
         let mut params = std::iter::from_fn(|| {
             let remaining = trim_spaces(input);
@@ -224,8 +233,9 @@ impl ReplySecrets {
             let last = params.peek().is_none();
             if self.0.iter().any(|secret| {
                 let value = secret.expose().as_bytes();
-                param == value || last && param.windows(value.len()).any(|bytes| bytes == value)
-            }) {
+                param == value || last && contains_token(param, value)
+            }) && !is_reply_address(command, channel_index, index, last, param, nick, isupport)
+            {
                 redactions.push(index);
             }
         }
@@ -245,4 +255,75 @@ fn next_word<'a>(input: &mut &'a [u8]) -> &'a [u8] {
     let word = fields.next().unwrap_or_default();
     *input = fields.next().unwrap_or_default();
     word
+}
+
+fn numeric_channel_parameter(numeric: papo_proto::Numeric) -> Option<usize> {
+    match numeric.code() {
+        441 | 443 => Some(2),
+        403..=405 | 437 | 442 | 470..=471 | 473..=479 | 482 | 489 | 525 | 696..=698 => Some(1),
+        _ => None,
+    }
+}
+
+fn standard_channel_parameter(mut params: &[u8]) -> Option<usize> {
+    let command = std::str::from_utf8(next_word(&mut params)).unwrap_or_default();
+    matches!(
+        Command::parse(command),
+        Command::Invite
+            | Command::Join
+            | Command::Kick
+            | Command::List
+            | Command::Mode
+            | Command::Names
+            | Command::Notice
+            | Command::Part
+            | Command::Privmsg
+            | Command::Topic
+            | Command::Who
+            | Command::Tagmsg
+            | Command::Chathistory
+            | Command::Redact
+            | Command::Metadata
+    )
+    .then_some(2)
+}
+
+fn is_reply_address(
+    command: Command<'_>,
+    channel_index: Option<usize>,
+    index: usize,
+    last: bool,
+    param: &[u8],
+    nick: &str,
+    isupport: &Isupport,
+) -> bool {
+    let Ok(param) = std::str::from_utf8(param) else {
+        return false;
+    };
+    (matches!(command, Command::Numeric(_))
+        && index == 0
+        && crate::names_equal(isupport.casemapping(), param, nick))
+        || (!last && channel_index == Some(index) && isupport.is_channel(param))
+}
+
+fn contains_token(text: &[u8], value: &[u8]) -> bool {
+    let words = text
+        .iter()
+        .enumerate()
+        .filter(|(_, byte)| **byte == b' ')
+        .filter_map(|(index, _)| text.get(index + 1..));
+    std::iter::once(text).chain(words).any(|start| {
+        let ends_token = |rest: &[u8]| rest.is_empty() || rest.starts_with(b" ");
+        if start.strip_prefix(value).is_some_and(ends_token) {
+            return true;
+        }
+        let Some((&quote, rest)) = start.split_first() else {
+            return false;
+        };
+        matches!(quote, b'"' | b'\'')
+            && rest
+                .strip_prefix(value)
+                .and_then(|end| end.strip_prefix(&[quote]))
+                .is_some_and(ends_token)
+    })
 }
