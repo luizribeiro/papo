@@ -1944,3 +1944,43 @@ fn unsolicited_history_targets_keep_the_original_rows() {
     assert_eq!(session.poll_event(), None);
     assert!(session.state().channel("#review").is_none());
 }
+
+#[test]
+fn replay_keeps_rows_when_multiline_cannot_be_assembled() {
+    for end in ["close", "timeout", "line limit", "disconnect"] {
+        let now = Instant::now();
+        let lines = if end == "line limit" { 1 } else { 10 };
+        let mut session = Session::new(
+            Config::default()
+                .max_batch_lines(lines)
+                .batch_timeout(Duration::from_secs(2)),
+        );
+        session.handle_connected(now);
+        for row in [
+            ":ergo.test BATCH +h chathistory #review",
+            "@batch=h :ergo.test BATCH +m draft/multiline #review",
+            "@batch=m :alice!~u@cloak PRIVMSG #review :deploy started",
+            "@batch=m :alice!~u@cloak NOTICE #review :health checks passed",
+        ] {
+            session.handle_line(now, row.as_bytes());
+        }
+        match end {
+            "close" => {
+                session.handle_line(now, b"@batch=h :ergo.test BATCH -m");
+                session.handle_line(now, b":ergo.test BATCH -h");
+            }
+            "timeout" => session.handle_timeout(now + Duration::from_secs(2)),
+            "disconnect" => session.handle_disconnected(now),
+            _ => {}
+        }
+        let Some(Event::History { items, .. }) = session.poll_event() else {
+            panic!("expected a replay page for {end}");
+        };
+        let text: Vec<_> = items
+            .iter()
+            .filter_map(HistoryItem::as_message)
+            .map(|item| item.line.as_ref().param(1).unwrap())
+            .collect();
+        assert_eq!(text, ["deploy started", "health checks passed"], "{end}");
+    }
+}

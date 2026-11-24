@@ -367,14 +367,11 @@ impl Batches {
             completed.extend(complete(&mut batch));
         }
         if batch.kind == cap::MULTILINE.as_str() && !batch.multiline_collectors.is_empty() {
-            let replacement = completed
-                .iter()
-                .find_map(|event| match event {
-                    BatchEvent::Multiline(message) => Some(message.clone()),
-                    _ => None,
-                })
-                .into_iter()
-                .collect::<Vec<_>>();
+            let assembled = completed.iter().find_map(|event| match event {
+                BatchEvent::Multiline(message) => Some(message.clone()),
+                _ => None,
+            });
+            let replacement = multiline_rows(&batch, assembled);
             self.replace_multiline_placeholders(
                 reference,
                 &batch.multiline_collectors,
@@ -604,7 +601,16 @@ impl Batches {
     }
 
     fn abandon(&mut self, reference: &str, reason: BatchAbandonReason) -> Vec<BatchEvent> {
-        self.drain(reference, Some(reason))
+        let batch = &self.open[reference];
+        let warning = BatchEvent::Abandoned {
+            reference: reference.to_owned(),
+            batch_type: batch.kind.clone(),
+            reason,
+            label: batch.label.clone(),
+        };
+        let mut events = self.drain(reference, Some(reason));
+        events.push(warning);
+        events
     }
 
     fn drain(&mut self, reference: &str, reason: Option<BatchAbandonReason>) -> Vec<BatchEvent> {
@@ -626,10 +632,9 @@ impl Batches {
                 dispatch_kind(&batch.kind, batch.replay).to_owned(),
             );
         }
-        let batch_type = self.open[reference].kind.clone();
-        let label = self.open[reference].label.clone();
-        let history_target = is_history(&batch_type)
-            .then(|| self.open[reference].params.first().cloned())
+        let batch = &self.open[reference];
+        let history_target = is_history(&batch.kind)
+            .then(|| batch.params.first().cloned())
             .flatten();
         let incomplete = self.incomplete_multilines(&references);
         let absorbed_multiline: HashSet<_> = references
@@ -640,8 +645,13 @@ impl Batches {
                     return None;
                 }
                 let line = incomplete.get(candidate);
-                let replacement = line.map_or(&[][..], std::slice::from_ref);
-                self.replace_multiline_placeholders(candidate, &collectors, replacement, true);
+                let replacement = multiline_rows(&self.open[candidate], line.cloned());
+                self.replace_multiline_placeholders(
+                    candidate,
+                    &collectors,
+                    &replacement,
+                    line.is_some(),
+                );
                 Some(candidate.clone())
             })
             .collect();
@@ -677,7 +687,7 @@ impl Batches {
                 collect_messages(event, &mut messages);
             }
         }
-        let mut events = if let Some(target) = history_target {
+        if let Some(target) = history_target {
             history_incomplete.extend(incomplete.values().cloned());
             vec![BatchEvent::History {
                 target,
@@ -698,16 +708,7 @@ impl Batches {
                 line,
             }));
             incomplete_events
-        };
-        if let Some(reason) = reason {
-            events.push(BatchEvent::Abandoned {
-                reference: reference.to_owned(),
-                batch_type,
-                reason,
-                label,
-            });
         }
-        events
     }
 
     fn remember_abandoned(&mut self, reference: &str, batch: AbandonedBatch) {
@@ -977,19 +978,17 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         }];
     }
     if batch.kind == cap::MULTILINE.as_str() {
-        return multiline(batch)
-            .into_iter()
-            .map(|line| {
-                if batch.replay && batch.multiline_collectors.is_empty() {
-                    BatchEvent::Line {
-                        line,
-                        batch_type: Some(cap::CHATHISTORY_BATCH.to_owned()),
-                    }
-                } else {
-                    BatchEvent::Multiline(line)
-                }
-            })
-            .collect();
+        let assembled = multiline(batch);
+        if batch.replay && batch.multiline_collectors.is_empty() {
+            return multiline_rows(batch, assembled)
+                .into_iter()
+                .map(|line| BatchEvent::Line {
+                    line,
+                    batch_type: Some(cap::CHATHISTORY_BATCH.to_owned()),
+                })
+                .collect();
+        }
+        return assembled.into_iter().map(BatchEvent::Multiline).collect();
     }
     if batch.kind == "draft/chathistory-targets" {
         return vec![BatchEvent::HistoryTargets(std::mem::take(
@@ -1029,6 +1028,14 @@ fn parse_history_targets(rows: &[Line]) -> Vec<(String, papo_proto::ServerTime)>
             ))
         })
         .collect()
+}
+
+fn multiline_rows(batch: &OpenBatch, assembled: Option<Line>) -> Vec<Line> {
+    match assembled {
+        Some(line) => vec![line],
+        None if batch.replay => batch.messages.clone(),
+        None => Vec::new(),
+    }
 }
 
 fn multiline(batch: &OpenBatch) -> Option<Line> {
