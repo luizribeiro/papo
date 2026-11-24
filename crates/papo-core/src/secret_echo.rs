@@ -169,7 +169,7 @@ impl ReplySecrets {
             });
         let values = papo_proto::__wire_secret_parameters(line).chain(decoded);
         for value in values.filter(|value| !value.is_empty()) {
-            if self.0.iter().any(|secret| secret.expose() == value) {
+            if self.contains(value) {
                 continue;
             }
             if self.0.len() == MAX_CREDENTIALS {
@@ -180,6 +180,10 @@ impl ReplySecrets {
         true
     }
 
+    pub(super) fn contains(&self, value: &str) -> bool {
+        self.0.iter().any(|secret| secret.expose() == value)
+    }
+
     pub(super) fn repeated_in_bytes(&self, line: &[u8]) -> bool {
         self.0.iter().any(|secret| {
             let value = secret.expose().as_bytes();
@@ -188,21 +192,15 @@ impl ReplySecrets {
     }
 
     pub(super) fn redact(&self, message: &LineRef<'_>) -> Option<Line> {
-        if self.0.is_empty()
-            || !(matches!(message.command(), Command::Numeric(_))
-                || [
-                    "FAIL",
-                    "WARN",
-                    "NOTE",
-                    "ERROR",
-                    "NOTICE",
-                    "REGISTER",
-                    "VERIFY",
-                    "AUTHENTICATE",
-                ]
-                .iter()
-                .any(|command| message.command_is(command)))
-        {
+        if self.0.is_empty() {
+            return None;
+        }
+        let failure = match message.command() {
+            Command::Numeric(numeric) => crate::is_failure_numeric(numeric),
+            Command::Fail | Command::Warn | Command::Note | Command::Error => true,
+            _ => false,
+        };
+        if !failure {
             return None;
         }
         let mut line = None;

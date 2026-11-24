@@ -1499,7 +1499,7 @@ impl ResponseMatcher {
     }
 
     fn numeric_names_command(message: &LineRef<'_>, numeric: Numeric, command: &str) -> bool {
-        (numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN)
+        is_failure_numeric(numeric)
             && message
                 .param(1)
                 .is_some_and(|value| value.eq_ignore_ascii_case(command))
@@ -4287,6 +4287,8 @@ impl Session {
             Ok(message) => {
                 let mode = self.without_ambiguous_mode_args(&message);
                 let message = mode.as_ref().map_or(message, Line::as_ref);
+                let keys = self.mask_tracked_channel_keys(&message);
+                let message = keys.as_ref().map_or(message, Line::as_ref);
                 let reply = self.reply_secrets.redact(&message);
                 let message = reply.as_ref().map_or(message, Line::as_ref);
                 let redacted = self
@@ -7147,6 +7149,10 @@ fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<
         .collect()
 }
 
+fn is_failure_numeric(numeric: Numeric) -> bool {
+    numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN
+}
+
 /// The failure `message` reports, when it is a standard `FAIL` or an error numeric.
 #[allow(
     unused_variables,
@@ -7171,7 +7177,7 @@ fn server_error(
     let Command::Numeric(numeric) = message.command() else {
         return None;
     };
-    (numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN).then(|| ServerError::Numeric {
+    is_failure_numeric(numeric).then(|| ServerError::Numeric {
         numeric,
         params: message.params().map(str::to_owned).collect(),
     })

@@ -542,3 +542,47 @@ fn channel_mode_replies_preserve_keys_only_in_typed_state() {
     assert_eq!(response.lines[0].get(4), Some("<redacted>"));
     assert!(!format!("{response:?} {session:?}").contains(key));
 }
+
+#[test]
+fn credential_collisions_leave_ordinary_server_lines_intact() {
+    let now = Instant::now();
+    for key in ["papo", "rust", "a"] {
+        let mut reference = ergo(now);
+        let mut session = ergo(now);
+        session
+            .send(
+                now,
+                Line::new("JOIN").param("#rust").param(Secret::new(key)),
+            )
+            .unwrap();
+        assert!(session.poll_transmit().is_some());
+        for line in [
+            ":ergo.test 001 papo :Welcome to the rust network, papo",
+            ":papo!~papo@localhost JOIN #rust",
+            ":ergo.test 353 papo = #rust :@ferris papo rustacean alice",
+            ":ergo.test 366 papo #rust :End of /NAMES list.",
+            ":ergo.test 332 papo #rust :Welcome to rust, read the book before asking",
+            ":ergo.test 372 papo :- This network runs on rust and coffee",
+            ":alice!~alice@users.example NOTICE #rust :rust meetup tonight at eight",
+            ":alice!~alice@users.example PRIVMSG #rust :the rust release is out",
+        ] {
+            reference.handle_line(now, line.as_bytes());
+            session.handle_line(now, line.as_bytes());
+            assert!(
+                session.state() == reference.state(),
+                "key {key}, line {line}"
+            );
+            let events = |session: &mut Session| {
+                format!(
+                    "{:?}",
+                    std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>()
+                )
+            };
+            assert_eq!(
+                events(&mut session),
+                events(&mut reference),
+                "key {key}, line {line}"
+            );
+        }
+    }
+}

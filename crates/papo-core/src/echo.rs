@@ -117,29 +117,45 @@ impl Session {
     }
 
     pub(super) fn mark_channel_key(&self, line: &mut Line) {
-        let key_params = {
-            let message = line.as_ref();
-            let Some((modestring, args_start)) = self.channel_mode_fields(&message) else {
-                return;
-            };
-            let mut consumed = 0;
-            ModeChanges::parse(
-                modestring,
-                message.params().skip(args_start),
-                self.isupport.value(),
-            )
-            .filter_map(|change| {
-                let index = args_start + consumed;
-                if change.arg.is_some() {
-                    consumed += 1;
-                }
-                (change.mode == 'k' && message.param(index).is_some()).then_some(index)
-            })
-            .collect::<Vec<_>>()
-        };
-        for index in key_params {
+        for index in self.channel_key_params(&line.as_ref()) {
             line.__mark_secret(index);
         }
+    }
+
+    pub(super) fn mask_tracked_channel_keys(&self, message: &LineRef<'_>) -> Option<Line> {
+        if message.command() != Command::Numeric(Numeric::RPL_CHANNELMODEIS) {
+            return None;
+        }
+        let mut line = None;
+        for index in self.channel_key_params(message) {
+            if message
+                .param(index)
+                .is_some_and(|key| self.reply_secrets.contains(key))
+            {
+                papo_proto::__mask_param(line.get_or_insert_with(|| message.to_owned()), index);
+            }
+        }
+        line
+    }
+
+    fn channel_key_params(&self, message: &LineRef<'_>) -> Vec<usize> {
+        let Some((modestring, args_start)) = self.channel_mode_fields(message) else {
+            return Vec::new();
+        };
+        let mut consumed = 0;
+        ModeChanges::parse(
+            modestring,
+            message.params().skip(args_start),
+            self.isupport.value(),
+        )
+        .filter_map(|change| {
+            let index = args_start + consumed;
+            if change.arg.is_some() {
+                consumed += 1;
+            }
+            (change.mode == 'k' && message.param(index).is_some()).then_some(index)
+        })
+        .collect()
     }
 
     pub(super) fn without_ambiguous_mode_args(&self, message: &LineRef<'_>) -> Option<Line> {
