@@ -105,8 +105,10 @@ impl State {
         });
         let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
         if ours {
-            let old_nick = self.nick.clone();
-            self.rename_user(old_nick.as_str(), nick);
+            if self.nick.as_str() != nick {
+                let old_nick = self.nick.clone();
+                self.rename_user(old_nick.as_str(), nick);
+            }
             self.nick = self.casemapping.nick(nick);
             let key = NameKey::new(join.channel, self.casemapping);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {

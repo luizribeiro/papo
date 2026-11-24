@@ -220,3 +220,30 @@ fn renaming_mid_sweep_skips_rows_for_both_nicknames() {
     })
     .ignore_rest();
 }
+
+#[test]
+fn joining_another_channel_mid_sweep_still_applies_our_own_row() {
+    let transcript =
+        sweep_in_flight(Config::default()).server(":bob!~bob@127.0.0.1 JOIN #papo-dev");
+    finish_sweep(
+        transcript,
+        &[":ergo.test 354 bob 152 #papo ~bob 127.0.0.1 bob G bob :Bob Jones"],
+    )
+    .inspect(|session| {
+        let own = session.state().user("bob").unwrap();
+        assert_eq!(own.account(), &logged_in("bob"));
+        assert_eq!(own.realname(), Some("Bob Jones"));
+    })
+    .ignore_rest();
+}
+
+#[test]
+fn our_own_join_under_a_recased_nick_renames_us_in_joined_channels() {
+    sweep_in_flight(Config::default())
+        .server(":Bob!~bob@127.0.0.1 JOIN #papo-dev")
+        .inspect(|session| {
+            assert_eq!(session.state().nick(), "Bob");
+            assert_eq!(member_nicks(session), ["Bob", "alice", "dan"]);
+        })
+        .ignore_rest();
+}
