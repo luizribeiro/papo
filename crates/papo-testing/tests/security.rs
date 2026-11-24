@@ -2015,6 +2015,144 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
     );
 }
 
+async fn events_before_marker(events: &mut Events, wire: &mut Wire) -> Vec<papo::Event> {
+    wire.server(":dan!~dan@users.example PRIVMSG papo :end of MOTD check")
+        .await;
+    let mut seen = Vec::new();
+    loop {
+        let event = next_active_event(events).await;
+        if matches!(&event, papo::Event::Message(message) if message.text == "end of MOTD check") {
+            return seen;
+        }
+        seen.push(event);
+    }
+}
+
+async fn joined_with_key(channel: &'static str, key: &'static str) -> (papo::Client, Events, Wire) {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    let joiner = client.clone();
+    let join = tokio::spawn(async move { joiner.join(channel).key(papo::Secret::new(key)).await });
+    assert_eq!(wire.next_sent().await, format!("JOIN {channel} {key}"));
+    wire.server(format!(":papo!~papo@localhost JOIN {channel}"))
+        .await;
+    wire.server(format!(
+        ":offline.test 332 papo {channel} :Welcome to rust, read the book before asking"
+    ))
+    .await;
+    wire.server(format!(
+        ":offline.test 353 papo = {channel} :@ferris papo rustacean alice"
+    ))
+    .await;
+    wire.server(format!(
+        ":offline.test 366 papo {channel} :End of /NAMES list."
+    ))
+    .await;
+    join.await.unwrap().unwrap();
+    events_before_marker(&mut events, &mut wire).await;
+    (client, events, wire)
+}
+
+fn roster(client: &papo::Client, channel: &str) -> (Option<String>, Vec<String>) {
+    let state = client.snapshot();
+    let channel = state.channel(channel).unwrap().expect("channel is joined");
+    let mut members = channel
+        .members()
+        .map(|member| member.nick().to_string())
+        .collect::<Vec<_>>();
+    members.sort();
+    (channel.topic().map(str::to_owned), members)
+}
+
+fn assert_rust_roster(client: &papo::Client, channel: &str) {
+    let (topic, members) = roster(client, channel);
+    assert_eq!(
+        topic.as_deref(),
+        Some("Welcome to rust, read the book before asking")
+    );
+    assert_eq!(members, ["alice", "ferris", "papo", "rustacean"]);
+}
+
+#[tokio::test]
+async fn a_channel_key_that_is_a_common_word_keeps_the_topic_and_member_list() {
+    let (client, _events, _wire) = joined_with_key("#rust", "rust").await;
+    assert_rust_roster(&client, "#rust");
+}
+
+#[tokio::test]
+async fn a_one_letter_channel_key_keeps_the_topic_and_member_list() {
+    let (client, _events, _wire) = joined_with_key("#staff", "a").await;
+    assert_rust_roster(&client, "#staff");
+}
+
+#[tokio::test]
+async fn a_channel_key_does_not_hide_other_users_notices_or_messages() {
+    let (_client, mut events, mut wire) = joined_with_key("#rust", "rust").await;
+    wire.server(":alice!~alice@users.example PRIVMSG #rust :the rust 1.90 release is out")
+        .await;
+    wire.server(":alice!~alice@users.example NOTICE #rust :rust meetup tonight at eight")
+        .await;
+    wire.server(":offline.test 372 papo :- This network runs on rust and coffee")
+        .await;
+    let seen = format!("{:?}", events_before_marker(&mut events, &mut wire).await);
+    assert!(
+        seen.contains("the rust 1.90 release is out"),
+        "PRIVMSG: {seen}"
+    );
+    assert!(
+        seen.contains("rust meetup tonight at eight"),
+        "NOTICE: {seen}"
+    );
+    assert!(seen.contains("runs on rust and coffee"), "372: {seen}");
+}
+
+#[tokio::test]
+async fn a_sasl_password_equal_to_the_nick_keeps_the_account_and_member_list() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never())
+            .sasl(papo::Sasl::plain("papo", papo::Secret::new("papo"))),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo");
+    assert_eq!(wire.next_sent().await, "USER papo 0 * papo");
+    wire.server(":offline.test CAP * LS :sasl=PLAIN").await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+    wire.server(":offline.test CAP * ACK :sasl").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE PLAIN");
+    wire.server("AUTHENTICATE +").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE AHBhcG8AcGFwbw==");
+    wire.server(":offline.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+        .await;
+    wire.server(":offline.test 903 papo :Authentication successful")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP END");
+    wire.server(":offline.test 001 papo :Welcome to the ErgoTest IRC Network papo")
+        .await;
+    wire.server(":offline.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(qaohv)~&@%+ :are supported by this server")
+        .await;
+    wire.server(":offline.test 422 papo :MOTD File is missing")
+        .await;
+    connected(&mut events).await;
+    wire.server(":papo!~papo@localhost JOIN #ergo").await;
+    wire.server(":offline.test 353 papo = #ergo :@ferris papo alice")
+        .await;
+    wire.server(":offline.test 366 papo #ergo :End of /NAMES list.")
+        .await;
+    events_before_marker(&mut events, &mut wire).await;
+    let account = format!("{:?}", client.snapshot().account());
+    assert_eq!(client.snapshot().nick().to_string(), "papo");
+    let (_, members) = roster(&client, "#ergo");
+    assert!(account.contains("\"papo\""), "account: {account}");
+    assert_eq!(members, ["alice", "ferris", "papo"]);
+}
+
 #[tokio::test]
 async fn rejected_channel_key_stays_redacted() {
     const KEY: &str = "hunter2,staff-only-6294";
