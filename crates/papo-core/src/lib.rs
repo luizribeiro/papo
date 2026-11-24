@@ -6472,19 +6472,9 @@ impl Session {
             event @ BatchEvent::Response { .. } => self.dispatch_response_batch(now, event),
             BatchEvent::History {
                 target,
-                mut items,
+                items,
                 exhausted,
-            } => {
-                if let Some(conversation) = self.history_conversation(&target) {
-                    self.remember_history_server_time(&target, &items);
-                    self.mark_history_parties(&mut items);
-                    self.outbox.event(Event::History {
-                        conversation,
-                        items,
-                        exhausted,
-                    });
-                }
-            }
+            } => self.emit_history_batch(&target, items, exhausted),
             BatchEvent::HistoryTargets(targets) => {
                 self.outbox
                     .event(Event::HistoryTargets(self.history_targets(targets)));
@@ -6566,6 +6556,30 @@ impl Session {
                     self.state_generation = self.state_generation.wrapping_add(1);
                 }
             }
+        }
+    }
+
+    fn emit_history_batch(&mut self, target: &str, mut items: Vec<HistoryItem>, exhausted: bool) {
+        if let Some(conversation) = self.history_conversation(target) {
+            self.remember_history_server_time(target, &items);
+            self.mark_history_parties(&mut items);
+            self.outbox.event(Event::History {
+                conversation,
+                items,
+                exhausted,
+            });
+        } else {
+            self.emit_raw_history(items);
+        }
+    }
+
+    fn emit_raw_history(&mut self, items: Vec<HistoryItem>) {
+        for item in items {
+            let received = self.received_line(
+                item.into_line().line,
+                Some(cap::CHATHISTORY_BATCH.to_owned()),
+            );
+            self.outbox.event(Event::Line(received));
         }
     }
 

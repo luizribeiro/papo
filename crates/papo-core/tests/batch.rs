@@ -1919,3 +1919,27 @@ fn disconnect_releases_open_replay_as_history() {
         if matches!(items.as_slice(), [HistoryItem::Message(_), HistoryItem::Incomplete(_)]))
     );
 }
+
+#[test]
+fn unfileable_history_retains_its_replay_rows() {
+    for target in [" @#review", " *", ""] {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(
+            now,
+            format!(":ergo.test BATCH +h chathistory{target}").as_bytes(),
+        );
+        session.handle_line(now, b"@batch=h;msgid=6tiv6pw8a7d5mhn77ai2vm5jq2 :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG @#review :rotate the deploy key tonight");
+        session.handle_line(now, b":ergo.test BATCH -h");
+
+        let events: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+        assert!(
+            events.iter().any(|event| matches!(event, Event::Line(line)
+            if line.batch_type() == Some("chathistory")
+                && line.as_ref().param(0) == Some("@#review")
+                && line.as_ref().param(1) == Some("rotate the deploy key tonight"))),
+            "{target:?}: {events:?}"
+        );
+        assert!(session.state().user("alice").is_none());
+    }
+}
