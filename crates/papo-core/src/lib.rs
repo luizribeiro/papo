@@ -4277,7 +4277,15 @@ impl Session {
                         }
                     }
                     BatchAction::Dispatch(context) => {
-                        self.dispatch_message(now, &message, &context, true, None);
+                        if context.batch_type().is_some_and(batch::is_replay) {
+                            let received = self.received_line(
+                                message.to_owned(),
+                                context.batch_type().map(str::to_owned),
+                            );
+                            self.outbox.event(Event::Line(received));
+                        } else {
+                            self.dispatch_message(now, &message, &context, true, None);
+                        }
                     }
                 }
             }

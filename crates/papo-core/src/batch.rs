@@ -188,10 +188,20 @@ impl Batches {
             return self.open(now, message, reference, bouncer_enabled, correlated_label);
         }
         if let Some(reference) = reference.strip_prefix('-') {
-            if !self.abandoned.contains_key(reference) {
+            if let Some(batch) = self.abandoned.get(reference) {
+                let kind = batch
+                    .replay
+                    .then(|| dispatch_kind(&batch.kind, true).to_owned());
+                self.close_abandoned(message, reference);
+                if let Some(kind) = kind {
+                    return BatchAction::Complete(vec![BatchEvent::Line {
+                        line: message.to_owned(),
+                        batch_type: Some(kind),
+                    }]);
+                }
+            } else {
                 return self.close(message, reference);
             }
-            self.close_abandoned(message, reference);
         }
         BatchAction::Dispatch(self.context(message))
     }
@@ -433,10 +443,7 @@ impl Batches {
             if applied_state.is_some() {
                 return BatchAction::Consumed;
             }
-            let batch_type = self
-                .abandoned
-                .get(reference.as_ref())
-                .map(|batch| batch.kind.clone());
+            let batch_type = context.batch_type;
             if batch_type.as_deref() == Some(cap::MULTILINE.as_str())
                 && matches!(message.command(), Command::Privmsg | Command::Notice)
                 && message.param(1).is_some()
@@ -851,10 +858,17 @@ impl Batches {
     }
 
     fn context(&self, message: &LineRef<'_>) -> DispatchContext {
-        let batch_type = message
-            .tag("batch")
-            .and_then(|reference| self.open.get(reference.as_ref()))
-            .map(|batch| batch.kind.clone());
+        let batch_type = message.tag("batch").and_then(|reference| {
+            self.open
+                .get(reference.as_ref())
+                .map(|batch| dispatch_kind(&batch.kind, batch.replay))
+                .or_else(|| {
+                    self.abandoned
+                        .get(reference.as_ref())
+                        .map(|batch| dispatch_kind(&batch.kind, batch.replay))
+                })
+                .map(str::to_owned)
+        });
         DispatchContext {
             batch_type,
             ..DispatchContext::default()
@@ -891,7 +905,15 @@ fn is_history(kind: &str) -> bool {
         || kind == cap::EVENT_PLAYBACK.as_str()
 }
 
-fn is_replay(kind: &str) -> bool {
+fn dispatch_kind(kind: &str, replay: bool) -> &str {
+    if replay && !is_replay(kind) {
+        cap::CHATHISTORY_BATCH
+    } else {
+        kind
+    }
+}
+
+pub(crate) fn is_replay(kind: &str) -> bool {
     is_history(kind) || matches!(kind, "znc.in/playback" | "soju.im/search")
 }
 
