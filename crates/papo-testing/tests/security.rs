@@ -3163,3 +3163,83 @@ async fn a_refused_non_ascii_key_stays_redacted_in_a_legacy_reply() {
     let shown = format!("{error:?} {error}");
     assert!(!shown.contains(key) && !shown.contains(&latin1));
 }
+#[tokio::test]
+async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    wire.server(":offline.test 005 papo CHANMODES=beI,k,l,imnpst :are supported")
+        .await;
+
+    for index in 0..256 {
+        let channel = format!("#team-{index:03}");
+        let key = format!("team-{index:03}-x7Kq");
+        let requester = client.clone();
+        let (name, secret) = (channel.clone(), papo::Secret::new(&key));
+        let request = tokio::spawn(async move { requester.join(name).key(secret).await });
+        loop {
+            let sent = wire.next_sent().await;
+            if sent == format!("JOIN {channel} {key}") {
+                break;
+            }
+            assert!(
+                sent.starts_with("MODE ") || sent.starts_with("WHO "),
+                "{sent}"
+            );
+        }
+        wire.server(format!(":papo!~papo@localhost JOIN {channel}"))
+            .await;
+        wire.server(format!(":offline.test 353 papo = {channel} :@papo"))
+            .await;
+        wire.server(format!(
+            ":offline.test 366 papo {channel} :End of /NAMES list."
+        ))
+        .await;
+        request.await.unwrap().unwrap();
+    }
+
+    let key = papo::Secret::new("team-256-x7Kq");
+    let limited = |error: &papo::Error| {
+        matches!(
+            error,
+            papo::Error::StateLimit(papo::StateLimit::Credentials)
+        )
+    };
+    assert!(limited(
+        &client.join("#team-256").key(key.clone()).await.unwrap_err()
+    ));
+    assert!(limited(
+        &client
+            .set_modes("#team-000")
+            .key(key.clone())
+            .await
+            .unwrap_err()
+    ));
+    assert!(limited(
+        &client
+            .send_raw(papo::Line::new("JOIN").param("#team-256").param(key))
+            .await
+            .unwrap_err()
+    ));
+
+    let probe = tokio::spawn(async move {
+        client
+            .send_raw(papo::Line::new("PING").param("credential-limit-check"))
+            .await
+    });
+    loop {
+        let sent = wire.next_sent().await;
+        if sent == "PING credential-limit-check" {
+            break;
+        }
+        assert!(
+            matches!(sent.as_str(), "MODE #team-255" | "WHO #team-255"),
+            "{sent}"
+        );
+    }
+    probe.await.unwrap().unwrap();
+}
