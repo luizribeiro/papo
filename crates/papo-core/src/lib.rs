@@ -6678,12 +6678,16 @@ impl Session {
                     self.finish_truncated(request.id);
                 }
             }
-            BatchEvent::Line { line, batch_type } => {
+            BatchEvent::Line {
+                line,
+                batch_type,
+                sender,
+            } => {
                 let context = batch_type
                     .clone()
                     .map_or_else(DispatchContext::default, DispatchContext::from_batch_type);
                 self.handle_ctcp(now, &line.as_ref(), &context);
-                let received = self.received_line(line, batch_type);
+                let received = self.received_with_sender(line, batch_type, sender);
                 self.outbox.event(Event::Line(received));
             }
             BatchEvent::Multiline(message, sender) => {
@@ -6941,12 +6945,15 @@ impl Session {
             let answers =
                 request.is_none_or(|request| self.answers_request(request, &message.as_ref()));
             let queued_events = self.outbox.events.len();
-            let mut context = context.clone();
-            context.sender = route.and_then(|member| member.sender);
+            let observed = route.and_then(|member| member.sender).map(|sender| {
+                let mut context = context.clone();
+                context.sender = Some(sender);
+                context
+            });
             self.dispatch_message(
                 now,
                 &message.as_ref(),
-                &context,
+                observed.as_ref().unwrap_or(context),
                 request.is_none() || !answers,
                 enclosing,
             );

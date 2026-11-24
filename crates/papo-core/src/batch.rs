@@ -147,6 +147,7 @@ pub(crate) enum BatchEvent {
     Line {
         line: Line,
         batch_type: Option<String>,
+        sender: Option<ReplyToken>,
     },
     Multiline(Line, Option<ReplyToken>),
     Incomplete(Line, Option<ReplyToken>),
@@ -229,6 +230,7 @@ impl Batches {
                     return BatchAction::Complete(vec![BatchEvent::Line {
                         line: message.to_owned(),
                         batch_type: Some(kind),
+                        sender: None,
                     }]);
                 }
             } else {
@@ -462,6 +464,7 @@ impl Batches {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn member(
         &mut self,
         message: &LineRef<'_>,
@@ -489,6 +492,7 @@ impl Batches {
             return BatchAction::Complete(vec![BatchEvent::Line {
                 line: message.to_owned(),
                 batch_type,
+                sender: None,
             }]);
         }
         let ancestors = self.ancestors(reference.as_ref());
@@ -555,6 +559,7 @@ impl Batches {
                 let fallback = BatchEvent::Line {
                     line: message.to_owned(),
                     batch_type: context.batch_type,
+                    sender: None,
                 };
                 events.insert(events.len() - 1, fallback);
             }
@@ -566,6 +571,7 @@ impl Batches {
             BatchAction::Complete(vec![BatchEvent::Line {
                 line: message.to_owned(),
                 batch_type: context.batch_type,
+                sender: None,
             }])
         } else {
             BatchAction::Dispatch(context)
@@ -662,6 +668,7 @@ impl Batches {
         None
     }
 
+    #[allow(clippy::too_many_lines)]
     fn drain(&mut self, reference: &str, reason: Option<BatchAbandonReason>) -> Vec<BatchEvent> {
         let references: Vec<_> = self
             .open
@@ -725,7 +732,7 @@ impl Batches {
             if !absorbed_multiline.contains(&candidate) {
                 let replay_kind = batch.replay.then(|| types[&candidate].clone());
                 match (incomplete.get(&candidate), replay_kind) {
-                    (Some(line), Some(kind)) => messages.push((line.clone(), Some(kind))),
+                    (Some(line), Some(kind)) => messages.push((line.clone(), Some(kind), None)),
                     (Some(line), None) => {
                         incomplete_events
                             .push(BatchEvent::Incomplete(line.clone(), batch.multiline_sender));
@@ -745,20 +752,23 @@ impl Batches {
             vec![BatchEvent::History {
                 target,
                 items: history_items_with_incomplete(
-                    messages.into_iter().map(|(line, _)| line).collect(),
+                    messages.into_iter().map(|(line, _, _)| line).collect(),
                     history_incomplete,
                 ),
                 exhausted: false,
             }]
         } else {
-            incomplete_events.extend(messages.into_iter().map(|(line, kind)| BatchEvent::Line {
-                batch_type: kind.or_else(|| {
-                    line.as_ref()
-                        .tag("batch")
-                        .and_then(|reference| types.get(reference.as_ref()))
-                        .cloned()
-                }),
-                line,
+            incomplete_events.extend(messages.into_iter().map(|(line, kind, sender)| {
+                BatchEvent::Line {
+                    batch_type: kind.or_else(|| {
+                        line.as_ref()
+                            .tag("batch")
+                            .and_then(|reference| types.get(reference.as_ref()))
+                            .cloned()
+                    }),
+                    line,
+                    sender,
+                }
             }));
             incomplete_events
         }
@@ -830,7 +840,10 @@ impl Batches {
             let replacement_bytes = replacement
                 .iter()
                 .map(|message| retained_bytes(&message.as_ref()))
-                .sum::<usize>();
+                .sum::<usize>()
+                .saturating_add(
+                    usize::from(sender.is_some()) * std::mem::size_of::<(usize, RoutedMember)>(),
+                );
             let replacement_len = replacement.len();
             batch
                 .messages
@@ -1069,6 +1082,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
                 .map(|line| BatchEvent::Line {
                     line,
                     batch_type: Some(cap::CHATHISTORY_BATCH.to_owned()),
+                    sender: None,
                 })
                 .collect();
         }
@@ -1098,6 +1112,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         .map(|line| BatchEvent::Line {
             line,
             batch_type: Some(batch.kind.clone()),
+            sender: None,
         })
         .collect()
 }
@@ -1200,25 +1215,28 @@ fn unapplied_messages(messages: Vec<Line>, routed: &RoutedMembers) -> impl Itera
         })
 }
 
+type BatchRow = (Line, Option<String>, Option<ReplyToken>);
+
 fn fallback_rows(
     messages: Vec<Line>,
     routed_members: &RoutedMembers,
     replay_kind: Option<String>,
-) -> impl Iterator<Item = (Line, Option<String>)> {
+) -> impl Iterator<Item = BatchRow> {
     messages
         .into_iter()
         .enumerate()
         .filter_map(move |(index, line)| {
-            let kind = match routed_members.get(&index) {
+            let route = routed_members.get(&index);
+            let kind = match route {
                 Some(member) if member.live || member.replay_copy => return None,
                 Some(member) if member.sender.is_none() => Some(cap::CHATHISTORY_BATCH.to_owned()),
                 _ => replay_kind.clone(),
             };
-            Some((line, kind))
+            Some((line, kind, route.and_then(|member| member.sender)))
         })
 }
 
-fn collect_messages(event: BatchEvent, messages: &mut Vec<(Line, Option<String>)>) {
+fn collect_messages(event: BatchEvent, messages: &mut Vec<BatchRow>) {
     match event {
         BatchEvent::Response {
             messages: batch,
@@ -1254,25 +1272,32 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<(Line, Option<String>)
             messages: batch, ..
         }
         | BatchEvent::Isupport(batch) => {
-            messages.extend(batch.into_iter().map(|line| (line, None)));
+            messages.extend(batch.into_iter().map(|line| (line, None, None)));
         }
         #[cfg(feature = "unstable")]
-        BatchEvent::Bouncer(batch) => messages.extend(batch.into_iter().map(|line| (line, None))),
+        BatchEvent::Bouncer(batch) => {
+            messages.extend(batch.into_iter().map(|line| (line, None, None)));
+        }
         BatchEvent::History { items: batch, .. } => {
             messages.extend(batch.into_iter().map(|item| {
                 (
                     item.into_line().line,
                     Some(cap::CHATHISTORY_BATCH.to_owned()),
+                    None,
                 )
             }));
         }
-        BatchEvent::Line { line, batch_type } => messages.push((line, batch_type)),
-        BatchEvent::Multiline(line, _) | BatchEvent::Incomplete(line, _) => {
-            messages.push((line, None));
+        BatchEvent::Line {
+            line,
+            batch_type,
+            sender,
+        } => messages.push((line, batch_type, sender)),
+        BatchEvent::Multiline(line, sender) | BatchEvent::Incomplete(line, sender) => {
+            messages.push((line, None, sender));
         }
         BatchEvent::HistoryTargets(rows) => messages.extend(
             rows.into_iter()
-                .map(|line| (line, Some("draft/chathistory-targets".to_owned()))),
+                .map(|line| (line, Some("draft/chathistory-targets".to_owned()), None)),
         ),
         BatchEvent::Abandoned { .. } => {}
     }

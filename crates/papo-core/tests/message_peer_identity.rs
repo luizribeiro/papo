@@ -889,30 +889,32 @@ fn replayed_multiline_and_subject_rows_leave_live_identity_unchanged() {
 #[test]
 #[rustfmt::skip]
 fn a_labelled_multiline_keeps_its_arrival_identity_after_a_nick_handoff() {
-    use papo_core::ResponseMatcher;
-    use papo_proto::Line;
+    for seconds in [60, 121] {
+        use papo_core::ResponseMatcher;
+        use papo_proto::Line;
 
-    let mut session = registered("batch labeled-response message-tags draft/multiline");
-    session.request_with_matcher(
-        Instant::now(), Line::new("WHOIS").param("alice"), ResponseMatcher::Whois("alice".into()),
-    ).unwrap();
-    assert_eq!(session.poll_transmit().unwrap().as_ref(), b"@label=0 WHOIS alice\r\n");
-    for line in [
-        "@label=0 :ergo.test BATCH +reply labeled-response",
-        "@batch=reply;msgid=ErgoDm1 :alice!~u@8ajhv7kxgp7ag.irc BATCH +ml draft/multiline papo-admin",
-        "@batch=ml :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status",
-        "@batch=reply :alice!~u@8ajhv7kxgp7ag.irc BATCH -ml",
-    ] {
-        server(&mut session, line);
+        let mut session = registered("batch labeled-response message-tags draft/multiline");
+        session.request_with_matcher(
+            Instant::now(), Line::new("WHOIS").param("alice"), ResponseMatcher::Whois("alice".into()),
+        ).unwrap();
+        assert_eq!(session.poll_transmit().unwrap().as_ref(), b"@label=0 WHOIS alice\r\n");
+        for line in [
+            "@label=0 :ergo.test BATCH +reply labeled-response",
+            "@batch=reply;msgid=ErgoDm1 :alice!~u@8ajhv7kxgp7ag.irc BATCH +ml draft/multiline papo-admin",
+            "@batch=ml :alice!~u@8ajhv7kxgp7ag.irc PRIVMSG papo-admin :release status",
+            "@batch=reply :alice!~u@8ajhv7kxgp7ag.irc BATCH -ml",
+        ] {
+            server(&mut session, line);
+        }
+        let original = token(&session, "alice");
+        server(&mut session, ":alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :hello?");
+        assert_ne!(original, token(&session, "alice"));
+        drain(&mut session);
+        let after_request_timeout = Instant::now() + std::time::Duration::from_secs(seconds);
+        session.handle_timeout(after_request_timeout);
+        session.handle_line(after_request_timeout, b":ergo.test BATCH -reply");
+        assert!(drain(&mut session).into_iter().any(|event| matches!(event, Event::Line(line)
+            if line.as_ref().param(1) == Some("release status")
+                && line.__source_token() == original && line.__reply_token() == original)));
     }
-    let original = token(&session, "alice");
-    server(&mut session, ":alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :hello?");
-    assert_ne!(original, token(&session, "alice"));
-    drain(&mut session);
-    let after_request_timeout = Instant::now() + std::time::Duration::from_secs(60);
-    session.handle_timeout(after_request_timeout);
-    session.handle_line(after_request_timeout, b":ergo.test BATCH -reply");
-    assert!(drain(&mut session).into_iter().any(|event| matches!(event, Event::Line(line)
-        if line.as_ref().param(1) == Some("release status")
-            && line.__source_token() == original && line.__reply_token() == original)));
 }
