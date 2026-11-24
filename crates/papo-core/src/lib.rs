@@ -1530,6 +1530,7 @@ impl ResponseMatcher {
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
+        addresses: &mut Vec<usize>,
     ) -> Option<bool> {
         let numeric = match message.command() {
             Command::Numeric(numeric) => Some(numeric),
@@ -1537,6 +1538,13 @@ impl ResponseMatcher {
         };
         let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
         let own_echo = |command| own_source && message.command() == command;
+        let mut address = |index, name: &str| {
+            let matches = Self::target_is(message, index, name, mapping);
+            if matches && is_failure(message) && index + 1 < message.len() {
+                addresses.push(index);
+            }
+            matches
+        };
         match self {
             Self::Whois(nick) => {
                 if Self::standard_failure(message, "WHOIS")
@@ -1562,7 +1570,7 @@ impl ResponseMatcher {
                         | Numeric::RPL_WHOISSECURE
                         | Numeric::ERR_NOSUCHNICK
                 );
-                (relevant && Self::target_is(message, 1, nick, mapping)).then_some(matches!(
+                (relevant && address(1, nick)).then_some(matches!(
                     numeric,
                     Numeric::RPL_ENDOFWHOIS | Numeric::ERR_NOSUCHNICK
                 ))
@@ -1582,16 +1590,14 @@ impl ResponseMatcher {
                 })
             }
             Self::Join(channel) => {
-                let named = |index| Self::target_is(message, index, channel, mapping);
-                if StandardReplyView::parse(message).is_some_and(|reply| {
-                    reply.kind == StandardReplyKind::Fail
-                        && reply.command.eq_ignore_ascii_case("JOIN")
-                        && reply
-                            .context
-                            .iter()
-                            .any(|target| names_equal(mapping, target, channel))
-                }) {
-                    return Some(true);
+                let mut named = |index| address(index, channel);
+                if let Some(reply) = StandardReplyView::parse(message)
+                    && reply.kind == StandardReplyKind::Fail
+                    && reply.command.eq_ignore_ascii_case("JOIN")
+                {
+                    let first_context = message.len() - reply.context.len() - 1;
+                    let mut context_indices = (first_context..).take(reply.context.len());
+                    return context_indices.any(named).then_some(true);
                 }
                 if own_echo(Command::Join) && named(0) {
                     return Some(state.channel(channel).is_some_and(Channel::is_synced));
@@ -1607,7 +1613,7 @@ impl ResponseMatcher {
             Self::Part(channel) => ((own_echo(Command::Part)
                 && Self::target_is(message, 0, channel, mapping))
                 || (numeric.is_some_and(|numeric| matches!(numeric.code(), 403 | 442))
-                    && Self::target_is(message, 1, channel, mapping))
+                    && address(1, channel))
                 || numeric
                     .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "PART"))
                 || Self::standard_failure(message, "PART"))
@@ -1616,25 +1622,25 @@ impl ResponseMatcher {
                 && Self::target_is(message, 0, target, mapping))
                 || numeric.is_some_and(|numeric| {
                     matches!(numeric.code(), 472 | 501 | 502)
-                        || numeric.is_error() && Self::target_is(message, 1, target, mapping)
+                        || numeric.is_error() && address(1, target)
                         || Self::numeric_names_command(message, numeric, "MODE")
                 })
                 || Self::standard_failure(message, "MODE"))
             .then_some(true),
             Self::Topic(channel) => {
-                let named = |index| Self::target_is(message, index, channel, mapping);
+                let mut named = |index| address(index, channel);
                 ((own_echo(Command::Topic) && named(0))
                     || numeric.is_some_and(|numeric| {
-                        named(1)
-                            && (matches!(numeric, Numeric::RPL_NOTOPIC | Numeric::RPL_TOPIC)
-                                || matches!(numeric.code(), 403 | 442 | 482))
+                        (matches!(numeric, Numeric::RPL_NOTOPIC | Numeric::RPL_TOPIC)
+                            || matches!(numeric.code(), 403 | 442 | 482))
+                            && named(1)
                             || Self::numeric_names_command(message, numeric, "TOPIC")
                     })
                     || Self::standard_failure(message, "TOPIC"))
                 .then_some(true)
             }
             Self::Kick { channel, nick } => {
-                let named = |index, expected| Self::target_is(message, index, expected, mapping);
+                let mut named = |index, expected| address(index, expected);
                 ((own_echo(Command::Kick) && named(0, channel) && named(1, nick))
                     || numeric.is_some_and(|numeric| match numeric.code() {
                         401 => named(1, nick),
@@ -1646,7 +1652,7 @@ impl ResponseMatcher {
                 .then_some(true)
             }
             Self::Invite { channel, nick } => {
-                let named = |index, expected| Self::target_is(message, index, expected, mapping);
+                let mut named = |index, expected| address(index, expected);
                 (numeric.is_some_and(|numeric| {
                     (numeric == Numeric::RPL_INVITING && named(1, nick) && named(2, channel))
                         || match numeric.code() {
@@ -1662,7 +1668,7 @@ impl ResponseMatcher {
                 && Self::target_is(message, 0, nick, mapping))
                 || numeric.is_some_and(|numeric| {
                     numeric == Numeric::ERR_NONICKNAMEGIVEN
-                        || numeric.is_error() && Self::target_is(message, 1, nick, mapping)
+                        || numeric.is_error() && address(1, nick)
                         || Self::numeric_names_command(message, numeric, "NICK")
                 })
                 || Self::standard_failure(message, "NICK"))
@@ -1717,7 +1723,7 @@ impl ResponseMatcher {
                 let Command::Numeric(numeric) = message.command() else {
                     return None;
                 };
-                let named = Self::target_is(message, 1, channel, mapping);
+                let named = address(1, channel);
                 let (row, end) = mode.numerics();
                 let list_reply = named
                     && matches!(numeric.code(), code if code == row || code == end)
@@ -1764,9 +1770,10 @@ impl ResponseBoundary {
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
+        addresses: &mut Vec<usize>,
     ) -> Option<bool> {
         match self {
-            Self::Matcher(matcher) => matcher.matches(message, mapping, own_nick, state),
+            Self::Matcher(matcher) => matcher.matches(message, mapping, own_nick, state, addresses),
             #[cfg(feature = "unstable")]
             Self::WebPush(response) => response.matches(message),
         }
@@ -7550,6 +7557,29 @@ mod tests {
     }
 
     #[test]
+    fn only_the_matched_name_field_is_a_reply_address() {
+        let nick = ResponseMatcher::Nick("ferris".to_owned());
+        let join = ResponseMatcher::Join("#staff".to_owned());
+        let state = State::new(&Config::default());
+        for (matcher, wire, answered) in [
+            (&nick, ":ergo.test 433 papo :ferris", true),
+            (&nick, ":ergo.test 421 papo NICK :Unknown command", true),
+            (
+                &join,
+                ":ergo.test FAIL JOIN BAD_CHANNEL_KEY #left :#staff",
+                false,
+            ),
+        ] {
+            let line = LineRef::parse(wire).unwrap();
+            let mut addresses = Vec::new();
+            let complete =
+                matcher.matches(&line, Casemapping::Rfc1459, "papo", &state, &mut addresses);
+            assert_eq!(complete, answered.then_some(true));
+            assert!(addresses.is_empty(), "{wire}");
+        }
+    }
+
+    #[test]
     fn invalidating_a_list_request_uses_the_requested_id() {
         let now = std::time::Instant::now();
         let mut session = Session::new(Config::default());
@@ -7756,7 +7786,10 @@ mod tests {
 
         let ban_row = line(":ergo.test 367 papo #papo{ *!*@gateway.example oper 1761048000");
         assert!(ban.is_list_row(&ban_row));
-        assert_eq!(ban.matches(&ban_row, mapping, "papo", &state), Some(false));
+        assert_eq!(
+            ban.matches(&ban_row, mapping, "papo", &state, &mut Vec::new()),
+            Some(false)
+        );
         for wire in [
             ":ergo.test 348 papo #papo{ *!*@staff.example oper 1761048000",
             ":ergo.test 367 papo #other *!*@gateway.example oper 1761048000",
@@ -7764,7 +7797,7 @@ mod tests {
         ] {
             let message = line(wire);
             assert_eq!(
-                ban.matches(&message, mapping, "papo", &state),
+                ban.matches(&message, mapping, "papo", &state, &mut Vec::new()),
                 None,
                 "accepted {wire}"
             );
@@ -7773,13 +7806,16 @@ mod tests {
         let wrong_quiet =
             line(":solanum.example 728 papo #papo{ b *!*@noisy.example oper 1761048000");
         assert!(!quiet.is_list_row(&wrong_quiet));
-        assert_eq!(quiet.matches(&wrong_quiet, mapping, "papo", &state), None);
+        assert_eq!(
+            quiet.matches(&wrong_quiet, mapping, "papo", &state, &mut Vec::new()),
+            None
+        );
         let quiet_row =
             line(":solanum.example 728 papo #papo{ q *!*@noisy.example oper 1761048000");
         assert!(quiet.is_list_row(&quiet_row));
         let quiet_end = line(":solanum.example 729 papo #papo{ q :End of channel quiet list");
         assert_eq!(
-            quiet.matches(&quiet_end, mapping, "papo", &state),
+            quiet.matches(&quiet_end, mapping, "papo", &state, &mut Vec::new()),
             Some(true)
         );
     }

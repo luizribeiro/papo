@@ -17,19 +17,19 @@ pub(super) fn who_target<'a>(message: &LineRef<'a>) -> Option<&'a str> {
 impl UnlabelledRequest {
     fn push_or_overflow(
         &mut self,
-        message: &LineRef<'_>,
+        message: Line,
         complete: bool,
         max_list_entries: usize,
         subject: Option<ReplyToken>,
     ) -> bool {
-        if self.boundary.is_framing(message) {
+        if self.boundary.is_framing(&message.as_ref()) {
             return false;
         }
         let index = self.lines.as_slice().len();
-        let overflow = self.list_rows_full(message, max_list_entries)
+        let overflow = self.list_rows_full(&message.as_ref(), max_list_entries)
             || self
                 .lines
-                .push_reject_unless_last(message.to_owned(), complete)
+                .push_reject_unless_last(message, complete)
                 .is_err();
         if !overflow && let Some(token) = subject {
             self.subject_tokens.push((index, token));
@@ -260,7 +260,7 @@ impl Session {
         if self.abort_departed_join(message, mapping) {
             return true;
         }
-        let Some((index, complete, join_started)) = self
+        let Some((index, complete, join_started, addresses)) = self
             .unlabelled_requests
             .iter()
             .enumerate()
@@ -283,21 +283,27 @@ impl Session {
                         && message.params().last() == Some(token.as_str()))
                     .then(|| self.fence_completes(request, mapping))
                 });
-                fence
-                    .or_else(|| {
-                        request
-                            .boundary
-                            .matches(message, mapping, self.welcome_state.nick(), &self.state)
-                            .map(|complete| {
-                                let complete = if join_started {
-                                    joined_ready.unwrap_or(complete)
-                                } else {
-                                    complete
-                                };
-                                complete && request.fence.is_none()
-                            })
-                    })
-                    .map(|done| (index, done, join_started))
+                let mut addresses = Vec::new();
+                let matched = fence.or_else(|| {
+                    request
+                        .boundary
+                        .matches(
+                            message,
+                            mapping,
+                            self.welcome_state.nick(),
+                            &self.state,
+                            &mut addresses,
+                        )
+                        .map(|complete| {
+                            if join_started {
+                                joined_ready.unwrap_or(complete)
+                            } else {
+                                complete
+                            }
+                        })
+                })?;
+                let complete = matched && (fence.is_some() || request.fence.is_none());
+                Some((index, complete, join_started, addresses))
             })
         else {
             return false;
@@ -308,7 +314,8 @@ impl Session {
         if join_started {
             request.started = Some(now);
         }
-        if request.push_or_overflow(&incoming.shown, complete, max_list_entries, subject) {
+        let shown = incoming.addressed(&addresses);
+        if request.push_or_overflow(shown, complete, max_list_entries, subject) {
             let id = request.id;
             self.finish_truncated(id);
             return true;
@@ -397,6 +404,7 @@ impl Session {
                         mapping,
                         self.welcome_state.nick(),
                         &self.state,
+                        &mut Vec::new(),
                     )
                     .is_some_and(|complete| complete)
             })

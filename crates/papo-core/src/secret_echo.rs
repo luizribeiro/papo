@@ -417,6 +417,18 @@ impl<'a> IncomingLine<'a> {
         RoutingLine(self.original.unwrap_or(self.shown))
     }
 
+    pub(super) fn addressed(self, addresses: &[usize]) -> Line {
+        let mut shown = self.shown.to_owned();
+        if let Some(original) = self.original {
+            for &index in addresses {
+                if let Some(name) = original.param(index) {
+                    shown.__replace_param(index, name);
+                }
+            }
+        }
+        shown
+    }
+
     pub(super) fn original_bytes(self, count: impl FnOnce(&LineRef<'_>) -> usize) -> usize {
         self.original.as_ref().map_or(0, count)
     }
