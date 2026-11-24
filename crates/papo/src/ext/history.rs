@@ -1182,6 +1182,7 @@ impl From<ServerTime> for HistoryReference {
 /// [`crate::UnsupportedReason::DisabledByClient`]. An unusable reference returns
 /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with [`crate::Refusal::Other`]. It
 /// can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+/// An incomplete reply returns [`Error::UnexpectedReply`].
 ///
 /// # Cancellation
 ///
@@ -1270,7 +1271,9 @@ impl Client {
                 .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
         }
         let response = self.history_response(query).await?;
-        let page = response.history.ok_or_else(Error::connection_lost)?;
+        let page = response
+            .history
+            .ok_or_else(|| Error::unexpected_reply("CHATHISTORY"))?;
         let papo_core::HistoryPage {
             conversation,
             items,
@@ -1326,6 +1329,7 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
+    /// An incomplete reply returns [`Error::UnexpectedReply`].
     ///
     /// [`CHATHISTORY TARGETS`]: https://ircv3.net/specs/extensions/chathistory#targets
     pub fn recent_conversations(
@@ -1339,7 +1343,7 @@ impl Client {
                 .history_response(HistoryQuery::__targets(since, until, 1_000))
                 .await?
                 .history_targets
-                .ok_or_else(Error::connection_lost)
+                .ok_or_else(|| Error::unexpected_reply("CHATHISTORY"))
                 .map(|targets| {
                     targets
                         .into_iter()

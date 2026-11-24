@@ -113,3 +113,46 @@ async fn history_request_capability_matrix() {
         }
     }
 }
+
+#[tokio::test(start_paused = true)]
+async fn history_distinguishes_bad_replies_from_disconnects() {
+    let (client, mut events, mut wire) =
+        connect(&["draft/chathistory", "batch", "labeled-response"]).await;
+    for targets in [false, true] {
+        let client = client.clone();
+        let command = if targets { "TARGETS" } else { "LATEST" };
+        let request = tokio::spawn(async move { request(&client, command).await });
+        let label = usize::from(targets);
+        assert!(
+            wire.next_sent()
+                .await
+                .starts_with(&format!("@label={label} CHATHISTORY "))
+        );
+        wire.server(format!("@label={label} :offline.test ACK"))
+            .await;
+        assert!(
+            matches!(request.await.unwrap(), Err(Error::UnexpectedReply { command, .. }) if command.as_str() == "CHATHISTORY")
+        );
+    }
+    wire.server("PING :still-connected").await;
+    assert_eq!(wire.next_sent().await, "PONG still-connected");
+
+    let pending = tokio::spawn({
+        let client = client.clone();
+        async move { client.history("#papo").latest().await }
+    });
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=2 CHATHISTORY LATEST #papo * 100"
+    );
+    wire.close().await;
+    assert!(matches!(pending.await.unwrap(), Err(Error::Interrupted(_))));
+    while !matches!(
+        events.next().await.expect("disconnect event").0,
+        Event::Disconnected(_)
+    ) {}
+    assert!(matches!(
+        client.history("#papo").latest().await,
+        Err(Error::Disconnected(_))
+    ));
+}
