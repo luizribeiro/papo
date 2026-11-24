@@ -4323,39 +4323,41 @@ impl Session {
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
                 }
-                let applied_state = self.dispatch_batched_state(now, &message);
-                let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
-                    .map_or(usize::MAX, |limits| limits.max_bytes);
-                match self.batches.handle(
-                    now,
-                    &message,
-                    multiline_max_bytes,
-                    self.caps.bouncer_enabled(),
-                    message
-                        .tag("label")
-                        .is_some_and(|label| self.requests.contains_key(label.as_ref())),
-                    applied_state,
-                ) {
-                    BatchAction::Consumed => {}
-                    BatchAction::Complete(events) => {
-                        for event in events {
-                            self.dispatch_batch_event(now, event);
-                        }
-                    }
-                    BatchAction::Dispatch(context) => {
-                        if context.batch_type().is_some_and(batch::is_replay) {
-                            let received = self.received_line(
-                                message.to_owned(),
-                                context.batch_type().map(str::to_owned),
-                            );
-                            self.outbox.event(Event::Line(received));
-                        } else {
-                            self.dispatch_message(now, &message, &context, true, None);
-                        }
-                    }
-                }
+                self.dispatch_incoming_batch(now, &message);
             }
             Err(_) => self.malformed(line),
+        }
+    }
+
+    fn dispatch_incoming_batch(&mut self, now: Instant, message: &LineRef<'_>) {
+        let applied_state = self.dispatch_batched_state(now, message);
+        let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
+            .map_or(usize::MAX, |limits| limits.max_bytes);
+        match self.batches.handle(
+            now,
+            message,
+            multiline_max_bytes,
+            self.caps.bouncer_enabled(),
+            message
+                .tag("label")
+                .is_some_and(|label| self.requests.contains_key(label.as_ref())),
+            applied_state,
+        ) {
+            BatchAction::Consumed => {}
+            BatchAction::Complete(events) => {
+                for event in events {
+                    self.dispatch_batch_event(now, event);
+                }
+            }
+            BatchAction::Dispatch(context) => {
+                if context.batch_type().is_some_and(batch::is_replay) {
+                    let received = self
+                        .received_line(message.to_owned(), context.batch_type().map(str::to_owned));
+                    self.outbox.event(Event::Line(received));
+                } else {
+                    self.dispatch_message(now, message, &context, true, None);
+                }
+            }
         }
     }
 
