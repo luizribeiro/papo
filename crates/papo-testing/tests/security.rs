@@ -3175,31 +3175,36 @@ async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
     wire.server(":offline.test 005 papo CHANMODES=beI,k,l,imnpst :are supported")
         .await;
 
+    let requester = client.clone();
+    let joined = tokio::spawn(async move { requester.join("#staff").await });
+    assert_eq!(wire.next_sent().await, "JOIN #staff");
+    wire.server(":papo!~papo@localhost JOIN #staff").await;
+    wire.server(":offline.test 353 papo = #staff :@papo").await;
+    wire.server(":offline.test 366 papo #staff :End of /NAMES list.")
+        .await;
+    joined.await.unwrap().unwrap();
+
     for index in 0..256 {
         let channel = format!("#team-{index:03}");
         let key = format!("team-{index:03}-x7Kq");
-        let requester = client.clone();
-        let (name, secret) = (channel.clone(), papo::Secret::new(&key));
-        let request = tokio::spawn(async move { requester.join(name).key(secret).await });
+        client
+            .send_raw(
+                papo::Line::new("JOIN")
+                    .param(channel.as_str())
+                    .param(papo::Secret::new(&key)),
+            )
+            .await
+            .unwrap();
         loop {
             let sent = wire.next_sent().await;
             if sent == format!("JOIN {channel} {key}") {
                 break;
             }
             assert!(
-                sent.starts_with("MODE ") || sent.starts_with("WHO "),
+                matches!(sent.as_str(), "MODE #staff" | "WHO #staff"),
                 "{sent}"
             );
         }
-        wire.server(format!(":papo!~papo@localhost JOIN {channel}"))
-            .await;
-        wire.server(format!(":offline.test 353 papo = {channel} :@papo"))
-            .await;
-        wire.server(format!(
-            ":offline.test 366 papo {channel} :End of /NAMES list."
-        ))
-        .await;
-        request.await.unwrap().unwrap();
     }
 
     let key = papo::Secret::new("team-256-x7Kq");
@@ -3214,7 +3219,7 @@ async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
     ));
     assert!(limited(
         &client
-            .set_modes("#team-000")
+            .set_modes("#staff")
             .key(key.clone())
             .await
             .unwrap_err()
@@ -3237,7 +3242,7 @@ async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
             break;
         }
         assert!(
-            matches!(sent.as_str(), "MODE #team-255" | "WHO #team-255"),
+            matches!(sent.as_str(), "MODE #staff" | "WHO #staff"),
             "{sent}"
         );
     }
