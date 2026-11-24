@@ -416,6 +416,17 @@ impl<'a> IncomingLine<'a> {
     pub(super) fn routing(self) -> RoutingLine<'a> {
         RoutingLine(self.original.unwrap_or(self.shown))
     }
+
+    pub(super) fn original_bytes(self, count: impl FnOnce(&LineRef<'_>) -> usize) -> usize {
+        self.original.as_ref().map_or(0, count)
+    }
+
+    pub(super) fn store(self) -> StoredLine {
+        StoredLine {
+            shown: self.shown.to_owned(),
+            original: self.original.map(|line| Box::new(line.to_owned())),
+        }
+    }
 }
 
 impl<'a> From<&LineRef<'a>> for IncomingLine<'a> {
@@ -431,5 +442,42 @@ impl<'a> std::ops::Deref for RoutingLine<'a> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+#[derive(Clone)]
+pub(super) struct StoredLine {
+    shown: Line,
+    original: Option<Box<Line>>,
+}
+
+impl From<Line> for StoredLine {
+    fn from(shown: Line) -> Self {
+        Self {
+            shown,
+            original: None,
+        }
+    }
+}
+
+impl std::fmt::Debug for StoredLine {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.shown.fmt(formatter)
+    }
+}
+
+impl StoredLine {
+    pub(super) fn incoming(&self) -> IncomingLine<'_> {
+        IncomingLine::new(
+            self.shown.as_ref(),
+            self.original.as_deref().map(Line::as_ref),
+        )
+    }
+
+    pub(super) fn as_ref(&self) -> LineRef<'_> {
+        self.shown.as_ref()
+    }
+
+    pub(super) fn into_shown(self) -> Line {
+        self.shown
     }
 }

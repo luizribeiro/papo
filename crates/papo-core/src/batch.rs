@@ -6,7 +6,7 @@ use web_time::Instant;
 
 use papo_proto::{Command, Line, LineRef, Reaction};
 
-use crate::secret_echo::IncomingLine;
+use crate::secret_echo::{IncomingLine, StoredLine};
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, ReplyToken, SplitServers, cap};
 
 const MAX_ABANDONED_BATCHES: usize = 256;
@@ -40,7 +40,7 @@ struct OpenBatch {
     parent: Option<String>,
     params: Vec<String>,
     exhausted: bool,
-    messages: Vec<Line>,
+    messages: Vec<StoredLine>,
     incomplete: Vec<usize>,
     routed_members: RoutedMembers,
     completed: Vec<BatchEvent>,
@@ -126,7 +126,7 @@ pub(crate) enum BatchEvent {
     Response {
         label: String,
         echo: Option<Line>,
-        messages: Vec<Line>,
+        messages: Vec<StoredLine>,
         batch_type: String,
         routed_members: RoutedMembers,
         replay: bool,
@@ -154,11 +154,11 @@ pub(crate) enum BatchEvent {
     Incomplete(Line, Option<ReplyToken>),
     Metadata {
         kind: String,
-        messages: Vec<Line>,
+        messages: Vec<StoredLine>,
     },
     #[cfg(feature = "unstable")]
-    Bouncer(Vec<Line>),
-    Isupport(Vec<Line>),
+    Bouncer(Vec<StoredLine>),
+    Isupport(Vec<StoredLine>),
 }
 
 impl Batches {
@@ -343,7 +343,7 @@ impl Batches {
                     .routed_members
                     .insert(batch.messages.len(), RoutedMember::replay(index != 0));
             }
-            batch.messages.push(message.to_owned());
+            batch.messages.push(message.to_owned().into());
             batch.buffered_bytes = batch.buffered_bytes.saturating_add(retained_bytes(message));
             self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
         }
@@ -490,7 +490,7 @@ impl Batches {
             });
         }
         let ancestors = self.ancestors(reference.as_ref());
-        let retained = retained_bytes(message);
+        let retained = retained_incoming(incoming);
         for reference in &ancestors {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
             batch.lines = batch.lines.saturating_add(1);
@@ -530,7 +530,7 @@ impl Batches {
                     continue;
                 }
             }
-            batch.messages.push(message.to_owned());
+            batch.messages.push(incoming.store());
         }
         if let Some(reference) = ancestors
             .iter()
@@ -715,12 +715,13 @@ impl Batches {
                 self.remember_abandoned(&candidate, batch.abandoned(reason));
             }
             self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
-            history_incomplete.extend(
+            history_incomplete.extend(batch.incomplete.iter().filter_map(|index| {
                 batch
-                    .incomplete
-                    .iter()
-                    .filter_map(|index| batch.messages.get(*index).cloned()),
-            );
+                    .messages
+                    .get(*index)
+                    .cloned()
+                    .map(StoredLine::into_shown)
+            }));
             if !absorbed_multiline.contains(&candidate) {
                 let replay_kind = batch.replay.then(|| types[&candidate].clone());
                 match (incomplete.get(&candidate), replay_kind) {
@@ -828,7 +829,7 @@ impl Batches {
             }) else {
                 continue;
             };
-            let previous = retained_bytes(&batch.messages[index].as_ref());
+            let previous = retained_incoming(batch.messages[index].incoming());
             let replacement_bytes = replacement
                 .iter()
                 .map(|message| retained_bytes(&message.as_ref()))
@@ -837,9 +838,10 @@ impl Batches {
                     usize::from(sender.is_some()) * std::mem::size_of::<(usize, RoutedMember)>(),
                 );
             let replacement_len = replacement.len();
-            batch
-                .messages
-                .splice(index..=index, replacement.iter().cloned());
+            batch.messages.splice(
+                index..=index,
+                replacement.iter().cloned().map(StoredLine::from),
+            );
             let route = batch.routed_members.remove(&index);
             let route = route.or_else(|| sender.map(RoutedMember::observed));
             let shifted = batch.routed_members.split_off(&index);
@@ -1003,7 +1005,7 @@ impl Batches {
                     + batch
                         .messages
                         .iter()
-                        .map(|line| retained_bytes(&line.as_ref()))
+                        .map(|line| retained_incoming(line.incoming()))
                         .sum::<usize>()
                     + batch
                         .completed
@@ -1096,13 +1098,13 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             .collect();
     }
     if batch.kind == "draft/chathistory-targets" {
-        return vec![BatchEvent::HistoryTargets(std::mem::take(
-            &mut batch.messages,
-        ))];
+        return vec![BatchEvent::HistoryTargets(
+            shown_rows(std::mem::take(&mut batch.messages)).collect(),
+        )];
     }
     if is_history(&batch.kind) {
         let items = history_items_with_indices(
-            std::mem::take(&mut batch.messages),
+            shown_rows(std::mem::take(&mut batch.messages)).collect(),
             &std::mem::take(&mut batch.incomplete),
         );
         return vec![BatchEvent::History {
@@ -1111,8 +1113,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             items,
         }];
     }
-    std::mem::take(&mut batch.messages)
-        .into_iter()
+    shown_rows(std::mem::take(&mut batch.messages))
         .map(|line| BatchEvent::Line {
             line,
             batch_type: Some(batch.kind.clone()),
@@ -1139,7 +1140,7 @@ pub(crate) fn parse_history_targets(rows: &[Line]) -> Vec<(String, papo_proto::S
 fn multiline_rows(batch: &OpenBatch, assembled: Option<Line>) -> Vec<Line> {
     match assembled {
         Some(line) => vec![line],
-        None if batch.replay => batch.messages.clone(),
+        None if batch.replay => shown_rows(batch.messages.clone()).collect(),
         None => Vec::new(),
     }
 }
@@ -1210,7 +1211,10 @@ fn history_from_event(event: BatchEvent) -> Option<(String, Vec<HistoryItem>, bo
     Some((target, items, exhausted))
 }
 
-fn unapplied_messages(messages: Vec<Line>, routed: &RoutedMembers) -> impl Iterator<Item = Line> {
+fn unapplied_messages(
+    messages: Vec<StoredLine>,
+    routed: &RoutedMembers,
+) -> impl Iterator<Item = StoredLine> {
     messages
         .into_iter()
         .enumerate()
@@ -1222,7 +1226,7 @@ fn unapplied_messages(messages: Vec<Line>, routed: &RoutedMembers) -> impl Itera
 type BatchRow = (Line, Option<String>, Option<ReplyToken>);
 
 fn fallback_rows(
-    messages: Vec<Line>,
+    messages: Vec<StoredLine>,
     routed_members: &RoutedMembers,
     replay_kind: Option<String>,
 ) -> impl Iterator<Item = BatchRow> {
@@ -1236,6 +1240,7 @@ fn fallback_rows(
                 Some(member) if member.sender.is_none() => Some(cap::CHATHISTORY_BATCH.to_owned()),
                 _ => replay_kind.clone(),
             };
+            let line = line.into_shown();
             Some((line, kind, route.and_then(|member| member.sender)))
         })
 }
@@ -1276,11 +1281,11 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<BatchRow>) {
             messages: batch, ..
         }
         | BatchEvent::Isupport(batch) => {
-            messages.extend(batch.into_iter().map(|line| (line, None, None)));
+            messages.extend(shown_rows(batch).map(|line| (line, None, None)));
         }
         #[cfg(feature = "unstable")]
         BatchEvent::Bouncer(batch) => {
-            messages.extend(batch.into_iter().map(|line| (line, None, None)));
+            messages.extend(shown_rows(batch).map(|line| (line, None, None)));
         }
         BatchEvent::History { items: batch, .. } => {
             messages.extend(batch.into_iter().map(|item| {
@@ -1407,6 +1412,14 @@ fn valid_reference(reference: &str) -> bool {
         && reference
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+}
+
+fn shown_rows(messages: Vec<StoredLine>) -> impl Iterator<Item = Line> {
+    messages.into_iter().map(StoredLine::into_shown)
+}
+
+fn retained_incoming(incoming: IncomingLine<'_>) -> usize {
+    retained_bytes(&incoming.shown) + incoming.original_bytes(retained_bytes)
 }
 
 fn retained_bytes(message: &LineRef<'_>) -> usize {

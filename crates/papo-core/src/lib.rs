@@ -226,7 +226,7 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::{AccountUpdate, SaslSession};
 pub use sasl::{Entropy, Sasl};
-use secret_echo::{IncomingLine, RoutingLine};
+use secret_echo::{IncomingLine, RoutingLine, StoredLine};
 pub use state::{AccountStatus, AwayStatus, Channel, Member, MetadataView, State, User};
 use state::{MetadataContext, StateGrowth};
 use sts::ConnectionSecurity;
@@ -6740,20 +6740,19 @@ impl Session {
                 }
                 let context = DispatchContext::from_batch_type(kind);
                 for message in messages {
-                    let incoming = IncomingLine::from(&message.as_ref());
-                    self.dispatch_message(now, incoming, &context, true, None);
+                    self.dispatch_message(now, message.incoming(), &context, true, None);
                 }
             }
             #[cfg(feature = "unstable")]
             BatchEvent::Bouncer(messages) => {
                 let context = DispatchContext::from_batch_type(cap::BOUNCER_NETWORKS.into());
                 for message in messages {
-                    let incoming = IncomingLine::from(&message.as_ref());
-                    self.dispatch_message(now, incoming, &context, true, None);
+                    self.dispatch_message(now, message.incoming(), &context, true, None);
                 }
             }
             BatchEvent::Isupport(messages) => {
                 let before = self.isupport.value().__generation();
+                let messages: Vec<_> = messages.into_iter().map(StoredLine::into_shown).collect();
                 self.isupport.handle_batch(&messages, &mut self.outbox);
                 self.remember_casemapping();
                 self.sync_monitored_state();
@@ -6948,7 +6947,7 @@ impl Session {
     fn dispatch_batch_messages(
         &mut self,
         now: Instant,
-        messages: &[Line],
+        messages: &[StoredLine],
         context: &DispatchContext,
         request: Option<&PendingRequest>,
         routed_members: &batch::RoutedMembers,
@@ -6964,7 +6963,7 @@ impl Session {
                     if let Some(request) = request {
                         self.resolve_unlabelled(
                             now,
-                            IncomingLine::from(&message.as_ref()),
+                            message.incoming(),
                             Some(request.id),
                             member.joined_ready,
                         );
@@ -6972,8 +6971,8 @@ impl Session {
                 }
                 continue;
             }
-            let answers =
-                request.is_none_or(|request| self.answers_request(request, &message.as_ref()));
+            let answers = request
+                .is_none_or(|request| self.answers_request(request, &message.incoming().routing()));
             let queued_events = self.outbox.events.len();
             let observed = route.and_then(|member| member.sender).map(|sender| {
                 let mut context = context.clone();
@@ -6982,7 +6981,7 @@ impl Session {
             });
             self.dispatch_message(
                 now,
-                IncomingLine::from(&message.as_ref()),
+                message.incoming(),
                 observed.as_ref().unwrap_or(context),
                 request.is_none() || !answers,
                 enclosing,
@@ -7069,7 +7068,7 @@ impl Session {
                             Command::Privmsg | Command::Notice
                         ) && self.is_own_echo(&message.as_ref())
                     })
-                    .cloned()
+                    .map(|line| line.as_ref().to_owned())
                     .collect::<Vec<_>>()
             });
             let response = Response {
@@ -7088,7 +7087,10 @@ impl Session {
                 history_targets: history_targets
                     .map(|rows| self.history_targets(batch::parse_history_targets(&rows))),
                 subject_tokens,
-                ..self.completed_response(request.id, messages)
+                ..self.completed_response(
+                    request.id,
+                    messages.into_iter().map(StoredLine::into_shown).collect(),
+                )
             };
             self.outbox.event(Event::Response(response));
             for message in echoed.into_iter().flatten() {
