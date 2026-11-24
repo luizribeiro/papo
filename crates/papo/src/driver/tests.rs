@@ -10405,6 +10405,45 @@ async fn idle_close_is_delivered_without_a_pending_request() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn an_open_connection_still_drains_writes_before_events_during_a_check() {
+    let (stream, mut server) = tokio::io::duplex(8);
+    let settings = config()
+        .wanted_caps(["no-implicit-names"])
+        .rate_limit(papo_core::RateLimit::unlimited());
+    let (client, mut events, driver) = Driver::with_stream(stream, Session::new(settings));
+    let driver = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "no-implicit-names",
+        "no-implicit-names",
+    )
+    .await;
+    let check = tokio::spawn(client.check_connection(Duration::from_secs(30)));
+    client_line(&mut server, b"PING papo-check-0\r\n").await;
+
+    server_line(
+        &mut server,
+        b":papo-driver!~papo@localhost JOIN #release\r\n",
+    )
+    .await;
+    assert!(
+        tokio::time::timeout(Duration::from_secs(1), next_event(&mut events))
+            .await
+            .is_err(),
+        "the JOIN event arrived while its NAMES write was blocked"
+    );
+    client_line(&mut server, b"NAMES #release\r\n").await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    server_line(&mut server, b":ergo.test PONG ergo.test :papo-check-0\r\n").await;
+    assert!(within(check).await.unwrap().is_ok());
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn a_silent_check_reconnects_without_waiting_for_transport_shutdown() {
     let (stream, mut server) = tokio::io::duplex(128);
     let (next_stream, mut next_server) = tokio::io::duplex(4096);
