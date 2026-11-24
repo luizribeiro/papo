@@ -226,6 +226,7 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::{AccountUpdate, SaslSession};
 pub use sasl::{Entropy, Sasl};
+use secret_echo::IncomingLine;
 pub use state::{AccountStatus, AwayStatus, Channel, Member, MetadataView, State, User};
 use state::{MetadataContext, StateGrowth};
 use sts::ConnectionSecurity;
@@ -4311,19 +4312,21 @@ impl Session {
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
                 }
-                self.dispatch_incoming_batch(now, &message);
+                self.dispatch_incoming_batch(now, IncomingLine::from(&message));
             }
             Err(_) => self.malformed(line),
         }
     }
 
-    fn dispatch_incoming_batch(&mut self, now: Instant, message: &LineRef<'_>) {
-        let applied_state = self.dispatch_batched_state(now, message);
+    fn dispatch_incoming_batch(&mut self, now: Instant, incoming: IncomingLine<'_>) {
+        let routing = incoming.routing();
+        let message = &routing;
+        let applied_state = self.dispatch_batched_state(now, incoming);
         let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
             .map_or(usize::MAX, |limits| limits.max_bytes);
         match self.batches.handle(
             now,
-            message,
+            incoming,
             multiline_max_bytes,
             self.caps.bouncer_enabled(),
             message
@@ -4339,11 +4342,13 @@ impl Session {
             }
             BatchAction::Dispatch(context) => {
                 if context.batch_type().is_some_and(batch::is_replay) {
-                    let received = self
-                        .received_line(message.to_owned(), context.batch_type().map(str::to_owned));
+                    let received = self.received_line(
+                        incoming.shown.to_owned(),
+                        context.batch_type().map(str::to_owned),
+                    );
                     self.outbox.event(Event::Line(received));
                 } else {
-                    self.dispatch_message(now, message, &context, true, None);
+                    self.dispatch_message(now, incoming, &context, true, None);
                 }
             }
         }
@@ -6141,11 +6146,14 @@ impl Session {
     fn dispatch_message(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: IncomingLine<'_>,
         context: &DispatchContext,
         emit_unhandled: bool,
         enclosing_request: Option<(RequestId, Option<&str>)>,
     ) {
+        let routing = incoming.routing();
+        let message = &routing;
+        let shown = &incoming.shown;
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
         let before_state_change = self.state.change_generation();
@@ -6337,8 +6345,8 @@ impl Session {
             false
         } else {
             let labelled_response =
-                self.resolve_labelled_message(message, queued_events, emit_response_events);
-            self.resolve_unlabelled(now, message, labelled_request, None) || labelled_response
+                self.resolve_labelled_message(incoming, queued_events, emit_response_events);
+            self.resolve_unlabelled(now, incoming, labelled_request, None) || labelled_response
         };
         if response && labelled_echo && emit_response_events {
             self.enqueue_labelled_echo(message);
@@ -6357,7 +6365,7 @@ impl Session {
             && !redacted
             && !invited
             && emit_unhandled
-            && self.report_standard_reply(message);
+            && self.report_standard_reply(shown);
         self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
@@ -6376,15 +6384,15 @@ impl Session {
             && !standard_reply
             && emit_unhandled
         {
-            if let Some((target, retry_after)) = metadata::sync_later(message) {
+            if let Some((target, retry_after)) = metadata::sync_later(shown) {
                 self.outbox.event(Event::MetadataSyncLater {
                     target: target.to_owned(),
                     retry_after,
-                    line: message.to_owned(),
+                    line: shown.to_owned(),
                 });
             } else {
                 let received = self.received_with_sender(
-                    message.to_owned(),
+                    shown.to_owned(),
                     context.batch_type().map(str::to_owned),
                     context.sender,
                 );
@@ -6731,14 +6739,16 @@ impl Session {
                 }
                 let context = DispatchContext::from_batch_type(kind);
                 for message in messages {
-                    self.dispatch_message(now, &message.as_ref(), &context, true, None);
+                    let incoming = IncomingLine::from(&message.as_ref());
+                    self.dispatch_message(now, incoming, &context, true, None);
                 }
             }
             #[cfg(feature = "unstable")]
             BatchEvent::Bouncer(messages) => {
                 let context = DispatchContext::from_batch_type(cap::BOUNCER_NETWORKS.into());
                 for message in messages {
-                    self.dispatch_message(now, &message.as_ref(), &context, true, None);
+                    let incoming = IncomingLine::from(&message.as_ref());
+                    self.dispatch_message(now, incoming, &context, true, None);
                 }
             }
             BatchEvent::Isupport(messages) => {
@@ -6953,7 +6963,7 @@ impl Session {
                     if let Some(request) = request {
                         self.resolve_unlabelled(
                             now,
-                            &message.as_ref(),
+                            IncomingLine::from(&message.as_ref()),
                             Some(request.id),
                             member.joined_ready,
                         );
@@ -6971,7 +6981,7 @@ impl Session {
             });
             self.dispatch_message(
                 now,
-                &message.as_ref(),
+                IncomingLine::from(&message.as_ref()),
                 observed.as_ref().unwrap_or(context),
                 request.is_none() || !answers,
                 enclosing,

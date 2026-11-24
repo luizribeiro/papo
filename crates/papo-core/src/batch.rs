@@ -6,6 +6,7 @@ use web_time::Instant;
 
 use papo_proto::{Command, Line, LineRef, Reaction};
 
+use crate::secret_echo::IncomingLine;
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, ReplyToken, SplitServers, cap};
 
 const MAX_ABANDONED_BATCHES: usize = 256;
@@ -202,17 +203,19 @@ impl Batches {
         events
     }
 
-    pub(crate) fn handle(
+    pub(crate) fn handle<'a>(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: impl Into<IncomingLine<'a>>,
         multiline_max_bytes: usize,
         bouncer_enabled: bool,
         correlated_label: bool,
         applied_state: Option<RoutedMember>,
     ) -> BatchAction {
+        let incoming = incoming.into();
+        let message = &incoming.shown;
         if !message.command_is("BATCH") {
-            return self.member(message, multiline_max_bytes, applied_state);
+            return self.member(incoming, multiline_max_bytes, applied_state);
         }
         let Some(reference) = message.param(0) else {
             return BatchAction::Dispatch(self.context(message));
@@ -467,10 +470,11 @@ impl Batches {
     #[allow(clippy::too_many_lines)]
     fn member(
         &mut self,
-        message: &LineRef<'_>,
+        incoming: IncomingLine<'_>,
         multiline_max_bytes: usize,
         applied_state: Option<RoutedMember>,
     ) -> BatchAction {
+        let message = &incoming.shown;
         let context = self.context(message);
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);

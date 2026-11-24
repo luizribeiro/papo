@@ -9,6 +9,7 @@ use support::Transcript;
 const KEY: &str = "contraseña-4821";
 
 fn refused(advertise_utf8_only: bool, key: &str, reply: &[u8]) -> Vec<String> {
+    let malformed = advertise_utf8_only && std::str::from_utf8(reply).is_err();
     let mut shown = Vec::new();
     let mut transcript = Transcript::new(Config::default().nick("papo"))
         .connect_default()
@@ -34,11 +35,11 @@ fn refused(advertise_utf8_only: bool, key: &str, reply: &[u8]) -> Vec<String> {
         .event_until(|event| {
             let line = match &event {
                 Event::Malformed { line, .. } => {
-                    assert!(advertise_utf8_only);
+                    assert!(malformed);
                     String::from_utf8_lossy(line).into_owned()
                 }
                 Event::Line(line) => {
-                    assert!(!advertise_utf8_only);
+                    assert!(!malformed);
                     assert_eq!(line.get(3), Some("<redacted>"));
                     line.to_string()
                 }
@@ -88,4 +89,11 @@ fn keys_reencoded_by_legacy_servers_stay_redacted() {
             assert!(!shown.contains(key) && !shown.contains("-4821"), "{shown}");
         }
     }
+}
+
+#[test]
+fn valid_utf8_replies_retain_the_unmasked_text() {
+    let reply = format!(":ergo.test 696 papo #staff k {KEY} :Clave inválida: {KEY}.");
+    let shown = refused(true, KEY, reply.as_bytes()).join(" ");
+    assert!(shown.contains("Clave inválida: <redacted>."), "{shown}");
 }

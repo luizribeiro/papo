@@ -2,14 +2,16 @@ use papo_proto::{Command, LineRef, Numeric};
 use web_time::Instant;
 
 use super::batch::{DispatchContext, RoutedMember};
-use super::{Event, Session};
+use super::{Event, IncomingLine, Session};
 
 impl Session {
     pub(super) fn dispatch_batched_state(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: IncomingLine<'_>,
     ) -> Option<RoutedMember> {
+        let routing = incoming.routing();
+        let message = &routing;
         if message.command_is("BATCH") {
             return None;
         }
@@ -32,13 +34,15 @@ impl Session {
         let before = self.outbox.events.len();
 
         // The application can send between any two server lines.
-        self.dispatch_message(now, message, &context, emit_unhandled && !raw, enclosing);
+        self.dispatch_message(now, incoming, &context, emit_unhandled && !raw, enclosing);
         if !emit_events {
             self.outbox.events.truncate(before);
         }
         if raw {
-            let received =
-                self.received_line(message.to_owned(), context.batch_type().map(str::to_owned));
+            let received = self.received_line(
+                incoming.shown.to_owned(),
+                context.batch_type().map(str::to_owned),
+            );
             self.outbox.event(Event::Line(received));
         }
         if let Some(split) = split {

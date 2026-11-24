@@ -400,3 +400,36 @@ fn windows_1252(byte: u8) -> char {
         .copied()
         .unwrap_or_else(|| char::from(byte))
 }
+
+/// The two views of an incoming line. Only the reported view can be copied into public output.
+#[derive(Clone, Copy)]
+pub(super) struct IncomingLine<'a> {
+    pub(super) shown: LineRef<'a>,
+    original: Option<LineRef<'a>>,
+}
+
+impl<'a> IncomingLine<'a> {
+    pub(super) fn new(shown: LineRef<'a>, original: Option<LineRef<'a>>) -> Self {
+        Self { shown, original }
+    }
+
+    pub(super) fn routing(self) -> RoutingLine<'a> {
+        RoutingLine(self.original.unwrap_or(self.shown))
+    }
+}
+
+impl<'a> From<&LineRef<'a>> for IncomingLine<'a> {
+    fn from(shown: &LineRef<'a>) -> Self {
+        Self::new(*shown, None)
+    }
+}
+
+pub(super) struct RoutingLine<'a>(LineRef<'a>);
+
+impl<'a> std::ops::Deref for RoutingLine<'a> {
+    type Target = LineRef<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

@@ -1,7 +1,8 @@
 use crate::{
-    Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, PendingRequest,
-    ReplyToken, RequestError, RequestId, Response, ResponseBoundary, ResponseMatcher, SentEcho,
-    Session, UnlabelledRequest, WireLine, cap, parse_whois_channels, sent_info,
+    Command, Event, Feature, IncomingLine, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric,
+    PendingRequest, ReplyToken, RequestError, RequestId, Response, ResponseBoundary,
+    ResponseMatcher, SentEcho, Session, UnlabelledRequest, WireLine, cap, parse_whois_channels,
+    sent_info,
 };
 
 pub(super) fn who_target<'a>(message: &LineRef<'a>) -> Option<&'a str> {
@@ -71,7 +72,9 @@ impl Session {
         })
     }
 
-    pub(super) fn resolve_message(&mut self, message: &LineRef<'_>) -> Option<bool> {
+    pub(super) fn resolve_message(&mut self, incoming: IncomingLine<'_>) -> Option<bool> {
+        let routing = incoming.routing();
+        let message = &routing;
         let label = message
             .tag("label")
             .map(std::borrow::Cow::into_owned)
@@ -81,7 +84,7 @@ impl Session {
             && let Some(echo) = &mut request.echo
             && message.command() == Command::Numeric(Numeric::RPL_AWAY)
         {
-            echo.reply = Some(message.to_owned());
+            echo.reply = Some(incoming.shown.to_owned());
             return Some(false);
         }
         let request = self.requests.remove(&label)?;
@@ -97,7 +100,7 @@ impl Session {
             .into_iter()
             .collect::<Vec<_>>();
         if !message.command_is("ACK") {
-            lines.push(message.to_owned());
+            lines.push(incoming.shown.to_owned());
         }
         if !self
             .unlabelled_requests
@@ -107,7 +110,7 @@ impl Session {
             let echo = if message.command_is("ACK") {
                 lines.first().map(Line::as_ref)
             } else {
-                Some(*message)
+                Some(incoming.shown)
             };
             let sent = echo
                 .filter(|echo| request.sent && is_echoed(echo.command()))
@@ -175,11 +178,11 @@ impl Session {
 
     pub(super) fn resolve_labelled_message(
         &mut self,
-        message: &LineRef<'_>,
+        incoming: IncomingLine<'_>,
         queued_events: usize,
         emit_events: bool,
     ) -> bool {
-        let Some(complete) = self.resolve_message(message) else {
+        let Some(complete) = self.resolve_message(incoming) else {
             return false;
         };
         if !emit_events {
@@ -247,10 +250,12 @@ impl Session {
     pub(super) fn resolve_unlabelled(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: IncomingLine<'_>,
         labelled_request: Option<RequestId>,
         joined_ready: Option<bool>,
     ) -> bool {
+        let routing = incoming.routing();
+        let message = &routing;
         let mapping = self.isupport.value().casemapping();
         if self.abort_departed_join(message, mapping) {
             return true;
@@ -303,7 +308,7 @@ impl Session {
         if join_started {
             request.started = Some(now);
         }
-        if request.push_or_overflow(message, complete, max_list_entries, subject) {
+        if request.push_or_overflow(&incoming.shown, complete, max_list_entries, subject) {
             let id = request.id;
             self.finish_truncated(id);
             return true;
