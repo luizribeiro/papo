@@ -625,13 +625,20 @@ fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
     );
     session.handle_line(
         now,
-        b":ergo.test NOTE JOIN CHANNEL_STATE #staff a :Channel status",
+        b":ergo.test 696 papo #staff k papo :Invalid mode parameter",
+    );
+    let line = echo_line(&mut session);
+    assert_eq!(line.get(0), Some("papo"));
+    assert_eq!(line.get(3), Some("<redacted>"));
+    session.handle_line(
+        now,
+        br#":ergo.test NOTE JOIN CHANNEL_STATE #staff a :Channel status "open""#,
     );
     let Some(Event::StandardReply(reply)) = session.poll_event() else {
         panic!("expected a standard reply")
     };
     assert_eq!(reply.context, ["#staff", "<redacted>"]);
-    assert_eq!(reply.description, "Channel status");
+    assert_eq!(reply.description, r#"Channel status "open""#);
     session.handle_line(
         now,
         b":ergo.test WARN JOIN BAD_CHANNEL_KEY #staff :Rejected 'a'",
