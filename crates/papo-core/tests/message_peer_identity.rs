@@ -743,3 +743,145 @@ fn first_multiline_sender_has_a_reply_identity_even_if_the_batch_closes_late() {
     assert!(matches!(drain(&mut session).as_slice(), [Event::MultilineMessage(event)]
         if event.message.__source_token() == original && event.message.__reply_token() == original));
 }
+
+#[test]
+#[rustfmt::skip]
+fn live_identity_facts_are_checked_before_delivery() {
+    for batch_kind in [None, Some("vendor/sync"), Some("labeled-response")] {
+        for command in [
+            ":alice!~u@{host} PRIVMSG papo-admin :release status",
+            ":alice!~u@{host} NOTICE papo-admin :release ready",
+            "@+typing=active :alice!~u@{host} TAGMSG papo-admin",
+            ":alice!~u@{host} REDACT #review ErgoDm1 :obsolete",
+            ":alice!~u@{host} JOIN #review",
+            ":alice!~u@8ajhv7kxgp7ag.irc JOIN #review {account} :Alice",
+            ":alice!~u@8ajhv7kxgp7ag.irc ACCOUNT {account}",
+            ":alice!~u@8ajhv7kxgp7ag.irc CHGHOST ~u {host}",
+            ":alice!~u@{host} AWAY :at lunch",
+            ":alice!~u@{host} SETNAME :Alice Liddell",
+            ":alice!~u@{host} INVITE papo-admin #staff",
+            ":alice!~u@{host} NICK alice_away",
+            ":alice!~u@{host} TOPIC #review :deploy Friday",
+            ":alice!~u@{host} MODE #review +m",
+            ":alice!~u@{host} KICK #review bob :off topic",
+            ":alice!~u@{host} MARKREAD #review timestamp=2024-05-10T12:00:00.000Z",
+            ":alice!~u@{host} VENDORNOTIFY #review",
+            "@account={account} :alice!~u@8ajhv7kxgp7ag.irc VENDORNOTIFY #review",
+            ":ergo.test 353 papo-admin = #review :@alice!~u@{host}",
+            ":ergo.test 730 papo-admin :alice!~u@{host}",
+            ":ergo.test 352 papo-admin #review ~u {host} ergo.test alice H :0 Alice",
+            ":ergo.test 354 papo-admin 152 #review ~u {host} alice H alice :Alice",
+            ":ergo.test 354 papo-admin 152 #review ~u 8ajhv7kxgp7ag.irc alice H {account} :Alice",
+            ":ergo.test 311 papo-admin alice ~u {host} * :Alice",
+            ":ergo.test 330 papo-admin alice {account} :is logged in as",
+            ":ergo.test 302 papo-admin :bob=+~u@localhost alice*=-~u@{host}",
+        ] {
+            for (host, account, matches) in [
+                ("8ajhv7kxgp7ag.irc", "alice", true),
+                ("kq2ccwrbbbw6a.irc", "mallory", false),
+            ] {
+                assert_live_identity_fact(batch_kind, command, host, account, matches);
+            }
+        }
+    }
+}
+
+fn assert_live_identity_fact(
+    batch_kind: Option<&str>,
+    command: &str,
+    host: &str,
+    account: &str,
+    matches: bool,
+) {
+    use papo_core::ResponseMatcher;
+    use papo_proto::Line;
+
+    let mut session = registered("batch labeled-response message-tags");
+    let now = Instant::now();
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo-admin MONITOR=100 WHOX :are supported",
+    );
+    session.handle_line(now, ALICE_ADMIN.as_bytes());
+    drain(&mut session);
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            AccountStatus::Unknown,
+        )
+        .unwrap();
+    let label = if batch_kind == Some("labeled-response") {
+        session
+            .request_with_matcher(
+                now,
+                Line::new("WHOIS").param("alice"),
+                ResponseMatcher::Whois("alice".into()),
+            )
+            .unwrap();
+        let sent = session.poll_transmit().unwrap();
+        Some(
+            String::from_utf8_lossy(sent.as_ref())
+                .split_once(' ')
+                .unwrap()
+                .0
+                .to_owned(),
+        )
+    } else {
+        None
+    };
+    let mut frame = command
+        .replace("{host}", host)
+        .replace("{account}", account);
+    if let Some(kind) = batch_kind {
+        let prefix = label
+            .as_deref()
+            .map_or(String::new(), |label| format!("{label} "));
+        session.handle_line(
+            now,
+            format!("{prefix}:ergo.test BATCH +r {kind}").as_bytes(),
+        );
+        if let Some(tags) = frame.strip_prefix('@') {
+            frame = format!("@batch=r;{tags}");
+        } else {
+            frame = format!("@batch=r {frame}");
+        }
+    }
+    session.handle_line(now, frame.as_bytes());
+    let status = session.state().__resolve_recipient(&guard);
+    assert_eq!(
+        matches!(status, RecipientStatus::Current(_)),
+        matches,
+        "{batch_kind:?} {frame}: {status:?}"
+    );
+}
+
+#[test]
+fn replayed_multiline_and_subject_rows_leave_live_identity_unchanged() {
+    let mut session = registered("batch message-tags account-tag draft/multiline");
+    server(&mut session, ALICE_ADMIN);
+    let original = token(&session, "alice");
+    for kind in ["chathistory", "znc.in/playback", "soju.im/search"] {
+        server(
+            &mut session,
+            &format!(":ergo.test BATCH +old {kind} papo-admin"),
+        );
+        for frame in [
+            "@batch=old :ergo.test BATCH +x vendor/sync",
+            "@batch=x :ergo.test 302 papo-admin :alice=+~u@kq2ccwrbbbw6a.irc",
+            "@batch=x :ergo.test 330 papo-admin alice mallory :is logged in as",
+            "@batch=x;account=mallory :alice!~u@kq2ccwrbbbw6a.irc BATCH +ml draft/multiline papo-admin",
+            "@batch=ml :alice!~u@kq2ccwrbbbw6a.irc PRIVMSG papo-admin :older release notes",
+            "@batch=x :alice!~u@kq2ccwrbbbw6a.irc BATCH -ml",
+            "@batch=old :ergo.test BATCH -x",
+            ":ergo.test BATCH -old",
+        ] {
+            server(&mut session, frame);
+            assert_eq!(token(&session, "alice"), original, "{kind}: {frame}");
+            assert_eq!(
+                account(&session, "alice"),
+                Some(logged_in(&session, "alice"))
+            );
+        }
+    }
+}
