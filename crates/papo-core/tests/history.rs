@@ -1112,3 +1112,35 @@ fn unusable_labeled_history_target_releases_rows_without_a_page() {
     );
     assert!(session.state().user("alice").is_none());
 }
+
+#[test]
+fn refused_history_batch_completes_its_enclosing_labeled_request() {
+    let (mut session, now) =
+        history_session_with("CHATHISTORY=1000", Config::default().max_open_batches(1));
+    let id = session
+        .chathistory(now, HistoryQuery::__latest("#review".into(), None, 20))
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 CHATHISTORY LATEST #review * 20"
+    );
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +reply labeled-response");
+    session.handle_line(now, b"@batch=reply :ergo.test BATCH +h chathistory #review");
+
+    let outcomes: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Response(response) => {
+                Some((response.id, response.state_limit, response.history))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(outcomes, [(id, Some(StateLimit::ListEntries), None)]);
+
+    session.handle_line(now, b"@batch=reply :ergo.test BATCH -h");
+    session.handle_line(now, b":ergo.test BATCH -reply");
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+}

@@ -252,6 +252,7 @@ impl Batches {
             (self.open.len() >= self.max_open).then_some(BatchAbandonReason::OpenBatchLimit)
         });
         if let Some(reason) = abandon {
+            let label = label.or_else(|| self.enclosing_history_label(kind, parent.as_deref()));
             self.remember_abandoned(
                 reference,
                 AbandonedBatch {
@@ -606,11 +607,31 @@ impl Batches {
             reference: reference.to_owned(),
             batch_type: batch.kind.clone(),
             reason,
-            label: batch.label.clone(),
+            label: batch
+                .label
+                .clone()
+                .or_else(|| self.enclosing_history_label(&batch.kind, batch.parent.as_deref())),
         };
         let mut events = self.drain(reference, Some(reason));
         events.push(warning);
         events
+    }
+
+    fn enclosing_history_label<'a>(
+        &'a self,
+        kind: &str,
+        mut parent: Option<&'a str>,
+    ) -> Option<String> {
+        if !is_history(kind) {
+            return None;
+        }
+        while let Some(batch) = parent.and_then(|reference| self.open.get(reference)) {
+            if batch.kind == cap::LABELED_RESPONSE.as_str() && batch.label.is_some() {
+                return batch.label.clone();
+            }
+            parent = batch.parent.as_deref();
+        }
+        None
     }
 
     fn drain(&mut self, reference: &str, reason: Option<BatchAbandonReason>) -> Vec<BatchEvent> {
