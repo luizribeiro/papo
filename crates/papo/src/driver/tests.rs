@@ -2681,18 +2681,23 @@ fn persistence_gates_rejoin_and_history_fetch() {
         let mut session = Session::new(
             config()
                 .enable(papo_core::Feature::Persistence)
-                .wanted_caps(["draft/persistence", "draft/chathistory", "labeled-response"]),
+                .wanted_caps([
+                    "draft/persistence",
+                    "draft/chathistory",
+                    "labeled-response",
+                    "batch",
+                ]),
         );
         session.handle_connected(now);
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * LS :draft/persistence draft/chathistory labeled-response\r\n",
+            b":ergo.test CAP * LS :draft/persistence draft/chathistory labeled-response batch\r\n",
         );
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * ACK :draft/persistence draft/chathistory labeled-response\r\n:ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :are supported by this server\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
+            b":ergo.test CAP * ACK :draft/persistence draft/chathistory labeled-response batch\r\n:ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :are supported by this server\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
         );
         session.handle_bytes(now, if effective { b"ON\r\n" } else { b"OFF\r\n" });
         session.handle_line(now, b":ergo.test 001 papo-driver :Welcome to ErgoTest");

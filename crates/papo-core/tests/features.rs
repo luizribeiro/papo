@@ -553,11 +553,12 @@ fn reports_capability_and_isupport_feature_changes_after_connect() {
 
 #[test]
 fn fails_a_pending_request_when_its_feature_disappears() {
-    Transcript::new(Config::default().wanted_caps(["draft/chathistory", "labeled-response"]))
+    let config = Config::default().wanted_caps(["draft/chathistory", "labeled-response", "batch"]);
+    Transcript::new(config)
         .connect_default()
-        .server("CAP * LS :draft/chathistory labeled-response")
-        .client("CAP REQ :draft/chathistory labeled-response")
-        .server("CAP * ACK :draft/chathistory labeled-response")
+        .server("CAP * LS :draft/chathistory labeled-response batch")
+        .client("CAP REQ :draft/chathistory labeled-response batch")
+        .server("CAP * ACK :draft/chathistory labeled-response batch")
         .client("CAP END")
         .welcome(":ergo.test 001 papo :Welcome to Ergo")
         .server(":ergo.test 005 papo CHATHISTORY=100 :are supported")
@@ -591,12 +592,12 @@ fn failing_a_feature_request_keeps_other_join_tracking() {
     Transcript::new(
         Config::default()
             .nick("papo")
-            .wanted_caps(["draft/chathistory", "labeled-response"]),
+            .wanted_caps(["draft/chathistory", "labeled-response", "batch"]),
     )
     .connect_default()
-    .server("CAP * LS :draft/chathistory labeled-response")
-    .client("CAP REQ :draft/chathistory labeled-response")
-    .server("CAP * ACK :draft/chathistory labeled-response")
+    .server("CAP * LS :draft/chathistory labeled-response batch")
+    .client("CAP REQ :draft/chathistory labeled-response batch")
+    .server("CAP * ACK :draft/chathistory labeled-response batch")
     .client("CAP END")
     .welcome(":ergo.test 001 papo :Welcome to Ergo")
     .server(":ergo.test 005 papo CHATHISTORY=100 :are supported")

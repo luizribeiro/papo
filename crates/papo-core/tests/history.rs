@@ -19,19 +19,23 @@ fn history_session(isupport: &str) -> (Session, Instant) {
 }
 
 fn history_session_with(isupport: &str, config: Config) -> (Session, Instant) {
+    history_session_with_caps(
+        isupport,
+        config,
+        "draft/chathistory labeled-response server-time batch",
+    )
+}
+
+fn history_session_with_caps(isupport: &str, config: Config, caps: &str) -> (Session, Instant) {
     let now = Instant::now();
-    let mut config = config.rate_limit(RateLimit::unlimited());
-    config.wanted_caps = vec!["draft/chathistory".into(), "labeled-response".into()];
+    let config = config
+        .rate_limit(RateLimit::unlimited())
+        .wanted_caps(caps.split_whitespace());
     let mut session = Session::new(config);
     session.handle_connected(now);
-    session.handle_line(
-        now,
-        b"CAP * LS :draft/chathistory labeled-response server-time batch",
-    );
-    session.handle_line(
-        now,
-        b"CAP * ACK :draft/chathistory labeled-response server-time batch",
-    );
+    for subcommand in ["LS", "ACK"] {
+        session.handle_line(now, format!("CAP * {subcommand} :{caps}").as_bytes());
+    }
     session.handle_line(
         now,
         format!(":ergo.test 005 papo {isupport} :are supported by this server").as_bytes(),
@@ -1160,5 +1164,85 @@ fn refused_history_batch_completes_its_enclosing_labeled_request() {
             !std::iter::from_fn(|| session.poll_event())
                 .any(|event| matches!(event, Event::Response(_)))
         );
+    }
+}
+
+#[test]
+fn history_request_capability_matrix() {
+    let target = || "#papo".to_owned();
+    let first = server_time(1_760_529_301, 0);
+    let last = server_time(1_760_529_401, 0);
+    let start = || MsgRef::Timestamp(first);
+    let end = || MsgRef::Timestamp(last);
+    for (command, query) in [
+        ("LATEST", HistoryQuery::__latest(target(), None, 10)),
+        ("BEFORE", HistoryQuery::__before(target(), end(), 10)),
+        ("AFTER", HistoryQuery::__after(target(), start(), 10)),
+        ("AROUND", HistoryQuery::__around(target(), start(), 10)),
+        (
+            "BETWEEN",
+            HistoryQuery::__between(target(), start(), end(), 10),
+        ),
+        ("TARGETS", HistoryQuery::__targets(first, last, 10)),
+    ] {
+        for (labeled, batch) in [(false, false), (false, true), (true, false), (true, true)] {
+            let mut caps = vec!["draft/chathistory", "server-time"];
+            caps.extend(labeled.then_some("labeled-response"));
+            caps.extend(batch.then_some("batch"));
+            let (mut session, now) =
+                history_session_with_caps("CHATHISTORY=100", Config::default(), &caps.join(" "));
+            let request = session.chathistory(now, query.clone());
+            let prefix = if labeled && batch { "@label=0 " } else { "" };
+            if labeled && batch {
+                let expected = format!("{prefix}CHATHISTORY {command} ");
+                assert!(transmitted(&mut session).starts_with(&expected));
+            } else {
+                let missing = [Feature::LabeledResponse, Feature::Batches][usize::from(labeled)];
+                assert_eq!(request, Err(unsupported_error(missing)));
+                assert!(session.poll_transmit().is_none());
+            }
+            if batch {
+                let (kind, row) = if command == "TARGETS" {
+                    (
+                        "draft/chathistory-targets",
+                        ":ergo.test CHATHISTORY TARGETS #papo 2025-10-15T11:55:42.123Z",
+                    )
+                } else {
+                    (
+                        "chathistory #papo",
+                        ":alice!~a@cloak PRIVMSG #papo :earlier deployment",
+                    )
+                };
+                for line in [
+                    format!("{prefix}:ergo.test BATCH +history {kind}"),
+                    format!("@batch=history;time=2025-10-15T11:55:42.123Z;msgid=RKi9Cw {row}"),
+                    ":ergo.test BATCH -history".into(),
+                ] {
+                    session.handle_line(now, line.as_bytes());
+                }
+                match session.poll_event() {
+                    Some(Event::Response(response)) if labeled => {
+                        assert_eq!(response.id, request.unwrap());
+                        if command == "TARGETS" {
+                            assert_eq!(response.history_targets.unwrap().len(), 1);
+                        } else {
+                            assert_eq!(response.history.unwrap().items.len(), 1);
+                        }
+                    }
+                    Some(Event::Line(line)) if !labeled && command == "TARGETS" => {
+                        assert_eq!(line.batch_type(), Some("draft/chathistory-targets"));
+                        assert_eq!(line.as_ref().param(1), Some("#papo"));
+                        assert_eq!(line.as_ref().param(2), Some("2025-10-15T11:55:42.123Z"));
+                    }
+                    Some(Event::History { items, .. }) if !labeled && command != "TARGETS" => {
+                        assert_eq!(items.len(), 1);
+                    }
+                    event => panic!("{command}, {labeled}: {event:?}"),
+                }
+            }
+            assert_eq!(session.poll_event(), None);
+            session.handle_line(now + Duration::from_secs(1), b"PING :history-probe");
+            assert_eq!(transmitted(&mut session), "PONG history-probe");
+        }
     }
 }

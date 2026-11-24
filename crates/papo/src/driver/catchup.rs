@@ -251,18 +251,18 @@ mod tests {
         let mut session = Session::new(
             Config::default()
                 .rate_limit(RateLimit::unlimited())
-                .wanted_caps(["draft/chathistory", "labeled-response"]),
+                .wanted_caps(["draft/chathistory", "labeled-response", "batch"]),
         );
         session.handle_connected(now);
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * LS :draft/chathistory labeled-response\r\n",
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch\r\n",
         );
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * ACK :draft/chathistory labeled-response\r\n",
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch\r\n",
         );
         while session.poll_transmit().is_some() {}
         session.handle_bytes(now, b":ergo.test 005 papo CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :are supported by this server\r\n");
@@ -541,18 +541,18 @@ mod tests {
         let mut session = Session::new(
             Config::default()
                 .rate_limit(RateLimit::unlimited())
-                .wanted_caps(["draft/chathistory", "labeled-response"]),
+                .wanted_caps(["draft/chathistory", "labeled-response", "batch"]),
         );
         session.handle_connected(now);
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * LS :draft/chathistory labeled-response\r\n",
+            b":ergo.test CAP * LS :draft/chathistory labeled-response batch\r\n",
         );
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * ACK :draft/chathistory labeled-response\r\n",
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response batch\r\n",
         );
         while session.poll_transmit().is_some() {}
         session.handle_bytes(now, b":ergo.test 005 papo MSGREFTYPES=msgid :supported\r\n:ergo.test 001 papo :Welcome\r\n:ergo.test 422 papo :No MOTD\r\n");

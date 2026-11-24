@@ -156,7 +156,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::Unsupported`] when history was not negotiated,
+    /// Returns [`RequestError::Unsupported`] when history, `batch`, or `labeled-response`
+    /// was not negotiated,
     /// [`RequestError::InvalidMessageReference`] when the server cannot accept a reference,
     /// or an error documented by [`Session::request`].
     pub fn chathistory(
@@ -180,6 +181,9 @@ impl Session {
         if let Some(target) = target {
             self.validate_target(&target)?;
         }
+        // History batches can also arrive as replay, and failures can omit the target.
+        self.require_feature(Feature::LabeledResponse)?;
+        self.require_feature(Feature::Batches)?;
         self.request_for_feature(
             now,
             Line::new("CHATHISTORY").with_params(params),
