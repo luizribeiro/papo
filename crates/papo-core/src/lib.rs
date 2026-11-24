@@ -6683,19 +6683,19 @@ impl Session {
                 let received = self.received_line(line, batch_type);
                 self.outbox.event(Event::Line(received));
             }
-            BatchEvent::Multiline(message) => {
-                let message = self.received_line(message, None);
+            BatchEvent::Multiline(message, sender) => {
+                let message = self.received_multiline(message, sender);
                 self.outbox
                     .event(Event::MultilineMessage(MultilineMessage { message }));
             }
-            BatchEvent::Incomplete(message) => {
+            BatchEvent::Incomplete(message, sender) => {
                 let own_nick = self.nick().to_owned();
                 self.state.remember_server_time(
                     &message.as_ref(),
                     &own_nick,
                     self.isupport.value(),
                 );
-                let message = self.received_line(message, None);
+                let message = self.received_multiline(message, sender);
                 self.outbox
                     .event(Event::Incomplete(IncompleteMultiline { message }));
             }
@@ -6725,6 +6725,17 @@ impl Session {
                 }
             }
         }
+    }
+
+    fn received_multiline(&self, message: Line, sender: Option<ReplyToken>) -> ReceivedLine {
+        let mut message = self.received_line(message, None);
+        if let Some(sender) = sender {
+            if message.reply_token == message.source_token {
+                message.reply_token = sender;
+            }
+            message.source_token = sender;
+        }
+        message
     }
 
     fn emit_history_batch(&mut self, target: &str, mut items: Vec<HistoryItem>, exhausted: bool) {

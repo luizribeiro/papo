@@ -44,6 +44,7 @@ struct OpenBatch {
     routed_members: RoutedMembers,
     completed: Vec<BatchEvent>,
     multiline_collectors: Vec<String>,
+    multiline_sender: Option<ReplyToken>,
     lines: usize,
     multiline_bytes: usize,
     buffered_bytes: usize,
@@ -134,8 +135,8 @@ pub(crate) enum BatchEvent {
         line: Line,
         batch_type: Option<String>,
     },
-    Multiline(Line),
-    Incomplete(Line),
+    Multiline(Line, Option<ReplyToken>),
+    Incomplete(Line, Option<ReplyToken>),
     Metadata {
         kind: String,
         messages: Vec<Line>,
@@ -164,8 +165,9 @@ impl Batches {
             .open
             .values()
             .filter(|batch| !batch.replay && batch.kind == cap::MULTILINE.as_str())
-            .filter_map(multiline)
-            .map(BatchEvent::Incomplete)
+            .filter_map(|batch| {
+                multiline(batch).map(|line| BatchEvent::Incomplete(line, batch.multiline_sender))
+            })
             .collect();
         let roots: Vec<_> = self
             .open
@@ -299,6 +301,7 @@ impl Batches {
                 routed_members: BTreeMap::new(),
                 completed: Vec::new(),
                 multiline_collectors: multiline_collectors.clone(),
+                multiline_sender: None,
                 lines: 0,
                 multiline_bytes: 0,
                 buffered_bytes: retained_bytes(message),
@@ -374,7 +377,7 @@ impl Batches {
         }
         if !batch.multiline_collectors.is_empty() {
             let assembled = completed.iter().find_map(|event| match event {
-                BatchEvent::Multiline(message) => Some(message.clone()),
+                BatchEvent::Multiline(message, _) => Some(message.clone()),
                 _ => None,
             });
             let replacement = multiline_rows(&batch, assembled);
@@ -387,7 +390,7 @@ impl Batches {
         }
         if let Some(label) = batch.label.take() {
             let echo = completed.iter().find_map(|event| match event {
-                BatchEvent::Multiline(message) => Some(message.clone()),
+                BatchEvent::Multiline(message, _) => Some(message.clone()),
                 _ => None,
             });
             let history = completed
@@ -413,7 +416,7 @@ impl Batches {
             });
         }
         if !batch.multiline_collectors.is_empty() {
-            completed.retain(|event| !matches!(event, BatchEvent::Multiline(_)));
+            completed.retain(|event| !matches!(event, BatchEvent::Multiline(..)));
         }
         if let Some(parent) = batch.parent {
             let retained = moved_bytes.saturating_add(
@@ -463,7 +466,10 @@ impl Batches {
                 && matches!(message.command(), Command::Privmsg | Command::Notice)
                 && message.param(1).is_some()
             {
-                return BatchAction::Complete(vec![BatchEvent::Incomplete(message.to_owned())]);
+                return BatchAction::Complete(vec![BatchEvent::Incomplete(
+                    message.to_owned(),
+                    None,
+                )]);
             }
             return BatchAction::Complete(vec![BatchEvent::Line {
                 line: message.to_owned(),
@@ -703,7 +709,8 @@ impl Batches {
                 match (incomplete.get(&candidate), replay_kind) {
                     (Some(line), Some(kind)) => messages.push((line.clone(), Some(kind))),
                     (Some(line), None) => {
-                        incomplete_events.push(BatchEvent::Incomplete(line.clone()));
+                        incomplete_events
+                            .push(BatchEvent::Incomplete(line.clone(), batch.multiline_sender));
                     }
                     (None, kind) if batch.replay || batch.kind != cap::MULTILINE.as_str() => {
                         messages.extend(fallback_rows(batch.messages, &batch.routed_members, kind));
@@ -859,6 +866,33 @@ impl Batches {
             parent = batch.parent.as_deref();
         }
         false
+    }
+
+    pub(crate) fn multiline_opening(&self, message: &LineRef<'_>) -> Option<(&str, Option<&Line>)> {
+        if !matches!(message.command(), Command::Privmsg | Command::Notice) {
+            return None;
+        }
+        let reference = message.tag("batch")?;
+        let (mut reference, mut batch) = self.open.get_key_value(reference.as_ref())?;
+        while batch.kind != cap::MULTILINE.as_str() {
+            (reference, batch) = self.open.get_key_value(batch.parent.as_ref()?)?;
+        }
+        let opening = batch.opening.as_ref();
+        let first_valid = batch.messages.is_empty()
+            && message.param(1).is_some()
+            && opening
+                .param(2)
+                .is_none_or(|target| message.param(0) == Some(target))
+            && (!matches!(opening.source(), Some(papo_proto::Source::User { .. }))
+                || opening.raw_source() == message.raw_source());
+        Some((reference, first_valid.then_some(&batch.opening)))
+    }
+
+    pub(crate) fn remember_multiline_sender(&mut self, reference: &str, token: ReplyToken) {
+        self.open
+            .get_mut(reference)
+            .expect("resolved multiline")
+            .multiline_sender = Some(token);
     }
 
     pub(crate) fn live_member(&self, message: &LineRef<'_>) -> Option<LiveMember<'_>> {
@@ -1018,7 +1052,10 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
                 })
                 .collect();
         }
-        return assembled.into_iter().map(BatchEvent::Multiline).collect();
+        return assembled
+            .into_iter()
+            .map(|line| BatchEvent::Multiline(line, batch.multiline_sender))
+            .collect();
     }
     if batch.kind == "draft/chathistory-targets" {
         return vec![BatchEvent::HistoryTargets(std::mem::take(
@@ -1210,7 +1247,7 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<(Line, Option<String>)
             }));
         }
         BatchEvent::Line { line, batch_type } => messages.push((line, batch_type)),
-        BatchEvent::Multiline(line) | BatchEvent::Incomplete(line) => {
+        BatchEvent::Multiline(line, _) | BatchEvent::Incomplete(line, _) => {
             messages.push((line, None));
         }
         BatchEvent::HistoryTargets(rows) => messages.extend(

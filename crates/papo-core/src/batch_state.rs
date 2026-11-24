@@ -15,7 +15,7 @@ impl Session {
         }
         let member = self.batches.live_member(message)?;
         if !updates_presence(message.command()) {
-            self.observe_buffered_identity(message);
+            self.observe_batched_identity(message);
             return None;
         }
         let mut context = DispatchContext::from_batch_type(member.kind.to_owned());
@@ -61,6 +61,27 @@ impl Session {
             subject: self.state.who_subject_token(message),
             joined_ready,
         })
+    }
+
+    fn observe_batched_identity(&mut self, message: &LineRef<'_>) {
+        let Some((reference, opening)) = self.batches.multiline_opening(message) else {
+            self.observe_buffered_identity(message);
+            return;
+        };
+        // The opener carries the account tag for the whole message. Later fragments repeat the
+        // source but provide no new identity evidence for the assembled message.
+        if let Some(opening) = opening {
+            let reference = reference.to_owned();
+            let account = opening.as_ref().tag("account");
+            if let Some(account) = account {
+                let part = message.to_owned().with_tag("account", account);
+                self.observe_buffered_identity(&part.as_ref());
+            } else {
+                self.observe_buffered_identity(message);
+            }
+            self.batches
+                .remember_multiline_sender(&reference, self.state.source_token(message));
+        }
     }
 }
 
