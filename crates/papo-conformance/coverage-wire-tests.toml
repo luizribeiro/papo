@@ -8,6 +8,21 @@
 "bare_presence::channel_message_from_another_host_after_a_bare_names_row_ends_the_reference" = [
   "security.recipient-1.message-only-bare-names",
 ]
+"batched_message_peer::message_in_a_batch_of_unknown_type_from_another_host_ends_the_reference" = [
+  "security.recipient-1.message-only-vendor-batch",
+]
+"multiline_peer::multiline_message_from_another_host_ends_a_message_only_reference" = [
+  "security.recipient-1.message-only-multiline",
+]
+"multiline_peer::multiline_message_from_another_account_ends_the_reference" = [
+  "security.recipient-1.message-only-multiline",
+]
+"multiline_peer::multiline_sender_on_another_host_is_not_the_earlier_sender" = [
+  "security.recipient-1.message-only-multiline",
+]
+"multiline_peer::a_first_multiline_private_message_can_be_answered" = [
+  "security.recipient-1.message-only-multiline",
+]
 "unrelated_watch::replies_survive_monitor_sync_and_isupport" = [
   "security.recipient-3.message-only-monitor-sync",
 ]
