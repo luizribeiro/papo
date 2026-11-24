@@ -186,15 +186,16 @@ impl ReplySecrets {
         self.0.iter().any(|secret| secret.expose() == value)
     }
 
-    /// Selects parameters for masking while their bytes still match what we sent.
-    pub(super) fn redactions(
+    /// Reports replacement parameters before decoding can change their bytes.
+    pub(super) fn redact(
         &self,
         mut input: &[u8],
         nick: &str,
         isupport: &Isupport,
-    ) -> Vec<usize> {
+        mut replace: impl FnMut(usize, &[u8], Vec<u8>),
+    ) {
         if self.0.is_empty() {
-            return Vec::new();
+            return;
         }
         for prefix in *b"@:" {
             if trim_spaces(input).starts_with(&[prefix]) {
@@ -209,7 +210,7 @@ impl ReplySecrets {
             }
             Command::Fail | Command::Warn | Command::Note => standard_channel_parameter(input),
             Command::Error => None,
-            _ => return Vec::new(),
+            _ => return,
         };
 
         let mut params = std::iter::from_fn(|| {
@@ -223,7 +224,6 @@ impl ReplySecrets {
         })
         .enumerate()
         .peekable();
-        let mut redactions = Vec::new();
         while let Some((index, param)) = params.next() {
             let last = params.peek().is_none();
             if self.0.iter().any(|secret| {
@@ -232,10 +232,9 @@ impl ReplySecrets {
                     || last && contains_token(param, value)
             }) && !is_reply_address(command, channel_index, index, last, param, nick, isupport)
             {
-                redactions.push(index);
+                replace(index, param, REDACTED.as_bytes().to_vec());
             }
         }
-        redactions
     }
 }
 

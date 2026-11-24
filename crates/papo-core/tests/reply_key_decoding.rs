@@ -44,7 +44,7 @@ fn refused(advertise_utf8_only: bool, key: &str, reply: &[u8]) -> Vec<String> {
                 }
                 _ => panic!("unexpected reply {event:?}"),
             };
-            assert!(line.contains("<redacted>"), "{line}");
+            assert!(line.contains(" k <redacted> :Clave inv"), "{line}");
             shown.push(format!("{event:?} {line}"));
             true
         })
@@ -73,6 +73,10 @@ fn keys_reencoded_by_legacy_servers_stay_redacted() {
         (
             KEY,
             &b":ergo.test 696 papo #staff k contrase\xf1a-4821 :Clave inv\xe1lida"[..],
+        ),
+        (
+            KEY,
+            &b":ergo.test 696 papo #staff k contrase\xf1a-4821 :Clave invalida"[..],
         ),
         (
             "presupuesto€-4821",

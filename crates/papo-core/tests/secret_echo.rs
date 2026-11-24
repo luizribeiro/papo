@@ -786,4 +786,9 @@ fn malformed_ordinary_lines_keep_their_bytes() {
     assert!(
         matches!(session.poll_event(), Some(Event::Malformed { line, .. }) if line == ordinary)
     );
+    session.handle_line(now, b":ergo.test 696 papo #rust k a :Cl\xe9 invalide");
+    assert!(
+        matches!(session.poll_event(), Some(Event::Malformed { line, .. })
+        if line == b":ergo.test 696 papo #rust k <redacted> :Cl\xe9 invalide")
+    );
 }

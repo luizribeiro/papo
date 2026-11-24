@@ -4279,9 +4279,6 @@ impl Session {
             return;
         }
 
-        let reply_redactions =
-            self.reply_secrets
-                .redactions(line, self.nick(), self.isupport.value());
         let Some(decoded) = decode_incoming(line, self.isupport.decoding()) else {
             self.malformed(line);
             return;
@@ -4292,13 +4289,11 @@ impl Session {
                 let message = mode.as_ref().map_or(message, Line::as_ref);
                 let keys = self.mask_tracked_channel_keys(&message);
                 let message = keys.as_ref().map_or(message, Line::as_ref);
-                let reply = (!reply_redactions.is_empty()).then(|| {
-                    let mut reply = message.to_owned();
-                    for index in reply_redactions {
-                        papo_proto::__mask_param(&mut reply, index);
-                    }
-                    reply
-                });
+                let reply = self.mask_reply(
+                    line,
+                    &message,
+                    matches!(decoded, std::borrow::Cow::Borrowed(_)),
+                );
                 let message = reply.as_ref().map_or(message, Line::as_ref);
                 let redacted = self
                     .secret_echoes
@@ -4352,6 +4347,26 @@ impl Session {
                 }
             }
         }
+    }
+
+    fn mask_reply(&self, bytes: &[u8], message: &LineRef<'_>, utf8: bool) -> Option<Line> {
+        let mut masked = None;
+        self.reply_secrets.redact(
+            bytes,
+            self.nick(),
+            self.isupport.value(),
+            |index, _, param| {
+                let text = if utf8 {
+                    String::from_utf8_lossy(&param).into_owned()
+                } else {
+                    param.into_iter().map(char::from).collect()
+                };
+                masked
+                    .get_or_insert_with(|| message.to_owned())
+                    .__replace_param(index, text);
+            },
+        );
+        masked
     }
 
     /// Behind a bouncer, credentials sent after registration can reach the upstream network.
@@ -6059,19 +6074,26 @@ impl Session {
     }
 
     fn malformed(&mut self, line: &[u8]) {
-        let line = if echo::malformed_mode_may_carry_key(line)
-            || !self
-                .reply_secrets
-                .redactions(line, self.nick(), self.isupport.value())
-                .is_empty()
-        {
-            b"<redacted>"
+        let mut shown = Vec::new();
+        let mut copied = 0;
+        if echo::malformed_mode_may_carry_key(line) {
+            shown.extend_from_slice(b"<redacted>");
+            copied = line.len();
         } else {
-            line
-        };
-        self.outbox.event(Event::Malformed {
-            line: line.to_vec(),
-        });
+            self.reply_secrets.redact(
+                line,
+                self.nick(),
+                self.isupport.value(),
+                |_, param, masked| {
+                    let start = param.as_ptr() as usize - line.as_ptr() as usize;
+                    shown.extend_from_slice(line.get(copied..start).unwrap_or_default());
+                    shown.extend_from_slice(&masked);
+                    copied = start + param.len();
+                },
+            );
+        }
+        shown.extend_from_slice(line.get(copied..).unwrap_or_default());
+        self.outbox.event(Event::Malformed { line: shown });
     }
 
     fn maybe_send_away_on_connect(&mut self) {
