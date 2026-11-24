@@ -155,18 +155,30 @@ impl Batches {
     }
 
     pub(crate) fn reset(&mut self) -> Vec<BatchEvent> {
-        let incomplete = self
+        let mut events: Vec<_> = self
             .open
             .values()
-            .filter(|batch| batch.kind == cap::MULTILINE.as_str())
+            .filter(|batch| !batch.replay && batch.kind == cap::MULTILINE.as_str())
             .filter_map(multiline)
             .map(BatchEvent::Incomplete)
             .collect();
-        self.open.clear();
+        let roots: Vec<_> = self
+            .open
+            .iter()
+            .filter(|(_, batch)| batch.parent.is_none())
+            .map(|(reference, _)| reference.clone())
+            .collect();
+        for root in roots {
+            events.extend(self.drain(&root, None).into_iter().filter(|event| {
+                matches!(event, BatchEvent::History { .. })
+                    || matches!(event, BatchEvent::Line { batch_type: Some(kind), .. }
+                        if is_replay(kind))
+            }));
+        }
         self.abandoned.clear();
         self.provenance_exhausted = false;
         self.buffered_bytes = 0;
-        incomplete
+        events
     }
 
     pub(crate) fn handle(
@@ -967,7 +979,16 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
     if batch.kind == cap::MULTILINE.as_str() {
         return multiline(batch)
             .into_iter()
-            .map(BatchEvent::Multiline)
+            .map(|line| {
+                if batch.replay && batch.multiline_collectors.is_empty() {
+                    BatchEvent::Line {
+                        line,
+                        batch_type: Some(cap::CHATHISTORY_BATCH.to_owned()),
+                    }
+                } else {
+                    BatchEvent::Multiline(line)
+                }
+            })
             .collect();
     }
     if batch.kind == "draft/chathistory-targets" {

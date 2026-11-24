@@ -1900,3 +1900,22 @@ fn nested_rows_keep_replay_provenance_after_the_root_is_abandoned() {
         }
     }
 }
+
+#[test]
+fn disconnect_releases_open_replay_as_history() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for row in [
+        ":ergo.test BATCH +h chathistory #review",
+        "@batch=h;time=2026-11-23T10:48:40.521Z :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :deploy started",
+        "@batch=h;msgid=fkggsh3fbnpgx8hzy9ah8u :alice!~u@8fq2mzkq5hcsa.irc BATCH +paste draft/multiline #review",
+        "@batch=paste :alice!~u@8fq2mzkq5hcsa.irc PRIVMSG #review :!deploy",
+    ] {
+        session.handle_line(now, row.as_bytes());
+    }
+    session.handle_disconnected(now);
+    assert!(
+        matches!(session.poll_event(), Some(Event::History { items, exhausted: false, .. })
+        if matches!(items.as_slice(), [HistoryItem::Message(_), HistoryItem::Incomplete(_)]))
+    );
+}

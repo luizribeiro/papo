@@ -1677,42 +1677,14 @@ where
                 items,
                 exhausted,
             } => {
-                let Some(commands) = events.commands.upgrade() else {
-                    continue;
-                };
-                let client = Client {
-                    commands,
-                    state: Arc::clone(&events.state),
-                    origin: session.state().nick().origin(),
-                    network_builder: None,
-                };
-                let conversation = {
-                    let state = client.state();
-                    crate::Conversation::from_core_with_state(
-                        conversation,
-                        client.origin(),
-                        &client.state,
-                        &state,
-                    )
-                };
-                let items = items
-                    .into_iter()
-                    .map(|item| {
-                        crate::ext::history::history_item(
-                            item,
-                            Some(&conversation),
-                            &client,
-                            crate::rt::now_wall(),
-                        )
-                    })
-                    .collect();
-                let event = Event::History(crate::event::HistoryPage {
+                enqueue_history(
+                    session,
+                    events,
+                    pending_events,
                     conversation,
                     items,
                     exhausted,
-                    reason: crate::HistoryReason::Replay,
-                });
-                enqueue_event(events, pending_events, event);
+                );
             }
             event::CoreEvent::Response(response) => {
                 for line in &response.lines {
@@ -2099,6 +2071,52 @@ fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
 
 fn rejoin_retained_start(channel_count: usize) -> usize {
     channel_count.saturating_sub(MAX_REJOIN_CHANNELS)
+}
+
+fn enqueue_history(
+    session: &Session,
+    events: &EventSink,
+    pending_events: &mut PendingEvents,
+    conversation: papo_core::Conversation,
+    items: Vec<papo_core::HistoryItem>,
+    exhausted: bool,
+) {
+    let Some(commands) = events.commands.upgrade() else {
+        return;
+    };
+    let client = Client {
+        commands,
+        state: Arc::clone(&events.state),
+        origin: session.state().nick().origin(),
+        network_builder: None,
+    };
+    let conversation = {
+        let state = client.state();
+        crate::Conversation::from_core_with_state(
+            conversation,
+            client.origin(),
+            &client.state,
+            &state,
+        )
+    };
+    let items = items
+        .into_iter()
+        .map(|item| {
+            crate::ext::history::history_item(
+                item,
+                Some(&conversation),
+                &client,
+                crate::rt::now_wall(),
+            )
+        })
+        .collect();
+    let event = Event::History(crate::event::HistoryPage {
+        conversation,
+        items,
+        exhausted,
+        reason: crate::HistoryReason::Replay,
+    });
+    enqueue_event(events, pending_events, event);
 }
 
 fn enqueue_event(events: &EventSink, pending: &mut PendingEvents, event: Event) {
