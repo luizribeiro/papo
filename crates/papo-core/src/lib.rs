@@ -2780,6 +2780,8 @@ pub enum Event {
     TransmitCredentialsRefused {
         /// Identifier assigned when the line was queued.
         token: TransmitToken,
+        /// Reason the credential could not be sent.
+        error: RequestError,
     },
     /// A pending request's required feature became unavailable.
     #[non_exhaustive]
@@ -2934,7 +2936,7 @@ pub enum Event {
     },
     /// An STS persistence action for the transport shell to store.
     StsPolicy(sts::StsAction),
-    /// Server input exceeded a configured state-retention bound.
+    /// A state collection reached its retention limit.
     #[non_exhaustive]
     StateLimitReached {
         /// The state collection that rejected another entry.
@@ -3613,7 +3615,7 @@ impl std::ops::Deref for ReceivedLine {
     }
 }
 
-/// A bounded server-controlled state collection.
+/// A bounded state collection.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum StateLimit {
@@ -3634,6 +3636,8 @@ pub enum StateLimit {
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]
     BouncerNetworks,
+    /// Up to 256 distinct credentials retained per connection to mask failure replies.
+    Credentials,
     /// ISUPPORT tokens advertised by the server.
     IsupportTokens,
 }
@@ -3988,7 +3992,10 @@ impl Outbox {
         if let Some(id) = request {
             self.event(Event::RequestCredentialsRefused { id });
         } else if let Some(token) = token {
-            self.event(Event::TransmitCredentialsRefused { token });
+            self.event(Event::TransmitCredentialsRefused {
+                token,
+                error: RequestError::InsecureAuthentication,
+            });
         } else {
             self.close_and_discard(
                 CloseKind::Other,
@@ -4550,6 +4557,8 @@ impl Session {
     ///
     /// Returns [`RequestError::Build`] if `message` cannot be represented as a valid IRC wire
     /// line.
+    ///
+    /// Credentials beyond [`StateLimit::Credentials`] are refused before transmission.
     pub fn send(&mut self, now: Instant, message: Line) -> Result<(), RequestError> {
         self.send_tracked(now, message).map(drop)
     }
@@ -5017,6 +5026,8 @@ impl Session {
     /// requested by the message is unavailable,
     /// [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
     /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
+    ///
+    /// Credentials beyond [`StateLimit::Credentials`] are refused before transmission.
     pub fn request(&mut self, now: Instant, message: Line) -> Result<RequestId, RequestError> {
         self.request_with_event_policy(now, message, true)
     }
@@ -5139,6 +5150,8 @@ impl Session {
     /// Returns [`RequestError::PendingLimit`] when 256 requests are already pending, or
     /// [`RequestError::Build`] when the message cannot be represented on the wire. A list-mode
     /// change returns [`RequestError::StateLimit`] when it would overflow a cached list.
+    ///
+    /// Credentials beyond [`StateLimit::Credentials`] are refused before transmission.
     pub fn request_with_matcher(
         &mut self,
         now: Instant,
@@ -5239,7 +5252,8 @@ impl Session {
         }
         if who_fence.is_none() {
             if let Some(fence) = fence {
-                self.outbox.transmit_raw(line);
+                let tracked = line.__has_secret_parameter().then_some(id);
+                self.outbox.transmit_tracked(line, None, tracked);
                 let ping = Line::new("PING").param(fence).encode()?;
                 self.outbox.transmit_tracked(ping, None, Some(id));
             } else {
@@ -5570,21 +5584,17 @@ impl Session {
             }
             None => None,
         };
-        if !self
-            .reply_secrets
-            .track(&queued.line, self.config.sasl.as_ref())
-        {
-            self.outbox.close_and_discard(
-                CloseKind::Other,
-                "credential tracking limit reached".to_owned(),
-            );
-            self.apply_close_request();
-            return None;
-        }
         if let Some((old, new)) = resolved
             && !replace_wire_target(&mut queued.line, old, &new)
         {
             self.recipient_gone(queued.token, queued.request);
+            return None;
+        }
+        if !self
+            .reply_secrets
+            .track(&queued.line, self.config.sasl.as_ref())
+        {
+            self.refuse_credential(queued.token, queued.request);
             return None;
         }
         self.mark_request_started(queued.request);
@@ -5592,6 +5602,23 @@ impl Session {
             line: queued.line,
             token: queued.token,
         })
+    }
+
+    fn refuse_credential(&mut self, token: Option<TransmitToken>, request: Option<RequestId>) {
+        let limit = StateLimit::Credentials;
+        let error = RequestError::StateLimit(limit);
+        if let Some(id) = request {
+            self.__cancel_request(id);
+            self.outbox.transmits.retain(|transmit| {
+                !matches!(transmit, Transmission::Line { queued, .. } if queued.request == Some(id))
+            });
+            self.outbox.event(Event::RequestFailed(id, error));
+        } else if let Some(token) = token {
+            self.outbox
+                .event(Event::TransmitCredentialsRefused { token, error });
+        } else {
+            self.outbox.event(Event::StateLimitReached { limit });
+        }
     }
 
     fn recipient_gone(&mut self, token: Option<TransmitToken>, request: Option<RequestId>) {

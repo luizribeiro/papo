@@ -279,11 +279,15 @@ impl SetModes {
     }
 
     /// Sets the channel key without exposing it through debug output or errors.
+    ///
+    /// A request that exceeds [`crate::StateLimit::Credentials`] returns [`Error::StateLimit`].
     pub fn key(self, key: crate::Secret) -> Self {
         self.change(true, Selector::Letter('k'), Some(Argument::Secret(key)))
     }
 
     /// Removes the channel key without exposing it through debug output or errors.
+    ///
+    /// The same credential limit as [`Self::key`] applies.
     pub fn remove_key(self, key: crate::Secret) -> Self {
         self.change(false, Selector::Letter('k'), Some(Argument::Secret(key)))
     }

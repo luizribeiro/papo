@@ -466,12 +466,21 @@ fn credentials_stay_redacted_until_the_connection_ends() {
     );
 
     let new = join(Secret::new("staff-key-256"));
-    session.send(late, new.clone()).unwrap();
+    let token = session.send_tracked(late, new.clone()).unwrap();
     assert!(
         session.poll_transmit().is_none(),
         "an untracked key cannot go on the wire"
     );
-    assert!(matches!(session.poll_event(), Some(Event::Close { .. })));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::TransmitCredentialsRefused {
+            token: refused,
+            error: RequestError::StateLimit(papo_core::StateLimit::Credentials),
+            ..
+        }) if refused == token
+    ));
+    session.send(late, join(Secret::new(key))).unwrap();
+    assert!(session.poll_transmit().is_some());
     register(&mut session, late, "ergo.test", ERGO_CAPS);
     session.send(late, new).unwrap();
     assert!(session.poll_transmit().is_some());
@@ -631,4 +640,35 @@ fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
         panic!("expected a standard reply");
     };
     assert_eq!(reply.description, "<redacted>");
+}
+
+#[test]
+fn refusing_a_line_does_not_reserve_any_of_its_new_credentials() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    for index in 0..255 {
+        session
+            .send(
+                now,
+                Line::new("JOIN")
+                    .param("#staff")
+                    .param(Secret::new(format!("staff-key-{index:03}"))),
+            )
+            .unwrap();
+        assert!(session.poll_transmit().is_some());
+    }
+    let mode = |first, second| {
+        Line::new("MODE")
+            .with_params(["#staff", "+kk"])
+            .param(Secret::new(first))
+            .param(Secret::new(second))
+    };
+    session
+        .send(now, mode("one-more-4821", "over-the-limit-4821"))
+        .unwrap();
+    assert!(session.poll_transmit().is_none());
+    session
+        .send(now, mode("last-key-4821", "last-key-4821"))
+        .unwrap();
+    assert!(session.poll_transmit().is_some());
 }

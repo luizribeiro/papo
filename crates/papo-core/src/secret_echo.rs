@@ -168,15 +168,17 @@ impl ReplySecrets {
                 _ => None,
             });
         let values = papo_proto::__wire_secret_parameters(line).chain(decoded);
+        let mut new = Vec::new();
         for value in values.filter(|value| !value.is_empty()) {
-            if self.contains(value) {
+            if self.contains(value) || new.contains(&value) {
                 continue;
             }
-            if self.0.len() == MAX_CREDENTIALS {
+            if self.0.len() + new.len() == MAX_CREDENTIALS {
                 return false;
             }
-            self.0.push(Secret::new(value));
+            new.push(value);
         }
+        self.0.extend(new.into_iter().map(Secret::new));
         true
     }
 

@@ -1812,9 +1812,9 @@ where
                     result.fail(Error::TargetGone);
                 }
             }
-            event::CoreEvent::TransmitCredentialsRefused(token) => {
+            event::CoreEvent::TransmitCredentialsRefused(token, error) => {
                 if let Some(result) = transmits.remove(&token) {
-                    result.fail(Error::InvalidInput(InvalidInput::InsecureAuthentication));
+                    result.fail(Error::request(error));
                 }
             }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
