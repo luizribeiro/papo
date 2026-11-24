@@ -4,6 +4,7 @@ This example logs in, prints up to 100 unread messages for one channel, and adva
 read marker to the last message it printed using that message's server time. It never uses the
 local clock. It then awaits `Client::quit` before exiting. The
 channel comes from `IRC_CHANNEL` and defaults to `#papo`; `IRC_NICK` defaults to `papo-catchup`.
+The server must offer chat history, `batch`, `labeled-response`, and read markers.
 If history or read-marker handling fails, it prints `could not catch up: …` and still quits.
 
 Apps that persisted that server time can restore it with `ServerTime::from_stored` and pass it to

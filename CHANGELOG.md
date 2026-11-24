@@ -516,6 +516,10 @@ A labeled history request ended by a batch limit returns a typed state-limit err
 Replay rows whose batch target cannot be filed and unsolicited history target rows reach
 applications as `Other` payloads, preserving any status-prefixed audience.
 
+History requests report missing labels or batches as `Error::Unsupported` and incomplete replies
+as `Error::UnexpectedReply`. Read-marker updates and metadata requests also report missing labels
+as `Error::Unsupported`.
+
 `actor_account()` uses the account stated by an `ACCOUNT` or extended `JOIN` line.
 Conflicting command and tag values report an unknown account.
 

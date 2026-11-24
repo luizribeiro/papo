@@ -1038,8 +1038,8 @@ mod tests {
         let mut session = registered_session(
             now,
             &[
-                "CAP * LS :draft/read-marker server-time",
-                "CAP * ACK :draft/read-marker server-time",
+                "CAP * LS :draft/read-marker server-time labeled-response",
+                "CAP * ACK :draft/read-marker server-time labeled-response",
                 ":ergo.test 001 papo :Welcome to the Ergo test network",
                 "@time=2025-10-15T11:55:42.123Z;msgid=Newest :alice!a@host PRIVMSG #papo :seen",
             ],

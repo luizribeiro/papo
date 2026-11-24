@@ -102,6 +102,13 @@ pub(crate) enum ChatGuard {
 
 impl CoreRequest {
     fn start(self, session: &mut Session) -> Result<RequestId, RequestError> {
+        if matches!(&self, Self::Metadata(_) | Self::MetadataPerson { .. }) {
+            for feature in [crate::Feature::Metadata, crate::Feature::LabeledResponse] {
+                session.supports(feature).map_err(|reason| {
+                    RequestError::Unsupported(papo_core::Unsupported::new(feature, reason))
+                })?;
+            }
+        }
         let before = session.next_request_id();
         match self {
             Self::Register {

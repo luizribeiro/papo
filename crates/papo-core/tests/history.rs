@@ -586,6 +586,28 @@ fn mark_read_waits_for_the_first_server_time_after_reconnect() {
 }
 
 #[test]
+fn mark_read_requires_labels_before_sending() {
+    let (mut session, now) = read_marker_session();
+    reconnect_read_marker_without_time(&mut session, now);
+    let stored = server_time(1_760_529_342, 0);
+    let id = session.mark_read(now, "#papo", stored).unwrap();
+    session.handle_line(now, b":ergo.test CAP papo DEL :labeled-response");
+    let missing = unsupported_error(Feature::LabeledResponse);
+    assert_eq!(
+        session.mark_read(now, "#papo", stored),
+        Err(missing.clone())
+    );
+    session.handle_line(
+        now + Duration::from_secs(1),
+        b"@time=2025-10-15T11:55:42.000Z :ergo.test TAGMSG #papo",
+    );
+    assert!(session.poll_transmit().is_none());
+    assert!(std::iter::from_fn(|| session.poll_event()).any(|event| {
+        matches!(event, Event::RequestFailed(failed, error) if failed == id && error == missing)
+    }));
+}
+
+#[test]
 fn waiting_mark_read_times_out_and_uses_the_pending_bound() {
     let (mut session, now) = read_marker_session();
     reconnect_read_marker_without_time(&mut session, now);

@@ -1367,7 +1367,8 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] with reason
+    /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] or
+    /// [`crate::Feature::LabeledResponse`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. If no timestamped line has been seen,
     /// awaiting returns [`crate::InvalidInput::NoServerTime`]. A refusal returns [`Error::Server`] with

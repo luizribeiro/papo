@@ -126,6 +126,8 @@ impl Session {
                     requested: request.read_until,
                     estimated_now,
                 })
+            } else if let Err(error) = self.require_feature(Feature::LabeledResponse) {
+                Err(error)
             } else {
                 let line = Line::new("MARKREAD")
                     .param(request.target)
@@ -195,8 +197,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::Unsupported`] when read markers were not negotiated,
-    /// [`RequestError::StateLimit`] when a new target would exceed the read-marker store limit,
+    /// Returns [`RequestError::Unsupported`] when read markers or `labeled-response` were not
+    /// negotiated, [`RequestError::StateLimit`] when a new target would exceed the read-marker store limit,
     /// or an error documented by [`Session::request`].
     pub fn mark_read(
         &mut self,
@@ -205,6 +207,7 @@ impl Session {
         read_until: ServerTime,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
+        self.require_feature(Feature::LabeledResponse)?;
         self.validate_target(target)?;
         self.ensure_state_capacity(StateGrowth::ReadMarker(target))?;
         if let Some(clock) = self.server_clock {

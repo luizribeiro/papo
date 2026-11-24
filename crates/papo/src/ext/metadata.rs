@@ -32,6 +32,9 @@ pub enum SyncOutcome {
 }
 
 /// Handle for metadata requests and cached metadata state.
+///
+/// Requests require negotiated metadata and `labeled-response`. Awaiting returns
+/// [`Error::Unsupported`] with the missing feature before sending the request.
 pub struct Metadata {
     client: Client,
 }
