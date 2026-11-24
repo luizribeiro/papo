@@ -731,3 +731,36 @@ fn invite_errors_keep_the_channel_after_the_invited_nick() {
     );
     assert_eq!(echo_line(&mut session).get(2), Some("#staff"));
 }
+
+#[test]
+fn refusing_a_credential_discards_only_its_mode_request_and_fence() {
+    let now = Instant::now();
+    let mut session = session(now, "ergo.test", "multi-prefix");
+    for index in 0..256 {
+        let key = format!("staff-key-{index:03}");
+        session.send(now, keyed_staff_join(&key)).unwrap();
+        assert!(session.poll_transmit().is_some());
+    }
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("MODE")
+                .with_params(["#staff", "+k"])
+                .param(Secret::new("new-staff-key")),
+            papo_core::ResponseMatcher::Mode("#staff".into()),
+        )
+        .unwrap();
+    session
+        .send(now, Line::new("PING").param("connection-probe"))
+        .unwrap();
+
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING connection-probe\r\n"
+    );
+    assert!(session.poll_transmit().is_none());
+    assert!(matches!(session.poll_event(),
+        Some(Event::RequestFailed(refused, RequestError::StateLimit(papo_core::StateLimit::Credentials)))
+        if refused == id
+    ));
+}

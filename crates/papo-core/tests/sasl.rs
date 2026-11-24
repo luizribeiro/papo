@@ -1913,6 +1913,8 @@ fn sasl_payload_over_the_credential_limit_aborts_the_exchange() {
         .reauthenticate()
         .client("AUTHENTICATE PLAIN")
         .server("AUTHENTICATE +")
+        .server("PING :before-sasl-abort")
+        .client("PONG before-sasl-abort")
         .client("AUTHENTICATE *")
         .no_client()
         .event_until(|event| matches!(event, Event::StateLimitReached { limit: papo_core::StateLimit::Credentials, .. }))
