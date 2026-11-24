@@ -3141,28 +3141,40 @@ async fn a_refused_non_ascii_key_stays_redacted_in_a_legacy_reply() {
     connected(&mut events).await;
     wire.server(":offline.test 005 papo -UTF8ONLY CHANMODES=beI,k,l,imnpst :are supported")
         .await;
+
     let key = "contraseña-4821";
-    let request =
-        tokio::spawn(async move { client.set_modes("#staff").key(papo::Secret::new(key)).await });
-    assert_eq!(
-        wire.next_sent().await,
-        format!("@label=0 MODE #staff +k {key}")
-    );
-    let mut reply =
-        format!("@label=0 :offline.test 696 papo #staff k {key} :Clave inv").into_bytes();
-    reply.extend_from_slice(b"\xe1lida");
-    wire.server_bytes(&reply).await;
-    let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
-        panic!("expected a numeric refusal");
-    };
-    assert_eq!(
-        error.params(),
-        ["papo", "#staff", "k", "<redacted>", "Clave inválida"]
-    );
-    let latin1: String = key.bytes().map(char::from).collect();
-    let shown = format!("{error:?} {error}");
-    assert!(!shown.contains(key) && !shown.contains(&latin1));
+    for (label, echoed) in [key.as_bytes(), b"contrase\xf1a-4821"]
+        .into_iter()
+        .enumerate()
+    {
+        let requester = client.clone();
+        let request = tokio::spawn(async move {
+            requester
+                .set_modes("#staff")
+                .key(papo::Secret::new(key))
+                .await
+        });
+        assert_eq!(
+            wire.next_sent().await,
+            format!("@label={label} MODE #staff +k {key}")
+        );
+        let mut reply = format!("@label={label} :offline.test 696 papo #staff k ").into_bytes();
+        reply.extend_from_slice(echoed);
+        reply.extend_from_slice(b" :Clave inv\xe1lida");
+        wire.server_bytes(&reply).await;
+        let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
+            panic!("expected a numeric refusal");
+        };
+        assert_eq!(
+            error.params(),
+            ["papo", "#staff", "k", "<redacted>", "Clave inválida"]
+        );
+        let latin1: String = key.bytes().map(char::from).collect();
+        let shown = format!("{error:?} {error}");
+        assert!(!shown.contains(key) && !shown.contains(&latin1));
+    }
 }
+
 #[tokio::test]
 async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
     let (client, mut events, mut wire) = wire(

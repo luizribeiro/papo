@@ -227,8 +227,9 @@ impl ReplySecrets {
         while let Some((index, param)) = params.next() {
             let last = params.peek().is_none();
             if self.0.iter().any(|secret| {
-                let value = secret.expose().as_bytes();
-                param == value || last && contains_token(param, value)
+                let value = secret.expose();
+                credential_prefix(param, value) == Some(param.len())
+                    || last && contains_token(param, value)
             }) && !is_reply_address(command, channel_index, index, last, param, nick, isupport)
             {
                 redactions.push(index);
@@ -301,7 +302,7 @@ fn is_reply_address(
         || (!last && channel_index == Some(index) && isupport.is_channel(param))
 }
 
-fn contains_token(text: &[u8], value: &[u8]) -> bool {
+fn contains_token(text: &[u8], value: &str) -> bool {
     let words = text
         .iter()
         .enumerate()
@@ -309,16 +310,45 @@ fn contains_token(text: &[u8], value: &[u8]) -> bool {
         .filter_map(|(index, _)| text.get(index + 1..));
     std::iter::once(text).chain(words).any(|start| {
         let ends_token = |rest: &[u8]| rest.is_empty() || rest.starts_with(b" ");
-        if start.strip_prefix(value).is_some_and(ends_token) {
+        let after_credential = |bytes: &[_]| credential_prefix(bytes, value);
+        if after_credential(start).is_some_and(|len| start.get(len..).is_some_and(ends_token)) {
             return true;
         }
         let Some((&quote, rest)) = start.split_first() else {
             return false;
         };
         matches!(quote, b'"' | b'\'')
-            && rest
-                .strip_prefix(value)
-                .and_then(|end| end.strip_prefix(&[quote]))
+            && after_credential(rest)
+                .and_then(|len| rest.get(len..)?.strip_prefix(&[quote]))
                 .is_some_and(ends_token)
     })
+}
+
+fn credential_prefix(bytes: &[u8], value: &str) -> Option<usize> {
+    if bytes.starts_with(value.as_bytes()) {
+        return Some(value.len());
+    }
+    if value.is_ascii() {
+        return None;
+    }
+    let length = value.chars().count();
+    for decode in [char::from as fn(u8) -> char, windows_1252] {
+        if let Some(prefix) = bytes.get(..length)
+            && value.chars().eq(prefix.iter().copied().map(decode))
+        {
+            return Some(length);
+        }
+    }
+    None
+}
+
+fn windows_1252(byte: u8) -> char {
+    const C1: [char; 32] = [
+        '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8d}', 'Ž',
+        '\u{8f}', '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9d}',
+        'ž', 'Ÿ',
+    ];
+    C1.get(usize::from(byte.wrapping_sub(0x80)))
+        .copied()
+        .unwrap_or_else(|| char::from(byte))
 }

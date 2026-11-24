@@ -105,6 +105,7 @@ ids = [
   "security.adv-4.channel-key-responses",
   "security.hostile-1.channel-key-refusal",
   "security.hostile-1.reply-secrets",
+  "security.hostile-f2.legacy-reencoding",
   "security.hostile-n2.reply-decoding",
   "security.hostile-n1.reply-scope",
   "security.hostile-1.malformed-mode",
