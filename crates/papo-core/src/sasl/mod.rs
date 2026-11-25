@@ -12,6 +12,8 @@ use scram::ScramClient;
 const SASL_CHUNK_LEN: usize = 400;
 const MAX_SASL_CHALLENGE_LEN: usize = 4096;
 const SASL_TIMEOUT: Duration = Duration::from_secs(30);
+/// A server can withdraw and offer `sasl` again without end before numeric 001.
+const MAX_REGISTRATION_EXCHANGES: u16 = 256;
 
 /// Ordered SASL mechanisms to try during connection registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -124,6 +126,7 @@ pub(super) struct SaslSession {
     completion: Completion,
     registration: Registration,
     origin: Origin,
+    registration_exchanges: u16,
     account: Option<String>,
     pending_account: Option<String>,
     account_update: AccountUpdate,
@@ -241,6 +244,7 @@ impl std::fmt::Debug for SaslSession {
             .field("completion", &self.completion)
             .field("registration", &self.registration)
             .field("origin", &self.origin)
+            .field("registration_exchanges", &self.registration_exchanges)
             .field("account", &self.account)
             .field("pending_account", &self.pending_account)
             .field("account_update", &self.account_update)
@@ -282,6 +286,7 @@ impl SaslSession {
             configured,
             registration: Registration::Registering,
             origin: Origin::Registration,
+            registration_exchanges: 0,
             account: None,
             pending_account: None,
             account_update: AccountUpdate::Unchanged,
@@ -314,6 +319,7 @@ impl SaslSession {
         };
         self.registration = Registration::Registering;
         self.origin = Origin::Registration;
+        self.registration_exchanges = 0;
         self.account = None;
         self.pending_account = None;
         self.account_update = AccountUpdate::Unchanged;
@@ -346,8 +352,17 @@ impl SaslSession {
         match self.completion {
             Completion::Success => return,
             Completion::Pending if self.active.is_some() || self.aborting => return,
-            Completion::Failed => self.reset_exchange(),
-            Completion::Pending => {}
+            Completion::Failed | Completion::Pending => {}
+        }
+        if self.registration_exchanges == MAX_REGISTRATION_EXCHANGES {
+            outbox.event(crate::Event::AuthenticationFailed {
+                reason: "the server restarted SASL too often before registration".to_owned(),
+            });
+            return;
+        }
+        self.registration_exchanges += 1;
+        if self.completion == Completion::Failed {
+            self.reset_exchange();
         }
         self.plain_fallback = Self::plain_fallback(&self.configured, security);
         if let Some(advertised) = advertised {

@@ -2095,3 +2095,40 @@ fn a_login_payload_of_257_lines_is_aborted_at_the_tracking_limit() {
         })
         .client("CAP END");
 }
+
+#[test]
+fn a_server_restarts_at_most_256_logins_before_registration() {
+    let mut transcript = Transcript::new(
+        Config::default()
+            .sasl(Sasl::plain("papo", papo_core::Secret::new("services-key-4821")).optional()),
+    )
+    .connect_default()
+    .server(":ergo.test CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .client("CAP END");
+    let offer_again = |transcript: Transcript| {
+        transcript
+            .event_until(|event| matches!(event, Event::AuthenticationFailed { .. }))
+            .server(":ergo.test CAP * DEL :sasl")
+            .server(":ergo.test CAP * NEW :sasl=PLAIN")
+            .client("CAP REQ :sasl")
+            .server(":ergo.test CAP * ACK :sasl")
+    };
+    for _ in 1..256 {
+        transcript = offer_again(transcript)
+            .client("AUTHENTICATE PLAIN")
+            .server(":ergo.test 904 papo :SASL authentication failed");
+    }
+    offer_again(transcript)
+        .no_client()
+        .event_until(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason == "the server restarted SASL too often before registration")
+        })
+        .server(":ergo.test 001 papo :Welcome to the Ergo Test Network")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event_until(|event| matches!(event, Event::Connected(_)));
+}
