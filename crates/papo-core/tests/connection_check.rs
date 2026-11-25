@@ -166,13 +166,10 @@ fn a_written_idle_ping_can_answer_a_later_check() {
 
 #[test]
 fn a_queued_check_counts_toward_the_immediate_output_limit() {
-    let mut transcript = connected().check_connection(Duration::from_secs(3), true);
-    for _ in 0..16_382 {
-        transcript = transcript.server("PING :ergo.test");
-    }
-    transcript
-        .no_event()
-        .server("PING :ergo.test")
+    connected()
+        .check_connection(Duration::from_secs(3), true)
+        .servers(std::iter::repeat_n("PING :ergo.test", 16_383))
+        .inspect(|session| assert_eq!(session.queued_len(), 16_384))
         .no_event()
         .server("PING :ergo.test")
         .check_result(None)

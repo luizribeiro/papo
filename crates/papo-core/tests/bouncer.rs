@@ -449,13 +449,12 @@ fn preserves_upstream_nickname_text_when_casemapping_changes() {
 
 #[test]
 fn bounds_the_server_driven_network_cache() {
-    let mut transcript = registered();
-    for index in 0..10_001 {
-        transcript = transcript.server(&format!(
-            "BOUNCER NETWORK {index} host=irc{index}.example.org;state=disconnected"
-        ));
-    }
-    transcript
+    registered()
+        .servers((0..10_000).map(|index| {
+            format!("BOUNCER NETWORK {index} host=irc{index}.example.org;state=disconnected")
+        }))
+        .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 10_000))
+        .server("BOUNCER NETWORK 10000 host=irc10000.example.org;state=disconnected")
         .event_until(|event| {
             matches!(
                 event,

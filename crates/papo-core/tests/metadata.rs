@@ -607,13 +607,22 @@ fn metadata_target_spelling_survives_casemapping_changes() {
 #[test]
 fn bounds_received_metadata_with_its_own_storage_limit() {
     registered("max-subs=100,max-keys=20000").update(|session| {
-        for index in 0..10_001 {
+        let now = std::time::Instant::now();
+        for index in 0..10_000 {
             session.handle_line(
-                std::time::Instant::now(),
+                now,
                 format!(":soju.example METADATA #papo vendor/key{index} * :enabled").as_bytes(),
             );
         }
 
+        assert_eq!(
+            session.state().metadata("#papo").unwrap().iter().len(),
+            10_000
+        );
+        session.handle_line(
+            now,
+            b":soju.example METADATA #papo vendor/key10000 * :enabled",
+        );
         assert_eq!(
             session.state().metadata("#papo").unwrap().iter().len(),
             10_000

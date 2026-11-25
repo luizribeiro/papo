@@ -155,6 +155,14 @@ impl Transcript {
         self.server_bytes(line.as_bytes())
     }
 
+    /// Plays a burst of server lines at the current transcript time.
+    pub fn servers(mut self, lines: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        for line in lines {
+            self.session.handle_line(self.now, line.as_ref().as_bytes());
+        }
+        self
+    }
+
     /// Plays and consumes a server welcome numeric.
     pub fn welcome(self, line: &str) -> Self {
         self.server(line).event(
