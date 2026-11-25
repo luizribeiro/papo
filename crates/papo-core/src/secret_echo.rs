@@ -190,8 +190,7 @@ impl ReplySecrets {
     pub(super) fn redact(
         &self,
         mut input: &[u8],
-        nick: &str,
-        mapping: papo_proto::Casemapping,
+        is_own_addressee: impl Fn(&[u8]) -> bool,
         mut replace: impl FnMut(usize, &[u8], Vec<u8>),
     ) {
         if self.0.is_empty() {
@@ -219,11 +218,7 @@ impl ReplySecrets {
             }
         });
         for (index, param) in params.enumerate() {
-            if index == 0
-                && matches!(command, Command::Numeric(_))
-                && std::str::from_utf8(param)
-                    .is_ok_and(|name| crate::names_equal(mapping, name, nick))
-            {
+            if index == 0 && matches!(command, Command::Numeric(_)) && is_own_addressee(param) {
                 continue;
             }
             let mut masked = Vec::new();

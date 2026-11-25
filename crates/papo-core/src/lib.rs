@@ -2008,10 +2008,9 @@ pub struct StandardReply {
     pub code: String,
     /// Additional diagnostic parameters.
     ///
-    /// A parameter repeating a secret this session sent reads `<redacted>`.
+    /// A credential repeated in a parameter appears as `<redacted>`.
     pub context: Vec<String>,
-    /// Human-readable reply description, or `<redacted>` when it repeats a secret this session
-    /// sent.
+    /// Human-readable reply description with repeated credentials shown as `<redacted>`.
     pub description: String,
     /// Classification recorded using the negotiated unstable features.
     #[cfg(feature = "unstable")]
@@ -4371,8 +4370,11 @@ impl Session {
         let mut masked = None;
         self.reply_secrets.redact(
             bytes,
-            self.nick(),
-            self.isupport.value().casemapping(),
+            |_| {
+                message
+                    .param(0)
+                    .is_some_and(|name| self.reply_is_to_self(name))
+            },
             |index, _, param| {
                 let text = if utf8 {
                     String::from_utf8_lossy(&param).into_owned()
@@ -4385,6 +4387,10 @@ impl Session {
             },
         );
         masked
+    }
+
+    fn reply_is_to_self(&self, addressee: &str) -> bool {
+        names_equal(self.isupport.value().casemapping(), addressee, self.nick())
     }
 
     /// Behind a bouncer, credentials sent after registration can reach the upstream network.
@@ -6102,8 +6108,10 @@ impl Session {
         } else {
             self.reply_secrets.redact(
                 line,
-                self.nick(),
-                self.isupport.value().casemapping(),
+                |param| {
+                    decode_incoming(param, self.isupport.decoding())
+                        .is_some_and(|name| self.reply_is_to_self(&name))
+                },
                 |_, param, masked| {
                     let start = param.as_ptr() as usize - line.as_ptr() as usize;
                     shown.extend_from_slice(line.get(copied..start).unwrap_or_default());
