@@ -6318,7 +6318,7 @@ impl Session {
             || whoami
             || self.handle_duplicate_own_join(message)
             || self.state.handle_message(
-                message,
+                shown,
                 reserved_channel_epoch,
                 self.welcome_state.nick(),
                 self.isupport.value(),

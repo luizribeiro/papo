@@ -996,3 +996,21 @@ fn a_standard_join_failure_keeps_the_channel_from_its_context() {
             if context == ["#staff"] && description == "Cannot join <redacted> with this key"
     ));
 }
+
+#[test]
+fn a_credential_named_by_a_timed_error_is_not_kept_in_state() {
+    let now = Instant::now();
+    let key = "staff-key-4821";
+    let mut session = ergo(now);
+    session.send(now, keyed_staff_join(key)).unwrap();
+    assert!(session.poll_transmit().is_some());
+    session.handle_line(
+        now,
+        format!("@time=2026-11-24T10:02:11.482Z ERROR :{key}").as_bytes(),
+    );
+    assert!(
+        matches!(session.poll_event(), Some(Event::Close { reason, .. }) if reason == "<redacted>")
+    );
+    assert!(!format!("{:?}", session.state()).contains(key));
+    assert!(!format!("{session:?}").contains(key));
+}
