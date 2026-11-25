@@ -5616,10 +5616,11 @@ impl Session {
             self.recipient_gone(queued.token, queued.request);
             return None;
         }
-        if !self
-            .reply_secrets
-            .track(&queued.line, self.config.sasl.as_ref())
-        {
+        if !self.reply_secrets.track(
+            &queued.line,
+            self.config.sasl.as_ref(),
+            queued.token.is_none() && queued.request.is_none(),
+        ) {
             self.refuse_credential(&queued);
             return None;
         }

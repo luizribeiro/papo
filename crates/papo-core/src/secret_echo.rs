@@ -137,11 +137,26 @@ impl SecretEchoes {
 /// The peer can repeat a credential in a late or unlabelled reply. Keep the credentials for the
 /// connection and refuse to send any beyond the bound.
 #[derive(Debug, Default)]
-pub(super) struct ReplySecrets(Vec<Secret>);
+pub(super) struct ReplySecrets {
+    credentials: Vec<Secret>,
+    /// A login payload is single-use, so only the latest managed exchange's chunks are kept.
+    sasl_exchange: Vec<Secret>,
+}
 
 impl ReplySecrets {
-    pub(super) fn track(&mut self, line: &WireLine, sasl: Option<&Sasl>) -> bool {
+    /// `managed` marks a line papo wrote itself, which is how its own SASL exchange is told
+    /// apart from an `AUTHENTICATE` the application sent.
+    pub(super) fn track(&mut self, line: &WireLine, sasl: Option<&Sasl>, managed: bool) -> bool {
         const MAX_CREDENTIALS: usize = 256;
+        let exchange = managed
+            .then(|| line.strip_prefix(b"AUTHENTICATE "))
+            .flatten();
+        if let Some(mechanism) = exchange
+            && !line.__has_secret_parameter()
+            && !matches!(mechanism, b"+\r\n" | b"*\r\n")
+        {
+            self.sasl_exchange.clear();
+        }
         let commands = [
             "MODE",
             "JOIN",
@@ -170,23 +185,41 @@ impl ReplySecrets {
                 Mechanism::OAuthBearer { token } => Some(token.expose()),
                 _ => None,
             });
-        let values = papo_proto::__wire_secret_parameters(line).chain(decoded);
+        let mut values = papo_proto::__wire_secret_parameters(line);
+        let chunk = exchange.and_then(|_| values.next());
+        if chunk.is_some() && self.sasl_exchange.len() == MAX_CREDENTIALS {
+            return false;
+        }
         let mut new = Vec::new();
-        for value in values.filter(|value| !value.is_empty()) {
-            if self.contains(value) || new.contains(&value) {
+        for value in values.chain(decoded).filter(|value| !value.is_empty()) {
+            if self.tracked(value) || new.contains(&value) {
                 continue;
             }
-            if self.0.len() + new.len() == MAX_CREDENTIALS {
+            if self.credentials.len() + new.len() == MAX_CREDENTIALS {
                 return false;
             }
             new.push(value);
         }
-        self.0.extend(new.into_iter().map(Secret::new));
+        self.credentials.extend(new.into_iter().map(Secret::new));
+        self.sasl_exchange.extend(chunk.map(Secret::new));
         true
     }
 
+    fn tracked(&self, value: &str) -> bool {
+        self.credentials
+            .iter()
+            .any(|secret| secret.expose() == value)
+    }
+
+    fn values(&self) -> impl Iterator<Item = &str> {
+        self.credentials
+            .iter()
+            .chain(&self.sasl_exchange)
+            .map(Secret::expose)
+    }
+
     pub(super) fn contains(&self, value: &str) -> bool {
-        self.0.iter().any(|secret| secret.expose() == value)
+        self.values().any(|secret| secret == value)
     }
 
     /// Reports replacement parameters from the original bytes, before decoding.
@@ -196,7 +229,7 @@ impl ReplySecrets {
         is_own_addressee: impl Fn(&[u8]) -> bool,
         mut replace: impl FnMut(usize, &[u8], Vec<u8>),
     ) {
-        if self.0.is_empty() {
+        if self.values().next().is_none() {
             return;
         }
         for prefix in *b"@:" {
@@ -256,9 +289,8 @@ fn next_word<'a>(input: &mut &'a [u8]) -> &'a [u8] {
 impl ReplySecrets {
     fn matches<'a>(&'a self, param: &'a [u8]) -> impl Iterator<Item = std::ops::Range<usize>> + 'a {
         let mut exact = self
-            .0
-            .iter()
-            .any(|secret| credential_prefix(param, secret.expose()) == Some(param.len()));
+            .values()
+            .any(|secret| credential_prefix(param, secret) == Some(param.len()));
         let mut remaining = param;
         std::iter::from_fn(move || {
             if std::mem::take(&mut exact) {
@@ -295,10 +327,8 @@ impl ReplySecrets {
     }
 
     fn token(&self, token: &[u8], first_word_len: usize) -> Option<std::ops::Range<usize>> {
-        self.0
-            .iter()
-            .filter_map(|secret| {
-                let value = secret.expose();
+        self.values()
+            .filter_map(|value| {
                 let punctuation = token
                     .iter()
                     .take_while(|byte| byte.is_ascii_punctuation())

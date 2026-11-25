@@ -1891,7 +1891,7 @@ fn login_refusals_redact_decoded_credentials() {
 }
 
 #[test]
-fn sasl_payload_over_the_credential_limit_aborts_the_exchange() {
+fn sasl_password_over_the_credential_limit_aborts_the_exchange() {
     Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("account-key-4821".repeat(40))).optional()))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -1923,4 +1923,73 @@ fn sasl_payload_over_the_credential_limit_aborts_the_exchange() {
         .server("PING :ergo.test")
         .client("PONG ergo.test")
         .ignore_rest();
+}
+
+struct CountingEntropy(u32);
+
+impl Entropy for CountingEntropy {
+    fn fill(&mut self, buffer: &mut [u8]) {
+        buffer[..4].copy_from_slice(&self.0.to_be_bytes());
+        self.0 += 1;
+    }
+}
+
+fn counted_client_first(exchange: u32) -> String {
+    let mut nonce = [0; 18];
+    nonce[..4].copy_from_slice(&exchange.to_be_bytes());
+    STANDARD.encode(format!("n,,n=papo,r={}", STANDARD.encode(nonce)))
+}
+
+fn counted_scram() -> Transcript {
+    let sasl = Sasl::scram_sha256("papo", papo_core::Secret::new("services-key-4821")).optional();
+    Transcript::with_entropy(Config::default().sasl(sasl), Box::new(CountingEntropy(0)))
+        .connect_default()
+        .server(":ergo.test CAP * LS :sasl=SCRAM-SHA-256")
+        .client("CAP REQ :sasl")
+        .server(":ergo.test CAP * ACK :sasl")
+        .client("AUTHENTICATE SCRAM-SHA-256")
+}
+
+fn keyed_join_is_written_and_its_refusal_masked(transcript: Transcript) {
+    transcript
+        .send(
+            papo_proto::Line::new("JOIN")
+                .param("#staff")
+                .param(papo_core::Secret::new("staff-key-4821")),
+        )
+        .client("JOIN #staff staff-key-4821")
+        .server(":ergo.test 475 papo #staff :Cannot join channel (+k): staff-key-4821")
+        .event_until(|event| {
+            matches!(event, Event::Line(line) if line.as_ref().command_is("475")
+                && line.as_ref().param(2) == Some("Cannot join channel (+k): <redacted>"))
+        });
+}
+
+#[test]
+fn repeated_application_logins_leave_room_for_channel_keys() {
+    let mut transcript = counted_scram()
+        .server(":ergo.test 904 papo :SASL authentication failed")
+        .client("CAP END")
+        .server(":ergo.test 001 papo :Welcome to the Ergo Test Network")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event_until(|event| matches!(event, Event::Connected(_)));
+    for exchange in 1..=300 {
+        let payload = counted_client_first(exchange);
+        transcript = transcript
+            .reauthenticate()
+            .client("AUTHENTICATE SCRAM-SHA-256")
+            .server("AUTHENTICATE +")
+            .client(&format!("AUTHENTICATE {payload}"))
+            .inspect(|session| assert!(!format!("{session:?}").contains(&payload)))
+            .send(papo_proto::Line::new("AUTHENTICATE").param("EXTERNAL"))
+            .client("AUTHENTICATE EXTERNAL")
+            .server(&format!(
+                ":ergo.test 904 papo :SASL authentication failed: {payload}"
+            ))
+            .event_until(|event| {
+                matches!(event, Event::AuthenticationFailed { reason, .. }
+                    if reason.contains("SASL authentication failed: <redacted>"))
+            });
+    }
+    keyed_join_is_written_and_its_refusal_masked(transcript);
 }
