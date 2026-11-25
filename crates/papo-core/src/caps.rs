@@ -77,12 +77,13 @@ impl Caps {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &LineRef<'_>,
+        incoming: crate::IncomingLine<'_>,
         config: &Config,
         connection: &Connection,
         sasl: &mut SaslSession,
         outbox: &mut Outbox,
     ) -> Handled {
+        let message = &incoming.shown;
         if message.command_is("CAP") {
             let Some(subcommand) = message.param(1) else {
                 return Handled::No;
@@ -142,10 +143,7 @@ impl Caps {
             }
             Handled::Yes
         } else if message.command_is("410")
-            || (message.command_is("421")
-                && message
-                    .param(1)
-                    .is_some_and(|command| command.eq_ignore_ascii_case("CAP")))
+            || (message.command_is("421") && incoming.routing().param_is_ignoring_case(1, "CAP"))
         {
             Handled::Yes
         } else {
@@ -562,7 +560,7 @@ mod tests {
             let wire = format!("CAP papo NEW :vendor.example/cap-{index}");
             caps.handle_message(
                 now,
-                &LineRef::parse(&wire).unwrap(),
+                (&LineRef::parse(&wire).unwrap()).into(),
                 &config,
                 &connection,
                 &mut sasl,
@@ -570,7 +568,14 @@ mod tests {
             );
         }
         let wanted = LineRef::parse("CAP papo NEW :vendor.example/wanted").unwrap();
-        caps.handle_message(now, &wanted, &config, &connection, &mut sasl, &mut outbox);
+        caps.handle_message(
+            now,
+            (&wanted).into(),
+            &config,
+            &connection,
+            &mut sasl,
+            &mut outbox,
+        );
 
         assert_eq!(caps.advertised.len(), 512);
         assert!(

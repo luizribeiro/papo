@@ -1,5 +1,3 @@
-use papo_proto::LineRef;
-
 use crate::{Event, Handled, Names, Outbox, RequestId, Secret};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -42,10 +40,12 @@ pub(super) struct AccountRegistration {
 impl AccountRegistration {
     pub(super) fn handle_message(
         &mut self,
-        message: &LineRef<'_>,
+        incoming: crate::IncomingLine<'_>,
         casemapping: Names,
         outbox: &mut Outbox,
     ) -> Handled {
+        let routing = incoming.routing();
+        let message = &incoming.shown;
         if self.waiting
             && (message.command_is("REGISTER") || message.command_is("VERIFY"))
             && message.param(0) == Some("SUCCESS")
@@ -73,7 +73,7 @@ impl AccountRegistration {
             });
             Handled::Yes
         } else if message.command_is("FAIL")
-            && matches!(message.param(0), Some("REGISTER" | "VERIFY"))
+            && (routing.param_is(0, "REGISTER") || routing.param_is(0, "VERIFY"))
         {
             self.waiting = false;
             Handled::No

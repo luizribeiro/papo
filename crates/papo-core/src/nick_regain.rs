@@ -28,8 +28,16 @@ enum Watch {
 }
 
 impl NickRegain {
-    fn observe_collision(&mut self, message: &LineRef<'_>, connected: bool, primary: &str) {
-        if !connected && nick_unavailable(message) && message.param(1) == Some(primary) {
+    fn observe_collision(
+        &mut self,
+        incoming: crate::IncomingLine<'_>,
+        connected: bool,
+        primary: &str,
+    ) {
+        if !connected
+            && nick_unavailable(&incoming.shown)
+            && incoming.routing().param_is(1, primary)
+        {
             self.primary_taken = true;
         }
     }
@@ -84,7 +92,7 @@ impl NickRegain {
     pub(super) fn handle_message(
         &mut self,
         now: Instant,
-        message: &crate::RoutingLine<'_>,
+        incoming: crate::IncomingLine<'_>,
         connected: bool,
         current_nick: &str,
         config: &Config,
@@ -92,7 +100,8 @@ impl NickRegain {
         monitor: &Monitor,
         outbox: &mut Outbox,
     ) -> bool {
-        self.observe_collision(message, connected, &config.nick);
+        let message = &incoming.shown;
+        self.observe_collision(incoming, connected, &config.nick);
         if matches!(self.watch, Watch::Ison { .. })
             && message.command_is("NICK")
             && names_equal(isupport.casemapping(), current_nick, &config.nick)
@@ -107,7 +116,7 @@ impl NickRegain {
         {
             return handle_ison(
                 now,
-                message,
+                incoming,
                 config,
                 isupport,
                 next_poll,
@@ -139,12 +148,7 @@ impl NickRegain {
         {
             *claim_pending = true;
             outbox.transmit("NICK", [&config.nick]);
-        } else if *claim_pending
-            && nick_unavailable(message)
-            && message
-                .param(1)
-                .is_some_and(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
-        {
+        } else if *claim_pending && unavailable_primary(incoming, config, isupport) {
             *claim_pending = false;
         }
         false
@@ -181,23 +185,28 @@ fn nick_unavailable(message: &LineRef<'_>) -> bool {
         .any(|numeric| message.command_is(numeric))
 }
 
-fn unavailable_primary(message: &LineRef<'_>, config: &Config, isupport: &Isupport) -> bool {
-    nick_unavailable(message)
-        && message
-            .param(1)
-            .is_some_and(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
+fn unavailable_primary(
+    incoming: crate::IncomingLine<'_>,
+    config: &Config,
+    isupport: &Isupport,
+) -> bool {
+    nick_unavailable(&incoming.shown)
+        && incoming
+            .routing()
+            .param_names(1, isupport.casemapping(), &config.nick)
 }
 
 #[allow(clippy::too_many_arguments)]
 fn handle_ison(
     now: Instant,
-    message: &LineRef<'_>,
+    incoming: crate::IncomingLine<'_>,
     config: &Config,
     isupport: &Isupport,
     next_poll: &mut Option<Instant>,
     claim_pending: &mut bool,
     outbox: &mut Outbox,
 ) -> bool {
+    let message = &incoming.shown;
     if message.command_is("303") && next_poll.is_none() && !*claim_pending {
         let Some(online) = message.param(1) else {
             return false;
@@ -213,7 +222,7 @@ fn handle_ison(
         }
         true
     } else {
-        if *claim_pending && unavailable_primary(message, config, isupport) {
+        if *claim_pending && unavailable_primary(incoming, config, isupport) {
             *claim_pending = false;
             *next_poll = crate::deadline(now, ISON_INTERVAL);
         }
@@ -233,12 +242,12 @@ mod tests {
             ":ergo.test 433 * another :Nickname is already in use",
         ] {
             let mut regain = NickRegain::default();
-            regain.observe_collision(&LineRef::parse(line).unwrap(), false, "papo");
+            regain.observe_collision((&LineRef::parse(line).unwrap()).into(), false, "papo");
             assert!(!regain.primary_taken);
         }
         let mut regain = NickRegain::default();
         regain.observe_collision(
-            &LineRef::parse(":ergo.test 433 * papo :Nickname is already in use").unwrap(),
+            (&LineRef::parse(":ergo.test 433 * papo :Nickname is already in use").unwrap()).into(),
             false,
             "papo",
         );

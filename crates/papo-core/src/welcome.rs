@@ -1,8 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::{
-    Advertised, BuildError, Isupport, Line, LineRef, StandardReply, StandardReplyKind,
-};
+use papo_proto::{Advertised, BuildError, Isupport, Line, StandardReplyKind};
 
 use crate::{
     Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, Welcome, cap,
@@ -104,23 +102,23 @@ impl WelcomeState {
         outbox: &mut Outbox,
     ) -> Handled {
         let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
 
         if self.webirc_pending
             && message.command_is("ERROR")
-            && message.param(0) == Some(ERGO_WEBIRC_REJECTION)
+            && routing.param_is(0, ERGO_WEBIRC_REJECTION)
         {
             outbox.close(
                 CloseKind::WebIrcRejected,
-                incoming.shown.param(0).unwrap_or_default().to_owned(),
+                message.param(0).unwrap_or_default().to_owned(),
             );
             return Handled::Yes;
         }
         if config.selected_bouncer_network().is_some()
-            && StandardReply::parse(message).is_some_and(|reply| {
+            && routing.standard_reply().is_some_and(|reply| {
                 reply.kind == StandardReplyKind::Fail
-                    && reply.command.eq_ignore_ascii_case("BOUNCER")
-                    && reply.code.eq_ignore_ascii_case("INVALID_NETID")
+                    && reply.command_is("BOUNCER")
+                    && reply.code_is("INVALID_NETID")
             })
         {
             outbox.close(
@@ -132,7 +130,7 @@ impl WelcomeState {
         if message.command_is("465") {
             outbox.close(
                 CloseKind::Banned,
-                incoming.shown.param(1).unwrap_or_default().to_owned(),
+                message.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
         } else if message.command_is("001") {
@@ -170,16 +168,16 @@ impl WelcomeState {
         } else if self.deadline.is_some() && message.command_is("464") {
             outbox.close(
                 CloseKind::PasswordIncorrect,
-                incoming.shown.param(1).unwrap_or_default().to_owned(),
+                message.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
         } else if self.deadline.is_some() && message.command_is("463") {
             outbox.close(
                 CloseKind::ConnectionRestricted,
-                incoming.shown.param(1).unwrap_or_default().to_owned(),
+                message.param(1).unwrap_or_default().to_owned(),
             );
             Handled::Yes
-        } else if self.deadline.is_some() && rejects_nick(message) {
+        } else if self.deadline.is_some() && rejects_nick(incoming) {
             if let Some(nick) = config.alt_nicks.get(self.next_alt_nick) {
                 nick.clone_into(&mut self.nick);
                 self.next_alt_nick += 1;
@@ -206,12 +204,12 @@ impl WelcomeState {
     }
 
     pub(super) fn handle_security_decision(
-        message: &LineRef<'_>,
+        incoming: crate::IncomingLine<'_>,
         config: &Config,
         connection: &Connection,
         outbox: &mut Outbox,
     ) -> Handled {
-        if config.password.is_none() || !cap_is_unavailable(message) {
+        if config.password.is_none() || !cap_is_unavailable(incoming) {
             return Handled::No;
         }
         if crate::secure_credentials_allowed(config, connection) {
@@ -350,14 +348,12 @@ impl WelcomeState {
     }
 }
 
-fn cap_is_unavailable(message: &LineRef<'_>) -> bool {
+fn cap_is_unavailable(incoming: crate::IncomingLine<'_>) -> bool {
+    let message = &incoming.shown;
     message.command_is("410")
         || message.command_is("451")
         || message.command_is("001")
-        || (message.command_is("421")
-            && message
-                .param(1)
-                .is_some_and(|command| command.eq_ignore_ascii_case("CAP")))
+        || (message.command_is("421") && incoming.routing().param_is_ignoring_case(1, "CAP"))
 }
 
 fn registration_error(config: &Config) -> Option<BuildError> {
@@ -382,11 +378,12 @@ fn registration_error(config: &Config) -> Option<BuildError> {
         })
 }
 
-fn rejects_nick(message: &LineRef<'_>) -> bool {
+fn rejects_nick(incoming: crate::IncomingLine<'_>) -> bool {
+    let message = &incoming.shown;
     ["432", "433", "436", "437"]
         .iter()
         .any(|numeric| message.command_is(numeric))
-        || (message.command_is("400") && message.param(1) == Some("NICK"))
+        || (message.command_is("400") && incoming.routing().param_is(1, "NICK"))
 }
 
 fn append_underscore(nick: &str, limit: usize) -> String {

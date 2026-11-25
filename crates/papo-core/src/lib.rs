@@ -6167,7 +6167,6 @@ impl Session {
         emit_unhandled: bool,
         enclosing_request: Option<(RequestId, Option<&str>)>,
     ) {
-        let routing = incoming.routing();
         let message = &incoming.shown;
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
@@ -6177,7 +6176,7 @@ impl Session {
         let was_connected = self.welcome_state.is_connected();
         let before_features = was_connected.then(|| self.supported_features());
         let registration_handled = WelcomeState::handle_security_decision(
-            &routing,
+            incoming,
             &self.config,
             &self.connection,
             &mut self.outbox,
@@ -6192,7 +6191,7 @@ impl Session {
             ) == Handled::Yes;
         let caps_handled = self.caps.handle_message(
             now,
-            &routing,
+            incoming,
             &self.config,
             &self.connection,
             &mut self.sasl,
@@ -6207,7 +6206,7 @@ impl Session {
         let sasl_handled =
             self.sasl.handle_message(now, incoming, &mut self.outbox) == Handled::Yes;
         let account_registration_handled = self.account_registration.handle_message(
-            &routing,
+            incoming,
             Names::new(self.isupport.value().casemapping(), self.config.origin),
             &mut self.outbox,
         ) == Handled::Yes;
@@ -6321,7 +6320,7 @@ impl Session {
         self.stop_typing_for_message(message);
         let nick_regain_handled = self.nick_regain.handle_message(
             now,
-            &routing,
+            incoming,
             self.welcome_state.is_connected(),
             self.state.nick().as_str(),
             &self.config,
@@ -8077,6 +8076,8 @@ mod tests {
         assert_eq!(reply.kind, papo_proto::StandardReplyKind::Fail);
         assert!(reply.command_is("register"));
         assert!(!reply.command_is("VERIFY"));
+        assert!(reply.code_is("account_exists"));
+        assert!(!reply.code_is("REGISTER"));
         assert_eq!(reply.context, 1);
     }
 }

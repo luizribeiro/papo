@@ -420,8 +420,7 @@ impl SaslSession {
         incoming: crate::IncomingLine<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
 
         if self.handle_status(now, incoming, outbox) {
             return Handled::Yes;
@@ -539,8 +538,7 @@ impl SaslSession {
         outbox: &mut Outbox,
     ) -> bool {
         let routing = incoming.routing();
-        let message = &routing;
-        let shown = &incoming.shown;
+        let message = &incoming.shown;
         if !self.is_exchanging() {
             if message.command_is("902")
                 || message.command_is("904")
@@ -548,7 +546,7 @@ impl SaslSession {
                 || message.command_is("906")
             {
                 outbox.event(crate::Event::AuthenticationFailed {
-                    reason: shown
+                    reason: message
                         .param(1)
                         .unwrap_or("an unmanaged SASL request failed")
                         .to_owned(),
@@ -595,14 +593,14 @@ impl SaslSession {
                 }
             }
         } else if message.command_is("904") || message.command_is("905") {
-            self.record_active_failure(shown.param(1).unwrap_or("SASL mechanism failed"));
+            self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
             self.start_next(now, outbox);
         } else if message.command_is("908") {
             if let Some(available) = message.param(1) {
                 self.retain_available(available);
             }
         } else if message.command_is("902") {
-            self.fail_all(shown.param(1).unwrap_or("account is unavailable"), outbox);
+            self.fail_all(message.param(1).unwrap_or("account is unavailable"), outbox);
         } else if message.command_is("906") {
             if self.aborting {
                 self.aborting = false;
@@ -615,20 +613,20 @@ impl SaslSession {
                 }
             } else {
                 self.fail_all(
-                    shown.param(1).unwrap_or("SASL exchange was aborted"),
+                    message.param(1).unwrap_or("SASL exchange was aborted"),
                     outbox,
                 );
             }
         } else if message.command_is("FAIL")
-            && message.param(0) == Some("*")
-            && message.param(1) == Some("ACCOUNT_REQUIRED")
+            && routing.param_is(0, "*")
+            && routing.param_is(1, "ACCOUNT_REQUIRED")
         {
             self.completion = Completion::Failed;
             self.pending_account = None;
             self.deadline = None;
             outbox.close(
                 crate::CloseKind::AccountRequired,
-                shown
+                message
                     .param(2)
                     .unwrap_or("the server requires an account")
                     .to_owned(),

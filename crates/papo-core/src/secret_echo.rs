@@ -427,6 +427,7 @@ impl RoutingLine<'_> {
         Some(RoutingReply {
             kind: reply.kind,
             command: reply.command,
+            code: reply.code,
             context: reply.context.len(),
         })
     }
@@ -436,6 +437,7 @@ impl RoutingLine<'_> {
 pub(super) struct RoutingReply<'a> {
     pub(super) kind: StandardReplyKind,
     command: &'a str,
+    code: &'a str,
     /// How many context parameters sit between the code and the description.
     pub(super) context: usize,
 }
@@ -443,6 +445,10 @@ pub(super) struct RoutingReply<'a> {
 impl RoutingReply<'_> {
     pub(super) fn command_is(&self, command: &str) -> bool {
         self.command.eq_ignore_ascii_case(command)
+    }
+
+    pub(super) fn code_is(&self, code: &str) -> bool {
+        self.code.eq_ignore_ascii_case(code)
     }
 }
 
