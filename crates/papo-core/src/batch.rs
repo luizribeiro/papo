@@ -213,7 +213,8 @@ impl Batches {
         applied_state: Option<RoutedMember>,
     ) -> BatchAction {
         let incoming = incoming.into();
-        let message = &incoming.shown;
+        let routing = incoming.routing();
+        let message = &routing;
         if !message.command_is("BATCH") {
             return self.member(incoming, multiline_max_bytes, applied_state);
         }
@@ -231,7 +232,7 @@ impl Batches {
                 self.close_abandoned(message, reference);
                 if let Some(kind) = kind {
                     return BatchAction::Complete(vec![BatchEvent::Line {
-                        line: message.to_owned(),
+                        line: incoming.shown.to_owned(),
                         batch_type: Some(kind),
                         sender: None,
                     }]);
@@ -474,7 +475,8 @@ impl Batches {
         multiline_max_bytes: usize,
         applied_state: Option<RoutedMember>,
     ) -> BatchAction {
-        let message = &incoming.shown;
+        let routing = incoming.routing();
+        let message = &routing;
         let context = self.context(message);
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);
@@ -551,7 +553,7 @@ impl Batches {
             let mut events = self.abandon(&reference, reason);
             if aggregates.is_empty() && applied_state.is_none() {
                 let fallback = BatchEvent::Line {
-                    line: message.to_owned(),
+                    line: incoming.shown.to_owned(),
                     batch_type: context.batch_type,
                     sender: None,
                 };
@@ -563,7 +565,7 @@ impl Batches {
             BatchAction::Consumed
         } else {
             BatchAction::Complete(vec![BatchEvent::Line {
-                line: message.to_owned(),
+                line: incoming.shown.to_owned(),
                 batch_type: context.batch_type,
                 sender: None,
             }])

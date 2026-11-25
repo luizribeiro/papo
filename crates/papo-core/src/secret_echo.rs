@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, time::Duration};
 
-use papo_proto::{Command, Isupport, Line, LineRef, Param, Secret, WireLine};
+use papo_proto::{Command, Line, LineRef, Param, Secret, WireLine};
 use web_time::Instant;
 
 use crate::{RequestError, Sasl, sasl::Mechanism};
@@ -186,12 +186,12 @@ impl ReplySecrets {
         self.0.iter().any(|secret| secret.expose() == value)
     }
 
-    /// Reports replacement parameters before decoding can change their bytes.
+    /// Reports replacement parameters from the original bytes, before decoding.
     pub(super) fn redact(
         &self,
         mut input: &[u8],
         nick: &str,
-        isupport: &Isupport,
+        mapping: papo_proto::Casemapping,
         mut replace: impl FnMut(usize, &[u8], Vec<u8>),
     ) {
         if self.0.is_empty() {
@@ -202,18 +202,14 @@ impl ReplySecrets {
                 next_word(&mut input);
             }
         }
-        let command = std::str::from_utf8(next_word(&mut input)).unwrap_or_default();
-        let command = Command::parse(command);
-        let channel_index = match command {
-            Command::Numeric(numeric) if crate::is_failure_numeric(numeric) => {
-                numeric_channel_parameter(numeric)
-            }
-            Command::Fail | Command::Warn | Command::Note => standard_channel_parameter(input),
-            Command::Error => None,
+        let command =
+            Command::parse(std::str::from_utf8(next_word(&mut input)).unwrap_or_default());
+        match command {
+            Command::Numeric(numeric) if crate::is_failure_numeric(numeric) => {}
+            Command::Fail | Command::Warn | Command::Note | Command::Error => {}
             _ => return,
-        };
-
-        let mut params = std::iter::from_fn(|| {
+        }
+        let params = std::iter::from_fn(|| {
             let remaining = trim_spaces(input);
             if let Some(trailing) = remaining.strip_prefix(b":") {
                 input = b"";
@@ -221,12 +217,13 @@ impl ReplySecrets {
             } else {
                 (!remaining.is_empty()).then(|| next_word(&mut input))
             }
-        })
-        .enumerate()
-        .peekable();
-        while let Some((index, param)) = params.next() {
-            let last = params.peek().is_none();
-            if is_reply_address(command, channel_index, index, last, param, nick, isupport) {
+        });
+        for (index, param) in params.enumerate() {
+            if index == 0
+                && matches!(command, Command::Numeric(_))
+                && std::str::from_utf8(param)
+                    .is_ok_and(|name| crate::names_equal(mapping, name, nick))
+            {
                 continue;
             }
             let mut masked = Vec::new();
@@ -256,55 +253,6 @@ fn next_word<'a>(input: &mut &'a [u8]) -> &'a [u8] {
     let word = fields.next().unwrap_or_default();
     *input = fields.next().unwrap_or_default();
     word
-}
-
-fn numeric_channel_parameter(numeric: papo_proto::Numeric) -> Option<usize> {
-    match numeric.code() {
-        441 | 443 => Some(2),
-        403..=405 | 437 | 442 | 470..=471 | 473..=479 | 482 | 489 | 525 | 696..=698 => Some(1),
-        _ => None,
-    }
-}
-
-fn standard_channel_parameter(mut params: &[u8]) -> Option<usize> {
-    let command = std::str::from_utf8(next_word(&mut params)).unwrap_or_default();
-    matches!(
-        Command::parse(command),
-        Command::Invite
-            | Command::Join
-            | Command::Kick
-            | Command::List
-            | Command::Mode
-            | Command::Names
-            | Command::Notice
-            | Command::Part
-            | Command::Privmsg
-            | Command::Topic
-            | Command::Who
-            | Command::Tagmsg
-            | Command::Chathistory
-            | Command::Redact
-            | Command::Metadata
-    )
-    .then_some(2)
-}
-
-fn is_reply_address(
-    command: Command<'_>,
-    channel_index: Option<usize>,
-    index: usize,
-    last: bool,
-    param: &[u8],
-    nick: &str,
-    isupport: &Isupport,
-) -> bool {
-    let Ok(param) = std::str::from_utf8(param) else {
-        return false;
-    };
-    (matches!(command, Command::Numeric(_))
-        && index == 0
-        && crate::names_equal(isupport.casemapping(), param, nick))
-        || (!last && channel_index == Some(index) && isupport.is_channel(param))
 }
 
 impl ReplySecrets {
@@ -456,6 +404,7 @@ impl<'a> std::ops::Deref for RoutingLine<'a> {
         &self.0
     }
 }
+
 #[derive(Clone)]
 pub(super) struct StoredLine {
     shown: Line,

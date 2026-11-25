@@ -599,7 +599,7 @@ fn keyed_staff_join(key: &str) -> Line {
 }
 
 #[test]
-fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
+fn an_unsolicited_failure_keeps_its_addressee_and_unrelated_text() {
     let now = Instant::now();
     let mut session = ergo(now);
     for key in ["papo", "#staff", "a"] {
@@ -615,7 +615,7 @@ fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
         line.as_ref().params().collect::<Vec<_>>(),
         [
             "papo",
-            "#staff",
+            "<redacted>",
             "k",
             "<redacted>",
             "Invalid mode parameter"
@@ -635,7 +635,7 @@ fn failure_routing_addresses_and_unrelated_descriptions_stay_visible() {
     let Some(Event::StandardReply(reply)) = session.poll_event() else {
         panic!("expected a standard reply")
     };
-    assert_eq!(reply.context, ["#staff", "<redacted>"]);
+    assert_eq!(reply.context, ["<redacted>", "<redacted>"]);
     assert_eq!(reply.description, r#"Channel status "open""#);
     session.handle_line(
         now,
@@ -806,6 +806,43 @@ fn refused_requests_keep_only_the_matched_names() {
             expected
         );
     }
+}
+
+#[test]
+fn a_labelled_batch_keeps_the_requested_name_and_hides_the_echoed_key() {
+    let now = Instant::now();
+    let mut session = session(now, "ergo.test", "batch labeled-response message-tags");
+    for key in ["ferris", "staff-key-4821"] {
+        session.send(now, keyed_staff_join(key)).unwrap();
+        assert!(session.poll_transmit().is_some());
+    }
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("NICK").param("ferris"),
+            papo_core::ResponseMatcher::Nick("ferris".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        &*session.poll_transmit().unwrap(),
+        b"@label=0 NICK ferris\r\n"
+    );
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +refusal labeled-response");
+    session.handle_line(
+        now,
+        b"@batch=refusal :ergo.test 433 papo ferris staff-key-4821 :Nickname is already in use",
+    );
+    let debug = format!("{session:?}");
+    assert!(!debug.contains("staff-key-4821") && debug.contains("433 papo <redacted> <redacted>"));
+    assert!(session.poll_event().is_none());
+    session.handle_line(now, b":ergo.test BATCH -refusal");
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected the completed batch");
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.lines[0].get(1), Some("ferris"));
+    assert_eq!(response.lines[0].get(2), Some("<redacted>"));
+    assert!(!format!("{response:?} {:?}", response.error()).contains("staff-key-4821"));
 }
 
 #[test]

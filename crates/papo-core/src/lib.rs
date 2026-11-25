@@ -4372,7 +4372,7 @@ impl Session {
         self.reply_secrets.redact(
             bytes,
             self.nick(),
-            self.isupport.value(),
+            self.isupport.value().casemapping(),
             |index, _, param| {
                 let text = if utf8 {
                     String::from_utf8_lossy(&param).into_owned()
@@ -6103,7 +6103,7 @@ impl Session {
             self.reply_secrets.redact(
                 line,
                 self.nick(),
-                self.isupport.value(),
+                self.isupport.value().casemapping(),
                 |_, param, masked| {
                     let start = param.as_ptr() as usize - line.as_ptr() as usize;
                     shown.extend_from_slice(line.get(copied..start).unwrap_or_default());
