@@ -1526,7 +1526,7 @@ impl ResponseMatcher {
     #[allow(clippy::too_many_lines)]
     fn matches(
         &self,
-        message: &LineRef<'_>,
+        message: &RoutingLine<'_>,
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
@@ -1766,7 +1766,7 @@ impl ResponseBoundary {
 
     fn matches(
         &self,
-        message: &LineRef<'_>,
+        message: &RoutingLine<'_>,
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
@@ -1810,6 +1810,7 @@ struct UnlabelledRequest {
     deferred: Option<WireLine>,
     who_target: Option<String>,
     lines: bounded::BoundedCollection<Line>,
+    boundary_seen: bool,
     subject_tokens: Vec<(usize, ReplyToken)>,
 }
 
@@ -3659,6 +3660,7 @@ struct PendingRequest {
     emit_events: bool,
     echo: Option<SentEcho>,
     who_target: Option<String>,
+    matcher: Option<ResponseMatcher>,
 }
 
 #[derive(Debug)]
@@ -4980,6 +4982,7 @@ impl Session {
                     emit_events: false,
                     echo: Some(SentEcho::new(Command::parse(kind.command()), target, text)),
                     who_target: None,
+                    matcher: None,
                 },
             );
         }
@@ -5222,6 +5225,7 @@ impl Session {
             let id = self.queue_request(now, message, None, true)?;
             if let Some(request) = self.requests.get_mut(&encode_label(id.0)) {
                 request.who_target = who_target;
+                request.matcher = matcher.cloned();
             }
             if let Some(message) = away_message {
                 self.away_messages.insert(id, message);
@@ -7094,10 +7098,7 @@ impl Session {
                 history_targets: history_targets
                     .map(|rows| self.history_targets(batch::parse_history_targets(&rows))),
                 subject_tokens,
-                ..self.completed_response(
-                    request.id,
-                    messages.into_iter().map(StoredLine::into_shown).collect(),
-                )
+                ..self.completed_response(request.id, self.batch_reply_lines(messages, &request))
             };
             self.outbox.event(Event::Response(response));
             for message in echoed.into_iter().flatten() {
@@ -7351,7 +7352,11 @@ fn server_error(
 
 /// Whether `message` is a failure that [`Response::error`] reports.
 fn is_failure(message: &LineRef<'_>) -> bool {
-    server_error(message, &BTreeSet::new()).is_some()
+    match message.command() {
+        Command::Fail => message.len() >= 3,
+        Command::Numeric(numeric) => is_failure_numeric(numeric),
+        _ => false,
+    }
 }
 
 fn sent_info(message: &LineRef<'_>) -> Option<SentInfo> {
@@ -7572,8 +7577,13 @@ mod tests {
         ] {
             let line = LineRef::parse(wire).unwrap();
             let mut addresses = Vec::new();
-            let complete =
-                matcher.matches(&line, Casemapping::Rfc1459, "papo", &state, &mut addresses);
+            let complete = matcher.matches(
+                &super::IncomingLine::from(&line).routing(),
+                Casemapping::Rfc1459,
+                "papo",
+                &state,
+                &mut addresses,
+            );
             assert_eq!(complete, answered.then_some(true));
             assert!(addresses.is_empty(), "{wire}");
         }
@@ -7605,6 +7615,7 @@ mod tests {
                 fence: None,
                 deferred: None,
                 who_target: None,
+                boundary_seen: false,
                 lines: crate::bounded::BoundedCollection::new(1_000),
                 subject_tokens: Vec::new(),
             },
@@ -7619,6 +7630,7 @@ mod tests {
                 fence: None,
                 deferred: None,
                 who_target: None,
+                boundary_seen: false,
                 lines: crate::bounded::BoundedCollection::new(1_000),
                 subject_tokens: Vec::new(),
             },
@@ -7787,7 +7799,13 @@ mod tests {
         let ban_row = line(":ergo.test 367 papo #papo{ *!*@gateway.example oper 1761048000");
         assert!(ban.is_list_row(&ban_row));
         assert_eq!(
-            ban.matches(&ban_row, mapping, "papo", &state, &mut Vec::new()),
+            ban.matches(
+                &super::IncomingLine::from(&ban_row).routing(),
+                mapping,
+                "papo",
+                &state,
+                &mut Vec::new()
+            ),
             Some(false)
         );
         for wire in [
@@ -7797,7 +7815,13 @@ mod tests {
         ] {
             let message = line(wire);
             assert_eq!(
-                ban.matches(&message, mapping, "papo", &state, &mut Vec::new()),
+                ban.matches(
+                    &super::IncomingLine::from(&message).routing(),
+                    mapping,
+                    "papo",
+                    &state,
+                    &mut Vec::new()
+                ),
                 None,
                 "accepted {wire}"
             );
@@ -7807,7 +7831,13 @@ mod tests {
             line(":solanum.example 728 papo #papo{ b *!*@noisy.example oper 1761048000");
         assert!(!quiet.is_list_row(&wrong_quiet));
         assert_eq!(
-            quiet.matches(&wrong_quiet, mapping, "papo", &state, &mut Vec::new()),
+            quiet.matches(
+                &super::IncomingLine::from(&wrong_quiet).routing(),
+                mapping,
+                "papo",
+                &state,
+                &mut Vec::new()
+            ),
             None
         );
         let quiet_row =
@@ -7815,7 +7845,13 @@ mod tests {
         assert!(quiet.is_list_row(&quiet_row));
         let quiet_end = line(":solanum.example 729 papo #papo{ q :End of channel quiet list");
         assert_eq!(
-            quiet.matches(&quiet_end, mapping, "papo", &state, &mut Vec::new()),
+            quiet.matches(
+                &super::IncomingLine::from(&quiet_end).routing(),
+                mapping,
+                "papo",
+                &state,
+                &mut Vec::new()
+            ),
             Some(true)
         );
     }

@@ -72,6 +72,37 @@ impl Session {
         })
     }
 
+    pub(super) fn reply_line(&self, incoming: IncomingLine<'_>, request: &PendingRequest) -> Line {
+        let routing = incoming.routing();
+        let mut addresses = Vec::new();
+        if let Some(matcher) = &request.matcher
+            && crate::is_failure(&routing)
+            && matcher
+                .matches(
+                    &routing,
+                    self.isupport.value().casemapping(),
+                    self.welcome_state.nick(),
+                    &self.state,
+                    &mut addresses,
+                )
+                .is_none()
+        {
+            addresses.clear();
+        }
+        incoming.addressed(&addresses)
+    }
+
+    pub(super) fn batch_reply_lines(
+        &self,
+        messages: Vec<crate::StoredLine>,
+        request: &PendingRequest,
+    ) -> Vec<Line> {
+        messages
+            .into_iter()
+            .map(|line| self.reply_line(line.incoming(), request))
+            .collect()
+    }
+
     pub(super) fn resolve_message(&mut self, incoming: IncomingLine<'_>) -> Option<bool> {
         let routing = incoming.routing();
         let message = &routing;
@@ -100,7 +131,7 @@ impl Session {
             .into_iter()
             .collect::<Vec<_>>();
         if !message.command_is("ACK") {
-            lines.push(incoming.shown.to_owned());
+            lines.push(self.reply_line(incoming, &request));
         }
         if !self
             .unlabelled_requests
@@ -260,7 +291,7 @@ impl Session {
         if self.abort_departed_join(message, mapping) {
             return true;
         }
-        let Some((index, complete, join_started, addresses)) = self
+        let Some((index, complete, join_started, reached_boundary, addresses)) = self
             .unlabelled_requests
             .iter()
             .enumerate()
@@ -281,7 +312,10 @@ impl Session {
                 let fence = request.fence.as_ref().and_then(|token| {
                     (message.command() == Command::Pong
                         && message.params().last() == Some(token.as_str()))
-                    .then(|| self.fence_completes(request, mapping))
+                    .then(|| {
+                        !matches!(request.boundary.matcher(), Some(ResponseMatcher::Who(_)))
+                            || request.boundary_seen
+                    })
                 });
                 let mut addresses = Vec::new();
                 let matched = fence.or_else(|| {
@@ -303,7 +337,7 @@ impl Session {
                         })
                 })?;
                 let complete = matched && (fence.is_some() || request.fence.is_none());
-                Some((index, complete, join_started, addresses))
+                Some((index, complete, join_started, matched, addresses))
             })
         else {
             return false;
@@ -314,6 +348,7 @@ impl Session {
         if join_started {
             request.started = Some(now);
         }
+        request.boundary_seen |= reached_boundary;
         let shown = incoming.addressed(&addresses);
         if request.push_or_overflow(shown, complete, max_list_entries, subject) {
             let id = request.id;
@@ -394,22 +429,6 @@ impl Session {
         }
     }
 
-    fn fence_completes(&self, request: &UnlabelledRequest, mapping: crate::Casemapping) -> bool {
-        !matches!(request.boundary.matcher(), Some(ResponseMatcher::Who(_)))
-            || request.lines.iter().any(|line| {
-                request
-                    .boundary
-                    .matches(
-                        &line.as_ref(),
-                        mapping,
-                        self.welcome_state.nick(),
-                        &self.state,
-                        &mut Vec::new(),
-                    )
-                    .is_some_and(|complete| complete)
-            })
-    }
-
     fn abort_departed_join(&mut self, message: &LineRef<'_>, mapping: crate::Casemapping) -> bool {
         let Some(index) =
             self.unlabelled_requests
@@ -459,6 +478,7 @@ impl Session {
             deferred,
             who_target,
             lines: crate::bounded::BoundedCollection::new(row_limit),
+            boundary_seen: false,
             subject_tokens: Vec::new(),
         });
     }
@@ -535,6 +555,7 @@ impl Session {
                     emit_events,
                     echo,
                     who_target: None,
+                    matcher: None,
                 },
             );
         } else {
