@@ -199,6 +199,12 @@
 "security::login_credential_refusals_are_redacted" = [
   "security.hostile-1.reply-secrets",
 ]
+"security::a_refused_nick_change_is_reported_when_the_password_equals_the_nick" = [
+  "security.hostile-f1.reply-routing",
+]
+"security::nick_regain_starts_when_the_server_password_equals_the_nick" = [
+  "security.hostile-f1.reply-routing",
+]
 "security::a_refused_non_ascii_key_stays_redacted_in_a_legacy_reply" = [
   "security.hostile-f2.legacy-reencoding",
   "security.hostile-n2.reply-decoding",

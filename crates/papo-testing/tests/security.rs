@@ -3260,3 +3260,84 @@ async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
     }
     probe.await.unwrap().unwrap();
 }
+
+async fn registered_with_colliding_sasl_password() -> (papo::Client, Events, Wire) {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo-bot")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(papo::Reconnect::never())
+            .sasl(papo::Sasl::plain("papo", papo::Secret::new("papo"))),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-bot");
+    assert_eq!(wire.next_sent().await, "USER papo-bot 0 * papo-bot");
+    wire.server(":offline.test CAP * LS :sasl=PLAIN").await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+    wire.server(":offline.test CAP * ACK :sasl").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE PLAIN");
+    wire.server("AUTHENTICATE +").await;
+    assert!(wire.next_sent().await.starts_with("AUTHENTICATE AHBhcG8A"));
+    wire.server(
+        ":offline.test 900 papo-bot papo-bot!~papo@localhost papo :You are now logged in as papo",
+    )
+    .await;
+    wire.server(":offline.test 903 papo-bot :Authentication successful")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP END");
+    wire.server(":offline.test 001 papo-bot :Welcome to the ErgoTest IRC Network papo-bot")
+        .await;
+    wire.server(":offline.test 005 papo-bot CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(qaohv)~&@%+ :are supported by this server")
+        .await;
+    wire.server(":offline.test 422 papo-bot :MOTD File is missing")
+        .await;
+    connected(&mut events).await;
+    (client, events, wire)
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_refused_nick_change_is_reported_when_the_password_equals_the_nick() {
+    let (client, _events, mut wire) = registered_with_colliding_sasl_password().await;
+    let request = tokio::spawn(async move { client.set_nick("papo").await });
+    assert_eq!(wire.next_sent().await, "NICK papo");
+    wire.server(":offline.test 433 papo-bot papo :Nickname papo is already in use")
+        .await;
+    let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
+        panic!("expected nickname refusal");
+    };
+    assert_eq!(error.refusal(), papo::Refusal::NicknameInUse);
+    assert_eq!(
+        error.params(),
+        ["papo-bot", "papo", "Nickname <redacted> is already in use"]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn nick_regain_starts_when_the_server_password_equals_the_nick() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .alt_nicks(["papo_"])
+            .regain_nick(true)
+            .password(papo::Secret::new("papo")),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo");
+    assert_eq!(wire.next_sent().await, "USER papo 0 * papo");
+    wire.server(":offline.test CAP * LS :").await;
+    assert_eq!(wire.next_sent().await, "PASS papo");
+    assert_eq!(wire.next_sent().await, "CAP END");
+    wire.server(":offline.test 433 * papo :Nickname is already in use")
+        .await;
+    assert_eq!(wire.next_sent().await, "NICK papo_");
+    wire.server(":offline.test 001 papo_ :Welcome to the ErgoTest IRC Network papo_")
+        .await;
+    wire.server(":offline.test 005 papo_ MONITOR=100 :are supported")
+        .await;
+    wire.server(":offline.test 422 papo_ :MOTD File is missing")
+        .await;
+    connected(&mut events).await;
+    assert_eq!(wire.next_sent().await, "MONITOR + papo");
+    wire.server(":offline.test 731 papo_ :papo").await;
+    assert_eq!(wire.next_sent().await, "NICK papo");
+}
