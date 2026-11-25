@@ -4349,13 +4349,12 @@ impl Session {
                     self.dispatch_batch_event(now, event);
                 }
             }
-            BatchAction::Dispatch(mut context) => {
+            BatchAction::Dispatch(context) => {
                 if context.batch_type().is_some_and(batch::is_replay) {
                     let received = self
                         .received_line(message.to_owned(), context.batch_type().map(str::to_owned));
                     self.outbox.event(Event::Line(received));
                 } else {
-                    context.live_input = message.tag(cap::BATCH.as_str()).is_none();
                     self.dispatch_message(now, message, &context, true, None);
                 }
             }

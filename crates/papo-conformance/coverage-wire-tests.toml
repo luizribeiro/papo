@@ -338,6 +338,10 @@
   "security.actor-account.wire-replay",
 ]
 
+"batched_quit::orphan_tagged_quit_refuses_a_reply" = [
+  "security.recipient-2.orphan-batch-quit",
+]
+
 "batched_quit::quit_in_a_batch_of_unknown_type_ends_the_reference" = [
   "security.recipient-2.unknown-batch-quit",
 ]

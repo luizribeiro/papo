@@ -12,9 +12,9 @@ const MEMBERS: &[&str] = &[
     ":ChanServ!ChanServ@services.int NICK ChanServ-away",
     ":ChanServ!ChanServ@services.int PART #papo :Leaving",
     ":operator!~op@staff.example KICK #papo ChanServ :Channel maintenance",
-    ":alice!~alice@staff.example JOIN #papo alice :Alice",
     ":ChanServ!ChanServ@services.int ACCOUNT *",
     ":ChanServ!ChanServ@services.int CHGHOST ChanServ services.example",
+    ":alice!~alice@staff.example JOIN #papo alice :Alice",
     ":operator!~op@staff.example MODE #papo +o ChanServ",
     ":operator!~op@staff.example TOPIC #papo :Service restored",
     ":ChanServ!ChanServ@services.int SETNAME :Network services",
@@ -334,4 +334,99 @@ fn an_abandoned_response_releases_only_rows_that_have_not_been_delivered() {
     assert_eq!(lines.len(), 1, "{lines:?}");
     assert_eq!(lines[0].batch_type(), Some("chathistory"));
     assert_eq!(lines[0].as_ref().param(1), Some("Archived release notes"));
+}
+
+fn late_batch_members(reference: &str, setup: &[&str], replay: bool) {
+    let now = Instant::now();
+    for &member in &MEMBERS[..6] {
+        let mut session = Session::new(Config::default().max_open_batches(1));
+        for line in [
+            ":papo!~papo@localhost JOIN #papo",
+            ":ChanServ!ChanServ@services.int JOIN #papo chanserv :ChanServ",
+        ]
+        .into_iter()
+        .chain(setup.iter().copied())
+        {
+            session.handle_line(now, line.as_bytes());
+        }
+        while session.poll_event().is_some() {}
+        let state = session.state();
+        let guard = state
+            .__capture_recipient(
+                state.casemapping().nick("ChanServ"),
+                state.user("ChanServ").unwrap().account().clone(),
+            )
+            .unwrap();
+
+        session.handle_line(now, format!("@batch={reference} {member}").as_bytes());
+        assert_eq!(applied(session.state(), member), !replay, "{member}");
+        let recipient = session.state().__resolve_recipient(&guard);
+        let event = session.poll_event().unwrap();
+        let casemapping = session.state().casemapping();
+        if replay {
+            assert_eq!(
+                recipient,
+                RecipientStatus::Current(casemapping.nick("ChanServ"))
+            );
+            assert!(
+                matches!(event, Event::Line(line) if line.batch_type() == Some("znc.in/playback"))
+            );
+        } else {
+            let command = member.split_ascii_whitespace().nth(1).unwrap();
+            assert!(
+                matches!(
+                    (command, &event),
+                    ("QUIT", Event::Quit { netsplit: None, .. })
+                        | ("NICK", Event::NickChanged { .. })
+                        | ("PART", Event::Parted { .. })
+                        | ("KICK", Event::Kicked { .. })
+                        | ("ACCOUNT", Event::AccountChanged { .. })
+                        | ("CHGHOST", Event::HostChanged { .. })
+                ),
+                "{member}: {event:?}"
+            );
+            let expected = match command {
+                "NICK" => RecipientStatus::Current(casemapping.nick("ChanServ-away")),
+                "CHGHOST" => RecipientStatus::Current(casemapping.nick("ChanServ")),
+                _ => RecipientStatus::Gone,
+            };
+            assert_eq!(recipient, expected, "{member}");
+        }
+        assert_eq!(session.poll_event(), None);
+        assert_eq!(session.poll_transmit(), None);
+    }
+}
+
+#[test]
+fn members_of_a_never_opened_batch_are_live() {
+    late_batch_members("missing", &[], false);
+}
+
+#[test]
+fn members_of_a_batch_with_an_invalid_id_are_live() {
+    late_batch_members("bad_ref", &[":ergo.test BATCH +bad_ref vendor/sync"], false);
+}
+
+#[test]
+fn members_of_a_closed_batch_are_live() {
+    late_batch_members(
+        "old",
+        &[
+            ":ergo.test BATCH +old chathistory #papo",
+            ":ergo.test BATCH -old",
+        ],
+        false,
+    );
+}
+
+#[test]
+fn members_of_an_abandoned_playback_batch_stay_historical() {
+    late_batch_members(
+        "old",
+        &[
+            ":ergo.test BATCH +hold vendor/sync",
+            ":ergo.test BATCH +old znc.in/playback #papo",
+        ],
+        true,
+    );
 }

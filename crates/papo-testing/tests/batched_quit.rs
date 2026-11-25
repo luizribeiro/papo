@@ -108,6 +108,17 @@ impl Review {
 }
 
 #[tokio::test]
+async fn orphan_tagged_quit_refuses_a_reply() {
+    let mut review = Review::start(true).await;
+    review
+        .wire
+        .server("@batch=missing :alice!~alice@cloak-7f3a.example QUIT :Quit: bye")
+        .await;
+    review.sync().await;
+    review.assert_reply_refused().await;
+}
+
+#[tokio::test]
 async fn quit_in_a_batch_of_unknown_type_ends_the_reference() {
     let mut review = Review::start(true).await;
     for line in [

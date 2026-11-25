@@ -476,6 +476,12 @@ impl Batches {
             return BatchAction::Dispatch(context);
         };
         if !self.open.contains_key(reference.as_ref()) {
+            if context.batch_type.is_none() {
+                return BatchAction::Dispatch(DispatchContext {
+                    live_input: true,
+                    ..context
+                });
+            }
             if applied_state.is_some() {
                 return BatchAction::Consumed;
             }
@@ -991,7 +997,9 @@ impl Batches {
     }
 
     fn context(&self, message: &LineRef<'_>) -> DispatchContext {
-        let batch_type = message.tag("batch").and_then(|reference| {
+        let reference = message.tag("batch");
+        let live_input = reference.is_none();
+        let batch_type = reference.and_then(|reference| {
             self.open
                 .get(reference.as_ref())
                 .map(|batch| dispatch_kind(&batch.kind, batch.replay))
@@ -1004,6 +1012,7 @@ impl Batches {
         });
         DispatchContext {
             batch_type,
+            live_input,
             ..DispatchContext::default()
         }
     }

@@ -1761,7 +1761,7 @@ fn abandoned_replay_keeps_its_id_until_the_matching_close() {
 }
 
 #[test]
-fn a_batch_with_an_unknown_parent_cannot_supply_live_state() {
+fn members_of_a_batch_refused_for_an_unknown_parent_are_live() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     for line in [
@@ -1772,7 +1772,10 @@ fn a_batch_with_an_unknown_parent_cannot_supply_live_state() {
     ] {
         session.handle_line(now, line.as_bytes());
     }
-    assert!(session.state().user("ChanServ").is_some());
+    assert!(session.state().user("ChanServ").is_none());
+    assert!(std::iter::from_fn(|| session.poll_event()).any(|event| {
+        matches!(event, Event::Quit { nick, netsplit: None, .. } if nick == "ChanServ")
+    }));
 }
 
 #[test]
