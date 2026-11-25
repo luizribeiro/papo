@@ -295,11 +295,11 @@ async fn a_ctcp_reply_resolves_to_its_labelled_echo() {
     let outcome = within(reply).await.unwrap().unwrap();
     assert_eq!(outcome.conversation().to_string(), "emily");
     assert_eq!(
-        outcome.lines,
-        [crate::SentLine {
-            text: "\x01VERSION ferrobot 2.3\x01".into(),
-            confirmation: confirmed("hvjgkknruzk58qrw89xh3v4spa", "2026-11-15T20:11:27.686Z"),
-        }]
+        sent_line_details(&outcome),
+        [(
+            "\x01VERSION ferrobot 2.3\x01".into(),
+            confirmed("hvjgkknruzk58qrw89xh3v4spa", "2026-11-15T20:11:27.686Z"),
+        )]
     );
     task.abort();
 }

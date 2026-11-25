@@ -290,11 +290,18 @@ pub(crate) fn confirmed_line(
     msgid: &str,
     server_time: Option<&str>,
     text: impl Into<String>,
-) -> crate::SentLine {
-    crate::SentLine {
-        text: text.into(),
-        confirmation: confirmed(msgid, server_time),
-    }
+) -> (String, crate::Confirmation) {
+    (text.into(), confirmed(msgid, server_time))
+}
+
+pub(crate) fn sent_line_details(
+    outcome: &crate::SendOutcome,
+) -> Vec<(String, crate::Confirmation)> {
+    outcome
+        .lines
+        .iter()
+        .map(|line| (line.text.clone(), line.confirmation.clone()))
+        .collect()
 }
 
 pub(crate) fn redacted_line(

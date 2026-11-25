@@ -60,13 +60,6 @@ async fn send_two_lines(advertised: &str, enabled: &str, echoes: [&str; 2]) -> c
     sent
 }
 
-fn line(text: &str, confirmation: crate::Confirmation) -> crate::SentLine {
-    crate::SentLine {
-        text: text.into(),
-        confirmation,
-    }
-}
-
 #[tokio::test(flavor = "current_thread")]
 async fn each_line_of_a_send_carries_its_own_confirmation() {
     let first = "@label=0;msgid=ripxp4ezdb76is6ep47ic7rexa;time=2026-11-15T17:42:12.749Z :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG #papo :deploy finished";
@@ -118,10 +111,10 @@ async fn each_line_of_a_send_carries_its_own_confirmation() {
     for (advertised, enabled, echoes, [deploy, checks]) in cases {
         let sent = send_two_lines(advertised, enabled, echoes).await;
         assert_eq!(
-            sent.lines,
+            sent_line_details(&sent),
             [
-                line("deploy finished", deploy),
-                line("all checks green", checks)
+                ("deploy finished".into(), deploy),
+                ("all checks green".into(), checks)
             ],
             "{advertised}: {echoes:?}"
         );
@@ -147,9 +140,9 @@ async fn a_send_queued_before_welcome_keeps_its_text_unconfirmed() {
     client_line(&mut server, b"PRIVMSG #papo :deploy finished\r\n").await;
     let sent = within(sent).await.unwrap().unwrap();
     assert_eq!(
-        sent.lines,
-        [line(
-            "deploy finished",
+        sent_line_details(&sent),
+        [(
+            "deploy finished".into(),
             crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoLabeledResponse)
         )]
     );

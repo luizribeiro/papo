@@ -7822,13 +7822,11 @@ async fn chat_text_uses_multiline_when_negotiated() {
         .await
         .unwrap();
     assert_eq!(
-        sent.lines,
-        [crate::SentLine {
-            text: "a".repeat(600),
-            confirmation: crate::Confirmation::unconfirmed(
-                crate::UnconfirmedReason::NoLabeledResponse
-            ),
-        }]
+        sent_line_details(&sent),
+        [(
+            "a".repeat(600),
+            crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoLabeledResponse)
+        )]
     );
     let batch = format!(
         "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo {}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
@@ -7874,7 +7872,10 @@ async fn chat_text_preserves_an_automatically_split_multiline_batch() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    assert_eq!(sent.lines, [confirmed_line("RfcBTzyxY120004", None, text)]);
+    assert_eq!(
+        sent_line_details(&sent),
+        [confirmed_line("RfcBTzyxY120004", None, text)]
+    );
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -7919,7 +7920,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert_eq!(
-        within(sent).await.unwrap().unwrap().lines,
+        sent_line_details(&within(sent).await.unwrap().unwrap()),
         [confirmed_line("RfcBTzyxY120005", None, "fixed in 69876ec")]
     );
 
@@ -7936,7 +7937,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert_eq!(
-        within(action).await.unwrap().unwrap().lines,
+        sent_line_details(&within(action).await.unwrap().unwrap()),
         [confirmed_line(
             "RfcBTzyxY120006",
             None,
@@ -8074,7 +8075,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     .await;
     let sent = within(sent).await.unwrap().unwrap();
     assert_eq!(
-        sent.lines,
+        sent_line_details(&sent),
         [confirmed_line(
             "RfcBTzyxY120004",
             Some("2026-02-03T04:05:06.789Z"),
@@ -8107,7 +8108,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     .await;
     let split = within(split).await.unwrap().unwrap();
     assert_eq!(
-        split.lines,
+        sent_line_details(&split),
         [
             confirmed_line("RfcBTzyxY120005", None, "a".repeat(468)),
             confirmed_line("RfcBTzyxY120006", None, "a".repeat(132)),
@@ -9036,7 +9037,10 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
             ("RfcBTzyxY120005", "second deployment line"),
             ("RfcBTzyxY120006", "third deployment line"),
         ]
-        .map(|(id, text)| confirmed_line(id, None, text))
+        .map(|(id, text)| crate::SentLine {
+            text: text.into(),
+            confirmation: confirmed(id, None),
+        })
         .into(),
     );
     sent.receipt.set_reference(
@@ -9228,7 +9232,7 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
     )
     .await;
     assert_eq!(
-        within(sent).await.unwrap().unwrap().lines,
+        sent_line_details(&within(sent).await.unwrap().unwrap()),
         [confirmed_line("RfcBTzyxY120007", None, "remember this")]
     );
     server_line(
