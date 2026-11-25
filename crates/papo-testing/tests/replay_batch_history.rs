@@ -16,7 +16,7 @@ async fn batch_provenance_agrees_for_single_rows_and_nested_multiline() {
         ("soju.example", "soju.im/search", "", true),
         ("bouncer.example", "example.org/sync", " #papo", false),
     ] {
-        let (_client, mut events, mut wire) = wire(
+        let (client, mut events, mut wire) = wire(
             Client::builder("irc://offline.test", "papo")
                 .rate_limit(RateLimit::unlimited())
                 .reconnect(Reconnect::never()),
@@ -41,11 +41,17 @@ async fn batch_provenance_agrees_for_single_rows_and_nested_multiline() {
                 "release is ready",
             )
         };
+        let bot_tag = if historical { ";bot" } else { "" };
         for line in [
             ":papo!~u@2j8y98eazaf5w.irc JOIN #papo".to_owned(),
+            ":alice!~a@client.example JOIN #papo".to_owned(),
             format!(":{server} BATCH +replay {kind}{target}"),
-            format!("@batch=replay;time=2026-10-15T12:00:00.000Z;msgid=6tiv6pw8a7d5mhn77ai2vm5jq2 {row}"),
-            "@batch=replay;time=2026-10-15T12:00:05.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u :alice!~a@client.example BATCH +paste draft/multiline #papo".to_owned(),
+            format!(
+                "@batch=replay;time=2026-10-15T12:00:00.000Z;msgid=6tiv6pw8a7d5mhn77ai2vm5jq2{bot_tag} {row}"
+            ),
+            format!(
+                "@batch=replay;time=2026-10-15T12:00:05.000Z;msgid=fkggsh3fbnpgx8hzy9ah8u{bot_tag} :alice!~a@client.example BATCH +paste draft/multiline #papo"
+            ),
             "@batch=paste :alice!~a@client.example PRIVMSG #papo :release notes".to_owned(),
             "@batch=paste :alice!~a@client.example PRIVMSG #papo :second line".to_owned(),
             "@batch=replay :alice!~a@client.example BATCH -paste".to_owned(),
@@ -74,8 +80,15 @@ async fn batch_provenance_agrees_for_single_rows_and_nested_multiline() {
         let rows: Vec<_> = payloads
             .iter()
             .map(|event| match event {
-                Event::Other(line) => (line.get(1).unwrap(), line.is_from_history()),
-                Event::Message(line) => (line.text.as_str(), line.is_from_history()),
+                Event::Other(line) => {
+                    assert_ne!(kind, "chathistory", "{line:?}");
+                    assert_eq!(line.tag("bot").is_some(), historical, "{kind}");
+                    (line.get(1).unwrap(), line.is_from_history())
+                }
+                Event::Message(line) => {
+                    assert_eq!(line.actor_is_bot(), historical.then_some(true), "{kind}");
+                    (line.text.as_str(), line.is_from_history())
+                }
                 _ => panic!("unexpected payload in {kind}: {event:?}"),
             })
             .collect();
@@ -85,6 +98,11 @@ async fn batch_provenance_agrees_for_single_rows_and_nested_multiline() {
                 (expected, historical),
                 ("release notes\nsecond line", historical)
             ],
+            "{kind}"
+        );
+        assert_eq!(
+            client.snapshot().user("alice").unwrap().unwrap().is_bot(),
+            None,
             "{kind}"
         );
     }

@@ -322,6 +322,7 @@ pub struct Message {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -368,6 +369,7 @@ pub struct Notice {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address, moved to
     /// [`Restricted::audience`] before delivery.
@@ -441,6 +443,17 @@ impl Incomplete {
         }
     }
 
+    /// Returns whether the received portion carries the server's `bot` tag.
+    ///
+    /// See [`Message::actor_is_bot`] for the meaning of the result.
+    #[must_use]
+    pub const fn actor_is_bot(&self) -> Option<bool> {
+        match self {
+            Self::Message(message) => message.actor_is_bot(),
+            Self::Notice(notice) => notice.actor_is_bot(),
+        }
+    }
+
     /// Returns the conversation captured from the received lines.
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
@@ -461,6 +474,7 @@ pub struct ServerNotice {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
@@ -515,6 +529,7 @@ impl std::ops::Deref for Other {
 }
 
 struct MessageMetadata {
+    actor_is_bot: Option<bool>,
     actor_account: AccountStatus,
     actor: Actor,
     actor_party: Party,
@@ -829,6 +844,16 @@ impl Message {
         &self.actor_account
     }
 
+    /// Returns `Some(true)` when the server sent the `bot` tag on this line.
+    ///
+    /// An absent tag returns `None`, which leaves the actor's bot status unknown.
+    /// This never returns `Some(false)`. History rows report their own tags without
+    /// updating live state. See [`crate::User::is_bot`] for the current user fact.
+    #[must_use]
+    pub const fn actor_is_bot(&self) -> Option<bool> {
+        self.actor_is_bot
+    }
+
     /// Returns the conversation captured from the received line.
     #[must_use]
     pub const fn conversation(&self) -> &Conversation {
@@ -958,6 +983,7 @@ impl Message {
         Ok(Self {
             actor,
             actor_party: metadata.actor_party,
+            actor_is_bot: metadata.actor_is_bot,
             actor_account: metadata.actor_account,
             conversation,
             status: metadata.status,
@@ -1012,6 +1038,14 @@ impl Notice {
     #[must_use]
     pub const fn actor_account(&self) -> &AccountStatus {
         &self.actor_account
+    }
+
+    /// Returns whether this line carries the server's `bot` tag.
+    ///
+    /// See [`Message::actor_is_bot`] for the meaning of the result.
+    #[must_use]
+    pub const fn actor_is_bot(&self) -> Option<bool> {
+        self.actor_is_bot
     }
 
     /// Which `Client` produced this value (not the sender or the server).
@@ -1096,6 +1130,7 @@ impl Notice {
         Ok(Self {
             actor,
             actor_party: metadata.actor_party,
+            actor_is_bot: metadata.actor_is_bot,
             actor_account: metadata.actor_account,
             conversation,
             status: metadata.status,
@@ -1128,6 +1163,14 @@ impl ServerNotice {
     #[must_use]
     pub const fn actor_account(&self) -> &AccountStatus {
         &self.actor_account
+    }
+
+    /// Returns whether this line carries the server's `bot` tag.
+    ///
+    /// See [`Message::actor_is_bot`] for the meaning of the result.
+    #[must_use]
+    pub const fn actor_is_bot(&self) -> Option<bool> {
+        self.actor_is_bot
     }
 
     /// Returns the address that reaches the recipients of the notice.
@@ -1235,6 +1278,7 @@ impl ServerNotice {
             }
         };
         Ok(Self {
+            actor_is_bot: envelope.bot,
             actor_account: line_actor_account(
                 &message,
                 &envelope,
@@ -1474,6 +1518,7 @@ fn message_metadata(
         crate::message_ref::Receipt::new(actor.clone(), &conversation, reply_token, return_address);
     receipt.set_reference(envelope.msgid.iter().cloned(), None);
     Some(MessageMetadata {
+        actor_is_bot: envelope.bot,
         actor_account: line_actor_account(message, &envelope, actor_party, account_tag_enabled),
         actor,
         actor_party,
@@ -1535,6 +1580,7 @@ fn account_from_tag(
 }
 
 pub(crate) struct EventEnvelope {
+    pub(crate) bot: Option<bool>,
     pub(crate) msgid: Option<MessageId>,
     pub(crate) server_time: Option<ServerTime>,
     pub(crate) received_at: SystemTime,
@@ -1563,6 +1609,7 @@ pub(crate) fn line_envelope_with_account_tag(
     let server_time = tag_owned(line, &["time", "znc.in/server-time-iso"])
         .and_then(|value| ServerTime::from_stored(&value).ok());
     EventEnvelope {
+        bot: line.tags().any(|(key, _)| key == "bot").then_some(true),
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
         server_time,
         received_at,
@@ -1618,6 +1665,7 @@ fn core_envelope(
     received_at: SystemTime,
 ) -> EventEnvelope {
     EventEnvelope {
+        bot: envelope.bot().then_some(true),
         msgid: envelope.msgid().map(MessageId::from),
         server_time: envelope.server_time(),
         received_at,
@@ -2315,6 +2363,7 @@ pub(crate) fn from_core_with_receipt(
             let reply_token = private_reply_token(&change.conversation, change_peer);
             let conversation = conversation_handle(change.conversation, change_peer);
             let envelope = EventEnvelope {
+                bot: None,
                 msgid: None,
                 server_time: change.server_time,
                 received_at,
@@ -4053,6 +4102,38 @@ mod tests {
                     _ => panic!("expected {kind}, got {event:?}"),
                 };
                 assert_eq!(actual, expected, "{line}, account-tag={cap}");
+            }
+        }
+    }
+
+    #[test]
+    fn chat_and_partial_lines_report_the_server_bot_tag() {
+        let now = Instant::now();
+        for (kind, _, line) in MESSAGE_EVENT_METADATA_CASES {
+            if !matches!(kind, "Message" | "Notice" | "ServerNotice") {
+                continue;
+            }
+            for (tag, expected) in [
+                ("", None),
+                ("+bot;", None),
+                ("bot;", Some(true)),
+                ("bot=1;", Some(true)),
+            ] {
+                let line = line.replacen('@', &format!("@{tag}"), 1);
+                let event = mapped_live_event(&line, now);
+                let actual = match (kind, &event) {
+                    ("Message", Event::Message(event)) => event.actor_is_bot(),
+                    ("Notice", Event::Notice(event)) => event.actor_is_bot(),
+                    ("ServerNotice", Event::ServerNotice(event)) => event.actor_is_bot(),
+                    _ => panic!("expected {kind}, got {event:?}"),
+                };
+                assert_eq!(actual, expected, "{line}");
+                if kind != "ServerNotice" {
+                    let Some(Event::Incomplete(incomplete)) = super::mark_incomplete(event) else {
+                        panic!("expected a partial message or notice");
+                    };
+                    assert_eq!(incomplete.actor_is_bot(), expected, "{line}");
+                }
             }
         }
     }

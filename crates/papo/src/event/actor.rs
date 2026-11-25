@@ -118,6 +118,7 @@ mod tests {
         let mapping = Casemapping::Rfc1459;
         let origin = crate::Origin::NONE;
         let envelope = super::super::EventEnvelope {
+            bot: None,
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,

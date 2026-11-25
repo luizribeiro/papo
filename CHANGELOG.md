@@ -11,6 +11,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 
 ### Added
 
+Event payloads expose the server's per-line `bot` tag through `actor_is_bot()`, including on history rows.
+
 `Client::check_connection(deadline)` probes a doubtful connection and retries a silent one immediately when automatic reconnect is enabled.
 
 `is_from_history()` identifies replayed event payloads, including server-originated and untyped lines.

@@ -282,6 +282,7 @@ pub fn message(
     let receipt = receipt(&actor, &conversation, None, None);
     Message {
         actor_account: crate::AccountStatus::Unknown,
+        actor_is_bot: None,
         actor,
         actor_party: Party::Other,
         conversation,

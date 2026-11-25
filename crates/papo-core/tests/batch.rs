@@ -1593,11 +1593,12 @@ fn history_page_events_leave_channel_state_untouched() {
     }
     while session.poll_event().is_some() {}
     let generation = session.state_generation();
+    assert_eq!(session.state().user("alice").unwrap().is_bot(), None);
 
     session.handle_line(now, b":ergo.test BATCH +history chathistory #papo");
     for line in [
         "@batch=history :bob!~b@remote.example JOIN #papo bob :Bob Example",
-        "@batch=history :alice!~a@remote.example PART #papo :Earlier part",
+        "@batch=history;bot :alice!~a@remote.example PART #papo :Earlier part",
         "@batch=history :operator!~o@services.example KICK #papo papo :Earlier kick",
         "@batch=history :operator!~o@services.example MODE #papo +k history-key-4286",
         "@batch=history :operator!~o@services.example TOPIC #papo :Earlier topic",
@@ -1622,6 +1623,16 @@ fn history_page_events_leave_channel_state_untouched() {
             HistoryItem::NickChanged(_),
         ]
     ));
+    assert!(
+        items[1]
+            .as_parted()
+            .unwrap()
+            .line
+            .as_ref()
+            .tags()
+            .any(|(key, _)| key == "bot")
+    );
+    assert_eq!(session.state().user("alice").unwrap().is_bot(), None);
     assert!(!format!("{items:?}").contains("history-key-4286"));
     assert!(
         items[3]

@@ -298,7 +298,8 @@ fn chat_messages_stop_typing_before_the_message_event() {
         _ = session.poll_event();
         session.handle_line(
             now,
-            format!("@account=alice :alice!~a@cloak {command} #papo :hello from Alice").as_bytes(),
+            format!("@account=alice;bot :alice!~a@cloak {command} #papo :hello from Alice")
+                .as_bytes(),
         );
         let mut events = std::iter::from_fn(|| session.poll_event())
             .filter(|event| !matches!(event, Event::AccountChanged { .. }));
@@ -308,6 +309,7 @@ fn chat_messages_stop_typing_before_the_message_event() {
             Some(Event::TypingChanged(change))
                 if change.reason == papo_core::TypingReason::Messaged
                     && change.__line_envelope().__actor_account_evidence() == (Some("alice"), true)
+                    && change.__line_envelope().bot()
         ));
         assert!(matches!(
             events.next(),

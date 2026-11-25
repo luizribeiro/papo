@@ -463,6 +463,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.clone())
     );
     assert_eq!(message.text, text);
+    assert_eq!(message.actor_is_bot(), Some(true));
     assert_eq!(
         super::user(&bob.snapshot(), &message.actor).and_then(papo::User::is_bot),
         Some(true)
