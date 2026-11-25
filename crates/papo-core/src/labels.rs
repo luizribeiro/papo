@@ -104,8 +104,7 @@ impl Session {
     }
 
     pub(super) fn resolve_message(&mut self, incoming: IncomingLine<'_>) -> Option<bool> {
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
         let label = message
             .tag("label")
             .map(std::borrow::Cow::into_owned)
@@ -286,7 +285,7 @@ impl Session {
         joined_ready: Option<bool>,
     ) -> bool {
         let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
         let mapping = self.isupport.value().casemapping();
         if self.abort_departed_join(message, mapping) {
             return true;
@@ -322,7 +321,7 @@ impl Session {
                     request
                         .boundary
                         .matches(
-                            message,
+                            &routing,
                             mapping,
                             self.welcome_state.nick(),
                             &self.state,

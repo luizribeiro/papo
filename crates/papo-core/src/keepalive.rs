@@ -142,7 +142,7 @@ impl Keepalive {
         incoming: crate::IncomingLine<'_>,
         outbox: &mut Outbox,
     ) -> Handled {
-        let message = incoming.routing();
+        let message = &incoming.shown;
         if message.command_is("PING") {
             let Some(token) = message.param(0) else {
                 return Handled::No;
@@ -172,7 +172,7 @@ impl Keepalive {
         } else if message.command_is("ERROR") {
             outbox.close(
                 CloseKind::ServerError,
-                bounded_server_error_reason(incoming.shown.param(0).unwrap_or("server sent ERROR")),
+                bounded_server_error_reason(message.param(0).unwrap_or("server sent ERROR")),
             );
             Handled::Yes
         } else {

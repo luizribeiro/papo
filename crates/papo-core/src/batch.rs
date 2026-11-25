@@ -213,8 +213,7 @@ impl Batches {
         applied_state: Option<RoutedMember>,
     ) -> BatchAction {
         let incoming = incoming.into();
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
         if !message.command_is("BATCH") {
             return self.member(incoming, multiline_max_bytes, applied_state);
         }
@@ -475,8 +474,7 @@ impl Batches {
         multiline_max_bytes: usize,
         applied_state: Option<RoutedMember>,
     ) -> BatchAction {
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
         let context = self.context(message);
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);

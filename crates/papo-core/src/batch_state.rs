@@ -10,8 +10,7 @@ impl Session {
         now: Instant,
         incoming: IncomingLine<'_>,
     ) -> Option<RoutedMember> {
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
         if message.command_is("BATCH") {
             return None;
         }

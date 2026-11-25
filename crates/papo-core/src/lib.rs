@@ -4318,8 +4318,7 @@ impl Session {
                     .as_ref()
                     .map_or(message, |redacted| redacted.as_ref());
                 let incoming = IncomingLine::new(message, original);
-                let routing = incoming.routing();
-                let message = &routing;
+                let message = &incoming.shown;
                 self.observe_server_time(now, message);
                 self.remember_ops_only(message);
                 // A batch may hold the 001 back or never release it, while the CAP lines that
@@ -4337,8 +4336,7 @@ impl Session {
     }
 
     fn dispatch_incoming_batch(&mut self, now: Instant, incoming: IncomingLine<'_>) {
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
         let applied_state = self.dispatch_batched_state(now, incoming);
         let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
             .map_or(usize::MAX, |limits| limits.max_bytes);
@@ -6181,8 +6179,7 @@ impl Session {
         enclosing_request: Option<(RequestId, Option<&str>)>,
     ) {
         let routing = incoming.routing();
-        let message = &routing;
-        let shown = &incoming.shown;
+        let message = &incoming.shown;
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
         let before_state_change = self.state.change_generation();
@@ -6191,7 +6188,7 @@ impl Session {
         let was_connected = self.welcome_state.is_connected();
         let before_features = was_connected.then(|| self.supported_features());
         let registration_handled = WelcomeState::handle_security_decision(
-            message,
+            &routing,
             &self.config,
             &self.connection,
             &mut self.outbox,
@@ -6206,7 +6203,7 @@ impl Session {
             ) == Handled::Yes;
         let caps_handled = self.caps.handle_message(
             now,
-            message,
+            &routing,
             &self.config,
             &self.connection,
             &mut self.sasl,
@@ -6221,7 +6218,7 @@ impl Session {
         let sasl_handled =
             self.sasl.handle_message(now, incoming, &mut self.outbox) == Handled::Yes;
         let account_registration_handled = self.account_registration.handle_message(
-            message,
+            &routing,
             Names::new(self.isupport.value().casemapping(), self.config.origin),
             &mut self.outbox,
         ) == Handled::Yes;
@@ -6318,7 +6315,7 @@ impl Session {
             || whoami
             || self.handle_duplicate_own_join(message)
             || self.state.handle_message(
-                shown,
+                message,
                 reserved_channel_epoch,
                 self.welcome_state.nick(),
                 self.isupport.value(),
@@ -6335,7 +6332,7 @@ impl Session {
         self.stop_typing_for_message(message);
         let nick_regain_handled = self.nick_regain.handle_message(
             now,
-            message,
+            &routing,
             self.welcome_state.is_connected(),
             self.state.nick().as_str(),
             &self.config,
@@ -6393,7 +6390,7 @@ impl Session {
             && !redacted
             && !invited
             && emit_unhandled
-            && self.report_standard_reply(shown);
+            && self.report_standard_reply(message);
         self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
@@ -6412,15 +6409,15 @@ impl Session {
             && !standard_reply
             && emit_unhandled
         {
-            if let Some((target, retry_after)) = metadata::sync_later(shown) {
+            if let Some((target, retry_after)) = metadata::sync_later(message) {
                 self.outbox.event(Event::MetadataSyncLater {
                     target: target.to_owned(),
                     retry_after,
-                    line: shown.to_owned(),
+                    line: message.to_owned(),
                 });
             } else {
                 let received = self.received_with_sender(
-                    shown.to_owned(),
+                    message.to_owned(),
                     context.batch_type().map(str::to_owned),
                     context.sender,
                 );
@@ -6998,8 +6995,8 @@ impl Session {
                 }
                 continue;
             }
-            let answers = request
-                .is_none_or(|request| self.answers_request(request, &message.incoming().routing()));
+            let answers =
+                request.is_none_or(|request| self.answers_request(request, &message.as_ref()));
             let queued_events = self.outbox.events.len();
             let observed = route.and_then(|member| member.sender).map(|sender| {
                 let mut context = context.clone();
