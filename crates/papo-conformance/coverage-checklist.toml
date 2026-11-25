@@ -110,6 +110,7 @@ ids = [
   "security.hostile-n2.reply-decoding",
   "security.hostile-n1.reply-scope",
   "security.hostile-n1.reply-state",
+  "security.hostile-f3.login-restart-credentials",
   "security.hostile-1.malformed-mode",
   "security.hostile-1.ambiguous-mode",
   "security.s4.account-registration-once",

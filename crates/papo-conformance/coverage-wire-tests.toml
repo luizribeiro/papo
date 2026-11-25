@@ -224,6 +224,9 @@
 "security::a_credential_named_by_a_time_tagged_error_stays_out_of_the_snapshot" = [
   "security.hostile-n1.reply-state",
 ]
+"security::logins_restarted_by_the_server_leave_room_for_channel_keys" = [
+  "security.hostile-f3.login-restart-credentials",
+]
 "security::malformed_mode_does_not_expose_a_channel_key" = [
   "security.hostile-1.malformed-mode",
 ]

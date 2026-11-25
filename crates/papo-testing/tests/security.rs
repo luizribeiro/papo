@@ -3375,3 +3375,66 @@ async fn nick_regain_starts_when_the_server_password_equals_the_nick() {
     wire.server(":offline.test 731 papo_ :papo").await;
     assert_eq!(wire.next_sent().await, "NICK papo");
 }
+
+async fn sent_through(wire: &mut Wire, last: &str) -> Vec<String> {
+    let mut sent = Vec::new();
+    while sent.last().map(String::as_str) != Some(last) {
+        sent.push(wire.next_sent().await);
+    }
+    sent
+}
+
+async fn welcome_papo(wire: &mut Wire, events: &mut Events) {
+    wire.server(":offline.test 001 papo :Welcome to the ErgoTest IRC Network papo")
+        .await;
+    wire.server(":offline.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# PREFIX=(qaohv)~&@%+ :are supported by this server")
+        .await;
+    wire.server(":offline.test 422 papo :MOTD File is missing")
+        .await;
+    connected(events).await;
+}
+
+#[tokio::test]
+async fn logins_restarted_by_the_server_leave_room_for_channel_keys() {
+    const KEY: &str = "staff-key-4821";
+    let sasl = Sasl::scram_sha256("papo", papo::Secret::new("services-password-4821")).optional();
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .sasl(sasl),
+    );
+    sent_through(&mut wire, "USER papo 0 * papo").await;
+    wire.server(":offline.test CAP * LS :sasl=SCRAM-SHA-256")
+        .await;
+    for exchange in 0..256 {
+        sent_through(&mut wire, "CAP REQ :sasl").await;
+        wire.server(":offline.test CAP * ACK :sasl").await;
+        assert_eq!(wire.next_sent().await, "AUTHENTICATE SCRAM-SHA-256");
+        wire.server("AUTHENTICATE +").await;
+        let client_first = wire.next_sent().await;
+        assert!(client_first.len() > 40, "{client_first}");
+        wire.server(":offline.test 904 papo :SASL authentication failed")
+            .await;
+        if exchange == 0 {
+            assert_eq!(wire.next_sent().await, "CAP END");
+        }
+        wire.server(":offline.test CAP * DEL :sasl").await;
+        wire.server(":offline.test CAP * NEW :sasl=SCRAM-SHA-256")
+            .await;
+    }
+    welcome_papo(&mut wire, &mut events).await;
+
+    let request =
+        tokio::spawn(async move { client.join("#staff").key(papo::Secret::new(KEY)).await });
+    let sent = sent_through(&mut wire, &format!("JOIN #staff {KEY}")).await;
+    assert_eq!(sent.last().unwrap(), &format!("JOIN #staff {KEY}"));
+    wire.server(format!(
+        ":offline.test 475 papo #staff :Cannot join channel (+k): {KEY}"
+    ))
+    .await;
+    let papo::Error::Server(error) = request.await.unwrap().unwrap_err() else {
+        panic!("expected server refusal")
+    };
+    assert_eq!(error.description(), "Cannot join channel (+k): <redacted>");
+}
