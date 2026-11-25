@@ -1493,21 +1493,12 @@ impl ResponseMatcher {
         })
     }
 
-    fn target_is(message: &LineRef<'_>, index: usize, target: &str, mapping: Casemapping) -> bool {
-        message
-            .param(index)
-            .is_some_and(|value| names_equal(mapping, value, target))
-    }
-
-    fn numeric_names_command(message: &LineRef<'_>, numeric: Numeric, command: &str) -> bool {
-        is_failure_numeric(numeric)
-            && message
-                .param(1)
-                .is_some_and(|value| value.eq_ignore_ascii_case(command))
+    fn numeric_names_command(message: &RoutingLine<'_>, numeric: Numeric, command: &str) -> bool {
+        is_failure_numeric(numeric) && message.param_is_ignoring_case(1, command)
     }
 
     fn own_channel_departure(
-        message: &LineRef<'_>,
+        message: &RoutingLine<'_>,
         channel: &str,
         mapping: Casemapping,
         own_nick: &str,
@@ -1515,12 +1506,10 @@ impl ResponseMatcher {
     ) -> bool {
         (message.command() == Command::Part
             && own_source
-            && Self::target_is(message, 0, channel, mapping))
+            && message.param_names(0, mapping, channel))
             || (message.command() == Command::Kick
-                && Self::target_is(message, 0, channel, mapping)
-                && message
-                    .param(1)
-                    .is_some_and(|nick| names_equal(mapping, nick, own_nick)))
+                && message.param_names(0, mapping, channel)
+                && message.param_names(1, mapping, own_nick))
     }
 
     #[allow(clippy::too_many_lines)]
@@ -1539,7 +1528,7 @@ impl ResponseMatcher {
         let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
         let own_echo = |command| own_source && message.command() == command;
         let mut address = |index, name: &str| {
-            let matches = Self::target_is(message, index, name, mapping);
+            let matches = message.param_names(index, mapping, name);
             if matches && is_failure(message) && index + 1 < message.len() {
                 addresses.push(index);
             }
@@ -1584,8 +1573,8 @@ impl ResponseMatcher {
                 }
                 numeric.and_then(|numeric| {
                     let row = matches!(numeric, Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL);
-                    let end = numeric == Numeric::RPL_ENDOFWHO
-                        && Self::target_is(message, 1, mask, mapping);
+                    let end =
+                        numeric == Numeric::RPL_ENDOFWHO && message.param_names(1, mapping, mask);
                     (row || end).then_some(end)
                 })
             }
@@ -1611,7 +1600,7 @@ impl ResponseMatcher {
                 })
             }
             Self::Part(channel) => ((own_echo(Command::Part)
-                && Self::target_is(message, 0, channel, mapping))
+                && message.param_names(0, mapping, channel))
                 || (numeric.is_some_and(|numeric| matches!(numeric.code(), 403 | 442))
                     && address(1, channel))
                 || numeric
@@ -1619,7 +1608,7 @@ impl ResponseMatcher {
                 || Self::standard_failure(message, "PART"))
             .then_some(true),
             Self::Mode(target) => ((own_echo(Command::Mode)
-                && Self::target_is(message, 0, target, mapping))
+                && message.param_names(0, mapping, target))
                 || numeric.is_some_and(|numeric| {
                     matches!(numeric.code(), 472 | 501 | 502)
                         || numeric.is_error() && address(1, target)
@@ -1665,7 +1654,7 @@ impl ResponseMatcher {
                 .then_some(true)
             }
             Self::Nick(nick) => ((own_echo(Command::Nick)
-                && Self::target_is(message, 0, nick, mapping))
+                && message.param_names(0, mapping, nick))
                 || numeric.is_some_and(|numeric| {
                     numeric == Numeric::ERR_NONICKNAMEGIVEN
                         || numeric.is_error() && address(1, nick)
@@ -1697,7 +1686,7 @@ impl ResponseMatcher {
             }) || Self::standard_failure(message, "OPER"))
             .then_some(true),
             Self::Ping(token) => ((message.command() == Command::Pong
-                && message.params().any(|param| param == token))
+                && message.any_param_is(token))
                 || numeric == Some(Numeric::ERR_NOORIGIN)
                 || numeric
                     .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "PING"))
@@ -1727,14 +1716,14 @@ impl ResponseMatcher {
                 let (row, end) = mode.numerics();
                 let list_reply = named
                     && matches!(numeric.code(), code if code == row || code == end)
-                    && (*mode != ListMode::Quiet || message.param(2) == Some("q"));
+                    && (*mode != ListMode::Quiet || message.param_is(2, "q"));
                 (list_reply
                     || numeric.is_error() && named
                     || Self::numeric_names_command(message, numeric, "MODE"))
                 .then_some(numeric.code() == end || numeric.is_error())
             }
             Self::ReadMarker(target) => ((message.command() == Command::Markread
-                && Self::target_is(message, 0, target, mapping))
+                && message.param_names(0, mapping, target))
                 || Self::standard_failure(message, "MARKREAD"))
             .then_some(true),
         }
@@ -8057,5 +8046,23 @@ mod tests {
                 Ok(())
             );
         }
+    }
+
+    #[test]
+    fn routing_parameters_answer_comparisons() {
+        let line = LineRef::parse(":ergo.test 734 papo 100 Alice,ferris[m] :Monitor list is full")
+            .unwrap();
+        let routing = super::IncomingLine::from(&line).routing();
+        assert!(routing.param_is(0, "papo"));
+        assert!(!routing.param_is(0, "PAPO"));
+        assert!(!routing.param_is(4, ""));
+        assert!(routing.any_param_is("100"));
+        assert!(!routing.any_param_is("10"));
+        assert!(routing.param_is_ignoring_case(0, "PAPO"));
+        assert!(!routing.param_is_ignoring_case(0, "papo-bot"));
+        assert!(!routing.param_is_ignoring_case(4, ""));
+        assert!(routing.param_names(0, Casemapping::Rfc1459, "PAPO"));
+        assert!(!routing.param_names(1, Casemapping::Rfc1459, "PAPO"));
+        assert!(!routing.param_names(4, Casemapping::Rfc1459, ""));
     }
 }

@@ -287,7 +287,7 @@ impl Session {
         let routing = incoming.routing();
         let message = &incoming.shown;
         let mapping = self.isupport.value().casemapping();
-        if self.abort_departed_join(message, mapping) {
+        if self.abort_departed_join(incoming, mapping) {
             return true;
         }
         let Some((index, complete, join_started, reached_boundary, addresses)) = self
@@ -428,17 +428,22 @@ impl Session {
         }
     }
 
-    fn abort_departed_join(&mut self, message: &LineRef<'_>, mapping: crate::Casemapping) -> bool {
+    fn abort_departed_join(
+        &mut self,
+        incoming: IncomingLine<'_>,
+        mapping: crate::Casemapping,
+    ) -> bool {
+        let routing = incoming.routing();
         let Some(index) =
             self.unlabelled_requests
                 .iter()
                 .position(|request| match request.boundary.matcher() {
                     Some(ResponseMatcher::Join(channel)) => ResponseMatcher::own_channel_departure(
-                        message,
+                        &routing,
                         channel,
                         mapping,
                         self.welcome_state.nick(),
-                        self.is_own_source(message),
+                        self.is_own_source(&incoming.shown),
                     ),
                     _ => false,
                 })

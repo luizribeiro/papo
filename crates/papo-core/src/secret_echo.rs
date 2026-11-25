@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, time::Duration};
 
-use papo_proto::{Command, Line, LineRef, Param, Secret, WireLine};
+use papo_proto::{Casemapping, Command, Line, LineRef, Param, Secret, WireLine};
 use web_time::Instant;
 
 use crate::{RequestError, Sasl, sasl::Mechanism};
@@ -390,7 +390,38 @@ impl<'a> From<&LineRef<'a>> for IncomingLine<'a> {
     }
 }
 
+/// The parameters the server sent, for papo's own decisions.
+///
+/// A parameter can be compared and parsed, never read: nothing here returns parameter text, so
+/// a credential the server repeated cannot be copied out of a decision.
 pub(super) struct RoutingLine<'a>(LineRef<'a>);
+
+impl RoutingLine<'_> {
+    pub(super) fn param_is(&self, index: usize, text: &str) -> bool {
+        self.0.param(index) == Some(text)
+    }
+
+    pub(super) fn any_param_is(&self, text: &str) -> bool {
+        self.0.params().any(|param| param == text)
+    }
+
+    pub(super) fn param_is_ignoring_case(&self, index: usize, text: &str) -> bool {
+        self.0
+            .param(index)
+            .is_some_and(|param| param.eq_ignore_ascii_case(text))
+    }
+
+    pub(super) fn param_names(
+        &self,
+        index: usize,
+        mapping: impl Into<Casemapping>,
+        name: &str,
+    ) -> bool {
+        self.0
+            .param(index)
+            .is_some_and(|param| crate::names_equal(mapping, param, name))
+    }
+}
 
 impl<'a> std::ops::Deref for RoutingLine<'a> {
     type Target = LineRef<'a>;
