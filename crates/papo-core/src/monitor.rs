@@ -403,8 +403,7 @@ impl Monitor {
         state: &crate::State,
         outbox: &mut Outbox,
     ) -> Handled {
-        let routing = incoming.routing();
-        let message = &routing;
+        let message = &incoming.shown;
 
         self.update_casemapping(isupport.casemapping());
         match message.raw_command() {
@@ -426,50 +425,40 @@ impl Monitor {
                 }
             }
             "734" => {
-                let (Some(limit), Some(entries)) = (message.param(1), message.param(2)) else {
+                let routing = incoming.routing();
+                let Some(limit) = routing.param_number(1) else {
                     return Handled::No;
                 };
-                let Ok(limit) = limit.parse() else {
-                    return Handled::No;
-                };
-                let nicks: Vec<_> = entries
+                let mapping = self.names(isupport);
+                let nicks: Vec<_> = message
+                    .param(2)
+                    .unwrap_or_default()
                     .split(',')
                     .filter(|nick| !nick.is_empty())
-                    .map(str::to_owned)
+                    .map(|nick| mapping.nick(nick))
                     .collect();
                 if nicks.is_empty() {
                     return Handled::No;
                 }
-                let mapping = self.names(isupport);
-                let reserved = self.reserved_len();
-                for nick in &nicks {
-                    let key = mapping.nick(nick);
-                    if !self.pending.remove(&key) && !self.tracked.remove(&key) {
-                        continue;
+                let refused: Vec<_> = self
+                    .pending
+                    .iter()
+                    .chain(&self.tracked)
+                    .filter(|key| routing.param_lists(2, mapping, key.as_str()))
+                    .cloned()
+                    .collect();
+                for key in &refused {
+                    if !self.pending.remove(key) {
+                        self.tracked.remove(key);
                     }
-                    self.presence.remove(&key);
-                    if let Some(index) = self
-                        .desired
-                        .iter()
-                        .position(|known| crate::names_equal(mapping, known, nick))
-                    {
-                        self.desired.remove(index);
-                    }
+                    self.presence.remove(key);
+                    self.desired
+                        .retain(|known| !crate::names_equal(mapping, known, key.as_str()));
                 }
-                if self.reserved_len() != reserved {
+                if !refused.is_empty() {
                     self.server_limit = Some(self.server_limit.map_or(limit, |old| old.min(limit)));
                 }
-                outbox.event(Event::MonitorListFull {
-                    limit,
-                    nicks: incoming
-                        .shown
-                        .param(2)
-                        .unwrap_or_default()
-                        .split(',')
-                        .filter(|nick| !nick.is_empty())
-                        .map(|nick| mapping.nick(nick))
-                        .collect(),
-                });
+                outbox.event(Event::MonitorListFull { limit, nicks });
             }
             _ => return Handled::No,
         }

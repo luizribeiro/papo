@@ -456,6 +456,21 @@ fn a_full_list_is_reported_when_a_channel_key_equals_its_limit() {
 }
 
 #[test]
+fn a_refused_watch_is_released_when_a_channel_key_equals_its_nick() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "bob"]))
+        .client("MONITOR + alice,bob")
+        .send(Line::new("JOIN").param("#staff").param(Secret::new("alice")))
+        .client("JOIN #staff alice")
+        .server(":ergo.test 734 papo 100 alice :Monitor list is full")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks, .. } if nicks == &["<redacted>"]))
+        .inspect(|session| {
+            let monitored: Vec<_> = session.state().monitored().map(Nick::as_str).collect();
+            assert_eq!(monitored, ["bob"]);
+        });
+}
+
+#[test]
 fn list_full_forgets_only_the_rejected_presence() {
     registered()
         .update(|session| session.monitor_add(["alice", "bob"]))

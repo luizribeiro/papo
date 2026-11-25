@@ -8063,6 +8063,13 @@ mod tests {
         assert!(routing.param_names(0, Casemapping::Rfc1459, "PAPO"));
         assert!(!routing.param_names(1, Casemapping::Rfc1459, "PAPO"));
         assert!(!routing.param_names(4, Casemapping::Rfc1459, ""));
+        assert!(routing.param_lists(2, Casemapping::Rfc1459, "FERRIS{M}"));
+        assert!(!routing.param_lists(2, Casemapping::Ascii, "FERRIS{M}"));
+        assert!(!routing.param_lists(2, Casemapping::Rfc1459, "Alice,ferris[m]"));
+        assert!(!routing.param_lists(4, Casemapping::Rfc1459, ""));
+        assert_eq!(routing.param_number(1), Some(100));
+        assert_eq!(routing.param_number(0), None);
+        assert_eq!(routing.param_number(4), None);
         assert!(routing.standard_reply().is_none());
     }
 

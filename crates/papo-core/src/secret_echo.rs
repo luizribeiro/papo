@@ -422,6 +422,24 @@ impl RoutingLine<'_> {
             .is_some_and(|param| crate::names_equal(mapping, param, name))
     }
 
+    /// Whether the comma-separated list at `index` has `name` as one of its entries.
+    pub(super) fn param_lists(
+        &self,
+        index: usize,
+        mapping: impl Into<Casemapping>,
+        name: &str,
+    ) -> bool {
+        let mapping = mapping.into();
+        self.0.param(index).is_some_and(|list| {
+            list.split(',')
+                .any(|listed| crate::names_equal(mapping, listed, name))
+        })
+    }
+
+    pub(super) fn param_number(&self, index: usize) -> Option<usize> {
+        self.0.param(index)?.parse().ok()
+    }
+
     pub(super) fn standard_reply(&self) -> Option<RoutingReply<'_>> {
         let reply = papo_proto::StandardReply::parse(&self.0)?;
         Some(RoutingReply {
