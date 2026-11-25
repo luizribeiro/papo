@@ -1071,12 +1071,40 @@ mod tests {
             .unwrap()
     }
 
-    #[test]
-    fn every_bounded_reply_refuses_a_truncated_answer() {
+    fn assert_bounded_reply(case: &BoundedCase) {
         let session = Session::new(Config::default().nick("papo"));
         let client = crate::driver::test_support::client_with_commands(&session).0;
-        let cases = [
-            BoundedCase {
+        assert!(
+            matches!(
+                (case.build)(bounded_reply(case, case.bound + 1), &client),
+                Err(Error::StateLimit(papo_core::StateLimit::ListEntries))
+            ),
+            "{} accepted a truncated reply",
+            case.request
+        );
+        assert!(
+            (case.build)(bounded_reply(case, case.bound), &client).is_ok(),
+            "{} refused a reply at the bound",
+            case.request
+        );
+    }
+
+    mod every_bounded_reply_refuses_a_truncated_answer {
+        use super::*;
+
+        macro_rules! bounded_replies {
+            ($($name:ident: $case:expr;)*) => {
+                $(
+                    #[test]
+                    fn $name() {
+                        assert_bounded_reply(&$case);
+                    }
+                )*
+            };
+        }
+
+        bounded_replies! {
+            who_rows: BoundedCase {
                 request: Line::new("WHO").with_params(["#lobby"]),
                 matcher: ResponseMatcher::Who("#lobby".into()),
                 labelled: false,
@@ -1087,8 +1115,8 @@ mod tests {
                 build: |response, client| {
                     who(response, &Isupport::default(), client, false).map(drop)
                 },
-            },
-            BoundedCase {
+            };
+            whox_rows: BoundedCase {
                 request: Line::new("WHO").with_params(["#lobby", WHOX_FIELDS]),
                 matcher: ResponseMatcher::Who("#lobby".into()),
                 labelled: false,
@@ -1099,8 +1127,8 @@ mod tests {
                 build: |response, client| {
                     who(response, &Isupport::default(), client, true).map(drop)
                 },
-            },
-            BoundedCase {
+            };
+            list_rows: BoundedCase {
                 request: Line::new("LIST"),
                 matcher: ResponseMatcher::List,
                 labelled: false,
@@ -1111,8 +1139,8 @@ mod tests {
                 build: |response, _| {
                     list(response, &Isupport::default(), crate::Origin::NONE).map(drop)
                 },
-            },
-            BoundedCase {
+            };
+            whois_rows: BoundedCase {
                 request: Line::new("WHOIS").with_params(["alice"]),
                 matcher: ResponseMatcher::Whois("alice".into()),
                 labelled: false,
@@ -1123,8 +1151,8 @@ mod tests {
                 build: |response, client| {
                     whois(response, "alice", &Isupport::default(), client).map(drop)
                 },
-            },
-            BoundedCase {
+            };
+            ban_list_rows: BoundedCase {
                 request: Line::new("MODE").with_params(["#papo", "b"]),
                 matcher: ResponseMatcher::__list_mode("#papo".into(), crate::ListMode::Ban),
                 labelled: false,
@@ -1133,8 +1161,8 @@ mod tests {
                 end: ":ergo.test 368 papo #papo :End of channel ban list",
                 bound: 1_000,
                 build: |response, _| list_mode(response, crate::Origin::NONE).map(drop),
-            },
-            BoundedCase {
+            };
+            labelled_who_rows: BoundedCase {
                 request: Line::new("WHO").with_params(["#lobby"]),
                 matcher: ResponseMatcher::Who("#lobby".into()),
                 labelled: true,
@@ -1145,22 +1173,7 @@ mod tests {
                 build: |response, client| {
                     who(response, &Isupport::default(), client, false).map(drop)
                 },
-            },
-        ];
-
-        for case in &cases {
-            let request = case.request.to_string();
-            assert!(
-                matches!(
-                    (case.build)(bounded_reply(case, case.bound + 1), &client),
-                    Err(Error::StateLimit(papo_core::StateLimit::ListEntries))
-                ),
-                "{request} accepted a truncated reply"
-            );
-            assert!(
-                (case.build)(bounded_reply(case, case.bound), &client).is_ok(),
-                "{request} refused a reply at the bound"
-            );
+            };
         }
     }
 
