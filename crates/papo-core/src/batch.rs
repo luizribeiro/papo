@@ -1627,6 +1627,17 @@ mod tests {
     }
 
     #[test]
+    fn retained_replies_count_both_the_reported_and_routing_parameters() {
+        let shown = LineRef::parse(":ergo.test 696 papo #staff k <redacted>").unwrap();
+        let original = LineRef::parse(":ergo.test 696 papo #staff k staff-key-4821").unwrap();
+        let incoming = super::IncomingLine::new(shown, Some(original));
+        assert_eq!(
+            super::retained_incoming(incoming),
+            retained_bytes(&shown) + retained_bytes(&original)
+        );
+    }
+
+    #[test]
     fn retained_bytes_counts_every_owned_line_component() {
         let message = LineRef::parse(
             "@time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw;+draft/read-marker \

@@ -4304,6 +4304,7 @@ impl Session {
                     &message,
                     matches!(decoded, std::borrow::Cow::Borrowed(_)),
                 );
+                let original = reply.as_ref().map(|_| message);
                 let message = reply.as_ref().map_or(message, Line::as_ref);
                 let redacted = self
                     .secret_echoes
@@ -4311,8 +4312,11 @@ impl Session {
                 let message = redacted
                     .as_ref()
                     .map_or(message, |redacted| redacted.as_ref());
-                self.observe_server_time(now, &message);
-                self.remember_ops_only(&message);
+                let incoming = IncomingLine::new(message, original);
+                let routing = incoming.routing();
+                let message = &routing;
+                self.observe_server_time(now, message);
+                self.remember_ops_only(message);
                 // A batch may hold the 001 back or never release it, while the CAP lines that
                 // could send credentials arrive untagged.
                 if message.command_is("001") {
@@ -4321,7 +4325,7 @@ impl Session {
                 if let Some(clock) = self.server_clock {
                     self.flush_pending_mark_reads(now, clock);
                 }
-                self.dispatch_incoming_batch(now, IncomingLine::from(&message));
+                self.dispatch_incoming_batch(now, incoming);
             }
             Err(_) => self.malformed(line),
         }

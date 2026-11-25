@@ -731,16 +731,81 @@ fn failure_replies_mask_whole_parameters_and_quoted_tokens() {
 }
 
 #[test]
-fn invite_errors_keep_the_channel_after_the_invited_nick() {
-    let now = Instant::now();
-    let mut session = ergo(now);
-    session.send(now, keyed_staff_join("#staff")).unwrap();
-    assert!(session.poll_transmit().is_some());
-    session.handle_line(
-        now,
-        b":ergo.test 443 papo ferris #staff :is already on channel",
-    );
-    assert_eq!(echo_line(&mut session).get(2), Some("#staff"));
+fn refused_requests_keep_only_the_matched_names() {
+    use papo_core::ResponseMatcher;
+
+    let nick = || "ferris".to_owned();
+    let channel = || "#staff".to_owned();
+    let cases = [
+        (
+            433,
+            "NICK ferris",
+            ResponseMatcher::Nick(nick()),
+            &["ferris"][..],
+        ),
+        (
+            401,
+            "WHOIS ferris",
+            ResponseMatcher::Whois(nick()),
+            &["ferris"],
+        ),
+        (
+            443,
+            "INVITE ferris #staff",
+            ResponseMatcher::__invite(channel(), nick()),
+            &["ferris", "#staff"],
+        ),
+        (
+            441,
+            "KICK #staff ferris",
+            ResponseMatcher::__kick(channel(), nick()),
+            &["ferris", "#staff"],
+        ),
+        (
+            480,
+            "JOIN #staff",
+            ResponseMatcher::Join(channel()),
+            &["#staff"],
+        ),
+    ];
+    for (numeric, sent, matcher, names) in cases {
+        let now = Instant::now();
+        let mut session = session(now, "ergo.test", "multi-prefix");
+        for key in ["papo", "ferris", "#staff"] {
+            session.send(now, keyed_staff_join(key)).unwrap();
+            assert!(session.poll_transmit().is_some());
+        }
+        let id = session
+            .request_with_matcher(now, sent.parse().unwrap(), matcher)
+            .unwrap();
+        assert_eq!(
+            &*session.poll_transmit().unwrap(),
+            format!("{sent}\r\n").as_bytes()
+        );
+        session.handle_line(
+            now,
+            format!(
+                ":ergo.test {numeric} papo {} :Request for ferris on #staff rejected by papo",
+                names.join(" ")
+            )
+            .as_bytes(),
+        );
+        let response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) if response.id == id => Some(response),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("no reply to {sent}"));
+        let expected = ["papo"]
+            .into_iter()
+            .chain(names.iter().copied())
+            .chain(["Request for <redacted> on <redacted> rejected by <redacted>"])
+            .collect::<Vec<_>>();
+        assert_eq!(
+            response.lines[0].as_ref().params().collect::<Vec<_>>(),
+            expected
+        );
+    }
 }
 
 #[test]

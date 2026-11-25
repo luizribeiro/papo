@@ -351,3 +351,28 @@ fn regain_watches_with_monitor_when_a_zero_limit_is_raised() {
     .no_client()
     .ignore_rest();
 }
+
+#[test]
+fn reclaims_the_primary_nick_even_when_it_matches_the_server_password() {
+    let mut config = Config::default()
+        .nick("papo")
+        .allow_insecure_auth(true)
+        .password(papo_core::Secret::new("papo"))
+        .alt_nicks(["papo_"]);
+    config.regain_nick = true;
+    Transcript::new(config)
+        .connect_default()
+        .server(":ergo.test CAP * LS :")
+        .client("PASS papo")
+        .client("CAP END")
+        .server(":ergo.test 433 * papo :Nickname is already in use")
+        .client("NICK papo_")
+        .welcome(":ergo.test 001 papo_ :Welcome to Ergo")
+        .server(":ergo.test 005 papo_ MONITOR=100 :are supported by this server")
+        .server(":ergo.test 422 papo_ :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .client("MONITOR + papo")
+        .server(":ergo.test 731 papo_ :papo")
+        .client("NICK papo")
+        .ignore_rest();
+}
