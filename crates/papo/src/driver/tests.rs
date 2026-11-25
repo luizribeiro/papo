@@ -10186,8 +10186,35 @@ async fn overflow_with_only_state_events_reports_no_message_gaps() {
 
 #[test]
 fn multi_thread_stress_accounts_for_every_emitted_message() {
-    for iteration in 0_u64..200 {
-        let capacity = usize::try_from(iteration % 4 + 1).unwrap();
+    stress_event_delivery(1);
+}
+
+#[test]
+fn multi_thread_stress_with_capacity_two() {
+    stress_event_delivery(2);
+}
+
+#[test]
+fn multi_thread_stress_with_capacity_three() {
+    stress_event_delivery(3);
+}
+
+#[test]
+fn multi_thread_stress_with_capacity_four() {
+    stress_event_delivery(4);
+}
+
+fn stress_event_delivery(capacity: usize) {
+    let mut lines = String::new();
+    for index in 0..64 {
+        writeln!(
+            lines,
+            "@msgid=RfcBTzyxY12{index:04} :emily!e@localhost PRIVMSG #papo :deployment update {index}\r"
+        )
+        .unwrap();
+    }
+    lines.push_str("PING :ergo.test\r\n");
+    for iteration in (u64::try_from(capacity).unwrap() - 1..200).step_by(4) {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_time()
             .build()
@@ -10228,15 +10255,6 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
         };
 
         runtime.block_on(async {
-            let mut lines = String::new();
-            for index in 0..64 {
-                writeln!(
-                    lines,
-                    "@msgid=RfcBTzyxY12{index:04} :emily!e@localhost PRIVMSG #papo :deployment update {index}\r"
-                )
-                .unwrap();
-            }
-            lines.push_str("PING :ergo.test\r\n");
             server_line(&mut server, lines.as_bytes()).await;
             client_line(&mut server, b"PONG ergo.test\r\n").await;
             within_duration(
