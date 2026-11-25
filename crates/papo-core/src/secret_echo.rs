@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, time::Duration};
 
-use papo_proto::{Casemapping, Command, Line, LineRef, Param, Secret, WireLine};
+use papo_proto::{Casemapping, Command, Line, LineRef, Param, Secret, StandardReplyKind, WireLine};
 use web_time::Instant;
 
 use crate::{RequestError, Sasl, sasl::Mechanism};
@@ -420,6 +420,29 @@ impl RoutingLine<'_> {
         self.0
             .param(index)
             .is_some_and(|param| crate::names_equal(mapping, param, name))
+    }
+
+    pub(super) fn standard_reply(&self) -> Option<RoutingReply<'_>> {
+        let reply = papo_proto::StandardReply::parse(&self.0)?;
+        Some(RoutingReply {
+            kind: reply.kind,
+            command: reply.command,
+            context: reply.context.len(),
+        })
+    }
+}
+
+/// The fields of a standard reply that decide how it is routed and classified.
+pub(super) struct RoutingReply<'a> {
+    pub(super) kind: StandardReplyKind,
+    command: &'a str,
+    /// How many context parameters sit between the code and the description.
+    pub(super) context: usize,
+}
+
+impl RoutingReply<'_> {
+    pub(super) fn command_is(&self, command: &str) -> bool {
+        self.command.eq_ignore_ascii_case(command)
     }
 }
 

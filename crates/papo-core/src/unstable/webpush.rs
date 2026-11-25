@@ -4,7 +4,7 @@ use base64::{
     Engine as _,
     engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD},
 };
-use papo_proto::{Line, LineRef, StandardReply, StandardReplyKind};
+use papo_proto::{Line, StandardReplyKind};
 use zeroize::Zeroizing;
 
 use crate::{Feature, RequestError, RequestId, ResponseBoundary, Secret, Session};
@@ -76,13 +76,12 @@ pub(crate) enum Response {
 }
 
 impl Response {
-    pub(crate) fn matches(&self, message: &LineRef<'_>) -> Option<bool> {
+    pub(crate) fn matches(&self, message: &crate::RoutingLine<'_>) -> Option<bool> {
         match self {
             Self::Register => {
                 if message.command_is("WEBPUSH") {
                     return message
-                        .param(0)
-                        .is_some_and(|value| value.eq_ignore_ascii_case("REGISTER"))
+                        .param_is_ignoring_case(0, "REGISTER")
                         .then_some(false);
                 }
                 webpush_reply(message).map(|_| false)
@@ -91,7 +90,7 @@ impl Response {
                 if message.command_is("WEBPUSH") {
                     return Some(true);
                 }
-                webpush_reply(message).map(|reply| reply.kind == StandardReplyKind::Fail)
+                webpush_reply(message).map(|kind| kind == StandardReplyKind::Fail)
             }
         }
     }
@@ -104,8 +103,11 @@ impl Response {
     }
 }
 
-fn webpush_reply<'a>(message: &'a LineRef<'_>) -> Option<StandardReply<'a>> {
-    StandardReply::parse(message).filter(|reply| reply.command.eq_ignore_ascii_case("WEBPUSH"))
+fn webpush_reply(message: &crate::RoutingLine<'_>) -> Option<StandardReplyKind> {
+    message
+        .standard_reply()
+        .filter(|reply| reply.command_is("WEBPUSH"))
+        .map(|reply| reply.kind)
 }
 
 fn validate_endpoint(endpoint: &str) -> Result<(), RequestError> {
@@ -143,7 +145,8 @@ mod tests {
         ];
         for (response, line, expected) in cases {
             let message = LineRef::parse(&line).unwrap();
-            assert_eq!(response.matches(&message), expected, "{response:?} {line}");
+            let routing = crate::IncomingLine::from(&message).routing();
+            assert_eq!(response.matches(&routing), expected, "{response:?} {line}");
         }
     }
 

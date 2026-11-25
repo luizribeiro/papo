@@ -1487,10 +1487,10 @@ impl ResponseMatcher {
         Self::ListMode { channel, mode }
     }
 
-    fn standard_failure(message: &LineRef<'_>, command: &str) -> bool {
-        StandardReplyView::parse(message).is_some_and(|reply| {
-            reply.kind == StandardReplyKind::Fail && reply.command.eq_ignore_ascii_case(command)
-        })
+    fn standard_failure(message: &RoutingLine<'_>, command: &str) -> bool {
+        message
+            .standard_reply()
+            .is_some_and(|reply| reply.kind == StandardReplyKind::Fail && reply.command_is(command))
     }
 
     fn numeric_names_command(message: &RoutingLine<'_>, numeric: Numeric, command: &str) -> bool {
@@ -1580,12 +1580,12 @@ impl ResponseMatcher {
             }
             Self::Join(channel) => {
                 let mut named = |index| address(index, channel);
-                if let Some(reply) = StandardReplyView::parse(message)
+                if let Some(reply) = message.standard_reply()
                     && reply.kind == StandardReplyKind::Fail
-                    && reply.command.eq_ignore_ascii_case("JOIN")
+                    && reply.command_is("JOIN")
                 {
-                    let first_context = message.len() - reply.context.len() - 1;
-                    let mut context_indices = (first_context..).take(reply.context.len());
+                    let first_context = message.len() - reply.context - 1;
+                    let mut context_indices = (first_context..).take(reply.context);
                     return context_indices.any(named).then_some(true);
                 }
                 if own_echo(Command::Join) && named(0) {
@@ -8064,5 +8064,19 @@ mod tests {
         assert!(routing.param_names(0, Casemapping::Rfc1459, "PAPO"));
         assert!(!routing.param_names(1, Casemapping::Rfc1459, "PAPO"));
         assert!(!routing.param_names(4, Casemapping::Rfc1459, ""));
+        assert!(routing.standard_reply().is_none());
+    }
+
+    #[test]
+    fn routing_standard_replies_answer_for_their_command_and_code() {
+        let line =
+            LineRef::parse(":ergo.test FAIL REGISTER ACCOUNT_EXISTS alice :Account already exists")
+                .unwrap();
+        let routing = super::IncomingLine::from(&line).routing();
+        let reply = routing.standard_reply().unwrap();
+        assert_eq!(reply.kind, papo_proto::StandardReplyKind::Fail);
+        assert!(reply.command_is("register"));
+        assert!(!reply.command_is("VERIFY"));
+        assert_eq!(reply.context, 1);
     }
 }
