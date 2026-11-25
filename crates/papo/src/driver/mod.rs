@@ -47,6 +47,7 @@ use crate::{
     Error, Event, InvalidInput, Reconnect,
     address::ServerAddress,
     client::{Client, ConnectionCheckReply, ConnectionChecks, SendOutcome},
+    event::AutoJoinError,
     event_impl as event,
     rt::{BoxFuture, Io},
     state::State,
@@ -1792,15 +1793,12 @@ where
                     let id = response.id;
                     if let PendingRequest::AutoJoin { channel } = result {
                         if let Some(error) = response.error() {
-                            let event = Event::AutoJoinFailed(crate::event::AutoJoinFailed {
-                                channel: crate::ChannelRef::from_parts(
-                                    channel,
-                                    None,
-                                    Some(&events.state),
-                                ),
-                                error: crate::ServerError::from_core(error),
-                            });
-                            enqueue_event(events, pending_events, event);
+                            let error = AutoJoinError::Server(crate::ServerError::from_core(error));
+                            enqueue_event(
+                                events,
+                                pending_events,
+                                auto_join_failed(events, channel, error),
+                            );
                         }
                     } else if let Some(result) = result.respond(response, resolved_sent) {
                         requests.insert(id, result);
@@ -1863,6 +1861,17 @@ fn end_request(
     {
         request.fail(error);
     }
+}
+
+fn auto_join_failed(
+    events: &EventSink,
+    channel: crate::ChannelName,
+    error: AutoJoinError,
+) -> Event {
+    Event::AutoJoinFailed(crate::event::AutoJoinFailed {
+        channel: crate::ChannelRef::from_parts(channel, None, Some(&events.state)),
+        error,
+    })
 }
 
 fn request_end_error(end: event::RequestEnd) -> Option<Error> {

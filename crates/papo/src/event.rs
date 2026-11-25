@@ -59,7 +59,7 @@ pub(crate) use restricted::separate as separate_restricted;
 pub use restricted::{Restricted, RestrictedLine};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;
-pub use server::{AutoJoinFailed, MetadataChanged, Warning};
+pub use server::{AutoJoinError, AutoJoinFailed, MetadataChanged, Warning};
 pub use tags::{Tags, TagsIter};
 pub use user::{
     AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, NickChanged, Quit,
@@ -1821,7 +1821,7 @@ pub enum Event {
     FeaturesChanged(FeaturesChanged),
     /// The connection established or changed its known name rules.
     CasemappingChanged(CasemappingChanged),
-    /// A channel join configured or remembered by papo was refused.
+    /// A channel join configured or remembered by papo failed.
     AutoJoinFailed(AutoJoinFailed),
     /// A user joined a channel shared with the client.
     Joined(Joined),

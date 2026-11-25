@@ -104,6 +104,23 @@ impl core::marker::Unpin for papo::event::AccountOutcome
 impl core::marker::UnsafeUnpin for papo::event::AccountOutcome
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountOutcome
+#[non_exhaustive] pub enum papo::event::AutoJoinError
+pub papo::event::AutoJoinError::Server(papo::ServerError)
+impl core::clone::Clone for papo::event::AutoJoinError
+pub fn papo::event::AutoJoinError::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::AutoJoinError
+impl core::cmp::PartialEq for papo::event::AutoJoinError
+pub fn papo::event::AutoJoinError::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::AutoJoinError
+pub fn papo::event::AutoJoinError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::AutoJoinError
+impl core::marker::Freeze for papo::event::AutoJoinError
+impl core::marker::Send for papo::event::AutoJoinError
+impl core::marker::Sync for papo::event::AutoJoinError
+impl core::marker::Unpin for papo::event::AutoJoinError
+impl core::marker::UnsafeUnpin for papo::event::AutoJoinError
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AutoJoinError
+impl core::panic::unwind_safe::UnwindSafe for papo::event::AutoJoinError
 #[non_exhaustive] pub enum papo::event::Broadcast
 pub papo::event::Broadcast::Everyone
 pub papo::event::Broadcast::Mask(papo::Mask)
@@ -350,7 +367,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 #[non_exhaustive] pub struct papo::event::AutoJoinFailed
 pub papo::event::AutoJoinFailed::channel: papo::ChannelRef
-pub papo::event::AutoJoinFailed::error: papo::ServerError
+pub papo::event::AutoJoinFailed::error: papo::event::AutoJoinError
 impl core::clone::Clone for papo::event::AutoJoinFailed
 pub fn papo::event::AutoJoinFailed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AutoJoinFailed

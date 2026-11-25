@@ -27,15 +27,23 @@ pub struct MetadataChanged {
     pub value: Option<MetadataValue>,
 }
 
-/// A channel join configured or remembered by papo was refused.
+/// A channel join configured or remembered by papo failed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct AutoJoinFailed {
     /// The channel papo tried to join. See [`crate::Conversation`] for status-prefixed line
     /// guidance.
     pub channel: crate::ChannelRef,
-    /// The server's typed refusal.
-    pub error: crate::ServerError,
+    /// Why the channel was not joined.
+    pub error: AutoJoinError,
+}
+
+/// Why a channel join configured or remembered by papo failed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum AutoJoinError {
+    /// The server refused the join.
+    Server(crate::ServerError),
 }
 
 /// A recoverable protocol or configuration warning.

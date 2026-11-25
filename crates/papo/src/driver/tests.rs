@@ -1919,7 +1919,10 @@ async fn reconnects_and_forgets_a_refused_rejoin_key(key: &str, refusal: &str) {
     let failed = failed.as_auto_join_failed().unwrap();
     assert_eq!(failed.channel.name(), "#papo");
     assert_eq!(failed.channel.origin(), client.origin());
-    assert_eq!(failed.error.refusal(), crate::Refusal::BadChannelKey);
+    assert!(
+        matches!(&failed.error, crate::event::AutoJoinError::Server(error)
+        if error.refusal() == crate::Refusal::BadChannelKey)
+    );
     within(second_server.shutdown()).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
@@ -4597,7 +4600,8 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         next_event(&mut events).await,
         Some(Event::AutoJoinFailed(failed))
             if failed.channel.name() == "#PAPO"
-                && failed.error.refusal() == crate::Refusal::InviteOnlyChannel
+                && matches!(&failed.error, crate::event::AutoJoinError::Server(error)
+                    if error.refusal() == crate::Refusal::InviteOnlyChannel)
     ));
     server_line(
         &mut server,
