@@ -76,7 +76,6 @@ impl Session {
         let routing = incoming.routing();
         let mut addresses = Vec::new();
         if let Some(matcher) = &request.matcher
-            && routing.is_failure()
             && matcher
                 .matches(
                     &routing,

@@ -417,10 +417,6 @@ impl<'a> RoutingLine<'a> {
         self.0.len()
     }
 
-    pub(super) fn is_failure(&self) -> bool {
-        crate::is_failure(&self.0)
-    }
-
     pub(super) fn param_is(&self, index: usize, text: &str) -> bool {
         self.0.param(index) == Some(text)
     }

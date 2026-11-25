@@ -1529,7 +1529,7 @@ impl ResponseMatcher {
         let own_echo = |command| own_source && message.command() == command;
         let mut address = |index, name: &'m str| {
             let matches = message.param_names(index, mapping, name);
-            if matches && message.is_failure() && index + 1 < message.len() {
+            if matches && index + 1 < message.len() {
                 addresses.push((index, name));
             }
             matches
