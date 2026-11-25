@@ -1697,10 +1697,7 @@ async fn rejected_channel_key_stays_redacted(s: Scenario) -> papo_testing::Resul
     };
     if ergo {
         assert_eq!(error.numeric(), Some(696));
-        assert!(
-            error.description() == "<redacted>",
-            "expected a redacted description"
-        );
+        assert_eq!(error.description(), "Invalid mode k parameter: <redacted>");
         assert!(log.contains(" 696 "));
     }
     assert!(!error.params().iter().any(|param| param.contains(key)));

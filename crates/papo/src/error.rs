@@ -208,7 +208,7 @@ impl ServerError {
 
     /// Returns the server's human-readable description.
     ///
-    /// A description repeating a credential sent by the client appears as `<redacted>`.
+    /// A credential repeated in the description appears as `<redacted>`.
     #[must_use]
     pub fn description(&self) -> &str {
         &self.description
@@ -216,7 +216,7 @@ impl ServerError {
 
     /// Returns additional server-supplied parameters in wire order.
     ///
-    /// Parameters repeating a credential sent by the client appear as `<redacted>`.
+    /// A credential repeated in a parameter appears as `<redacted>`.
     #[must_use]
     pub fn params(&self) -> &[String] {
         &self.params
