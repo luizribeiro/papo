@@ -472,6 +472,72 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     process_owned::bouncer_networks(s).await
 }
 
+/// registers with the connection password and rejects an incorrect one
+#[scenario(covers = ["base.connreg.pass"])]
+async fn server_password(s: Scenario) -> papo_testing::Result<()> {
+    if let Some(bouncer) = s.server.bouncer() {
+        let endpoint = format!("ircs://localhost:{}", s.server.tls_addr().port());
+        let ca = fs::read(s.server.ca_pem_path())?;
+        return check_server_password(&s, bouncer.password(), || {
+            papo::Client::builder(endpoint.as_str(), papo_test_server::unique("pass"))
+                .username(format!("{}/ergo", bouncer.username()))
+                .tls_only_ca_pem(ca.clone())
+        })
+        .await;
+    }
+    process_owned::server_password(s).await
+}
+
+async fn check_server_password(
+    s: &Scenario,
+    password: &str,
+    builder: impl Fn() -> papo::Builder,
+) -> papo_testing::Result<()> {
+    let registered = s
+        .connect_with(builder().password(papo::Secret::new(password)))
+        .await?;
+    registered.quit().await?;
+    let log = s.rendered_wire_log();
+    let mut sent = log
+        .lines()
+        .filter_map(|line| line.split_once(" -> ").map(|(_, command)| command));
+    assert_eq!(sent.next(), Some("CAP LS 302"));
+    assert_eq!(sent.next(), Some("PASS <redacted>"));
+    assert!(sent.next().is_some_and(|line| line.starts_with("NICK ")));
+    assert!(sent.next().is_some_and(|line| line.starts_with("USER ")));
+
+    let Err(error) = s
+        .connect_with(builder().password(papo::Secret::new("incorrect-connection-password")))
+        .await
+    else {
+        panic!("the server accepted the wrong connection password");
+    };
+    let log = s.rendered_wire_log();
+    if papo_test_server::DeploymentProfile::from_env()?
+        == papo_test_server::DeploymentProfile::UnrealIrcd
+    {
+        // UnrealIRCd reports this allow-block refusal as ERROR.
+        assert!(
+            log.lines()
+                .any(|line| line.contains(" <- ERROR :Closing Link:")
+                    && line.ends_with("(You are not authorized to connect to this server)"))
+        );
+    } else {
+        assert!(
+            matches!(
+                error.downcast_ref::<papo::Error>(),
+                Some(papo::Error::Connect(error)) if error.kind() == ConnectErrorKind::PasswordIncorrect
+            ),
+            "{error:?}"
+        );
+        assert!(
+            log.lines()
+                .any(|line| line.contains(" <- ") && line.contains(" 464 "))
+        );
+    }
+    Ok(())
+}
+
 /// registers through a trusted WEBIRC gateway identity
 #[scenario(covers = ["core.webirc.gateway"])]
 async fn webirc(s: Scenario) -> papo_testing::Result<()> {

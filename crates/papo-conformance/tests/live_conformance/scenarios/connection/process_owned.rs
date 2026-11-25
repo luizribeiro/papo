@@ -256,6 +256,48 @@ fn take_u16(input: &mut &[u8]) -> io::Result<u16> {
     Ok(u16::from_be_bytes([value[0], value[1]]))
 }
 
+pub(super) async fn server_password(s: Scenario) -> papo_testing::Result<()> {
+    use papo_test_server::{
+        DeploymentProfile, InspIrcdServer, SolanumServer, TestServer, UnrealIrcdServer,
+    };
+
+    let profile = DeploymentProfile::from_env()?;
+    match profile {
+        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent => {
+            let server =
+                TestServer::start_with_password(profile == DeploymentProfile::ErgoPersistent)?;
+            check_password_fixture(&s, server.tls_addr(), server.ca_pem_path()).await
+        }
+        DeploymentProfile::InspIrcd => {
+            let server = InspIrcdServer::start_with_password()?;
+            check_password_fixture(&s, server.endpoints()[1], server.ca_pem_path()).await
+        }
+        DeploymentProfile::Solanum => {
+            let server = SolanumServer::start_with_password()?;
+            check_password_fixture(&s, server.endpoints()[1], server.ca_pem_path()).await
+        }
+        DeploymentProfile::UnrealIrcd => {
+            let server = UnrealIrcdServer::start_with_password()?;
+            check_password_fixture(&s, server.endpoints()[1], server.ca_pem_path()).await
+        }
+        DeploymentProfile::SojuErgo => s.skip("the runner supplied no bouncer metadata"),
+    }
+}
+
+async fn check_password_fixture(
+    s: &Scenario,
+    address: std::net::SocketAddr,
+    ca: std::path::PathBuf,
+) -> papo_testing::Result<()> {
+    let endpoint = format!("ircs://localhost:{}", address.port());
+    let ca = fs::read(ca)?;
+    super::check_server_password(s, papo_test_server::CONNECTION_PASSWORD, || {
+        Client::builder(endpoint.as_str(), papo_test_server::unique("pass"))
+            .tls_only_ca_pem(ca.clone())
+    })
+    .await
+}
+
 pub(super) async fn server_password_waits_for_live_sts(_s: Scenario) -> papo_testing::Result<()> {
     let server = papo_test_server::TestServer::start_with_sts_and_hostname_lookup()?;
     let proxy = server.hostname_notice_proxy()?;
