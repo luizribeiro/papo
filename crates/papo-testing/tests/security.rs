@@ -2271,6 +2271,38 @@ async fn credential_request_refusals_are_redacted() {
 }
 
 #[tokio::test]
+async fn a_credential_named_by_a_time_tagged_error_stays_out_of_the_snapshot() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    let key = "staff-key-4821";
+    let joiner = client.clone();
+    let join = tokio::spawn(async move { joiner.join("#staff").key(papo::Secret::new(key)).await });
+    assert_eq!(wire.next_sent().await, format!("JOIN #staff {key}"));
+    wire.server(":offline.test 475 papo-wire #staff :Cannot join channel (+k)")
+        .await;
+    join.await.unwrap().unwrap_err();
+    wire.server(format!("@time=2026-11-24T10:02:11.482Z ERROR {key}"))
+        .await;
+    let mut shown = Vec::new();
+    while let Some((event, _)) = events.next().await {
+        shown.push(format!("{event:?}"));
+        if let papo::Event::Disconnected(disconnected) = event {
+            shown.push(disconnected.to_string());
+            break;
+        }
+    }
+    let shown = shown.concat();
+    assert!(shown.contains("<redacted>"), "events: {shown}");
+    assert!(!shown.contains(key), "events: {shown}");
+    assert!(!format!("{:?}", client.snapshot()).contains(key));
+}
+
+#[tokio::test]
 async fn login_credential_refusals_are_redacted() {
     let builder = || papo::Client::builder("irc://offline.test", "papo-wire");
     let key = "test-credential-login-4821";

@@ -221,6 +221,9 @@
 "security::a_sasl_password_equal_to_the_nick_keeps_the_account_and_member_list" = [
   "security.hostile-n1.reply-scope",
 ]
+"security::a_credential_named_by_a_time_tagged_error_stays_out_of_the_snapshot" = [
+  "security.hostile-n1.reply-state",
+]
 "security::malformed_mode_does_not_expose_a_channel_key" = [
   "security.hostile-1.malformed-mode",
 ]
