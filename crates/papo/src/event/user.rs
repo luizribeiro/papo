@@ -31,7 +31,7 @@ pub struct Quit {
     pub netsplit: Option<SplitServers>,
 }
 
-super::actor_account_accessor!(Quit => actor_is_bot);
+super::actor_account_accessor!(Quit);
 
 /// A user changed nickname.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -58,7 +58,7 @@ pub struct NickChanged {
     pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(NickChanged => actor_is_bot);
+super::actor_account_accessor!(NickChanged);
 
 /// A user's away state was reported.
 ///
@@ -86,7 +86,7 @@ pub struct AwayChanged {
     pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(AwayChanged => actor_is_bot);
+super::actor_account_accessor!(AwayChanged);
 
 /// A user's account state changed.
 ///
@@ -113,7 +113,7 @@ pub struct AccountChanged {
     pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(AccountChanged => actor_is_bot);
+super::actor_account_accessor!(AccountChanged);
 
 /// A user's username or hostname changed.
 ///
@@ -138,7 +138,7 @@ pub struct HostChanged {
     pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(HostChanged => actor_is_bot);
+super::actor_account_accessor!(HostChanged);
 
 /// A user's real name changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -158,7 +158,7 @@ pub struct RealnameChanged {
     pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(RealnameChanged => actor_is_bot);
+super::actor_account_accessor!(RealnameChanged);
 
 /// A monitored nickname came online.
 #[derive(Clone, Debug, Eq, PartialEq)]

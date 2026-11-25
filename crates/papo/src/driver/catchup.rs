@@ -303,6 +303,7 @@ mod tests {
         );
         crate::Event::Reacted(crate::event::Reacted {
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: Some(msgid.into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,

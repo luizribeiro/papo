@@ -67,7 +67,7 @@ pub use user::{
 };
 
 macro_rules! actor_account_accessor {
-    ($($ty:ty $(=> $bot:ident)?),+ $(,)?) => {$(
+    ($($ty:ty),+ $(,)?) => {$(
         impl $ty {
             /// Returns the actor's account as reported for this line.
             ///
@@ -77,13 +77,11 @@ macro_rules! actor_account_accessor {
                 &self.actor_account
             }
 
-            $(
-                /// Returns the per-line bot evidence. See [`crate::event::Message::actor_is_bot`].
-                #[must_use]
-                pub const fn actor_is_bot(&self) -> Option<bool> {
-                    self.$bot
-                }
-            )?
+            /// Returns the per-line bot evidence. See [`crate::event::Message::actor_is_bot`].
+            #[must_use]
+            pub const fn actor_is_bot(&self) -> Option<bool> {
+                self.actor_is_bot
+            }
         }
     )+};
 }
@@ -132,6 +130,7 @@ pub struct CtcpQuery {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The IRC conversation to which the CTCP message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -166,6 +165,7 @@ pub struct CtcpReply {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The IRC conversation to which the CTCP reply belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -588,6 +588,7 @@ fn ctcp_from_line(
     if reply {
         Ok(Event::CtcpReply(CtcpReply {
             actor_account: metadata.actor_account,
+            actor_is_bot: metadata.actor_is_bot,
             actor,
             actor_party: metadata.actor_party,
             conversation: metadata.conversation,
@@ -603,6 +604,7 @@ fn ctcp_from_line(
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
             actor_account: metadata.actor_account,
+            actor_is_bot: metadata.actor_is_bot,
             actor,
             actor_party: metadata.actor_party,
             conversation: metadata.conversation,
@@ -672,6 +674,7 @@ fn broadcast_from_line(
     let tags = Tags::from_message(&message);
     if message.command_is("TAGMSG") {
         return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
+            actor_is_bot: envelope.bot,
             actor_account: line_actor_account(
                 &message,
                 &envelope,
@@ -690,6 +693,7 @@ fn broadcast_from_line(
         return Err(raw);
     };
     Ok(Event::BroadcastCtcp(BroadcastCtcp {
+        actor_is_bot: envelope.bot,
         actor_account: line_actor_account(&message, &envelope, actor_party, account_tag_enabled),
         actor,
         actor_party,
@@ -2370,14 +2374,14 @@ pub(crate) fn from_core_with_receipt(
             peer_token = Some(change_peer);
             let return_address = change.return_address();
             let reply_token = private_reply_token(&change.conversation, change_peer);
-            let conversation = conversation_handle(change.conversation, change_peer);
             let envelope = EventEnvelope {
-                bot: None,
+                bot: change.__line_envelope().bot().then_some(true),
                 msgid: None,
                 server_time: change.server_time,
                 received_at,
                 account: AccountStatus::Unknown,
             };
+            let conversation = conversation_handle(change.conversation, change_peer);
             let Some(actor) = handle_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
@@ -2390,6 +2394,7 @@ pub(crate) fn from_core_with_receipt(
             );
             Event::TypingChanged(TypingChanged {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 server_time: change.server_time,
                 received_at,
                 actor,
@@ -2422,6 +2427,7 @@ pub(crate) fn from_core_with_receipt(
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             let tag = TagMsg {
                 actor_account: actor_account(&message.envelope, message.actor_party),
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2448,6 +2454,7 @@ pub(crate) fn from_core_with_receipt(
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
                     actor_account: tag.actor_account,
+                    actor_is_bot: tag.actor_is_bot,
                     msgid: tag.msgid,
                     server_time: tag.server_time,
                     received_at: tag.received_at,
@@ -2474,6 +2481,7 @@ pub(crate) fn from_core_with_receipt(
                 receipt.set_reference([], None);
                 Event::TypingChanged(TypingChanged {
                     actor_account: tag.actor_account,
+                    actor_is_bot: tag.actor_is_bot,
                     server_time: tag.server_time,
                     received_at: tag.received_at,
                     actor: tag.actor,
@@ -2508,6 +2516,7 @@ pub(crate) fn from_core_with_receipt(
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             Event::Redacted(Redacted {
                 actor_account: actor_account(&redacted.envelope, redacted.actor_party),
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3278,6 +3287,7 @@ mod tests {
         ] {
             let event = BroadcastTagMsg {
                 actor_account: AccountStatus::Unknown,
+                actor_is_bot: None,
                 actor: actor.clone(),
                 actor_party: Party::Other,
                 to,
@@ -3289,6 +3299,7 @@ mod tests {
         }
         let ctcp = BroadcastCtcp {
             actor_account: AccountStatus::Unknown,
+            actor_is_bot: None,
             actor,
             actor_party: Party::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
@@ -4134,7 +4145,14 @@ mod tests {
     fn event_lines_report_the_server_bot_tag() {
         let now = Instant::now();
         let mut checked = 0;
-        for (kind, _, line) in MESSAGE_EVENT_METADATA_CASES {
+        let cases = MESSAGE_EVENT_METADATA_CASES
+            .into_iter()
+            .map(|(kind, _, line)| (kind, line))
+            .chain([(
+                "TypingChanged",
+                "@+typing=active :emily!~emily@cloak.example TAGMSG #papo",
+            )]);
+        for (kind, line) in cases {
             for (tag, expected) in [
                 ("", None),
                 ("+bot;", None),
@@ -4156,6 +4174,14 @@ mod tests {
                     ("ChannelRenamed", Event::ChannelRenamed(event)) => event.actor_is_bot(),
                     ("ModeChanged", Event::ModeChanged(event)) => event.actor_is_bot(),
                     ("TopicChanged", Event::TopicChanged(event)) => event.actor_is_bot(),
+                    ("CtcpQuery", Event::CtcpQuery(event)) => event.actor_is_bot(),
+                    ("CtcpReply", Event::CtcpReply(event)) => event.actor_is_bot(),
+                    ("BroadcastCtcp", Event::BroadcastCtcp(event)) => event.actor_is_bot(),
+                    ("BroadcastTagMsg", Event::BroadcastTagMsg(event)) => event.actor_is_bot(),
+                    ("TagMsg", Event::TagMsg(event)) => event.actor_is_bot(),
+                    ("Reacted", Event::Reacted(event)) => event.actor_is_bot(),
+                    ("Redacted", Event::Redacted(event)) => event.actor_is_bot(),
+                    ("TypingChanged", Event::TypingChanged(event)) => event.actor_is_bot(),
                     _ => continue,
                 };
                 assert_eq!(actual, expected, "{line}");
@@ -4168,7 +4194,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(checked, 13 * 4);
+        assert_eq!(checked, 21 * 4);
     }
 
     #[test]
@@ -4208,18 +4234,21 @@ mod tests {
     fn typing_accounts_follow_the_typer_line_that_caused_the_change() {
         let now = Instant::now();
         let alice = AccountStatus::LoggedIn(Casemapping::default().account("alice"));
-        for (line, expected) in [
+        for (line, expected, bot) in [
             (
-                ":alice!~a@cloak.example PRIVMSG #review :release ready",
+                "@bot :alice!~a@cloak.example PRIVMSG #review :release ready",
                 &AccountStatus::Unknown,
+                Some(true),
             ),
             (
                 "@account=alice :alice!~a@cloak.example PART #review :Lunch",
                 &alice,
+                None,
             ),
             (
-                "@account=moderator :chanop!~op@staff.example KICK #review alice :Flooding",
+                "@account=moderator;bot :chanop!~op@staff.example KICK #review alice :Flooding",
                 &AccountStatus::Unknown,
+                None,
             ),
         ] {
             let mut session = Session::new(Config::default().nick("papo"));
@@ -4243,6 +4272,7 @@ mod tests {
                 .unwrap_or_else(|| panic!("expected typing to stop on {line}"));
             assert_eq!(done.state, Typing::Done);
             assert_eq!(done.actor_account(), expected);
+            assert_eq!(done.actor_is_bot(), bot);
         }
     }
 
@@ -5770,7 +5800,10 @@ mod tests {
         assert_eq!(typing("composing"), None);
 
         let tag = papo_core::TagMessage {
-            envelope: papo_core::LineEnvelope::default(),
+            envelope: papo_core::LineEnvelope::__from_line_with_account(
+                &LineRef::parse("@bot;+typing=active :alice!~a@cloak TAGMSG @#ops").unwrap(),
+                Casemapping::default(),
+            ),
             actor: "alice!~a@cloak".into(),
             actor_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
             peer_token: papo_core::ReplyToken::__unknown(crate::Origin::NONE),
@@ -5781,7 +5814,7 @@ mod tests {
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(
-            matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::TypingChanged(typing) if typing.state == Typing::Active)
+            matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::TypingChanged(typing) if typing.state == Typing::Active && typing.actor_is_bot() == Some(true))
         );
 
         let tag = papo_core::TagMessage {
@@ -5796,7 +5829,7 @@ mod tests {
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(matches!(forwarded(papo_core::Event::TagMessage(tag)),
-            Event::TypingChanged(typing) if typing.actor_party == Party::Me));
+            Event::TypingChanged(typing) if typing.actor_party == Party::Me && typing.actor_is_bot().is_none()));
     }
 
     #[test]

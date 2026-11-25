@@ -360,6 +360,7 @@ fn historical_tagmsg(
     receipt.set_reference(envelope.msgid.iter().cloned(), None);
     Some(Event::TagMsg(TagMsg {
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -455,6 +456,7 @@ fn reaction(
     );
     Some(Event::Reacted(Reacted {
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -517,6 +519,7 @@ fn redaction(
     );
     Some(Event::Redacted(Redacted {
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -2165,6 +2168,39 @@ mod tests {
         for target in ["#Papo[dev]", "Emily_"] {
             assert_eq!(client.history(target).target.unwrap(), target);
         }
+    }
+
+    #[test]
+    fn typed_history_rows_report_their_own_bot_tag() {
+        let client = crate::Client::disconnected_for_test();
+        macro_rules! check_rows {
+            ($($kind:ident => $line:literal),+ $(,)?) => {$(
+                for expected in [None, Some(true)] {
+                    let mut item = core_item($line);
+                    if expected.is_some() {
+                        item.line = item.line.with_tag("bot", "");
+                    }
+                    let item = papo_core::HistoryItem::$kind(item);
+                    let event = history_item(item, None, &client, UNIX_EPOCH);
+                    let PageEvent::$kind(event) = event else {
+                        panic!("expected a typed row for {}, got {event:?}", $line);
+                    };
+                    assert_eq!(event.actor_is_bot(), expected, "{}", $line);
+                }
+            )+};
+        }
+        check_rows!(
+            Joined => ":relay!~relay@services.example JOIN #papo relay :Release Relay",
+            Parted => ":relay!~relay@services.example PART #papo :Maintenance",
+            Quit => ":relay!~relay@services.example QUIT :Connection reset by peer",
+            Kicked => ":chanop!~op@staff.example KICK #papo relay :Flooding",
+            NickChanged => ":relay!~relay@services.example NICK relay-away",
+            TopicChanged => ":relay!~relay@services.example TOPIC #papo :Release schedule",
+            ModeChanged => ":chanop!~op@staff.example MODE #papo +o relay",
+            Redacted => ":relay!~relay@services.example REDACT #papo RfcBTzyxY120004 :Duplicate",
+            TagMsg => ":relay!~relay@services.example TAGMSG #papo",
+            Reacted => "@+draft/react=👍;+reply=RfcBTzyxY120004 :relay!~relay@services.example TAGMSG #papo",
+        );
     }
 
     #[test]

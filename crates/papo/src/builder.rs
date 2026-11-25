@@ -950,6 +950,7 @@ mod tests {
         );
         let tag = crate::event::TagMsg {
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,

@@ -150,7 +150,7 @@ pub struct TopicChanged {
     pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(TopicChanged => actor_is_bot);
+super::actor_account_accessor!(TopicChanged);
 
 /// A user or channel mode changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -176,7 +176,7 @@ pub struct ModeChanged {
     pub(crate) own_nick: Option<Nick>,
 }
 
-super::actor_account_accessor!(ModeChanged => actor_is_bot);
+super::actor_account_accessor!(ModeChanged);
 
 impl ModeChanged {
     /// Returns who the user a mode change is about is relative to you.
@@ -225,6 +225,6 @@ pub struct ChannelRenamed {
     pub reason: Option<String>,
 }
 
-super::actor_account_accessor!(ChannelRenamed => actor_is_bot);
+super::actor_account_accessor!(ChannelRenamed);
 
-super::actor_account_accessor!(Joined => actor_is_bot, Parted => actor_is_bot, Kicked => actor_is_bot, Invited => actor_is_bot);
+super::actor_account_accessor!(Joined, Parted, Kicked, Invited);
