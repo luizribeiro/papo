@@ -4,18 +4,29 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Sasl, Session, cap};
+use papo_core::{
+    BatchAbandonReason, CloseKind, Config, Event, Sasl, Secret, Session, cap,
+    sts::ConnectionSecurity,
+};
 use papo_proto::{BuildError, Isupport};
 use support::Transcript;
 
 #[test]
 fn registration_starts_only_at_numeric_welcome() {
-    let config = Config::default().sasl(Sasl::plain(
-        "alice",
-        papo_core::Secret::new("correct horse battery staple"),
-    ));
+    let config = Config::default()
+        .connection_security(ConnectionSecurity::Secure)
+        .password(Secret::new("ergo-connection-password"))
+        .sasl(Sasl::plain(
+            "alice",
+            Secret::new("correct horse battery staple"),
+        ));
     Transcript::new(config)
-        .connect_default()
+        .connect()
+        .client("CAP LS 302")
+        .client("PASS ergo-connection-password")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .no_client()
         .inspect(|session| assert!(!session.__is_registered()))
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -31,34 +42,90 @@ fn registration_starts_only_at_numeric_welcome() {
 }
 
 #[test]
-fn sends_password_after_capability_discovery() {
+fn sends_password_before_identity_with_capability_negotiation() {
     let config = Config::default()
         .nick("emily")
         .username("em")
         .realname("Emily Example")
+        .connection_security(ConnectionSecurity::Secure)
         .password(papo_core::Secret::new("correct horse battery staple"));
     Transcript::new(config)
         .connect()
         .client("CAP LS 302")
+        .client("PASS :correct horse battery staple")
         .client("NICK emily")
         .client("USER em 0 * :Emily Example")
         .no_client()
-        .server("CAP * LS :")
-        .client("PASS :correct horse battery staple")
-        .client("CAP END");
+        .server(":ergo.test CAP * LS :server-time")
+        .client("CAP REQ :server-time")
+        .server(":ergo.test CAP emily ACK :server-time")
+        .client("CAP END")
+        .no_client();
 }
 
 #[test]
-fn sends_no_password_on_a_capability_listing_after_the_welcome() {
-    let config = Config::default()
-        .connection_security(papo_core::sts::ConnectionSecurity::Secure)
-        .password(papo_core::Secret::new("correct horse battery staple"));
-    Transcript::new(config)
-        .connect_default()
-        .welcome(":bouncer.papo.test 001 papo :Welcome to soju, papo")
-        .server(":bouncer.papo.test CAP * LS :sasl=PLAIN")
-        .client("CAP END")
-        .no_client();
+fn sends_password_before_identity_without_capability_negotiation_on_every_connection() {
+    for configure_sasl in [false, true] {
+        let mut config = Config::default()
+            .connection_security(ConnectionSecurity::Secure)
+            .password(Secret::new("legacy-connection-password"));
+        if configure_sasl {
+            config = config.sasl(Sasl::plain("alice", Secret::new("account-password")).optional());
+        }
+        let burst = |transcript: Transcript| {
+            transcript
+                .connect()
+                .client("CAP LS 302")
+                .client("PASS legacy-connection-password")
+                .client("NICK papo")
+                .client("USER papo 0 * papo")
+                .no_client()
+        };
+        let transcript = burst(Transcript::new(config))
+            .welcome(":legacy.example 001 papo :Welcome to the network")
+            .server(":legacy.example 422 papo :MOTD File is missing")
+            .event(|event| matches!(event, Event::Connected(_)))
+            .no_client()
+            .disconnect();
+        burst(transcript);
+    }
+}
+
+#[test]
+fn discards_a_queued_password_if_the_welcome_arrives_first() {
+    Transcript::new(
+        Config::default()
+            .connection_security(ConnectionSecurity::Secure)
+            .password(Secret::new("bouncer-connection-password")),
+    )
+    .connect()
+    .client("CAP LS 302")
+    .welcome(":bouncer.papo.test 001 papo :Welcome to soju, papo")
+    .client("NICK papo")
+    .client("USER papo 0 * papo")
+    .server(":bouncer.papo.test CAP * LS :sasl=PLAIN")
+    .client("CAP END")
+    .no_client();
+}
+
+#[test]
+fn masks_a_password_echo_in_numeric_464() {
+    Transcript::new(
+        Config::default()
+            .connection_security(ConnectionSecurity::Secure)
+            .password(Secret::new("invalid-connection-password")),
+    )
+    .connect()
+    .client("CAP LS 302")
+    .client("PASS invalid-connection-password")
+    .client("NICK papo")
+    .client("USER papo 0 * papo")
+    .server(":ergo.test 464 * :Password incorrect: invalid-connection-password")
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::PasswordIncorrect, reason, .. }
+            if reason.contains("<redacted>") && !reason.contains("invalid-connection-password"))
+    })
+    .no_client();
 }
 
 #[test]

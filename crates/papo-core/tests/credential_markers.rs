@@ -43,8 +43,7 @@ fn every_credential_command_marks_its_secret_parameter() {
 
     let mut pass = secure(Config::default().password(papo_core::Secret::new("server-password")));
     pass.handle_connected(now);
-    drain(&mut pass);
-    pass.handle_line(now, b":ergo.test CAP papo LS :");
+    assert_eq!(pass.poll_transmit().unwrap().as_ref(), b"CAP LS 302\r\n");
     lines.push(marked("PASS", pass.poll_transmit().unwrap()));
 
     let webirc = WebIrc {

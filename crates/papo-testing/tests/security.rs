@@ -3322,10 +3322,10 @@ async fn nick_regain_starts_when_the_server_password_equals_the_nick() {
             .password(papo::Secret::new("papo")),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "PASS papo");
     assert_eq!(wire.next_sent().await, "NICK papo");
     assert_eq!(wire.next_sent().await, "USER papo 0 * papo");
     wire.server(":offline.test CAP * LS :").await;
-    assert_eq!(wire.next_sent().await, "PASS papo");
     assert_eq!(wire.next_sent().await, "CAP END");
     wire.server(":offline.test 433 * papo :Nickname is already in use")
         .await;

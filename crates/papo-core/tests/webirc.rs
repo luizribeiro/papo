@@ -17,10 +17,15 @@ fn webirc(client_hostname: Option<&str>, client_ip: &str) -> WebIrc {
 
 #[test]
 fn sends_ipv4_webirc_before_cap_and_reuses_an_unknown_hostname() {
-    Transcript::new(Config::default().webirc(webirc(None, "192.0.2.42")))
+    let config = Config::default()
+        .connection_security(papo_core::sts::ConnectionSecurity::Secure)
+        .webirc(webirc(None, "192.0.2.42"))
+        .password(Secret::new("ergo-connection-password"));
+    Transcript::new(config)
         .connect()
         .client("WEBIRC gateway-password papo-gateway 192.0.2.42 192.0.2.42")
         .client("CAP LS 302")
+        .client("PASS ergo-connection-password")
         .client("NICK papo")
         .client("USER papo 0 * papo")
         .no_client();

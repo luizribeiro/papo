@@ -4236,8 +4236,12 @@ impl Session {
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
         self.outbox.connect_phase(ConnectPhase::Capabilities);
-        self.welcome_state
-            .handle_connected(now, &self.config, &mut self.outbox);
+        self.welcome_state.handle_connected(
+            now,
+            &self.config,
+            self.connection.security,
+            &mut self.outbox,
+        );
     }
 
     /// Supplies bytes read from a stream transport at `now`.
@@ -4396,7 +4400,7 @@ impl Session {
     /// Behind a bouncer, credentials sent after registration can reach the upstream network.
     fn handle_welcome_read(&mut self) {
         self.sasl.handle_welcome();
-        self.welcome_state.handle_welcome_read();
+        self.welcome_state.handle_welcome_read(&mut self.outbox);
         if self.cancel_pending_registration() {
             caps::close_required(
                 &cap::ACCOUNT_REGISTRATION,

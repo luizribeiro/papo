@@ -5,7 +5,8 @@ use papo_proto::{
 };
 
 use crate::{
-    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, Welcome, cap, webirc_line,
+    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, Welcome, cap,
+    sts::ConnectionSecurity, webirc_line,
 };
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -55,7 +56,13 @@ impl WelcomeState {
         }
     }
 
-    pub(super) fn handle_connected(&mut self, now: Instant, config: &Config, outbox: &mut Outbox) {
+    pub(super) fn handle_connected(
+        &mut self,
+        now: Instant,
+        config: &Config,
+        security: ConnectionSecurity,
+        outbox: &mut Outbox,
+    ) {
         self.registration = Registration::Registering;
         if let Some(error) = self.registration_error {
             outbox.close(
@@ -81,6 +88,9 @@ impl WelcomeState {
         }
         if let Ok(line) = Line::new("CAP").param("LS").param("302").encode() {
             outbox.transmit_raw(line);
+        }
+        if security == ConnectionSecurity::Secure {
+            self.send_password(config, outbox);
         }
         outbox.transmit("NICK", [&config.nick]);
         outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);
@@ -279,8 +289,11 @@ impl WelcomeState {
             .min()
     }
 
-    pub(super) const fn handle_welcome_read(&mut self) {
+    pub(super) fn handle_welcome_read(&mut self, outbox: &mut Outbox) {
         self.password_settled = true;
+        outbox
+            .immediate
+            .retain(|queued| !queued.line.starts_with(b"PASS "));
     }
 
     pub(super) fn handle_disconnected(&mut self) {
