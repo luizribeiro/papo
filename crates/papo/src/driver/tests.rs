@@ -1830,8 +1830,21 @@ async fn registration_connection_loss_is_a_connect_error() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-#[allow(clippy::too_many_lines)]
 async fn eof_reconnects_and_emits_reconnected() {
+    reconnects_and_forgets_a_refused_rejoin_key(
+        "persistent-channel-key",
+        ":ergo.test 475 papo-driver #papo :Cannot join channel (+k)",
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn a_refused_rejoin_key_that_hides_the_channel_name_is_forgotten() {
+    reconnects_and_forgets_a_refused_rejoin_key("papo", ":ergo.test 475 papo-driver #papo").await;
+}
+
+#[allow(clippy::too_many_lines)]
+async fn reconnects_and_forgets_a_refused_rejoin_key(key: &str, refusal: &str) {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
     let (third_stream, mut third_server) = tokio::io::duplex(4096);
@@ -1865,14 +1878,11 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(!connected.reconnected);
     let join = tokio::spawn({
         let client = client.clone();
-        async move {
-            client
-                .join(test_channel("#papo"))
-                .key(crate::Secret::new("persistent-channel-key"))
-                .await
-        }
+        let key = crate::Secret::new(key);
+        async move { client.join(test_channel("#papo")).key(key).await }
     });
-    client_line(&mut first_server, b"JOIN #papo persistent-channel-key\r\n").await;
+    let keyed_join = format!("JOIN #papo {key}\r\n");
+    client_line(&mut first_server, keyed_join.as_bytes()).await;
     server_line(&mut first_server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver emily\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     within(join).await.unwrap().unwrap();
     client_line(&mut first_server, b"MODE #papo\r\n").await;
@@ -1903,12 +1913,8 @@ async fn eof_reconnects_and_emits_reconnected() {
     let connected = complete_connect(&mut second_server, &mut events).await;
     assert!(connected.reconnected);
     client_line(&mut second_server, b"AWAY :reviewing patches\r\n").await;
-    client_line(&mut second_server, b"JOIN #papo persistent-channel-key\r\n").await;
-    server_line(
-        &mut second_server,
-        b":ergo.test 475 papo-driver #papo :Cannot join channel (+k)\r\n",
-    )
-    .await;
+    client_line(&mut second_server, keyed_join.as_bytes()).await;
+    server_line(&mut second_server, format!("{refusal}\r\n").as_bytes()).await;
     let failed = next_event(&mut events).await.unwrap();
     let failed = failed.as_auto_join_failed().unwrap();
     assert_eq!(failed.channel.name(), "#papo");
@@ -2216,7 +2222,12 @@ fn only_bad_keys_remove_channels_from_the_rejoin_set() {
             ..super::PostConnect::default()
         };
         let line = papo_proto::LineRef::parse(line).unwrap();
-        super::drop_bad_rejoin_key(&session, &mut defaults, &line);
+        let papo_proto::Command::Numeric(numeric) = line.command() else {
+            panic!("{line:?} is not a numeric");
+        };
+        let error =
+            papo_core::ServerError::__numeric(numeric, line.params().map(str::to_owned).collect());
+        super::drop_bad_rejoin_key(&session, &mut defaults, "#papo", &error);
         assert_eq!(!defaults.channels.is_empty(), retained, "{line:?}");
     }
 }

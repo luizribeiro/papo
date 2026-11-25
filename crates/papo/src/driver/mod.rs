@@ -1727,7 +1727,6 @@ where
             }
             event::CoreEvent::Line(line) => {
                 let (message, incomplete) = line.into_parts();
-                drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let mut event = crate::event_impl::incoming_from_core(
                     message,
                     session.state().nick().origin(),
@@ -1767,16 +1766,21 @@ where
                 );
             }
             event::CoreEvent::Response(response) => {
-                for line in &response.lines {
-                    drop_bad_rejoin_key(session, defaults, &line.as_ref());
+                let joined = join_keys.remove(&response.id);
+                let requested = match (&joined, requests.get(&response.id)) {
+                    (Some((channel, _)), _)
+                    | (None, Some(PendingRequest::AutoJoin { channel })) => Some(channel),
+                    _ => None,
+                };
+                let error = response.error();
+                if let (Some(channel), Some(error)) = (requested, &error) {
+                    drop_bad_rejoin_key(session, defaults, channel.as_str(), error);
                 }
-                if response.error().is_none()
-                    && let Some((channel, key)) = join_keys.remove(&response.id)
+                if error.is_none()
+                    && let Some((channel, key)) = joined
                     && response_confirms_join(session, &response.lines, &channel)
                 {
                     remember_rejoin(session, defaults, Autojoin::new(channel.into_string(), key));
-                } else {
-                    join_keys.remove(&response.id);
                 }
                 if let Some(catchup) = catchups.remove(&response.id) {
                     if let Some(event) =
@@ -2120,17 +2124,18 @@ fn response_confirms_join(session: &Session, lines: &[Line], channel: &crate::Ch
     })
 }
 
+/// Forgets the stored key of `channel` when the join that named it was refused for its key.
 fn drop_bad_rejoin_key(
     session: &Session,
     defaults: &mut PostConnect,
-    message: &papo_proto::LineRef<'_>,
+    channel: &str,
+    error: &papo_core::ServerError,
 ) {
-    if message.command() != ProtoCommand::Numeric(Numeric::ERR_BADCHANNELKEY) {
+    if !matches!(error, papo_core::ServerError::Numeric { numeric, .. }
+        if *numeric == Numeric::ERR_BADCHANNELKEY)
+    {
         return;
     }
-    let Some(channel) = message.param(1) else {
-        return;
-    };
     let casemapping = session.isupport().casemapping();
     defaults
         .channels
