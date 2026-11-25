@@ -37,18 +37,6 @@ const TRAFFIC: &[&str] = &[
     ":ergo.test FAIL WEBPUSH MAX_REGISTRATIONS :Too many registrations",
 ];
 
-fn event_debug(event: &Event) -> String {
-    #[allow(unused_mut)]
-    let mut output = format!("{event:?}");
-    #[cfg(feature = "unstable")]
-    if matches!(event, Event::StandardReply(_))
-        && let Some(start) = output.rfind(", refusal: ")
-    {
-        output.replace_range(start..output.len() - 3, "");
-    }
-    output
-}
-
 fn state_debug(session: &Session) -> String {
     let state = session.state();
     let mut tokens = session
@@ -102,7 +90,7 @@ fn drain(session: &mut Session) {
         println!("CLIENT {}", String::from_utf8_lossy(&bytes).trim_end());
     }
     while let Some(event) = session.poll_event() {
-        println!("EVENT {}", event_debug(&event));
+        println!("EVENT {event:?}");
         if let Event::StandardReply(reply) = &event
             && reply.refusal().is_some()
         {
