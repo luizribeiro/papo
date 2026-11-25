@@ -23,11 +23,7 @@ pub(crate) struct ServerChild {
 
 impl ServerChild {
     pub(crate) fn spawn(command: &mut Command) -> io::Result<Self> {
-        platform::prepare(command);
-        let mut child = command
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .spawn()?;
+        let (mut child, group) = platform::spawn(command)?;
         let mut pipe = child
             .stderr
             .take()
@@ -46,7 +42,7 @@ impl ServerChild {
             }
         });
         Ok(Self {
-            group: platform::ProcessGroup::of(&child),
+            group,
             child,
             stderr,
             reader: Some(reader),
@@ -141,6 +137,10 @@ impl Drop for ServerChild {
     fn drop(&mut self) {
         let _ = self.stop();
     }
+}
+
+fn spawn_with_stderr(command: &mut Command) -> io::Result<Child> {
+    command.stdout(Stdio::null()).stderr(Stdio::piped()).spawn()
 }
 
 pub(crate) fn retry_start<T>(mut start: impl FnMut() -> io::Result<T>) -> io::Result<T> {

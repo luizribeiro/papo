@@ -1,5 +1,6 @@
 use std::{
     env, fs, io,
+    os::unix::process::ExitStatusExt,
     process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
@@ -9,6 +10,24 @@ use crate::native::{directory::TemporaryDirectory, process::ServerChild};
 
 #[test]
 fn kills_the_server_tree_on_orderly_stop() {
+    check_teardown(false);
+}
+
+#[test]
+fn kills_the_server_tree_when_the_owner_is_killed() {
+    check_teardown(true);
+}
+
+#[test]
+fn dropping_the_group_reaps_its_watchdog() {
+    let (mut child, group) = super::super::spawn(Command::new("sleep").arg("60")).unwrap();
+    let watchdog = group.0.id().to_string();
+    drop(group);
+    child.wait().unwrap();
+    assert!(!exists(&watchdog));
+}
+
+fn check_teardown(abrupt: bool) {
     let directory = TemporaryDirectory::create().unwrap();
     let mut owner = Command::new(env::current_exe().unwrap())
         .args(["--ignored", "::fixture_owner"])
@@ -27,9 +46,16 @@ fn kills_the_server_tree_on_orderly_stop() {
     assert_eq!(pids.len(), 2);
     assert!(pids.iter().copied().all(exists));
 
+    if abrupt {
+        owner.kill().unwrap();
+    }
     drop(owner.stdin.take());
     let status = within(|| owner.try_wait().unwrap());
-    assert!(status.success(), "{status}");
+    if abrupt {
+        assert_eq!(status.signal(), Some(libc::SIGKILL));
+    } else {
+        assert!(status.success(), "{status}");
+    }
     within(|| pids.iter().all(|pid| !exists(pid)).then_some(()));
 }
 
