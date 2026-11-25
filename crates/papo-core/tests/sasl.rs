@@ -1993,3 +1993,105 @@ fn repeated_application_logins_leave_room_for_channel_keys() {
     }
     keyed_join_is_written_and_its_refusal_masked(transcript);
 }
+
+#[test]
+fn logins_restarted_by_the_server_leave_room_for_channel_keys() {
+    let mut transcript = counted_scram();
+    for exchange in 0..256 {
+        let payload = counted_client_first(exchange);
+        transcript = transcript
+            .server("AUTHENTICATE +")
+            .client(&format!("AUTHENTICATE {payload}"))
+            .server(&format!(
+                ":ergo.test 904 papo :SASL authentication failed: {payload}"
+            ))
+            .event_until(|event| {
+                matches!(event, Event::AuthenticationFailed { reason, .. }
+                    if reason.contains("SASL authentication failed: <redacted>"))
+            });
+        if exchange == 0 {
+            transcript = transcript.client("CAP END");
+        }
+        if exchange < 255 {
+            transcript = transcript
+                .server(":ergo.test CAP * DEL :sasl")
+                .server(":ergo.test CAP * NEW :sasl=SCRAM-SHA-256")
+                .client("CAP REQ :sasl")
+                .server(":ergo.test CAP * ACK :sasl")
+                .client("AUTHENTICATE SCRAM-SHA-256");
+        }
+    }
+    keyed_join_is_written_and_its_refusal_masked(
+        transcript
+            .server(":ergo.test 001 papo :Welcome to the Ergo Test Network")
+            .server(":ergo.test 422 papo :MOTD File is missing")
+            .event_until(|event| matches!(event, Event::Connected(_))),
+    );
+}
+
+fn plain_exchange_of(chunks: usize) -> Transcript {
+    let password = "k".repeat(chunks * 300 - "\0alice\0".len());
+    let response = STANDARD.encode(format!("\0alice\0{password}"));
+    let mut transcript = Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new(password)).optional()),
+    )
+    .connect_default()
+    .server(":ergo.test CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +");
+    for chunk in response.as_bytes().chunks(400).take(256) {
+        transcript = transcript.client(&format!("AUTHENTICATE {}", str::from_utf8(chunk).unwrap()));
+    }
+    transcript
+}
+
+fn first_plain_line() -> String {
+    "AGFsaWNlAGtr".to_owned() + &"a2tr".repeat(97)
+}
+
+#[test]
+fn a_login_payload_of_256_lines_is_sent_and_stays_masked() {
+    plain_exchange_of(256)
+        .client("AUTHENTICATE +")
+        .server(&format!(
+            ":ergo.test 904 alice :SASL authentication failed: {}",
+            first_plain_line()
+        ))
+        .event_until(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("SASL authentication failed: <redacted>"))
+        })
+        .client("CAP END");
+}
+
+#[test]
+fn a_login_payload_of_257_lines_is_aborted_at_the_tracking_limit() {
+    plain_exchange_of(257)
+        .client("AUTHENTICATE *")
+        .no_client()
+        .event_until(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: papo_core::StateLimit::Credentials,
+                    ..
+                }
+            )
+        })
+        .server(&format!(
+            ":ergo.test NOTE AUTHENTICATE ABORTED :Discarded {}",
+            first_plain_line()
+        ))
+        .event_until(|event| {
+            matches!(event, Event::StandardReply(reply)
+                if reply.description == "Discarded <redacted>")
+        })
+        .server(":ergo.test 906 alice :SASL authentication aborted")
+        .event_until(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("credential tracking limit reached"))
+        })
+        .client("CAP END");
+}

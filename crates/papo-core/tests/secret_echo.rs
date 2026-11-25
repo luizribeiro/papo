@@ -686,6 +686,22 @@ fn refusing_a_line_does_not_reserve_any_of_its_new_credentials() {
 }
 
 #[test]
+fn a_tracked_credential_is_sent_again_without_taking_another_slot() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    let mut join = |key: &str| {
+        session.send(now, keyed_staff_join(key)).unwrap();
+        session.poll_transmit().is_some()
+    };
+    for index in 0..256 {
+        assert!(join(&format!("staff-key-{index:03}")));
+    }
+    assert!(join("staff-key-000"));
+    assert!(join("staff-key-255"));
+    assert!(!join("staff-key-256"));
+}
+
+#[test]
 fn failure_replies_mask_whole_parameters_and_quoted_tokens() {
     let now = Instant::now();
     let key = "#staff-key-4821";
