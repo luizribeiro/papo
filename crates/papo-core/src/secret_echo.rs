@@ -372,7 +372,8 @@ impl<'a> IncomingLine<'a> {
         shown
     }
 
-    pub(super) fn original_bytes(self, count: impl FnOnce(&LineRef<'_>) -> usize) -> usize {
+    /// Measures the routing copy. `count` is a plain function, so it cannot keep the line.
+    pub(super) fn original_bytes(self, count: fn(&LineRef<'_>) -> usize) -> usize {
         self.original.as_ref().map_or(0, count)
     }
 
@@ -393,10 +394,27 @@ impl<'a> From<&LineRef<'a>> for IncomingLine<'a> {
 /// The parameters the server sent, for papo's own decisions.
 ///
 /// A parameter can be compared and parsed, never read: nothing here returns parameter text, so
-/// a credential the server repeated cannot be copied out of a decision.
+/// a credential the server repeated cannot be copied out of a decision. The command and the
+/// source are never replaced in the reported line, which shows the same ones.
 pub(super) struct RoutingLine<'a>(LineRef<'a>);
 
-impl RoutingLine<'_> {
+impl<'a> RoutingLine<'a> {
+    pub(super) fn command(&self) -> Command<'a> {
+        self.0.command()
+    }
+
+    pub(super) fn source(&self) -> Option<papo_proto::Source<'a>> {
+        self.0.source()
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(super) fn is_failure(&self) -> bool {
+        crate::is_failure(&self.0)
+    }
+
     pub(super) fn param_is(&self, index: usize, text: &str) -> bool {
         self.0.param(index) == Some(text)
     }
@@ -467,14 +485,6 @@ impl RoutingReply<'_> {
 
     pub(super) fn code_is(&self, code: &str) -> bool {
         self.code.eq_ignore_ascii_case(code)
-    }
-}
-
-impl<'a> std::ops::Deref for RoutingLine<'a> {
-    type Target = LineRef<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 

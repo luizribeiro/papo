@@ -4,7 +4,7 @@ use base64::{
     Engine as _,
     engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD},
 };
-use papo_proto::{Line, StandardReplyKind};
+use papo_proto::{Command, Line, StandardReplyKind};
 use zeroize::Zeroizing;
 
 use crate::{Feature, RequestError, RequestId, ResponseBoundary, Secret, Session};
@@ -77,9 +77,10 @@ pub(crate) enum Response {
 
 impl Response {
     pub(crate) fn matches(&self, message: &crate::RoutingLine<'_>) -> Option<bool> {
+        let webpush = message.command() == Command::Webpush;
         match self {
             Self::Register => {
-                if message.command_is("WEBPUSH") {
+                if webpush {
                     return message
                         .param_is_ignoring_case(0, "REGISTER")
                         .then_some(false);
@@ -87,7 +88,7 @@ impl Response {
                 webpush_reply(message).map(|_| false)
             }
             Self::Unregister => {
-                if message.command_is("WEBPUSH") {
+                if webpush {
                     return Some(true);
                 }
                 webpush_reply(message).map(|kind| kind == StandardReplyKind::Fail)

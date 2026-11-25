@@ -76,7 +76,7 @@ impl Session {
         let routing = incoming.routing();
         let mut addresses = Vec::new();
         if let Some(matcher) = &request.matcher
-            && crate::is_failure(&routing)
+            && routing.is_failure()
             && matcher
                 .matches(
                     &routing,
