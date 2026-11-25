@@ -20,3 +20,6 @@ pub const WEBIRC_PASSWORD: &str = "papo-webirc-password";
 pub const OPER_NAME: &str = "papo";
 /// Operator password configured by managed server profiles.
 pub const OPER_PASSWORD: &str = "papo-oper-password";
+
+/// Password for local fixtures that require a connection password.
+pub const CONNECTION_PASSWORD: &str = "papo-registration-password";

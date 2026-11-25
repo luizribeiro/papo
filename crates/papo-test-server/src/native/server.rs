@@ -50,6 +50,29 @@ impl TestServer {
         Self::start_with(Configuration::persistent)
     }
 
+    /// Starts the selected Ergo configuration with a required connection password.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setup fails or Ergo does not become ready in time.
+    pub fn start_with_password(persistent: bool) -> io::Result<Self> {
+        Self::start_with(|directory| {
+            let mut config = if persistent {
+                Configuration::persistent(directory)?
+            } else {
+                Configuration::new(directory)?
+            };
+            config
+                .overrides
+                .push(("ERGO__ACCOUNTS__LOGIN_VIA_PASS_COMMAND", "false".into()));
+            config.overrides.push((
+                "ERGO__SERVER__PASSWORD",
+                "$2a$04$2FsRMEs0df58DSnUeRWVeuE6Pz2yxwF7WxVRxzHeRT1h.Sinvf19W".into(),
+            ));
+            Ok(config)
+        })
+    }
+
     /// Starts Ergo with STS advertising its isolated TLS listener.
     ///
     /// # Errors

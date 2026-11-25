@@ -8,11 +8,12 @@ pub(super) struct Configuration {
 }
 
 impl Configuration {
-    pub(super) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
+    pub(super) fn new(directory: &TemporaryDirectory, require_password: bool) -> io::Result<Self> {
         Self::with_paths(
             directory,
             &required_env("INSPIRCD_MODULES")?,
             &required_env("ATHEME_MODULES")?,
+            require_password,
         )
     }
 
@@ -20,6 +21,7 @@ impl Configuration {
         directory: &TemporaryDirectory,
         modules: &str,
         atheme_modules: &str,
+        require_password: bool,
     ) -> io::Result<Self> {
         let [plain, tls, websocket, secure_websocket, services] =
             super::ports::allocate_loopback()?;
@@ -27,7 +29,7 @@ impl Configuration {
             endpoints: [plain, tls, websocket, secure_websocket],
             services,
         };
-        config.write(directory, modules, atheme_modules)?;
+        config.write(directory, modules, atheme_modules, require_password)?;
         Ok(config)
     }
 
@@ -36,9 +38,15 @@ impl Configuration {
         directory: &TemporaryDirectory,
         modules: &str,
         atheme_modules: &str,
+        require_password: bool,
     ) -> io::Result<()> {
         let [plain, tls, websocket, secure_websocket] = self.endpoints;
         let path = |name| directory.path().join(name).display().to_string();
+        let client_password = if require_password {
+            format!(r#"password="{}" "#, crate::CONNECTION_PASSWORD)
+        } else {
+            String::new()
+        };
         fs::write(
             path("inspircd.conf"),
             format!(
@@ -50,7 +58,7 @@ impl Configuration {
 <bind address="127.0.0.1" port="{websocket}" type="clients" hook="websocket">
 <bind address="127.0.0.1" port="{secure_websocket}" type="clients" hook="websocket" sslprofile="Clients">
 <bind address="127.0.0.1" port="{services}" type="servers">
-<connect allow="*" resolvehostnames="no" recvq="40960" localmax="1000" globalmax="1000">
+<connect {client_password}allow="*" resolvehostnames="no" recvq="40960" localmax="1000" globalmax="1000">
 <class name="Servers" pingfreq="60" connectfreq="5" sendq="20M">
 <link name="services.papo.test" ipaddr="127.0.0.1" port="{services}" allowmask="*" recvpass="papo-link" sendpass="papo-link" class="Servers">
 <uline server="services.papo.test"><security announceinvites="none">
@@ -92,9 +100,13 @@ mod tests {
     #[test]
     fn writes_ircv3_tls_websocket_and_atheme_configuration() {
         let directory = TemporaryDirectory::create().unwrap();
-        let config =
-            super::Configuration::with_paths(&directory, "/inspircd/modules", "/atheme/modules")
-                .unwrap();
+        let config = super::Configuration::with_paths(
+            &directory,
+            "/inspircd/modules",
+            "/atheme/modules",
+            false,
+        )
+        .unwrap();
         let ircd = fs::read_to_string(directory.path().join("inspircd.conf")).unwrap();
         assert!(ircd.contains("<module name=\"ircv3\">"));
         assert!(ircd.contains("<module name=\"ssl_gnutls\">"));

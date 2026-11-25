@@ -15,7 +15,12 @@ pub(crate) struct Configuration {
 }
 
 impl Configuration {
-    fn with_paths(directory: &TemporaryDirectory, unreal: &str, modules: &str) -> io::Result<Self> {
+    fn with_paths(
+        directory: &TemporaryDirectory,
+        unreal: &str,
+        modules: &str,
+        require_password: bool,
+    ) -> io::Result<Self> {
         let [plaintext, tls, websocket, secure_websocket, services] =
             super::ports::allocate_loopback()?;
         let config = Self {
@@ -25,12 +30,26 @@ impl Configuration {
             secure_websocket,
             services,
         };
-        config.write(directory.path(), unreal, modules)?;
+        config.write(directory.path(), unreal, modules, require_password)?;
         Ok(config)
     }
 
-    fn write(&self, directory: &Path, unreal: &str, modules: &str) -> io::Result<()> {
+    fn write(
+        &self,
+        directory: &Path,
+        unreal: &str,
+        modules: &str,
+        require_password: bool,
+    ) -> io::Result<()> {
         let path = |name| directory.join(name).display().to_string();
+        let client_password = if require_password {
+            format!(
+                r#"options {{ reject-on-auth-failure; }}; password "{}"; "#,
+                crate::CONNECTION_PASSWORD
+            )
+        } else {
+            String::new()
+        };
         fs::create_dir_all(path("tmp/tmp"))?;
         fs::write(path("empty.txt"), "\n")?;
         fs::write(
@@ -47,7 +66,7 @@ me {{ name "irc.papo.test"; info "papo test server"; sid "001"; }}
 admin {{ "papo"; "papo@example.invalid"; }}
 class clients {{ pingfreq 90; maxclients 1000; sendq 1M; recvq 8000; }}
 class servers {{ pingfreq 60; connfreq 5; maxclients 10; sendq 20M; }}
-allow {{ mask 127.0.0.1; class clients; maxperip 100; }}
+allow {{ {client_password}mask 127.0.0.1; class clients; maxperip 100; }}
 oper papo {{ class clients; mask 127.0.0.1; password "papo-oper-password"; operclass netadmin; }}
 listen {{ ip 127.0.0.1; port {plain}; }}
 listen {{ ip 127.0.0.1; port {tls}; options {{ tls; }} tls-options {{ certificate "{cert}"; key "{key}"; }}; }}
@@ -118,16 +137,26 @@ impl TestServer {
     ///
     /// Returns an error when configuration, process startup, or readiness fails.
     pub fn start() -> io::Result<Self> {
-        process::retry_start(Self::start_once)
+        process::retry_start(|| Self::start_once(false))
     }
 
-    fn start_once() -> io::Result<Self> {
+    /// Starts the fixture with a required connection password.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when configuration, process startup, or readiness fails.
+    pub fn start_with_password() -> io::Result<Self> {
+        process::retry_start(|| Self::start_once(true))
+    }
+
+    fn start_once(require_password: bool) -> io::Result<Self> {
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;
         let config = Configuration::with_paths(
             &directory,
             &required_env("UNREALIRCD_CONFIG")?,
             &required_env("ATHEME_MODULES")?,
+            require_password,
         )?;
         let mut unreal =
             ServerChild::spawn(&mut Configuration::command("UNREALIRCD_BIN", &directory)?)?;
@@ -194,7 +223,8 @@ mod tests {
     fn writes_isolated_unrealircd_and_atheme_configs() {
         let directory = TemporaryDirectory::create().unwrap();
         let config =
-            Configuration::with_paths(&directory, "/unreal/conf", "/atheme/modules").unwrap();
+            Configuration::with_paths(&directory, "/unreal/conf", "/atheme/modules", false)
+                .unwrap();
         let addresses = [
             config.plaintext,
             config.tls,

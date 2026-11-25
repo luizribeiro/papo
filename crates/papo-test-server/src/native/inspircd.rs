@@ -19,12 +19,21 @@ impl TestServer {
     ///
     /// Returns an error when configuration, process startup, or readiness fails.
     pub fn start() -> io::Result<Self> {
-        process::retry_start(Self::start_once)
+        process::retry_start(|| Self::start_once(false))
     }
-    fn start_once() -> io::Result<Self> {
+    /// Starts the fixture with a required connection password.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when configuration, process startup, or readiness fails.
+    pub fn start_with_password() -> io::Result<Self> {
+        process::retry_start(|| Self::start_once(true))
+    }
+
+    fn start_once(require_password: bool) -> io::Result<Self> {
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;
-        let config = Configuration::new(&directory)?;
+        let config = Configuration::new(&directory, require_password)?;
         let mut ircd = ServerChild::spawn(
             Command::new(
                 env::var("INSPIRCD_BIN").map_err(|_| io::Error::other("INSPIRCD_BIN is unset"))?,

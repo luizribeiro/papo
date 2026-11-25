@@ -9,11 +9,12 @@ pub(super) struct Configuration {
 }
 
 impl Configuration {
-    pub(super) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
+    pub(super) fn new(directory: &TemporaryDirectory, require_password: bool) -> io::Result<Self> {
         Self::with_paths(
             directory,
             &required_env("SOLANUM_MODULES")?,
             &required_env("ATHEME_MODULES")?,
+            require_password,
         )
     }
 
@@ -21,6 +22,7 @@ impl Configuration {
         directory: &TemporaryDirectory,
         modules: &str,
         atheme_modules: &str,
+        require_password: bool,
     ) -> io::Result<Self> {
         let [plaintext, tls, services] = super::ports::allocate_loopback()?;
         let config = Self {
@@ -28,7 +30,7 @@ impl Configuration {
             tls,
             services,
         };
-        config.write(directory, modules, atheme_modules)?;
+        config.write(directory, modules, atheme_modules, require_password)?;
         Ok(config)
     }
 
@@ -37,8 +39,14 @@ impl Configuration {
         directory: &TemporaryDirectory,
         modules: &str,
         atheme_modules: &str,
+        require_password: bool,
     ) -> io::Result<()> {
         let path = |name| directory.path().join(name).display().to_string();
+        let client_password = if require_password {
+            format!(r#"password = "{}"; "#, crate::CONNECTION_PASSWORD)
+        } else {
+            String::new()
+        };
         fs::write(
             path("solanum.conf"),
             format!(
@@ -53,7 +61,7 @@ admin {{ name = "papo"; description = "papo test server"; email = "papo@example.
 class "users" {{ ping_time = 2 minutes; number_per_ident = 100; number_per_ip = 100; number_per_ip_global = 100; max_number = 1000; sendq = 1 megabyte; }};
 class "server" {{ ping_time = 5 minutes; connectfreq = 5 minutes; max_number = 10; max_autoconn = 0; sendq = 4 megabytes; }};
 listen {{ defer_accept = no; host = "127.0.0.1"; port = {plain}; port = {services}; sslport = {tls}; }};
-auth {{ user = "*@*"; flags = exceed_limit; class = "users"; }};
+auth {{ {client_password}user = "*@*"; flags = exceed_limit; class = "users"; }};
 privset "papo_oper" {{ privs = oper:general, oper:kill, oper:kline, oper:local_kill, oper:mass_notice, oper:routing; }};
 operator "{oper}" {{ user = "*@127.0.0.1"; password = "{oper_password}"; flags = ~encrypted; privset = "papo_oper"; }};
 connect "services.papo.test" {{ host = "127.0.0.1"; port = 0; send_password = "papo-link"; accept_password = "papo-link"; class = "server"; flags = topicburst; }};
@@ -95,9 +103,13 @@ mod tests {
     #[test]
     fn writes_tls_ircv3_and_atheme_configuration() {
         let directory = TemporaryDirectory::create().unwrap();
-        let config =
-            super::Configuration::with_paths(&directory, "/solanum/modules", "/atheme/modules")
-                .unwrap();
+        let config = super::Configuration::with_paths(
+            &directory,
+            "/solanum/modules",
+            "/atheme/modules",
+            false,
+        )
+        .unwrap();
         let ircd = fs::read_to_string(directory.path().join("solanum.conf")).unwrap();
         assert!(ircd.contains("extensions/tag_channel_context"));
         assert!(ircd.contains("extensions/tag_message_id"));
