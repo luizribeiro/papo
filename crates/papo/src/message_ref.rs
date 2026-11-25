@@ -93,10 +93,10 @@ impl Receipt {
         self.identity.from_history = historical;
     }
 
-    fn reference(&self) -> MessageRef {
+    fn reference_with_ids(&self, msgids: Vec<MessageId>) -> MessageRef {
         let mut reference = MessageRef::new(
             self.address.clone(),
-            self.identity.msgids.clone(),
+            msgids,
             self.origin,
             self.identity.channel_context.clone(),
             self.identity.recipient.clone(),
@@ -107,6 +107,25 @@ impl Receipt {
             .archived_private
             .then_some(SendName::HistoryPeer);
         reference
+    }
+
+    fn reference(&self) -> MessageRef {
+        self.reference_with_ids(self.identity.msgids.clone())
+    }
+
+    pub(crate) fn sent_line_reference(
+        &self,
+        conversation: &Conversation,
+        confirmation: &crate::Confirmation,
+    ) -> MessageRef {
+        let (msgids, server_time) = match confirmation {
+            crate::Confirmation::Confirmed { msgid, server_time } => {
+                (vec![msgid.clone()], *server_time)
+            }
+            crate::Confirmation::Unconfirmed { .. } => (Vec::new(), None),
+        };
+        self.reference_with_ids(msgids)
+            .with_metadata(conversation, server_time)
     }
 
     fn notice_reference(&self) -> NoticeRef {
@@ -258,6 +277,16 @@ impl MessageRef {
             conversation: None,
             server_time: None,
         }
+    }
+
+    fn with_metadata(
+        mut self,
+        conversation: &Conversation,
+        server_time: Option<crate::ServerTime>,
+    ) -> Self {
+        self.conversation = Some(conversation.clone());
+        self.server_time = server_time;
+        self
     }
 
     pub(crate) fn restored(
@@ -475,10 +504,9 @@ impl ReplyReference for SendOutcome {
 /// Preserves a received or sent message's return address and identifiers.
 impl<T: ReplyReference + ?Sized> From<&T> for MessageRef {
     fn from(line: &T) -> Self {
-        let mut reference = line.receipt().reference();
-        reference.conversation = Some(line.conversation().clone());
-        reference.server_time = line.server_time();
-        reference
+        line.receipt()
+            .reference()
+            .with_metadata(line.conversation(), line.server_time())
     }
 }
 

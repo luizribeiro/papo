@@ -13,6 +13,8 @@ stability promise even between patch releases. `papo-bot` stays unpublished. `pa
 
 Event payloads expose the server's per-line `bot` tag through `actor_is_bot()`, including on history rows.
 
+`SentLine::return_address()` lets applications reply to, react to, or redact one line of a split send while preserving its audience.
+
 `Client::check_connection(deadline)` probes a doubtful connection and retries a silent one immediately when automatic reconnect is enabled.
 
 `is_from_history()` identifies replayed event payloads, including server-originated and untyped lines.

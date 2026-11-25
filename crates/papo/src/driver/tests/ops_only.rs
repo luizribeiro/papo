@@ -605,3 +605,68 @@ async fn a_soju_ops_only_line_fetched_by_id_keeps_its_audience_for_a_reaction() 
     reacting.abort();
     ops.finish().await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn split_send_references_redact_only_their_own_ops_line() {
+    let mut ops = OpsChannel::joined_with([
+        crate::cap::MESSAGE_REDACTION,
+        crate::cap::ECHO_MESSAGE,
+        crate::cap::LABELED_RESPONSE,
+        crate::cap::MESSAGE_TAGS,
+    ])
+    .await;
+    let sending = tokio::spawn(
+        ops.client
+            .privmsg("@#ops", "deploy done\nchecks green\nrelease filed")
+            .into_future(),
+    );
+    let echoes = [
+        ("0", "ripxp4ezdb76is6ep47ic7rexa", "deploy done"),
+        ("0-1", "6b4b6emqdux5z7beb724swiqhn", "checks green"),
+        ("0-2", "vb45bjkdx6ue3qeirv4yx886uw", "release filed"),
+    ];
+    for (label, id, text) in echoes {
+        client_line(
+            &mut ops.server,
+            format!("@label={label} PRIVMSG @#ops :{text}\r\n").as_bytes(),
+        )
+        .await;
+        server_line(
+            &mut ops.server,
+            format!("@label={label};msgid={id};time=2026-11-15T17:42:12.749Z :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG @#ops :{text}\r\n").as_bytes(),
+        )
+        .await;
+    }
+    let mut sent = within(sending).await.unwrap().unwrap();
+    assert_eq!(sent.lines.len(), 3);
+    let second = sent.lines[1].clone();
+    sent.lines[0].text.clone_from(&second.text);
+    assert_ne!(sent.lines[0], second);
+    sent.lines[0].confirmation.clone_from(&second.confirmation);
+    assert_eq!(sent.lines[0], second);
+    sent.lines[0].text = "edited locally".into();
+    assert_ne!(sent.lines[0], second);
+    for (index, (line, (_, id, _))) in sent.lines.iter().zip(echoes).enumerate() {
+        let reference = line.return_address();
+        assert_eq!(reference.origin(), ops.client.origin());
+        assert_eq!(reference.conversation(), Some(sent.conversation()));
+        let restored = ops.client.saved_message(&reference.to_saved()).unwrap();
+        assert_eq!(restored.to_saved(), format!("papo-ref:1;to=@#ops;id={id}"));
+
+        let redacting = tokio::spawn(ops.client.redact(reference, "superseded"));
+        let label = index + 1;
+        client_line(
+            &mut ops.server,
+            format!("@label={label} REDACT @#ops {id} superseded\r\n").as_bytes(),
+        )
+        .await;
+        server_line(
+            &mut ops.server,
+            format!("@msgid=iig2yutustdze2rgdzcpe2k3rs :papo-driver!~u@7z29yeuh6n8ta.irc REDACT @#ops {id} superseded\r\n@label={label} :ergo.test ACK\r\n").as_bytes(),
+        )
+        .await;
+        let result = within(redacting).await.unwrap().unwrap();
+        assert_eq!(result.lines[0].redacts, id);
+    }
+    ops.finish().await;
+}

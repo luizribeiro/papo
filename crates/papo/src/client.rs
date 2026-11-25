@@ -74,13 +74,40 @@ pub struct SendOutcome {
 }
 
 /// One logical line of a [`SendOutcome`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+///
+/// Equality compares the line's text and confirmation.
+#[derive(Clone, Debug, Eq)]
 #[non_exhaustive]
 pub struct SentLine {
     /// The exact text papo sent, with a batch's line breaks restored as `\n`.
     pub text: String,
     /// Whether the server confirmed this line, with the identity it assigned when it did.
     pub confirmation: crate::Confirmation,
+    reference: crate::MessageRef,
+}
+
+impl PartialEq for SentLine {
+    fn eq(&self, other: &Self) -> bool {
+        self.text == other.text && self.confirmation == other.confirmation
+    }
+}
+
+impl SentLine {
+    /// Returns the address and server-assigned identifier of this logical line.
+    ///
+    /// A `draft/multiline` batch has one logical line and one return address.
+    /// The address and identifier reflect the original send even if the public fields are edited.
+    ///
+    /// For an unconfirmed line, [`Client::reply`] sends to the original recipients without a
+    /// reply tag. [`Client::react`], [`Client::unreact`], and [`Client::redact`] return
+    /// [`InvalidInput::UnusableMessageReference`]. [`Client::saved_message`] requires an identifier,
+    /// and [`crate::MarkReadRequest::up_to`] requires a server timestamp.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        self.reference.clone()
+    }
 }
 
 /// The result of adding or removing a reaction with [`Client::react`] or [`Client::unreact`].
@@ -632,7 +659,11 @@ impl SendOutcome {
     ) -> Self {
         let lines = lines
             .into_iter()
-            .map(|(text, confirmation)| SentLine { text, confirmation })
+            .map(|(text, confirmation)| SentLine {
+                reference: receipt.sent_line_reference(&conversation, &confirmation),
+                text,
+                confirmation,
+            })
             .collect();
         Self {
             conversation,

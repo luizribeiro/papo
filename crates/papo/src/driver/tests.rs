@@ -7876,6 +7876,7 @@ async fn chat_text_preserves_an_automatically_split_multiline_batch() {
         sent_line_details(&sent),
         [confirmed_line("RfcBTzyxY120004", None, text)]
     );
+    assert_eq!(sent.lines[0].return_address(), sent.return_address());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

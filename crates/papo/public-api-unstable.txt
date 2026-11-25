@@ -3605,6 +3605,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendOutcome
 #[non_exhaustive] pub struct papo::SentLine
 pub papo::SentLine::confirmation: papo::Confirmation
 pub papo::SentLine::text: alloc::string::String
+impl papo::SentLine
+pub fn papo::SentLine::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::SentLine
 pub fn papo::SentLine::clone(&self) -> Self
 impl core::cmp::Eq for papo::SentLine
@@ -3612,7 +3614,6 @@ impl core::cmp::PartialEq for papo::SentLine
 pub fn papo::SentLine::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::SentLine
 pub fn papo::SentLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::SentLine
 impl core::marker::Freeze for papo::SentLine
 impl core::marker::Send for papo::SentLine
 impl core::marker::Sync for papo::SentLine
