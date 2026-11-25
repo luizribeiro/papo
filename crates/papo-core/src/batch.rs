@@ -476,30 +476,14 @@ impl Batches {
             return BatchAction::Dispatch(context);
         };
         if !self.open.contains_key(reference.as_ref()) {
-            if context.batch_type.is_none() {
-                return BatchAction::Dispatch(DispatchContext {
+            return BatchAction::Dispatch(if context.batch_type().is_some_and(is_replay) {
+                context
+            } else {
+                DispatchContext {
                     live_input: true,
-                    ..context
-                });
-            }
-            if applied_state.is_some() {
-                return BatchAction::Consumed;
-            }
-            let batch_type = context.batch_type;
-            if batch_type.as_deref() == Some(cap::MULTILINE.as_str())
-                && matches!(message.command(), Command::Privmsg | Command::Notice)
-                && message.param(1).is_some()
-            {
-                return BatchAction::Complete(vec![BatchEvent::Incomplete(
-                    message.to_owned(),
-                    None,
-                )]);
-            }
-            return BatchAction::Complete(vec![BatchEvent::Line {
-                line: message.to_owned(),
-                batch_type,
-                sender: None,
-            }]);
+                    ..DispatchContext::default()
+                }
+            });
         }
         let ancestors = self.ancestors(reference.as_ref());
         let retained = retained_bytes(message);
@@ -573,14 +557,12 @@ impl Batches {
         }
         if applied_state.is_some() || !aggregates.is_empty() {
             BatchAction::Consumed
-        } else if context.batch_type.is_some() {
+        } else {
             BatchAction::Complete(vec![BatchEvent::Line {
                 line: message.to_owned(),
                 batch_type: context.batch_type,
                 sender: None,
             }])
-        } else {
-            BatchAction::Dispatch(context)
         }
     }
 
@@ -953,15 +935,7 @@ impl Batches {
 
     pub(crate) fn live_member(&self, message: &LineRef<'_>) -> Option<LiveMember<'_>> {
         let reference = message.tag("batch")?;
-        let Some((reference, batch)) = self.open.get_key_value(reference.as_ref()) else {
-            let batch = self.abandoned.get(reference.as_ref())?;
-            return (!batch.replay).then_some(LiveMember {
-                kind: &batch.kind,
-                label: None,
-                split: None,
-                raw: true,
-            });
-        };
+        let (reference, batch) = self.open.get_key_value(reference.as_ref())?;
         if batch.replay {
             return None;
         }
@@ -1586,15 +1560,13 @@ mod tests {
 
         assert!(batches.provenance_exhausted);
         let late = LineRef::parse("@batch=ref0 :alice PART #papo :Leaving").unwrap();
-        let BatchAction::Complete(events) =
+        let BatchAction::Dispatch(context) =
             batches.handle(Instant::now(), &late, usize::MAX, false, false, None)
         else {
-            panic!("late refused member was dispatched live")
+            panic!("expected a late live member");
         };
-        assert!(matches!(
-            events.as_slice(),
-            [BatchEvent::Line { batch_type: Some(kind), .. }] if kind == "vendor/sync"
-        ));
+        assert!(context.live_input);
+        assert_eq!(context.batch_type(), None);
 
         batches.reset();
         assert!(batches.abandoned.is_empty());

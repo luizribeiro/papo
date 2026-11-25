@@ -282,7 +282,13 @@ mod tests {
             let provenance = events
                 .into_iter()
                 .filter_map(|event| map_live(&session, event))
-                .find_map(|event| (accessor!(Other))(&event));
+                .find_map(|event| {
+                    if historical {
+                        (accessor!(Other))(&event)
+                    } else {
+                        (accessor!(Message))(&event)
+                    }
+                });
             assert_eq!(provenance, Some(historical), "{batch}");
         }
     }

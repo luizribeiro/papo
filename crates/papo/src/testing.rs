@@ -443,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn session_mapping_preserves_a_refused_multiline_fragment() {
+    fn session_mapping_delivers_a_refused_multiline_fragment_as_live() {
         let mut input = String::new();
         for index in 0..=64 {
             writeln!(
@@ -458,7 +458,8 @@ mod tests {
         let mut text = None;
 
         exercise_session_mapping(input.as_bytes(), |event| {
-            if let crate::Event::Incomplete(crate::event::Incomplete::Message(message)) = event {
+            if let crate::Event::Message(message) = event {
+                assert!(!message.is_from_history());
                 text = Some(message.text);
             }
         });

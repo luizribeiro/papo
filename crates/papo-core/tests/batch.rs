@@ -194,7 +194,7 @@ fn malformed_multiline_abandonment_does_not_release_members_live() {
 }
 
 #[test]
-fn refused_multiline_batch_members_remain_incomplete() {
+fn refused_live_multiline_members_are_delivered_individually() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_open_batches(0));
     session.handle_line(now, b":alice!~a@cloak BATCH +m draft/multiline #papo");
@@ -211,8 +211,10 @@ fn refused_multiline_batch_members_remain_incomplete() {
         b"@batch=m :alice!~a@cloak PRIVMSG #papo :fragment after refused opener",
     );
 
+    let fragment = line(&mut session);
+    assert_eq!(fragment.batch_type(), None);
     assert_eq!(
-        incomplete(&mut session).as_ref().param(1),
+        fragment.as_ref().param(1),
         Some("fragment after refused opener")
     );
     assert_eq!(session.poll_event(), None);
@@ -1724,6 +1726,23 @@ fn abandoned_batch_provenance_exhaustion_ends_recipients_and_drops_queued_sends(
     let recipient = session.state().__resolve_recipient(&guard);
     assert_eq!(recipient, papo_core::RecipientStatus::Gone);
     assert_eq!(session.poll_transmit(), None);
+    assert!(std::iter::from_fn(|| session.poll_event()).any(|event| {
+        matches!(event, Event::Close { reason, .. }
+            if reason == "too many abandoned batches remain open")
+    }));
+    assert_eq!(session.poll_event(), None);
+
+    for line in [
+        "@batch=history256 :papo!~papo@localhost QUIT :Quit: Leaving",
+        "@batch=history256 :papo!~papo@localhost NICK papo-away",
+        "@batch=history256 :papo!~papo@localhost PART #review :Leaving",
+        "@batch=history256 :op!~op@staff.example KICK #review papo :Cleaning up",
+        "@batch=history256 :papo!~papo@localhost ACCOUNT volunteer",
+        "@batch=history256 :papo!~papo@localhost CHGHOST papo relay.example",
+    ] {
+        session.handle_line(now, line.as_bytes());
+        assert_eq!(session.poll_event(), None);
+    }
 }
 
 #[test]

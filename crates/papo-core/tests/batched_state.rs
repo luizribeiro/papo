@@ -7,13 +7,16 @@ use papo_core::{
 };
 use papo_proto::Line;
 
-const MEMBERS: &[&str] = &[
+const LATE_MEMBERS: &[&str] = &[
     ":ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
     ":ChanServ!ChanServ@services.int NICK ChanServ-away",
     ":ChanServ!ChanServ@services.int PART #papo :Leaving",
     ":operator!~op@staff.example KICK #papo ChanServ :Channel maintenance",
     ":ChanServ!ChanServ@services.int ACCOUNT *",
     ":ChanServ!ChanServ@services.int CHGHOST ChanServ services.example",
+];
+
+const ADDITIONAL_MEMBERS: &[&str] = &[
     ":alice!~alice@staff.example JOIN #papo alice :Alice",
     ":operator!~op@staff.example MODE #papo +o ChanServ",
     ":operator!~op@staff.example TOPIC #papo :Service restored",
@@ -184,7 +187,7 @@ fn live_batch_state_transcript_matrix() {
             Ending::OpenLimit,
             Ending::Disconnect,
         ] {
-            for &member in MEMBERS {
+            for &member in LATE_MEMBERS.iter().chain(ADDITIONAL_MEMBERS) {
                 transcript(kind, parent, ending, member, live);
             }
         }
@@ -338,7 +341,7 @@ fn an_abandoned_response_releases_only_rows_that_have_not_been_delivered() {
 
 fn late_batch_members(reference: &str, setup: &[&str], replay: bool) {
     let now = Instant::now();
-    for &member in &MEMBERS[..6] {
+    for &member in LATE_MEMBERS {
         let mut session = Session::new(Config::default().max_open_batches(1));
         for line in [
             ":papo!~papo@localhost JOIN #papo",
@@ -363,16 +366,17 @@ fn late_batch_members(reference: &str, setup: &[&str], replay: bool) {
         let recipient = session.state().__resolve_recipient(&guard);
         let event = session.poll_event().unwrap();
         let casemapping = session.state().casemapping();
+        let command = member.split_ascii_whitespace().nth(1).unwrap();
         if replay {
             assert_eq!(
                 recipient,
                 RecipientStatus::Current(casemapping.nick("ChanServ"))
             );
             assert!(
-                matches!(event, Event::Line(line) if line.batch_type() == Some("znc.in/playback"))
+                matches!(event, Event::Line(line) if line.batch_type() == Some("znc.in/playback")
+                    && line.as_ref().command_is(command))
             );
         } else {
-            let command = member.split_ascii_whitespace().nth(1).unwrap();
             assert!(
                 matches!(
                     (command, &event),
@@ -408,6 +412,18 @@ fn members_of_a_batch_with_an_invalid_id_are_live() {
 }
 
 #[test]
+fn members_of_a_live_batch_refused_at_the_open_limit_are_live() {
+    late_batch_members(
+        "split",
+        &[
+            ":ergo.test BATCH +hold vendor/sync",
+            ":ergo.test BATCH +split netsplit hub.example leaf.example",
+        ],
+        false,
+    );
+}
+
+#[test]
 fn members_of_a_closed_batch_are_live() {
     late_batch_members(
         "old",
@@ -429,4 +445,26 @@ fn members_of_an_abandoned_playback_batch_stay_historical() {
         ],
         true,
     );
+}
+
+#[test]
+fn an_orphan_message_checks_the_senders_identity() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(
+        now,
+        b":alice!~alice@staff.example PRIVMSG papo :Are the release notes ready?",
+    );
+    let Some(Event::Line(first)) = session.poll_event() else {
+        panic!("expected the original message");
+    };
+    session.handle_line(
+        now,
+        b"@batch=missing :alice!~visitor@relay.example PRIVMSG papo :Hello?",
+    );
+    let Some(Event::Line(next)) = session.poll_event() else {
+        panic!("expected the message from the current holder");
+    };
+    assert_eq!(next.batch_type(), None);
+    assert_ne!(first.__reply_token(), next.__reply_token());
 }
