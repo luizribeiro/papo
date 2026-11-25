@@ -10536,7 +10536,12 @@ async fn a_full_protocol_queue_interrupts_the_check_with_normal_backoff() {
     });
     let settings = config()
         .max_channels(1)
+        .who_on_join(papo_core::WhoOnJoin::BelowMembers(2))
         .rate_limit(papo_core::RateLimit::new(1, Duration::from_hours(1)).unwrap());
+    let settings = crate::Feature::ALL
+        .iter()
+        .copied()
+        .fold(settings, papo_core::Config::disable);
     let (client, mut events, driver) = Driver::with_connector(
         Ok(ConnectionPlan {
             address: "irc://irc.example.net".parse().unwrap(),
@@ -10563,9 +10568,37 @@ async fn a_full_protocol_queue_interrupts_the_check_with_normal_backoff() {
     let join_cycle = b":papo-driver!~papo@localhost JOIN #papo-dev\r\n\
         :ergo.test 366 papo-driver #papo-dev :End of NAMES list\r\n\
         :papo-driver!~papo@localhost PART #papo-dev :Leaving\r\n";
-    // Each cycle contributes two paced follow-ups. One channel has room for 16,387.
-    server_line(&mut server, &join_cycle.repeat(8_193)).await;
-    server_line(&mut server, b":papo-driver!~papo@localhost JOIN #papo-dev\r\n:ergo.test 366 papo-driver #papo-dev :End of NAMES list\r\n:ergo.test PONG ergo.test :papo-check-0\r\n").await;
+    let mut expect_syncs = async |count| {
+        within(async {
+            let mut synced = 0;
+            while synced < count {
+                match next_event(&mut events).await {
+                    Some(Event::ChannelSynced(_)) => synced += 1,
+                    event @ (Some(Event::Disconnected(_) | Event::Lagged(_)) | None) => {
+                        panic!("unexpected event before the queue fills: {event:?}")
+                    }
+                    Some(_) => {}
+                }
+            }
+        })
+        .await;
+    };
+    // One channel allows 16,387 paced replies. The two-member channel adds only MODE.
+    let cycles = join_cycle.repeat((16_387 - 1) / 2);
+    for burst in cycles.chunks(128 * join_cycle.len()) {
+        server_line(&mut server, burst).await;
+        expect_syncs(burst.len() / join_cycle.len()).await;
+    }
+    server_line(
+        &mut server,
+        b":papo-driver!~papo@localhost JOIN #papo-dev\r\n\
+          :ergo.test 353 papo-driver = #papo-dev :papo-driver alice\r\n\
+          :ergo.test 366 papo-driver #papo-dev :End of NAMES list\r\n",
+    )
+    .await;
+    expect_syncs(1).await;
+    assert!(!check.is_finished());
+    server_line(&mut server, b":ergo.test PONG ergo.test :papo-check-0\r\n").await;
 
     let Err(Error::Interrupted(probe)) = within(check).await.unwrap() else {
         panic!("the queue limit must interrupt the outstanding probe");
