@@ -109,6 +109,37 @@ fn discards_a_queued_password_if_the_welcome_arrives_first() {
 }
 
 #[test]
+fn plaintext_password_waits_for_the_complete_capability_listing() {
+    let config = Config::default()
+        .wanted_caps(["server-time"])
+        .password(Secret::new("ergo-connection-password"));
+    Transcript::new(config)
+        .connect()
+        .client("CAP LS 302")
+        .server(":ergo.test CAP * LS * :account-notify batch")
+        .no_client()
+        .server(":ergo.test CAP * LS :server-time")
+        .client("PASS ergo-connection-password")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .client("CAP REQ :server-time")
+        .no_client();
+}
+
+#[test]
+fn opted_in_plaintext_sends_password_when_cap_is_unsupported() {
+    Transcript::new(Config::default().password(Secret::new("legacy-connection-password")))
+        .connect()
+        .client("CAP LS 302")
+        .no_client()
+        .server(":legacy.example 421 * CAP :Unknown command")
+        .client("PASS legacy-connection-password")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .no_client();
+}
+
+#[test]
 fn masks_a_password_echo_in_numeric_464() {
     Transcript::new(
         Config::default()
@@ -126,20 +157,6 @@ fn masks_a_password_echo_in_numeric_464() {
             if reason.contains("<redacted>") && !reason.contains("invalid-connection-password"))
     })
     .no_client();
-}
-
-#[test]
-fn waits_for_the_final_capability_listing_before_sending_password() {
-    let config = Config::default()
-        .wanted_caps([] as [&str; 0])
-        .password(papo_core::Secret::new("correct horse battery staple"));
-    Transcript::new(config)
-        .connect_default()
-        .server("CAP * LS * :account-notify batch")
-        .no_client()
-        .server("CAP * LS :server-time")
-        .client("PASS :correct horse battery staple")
-        .client("CAP END");
 }
 
 #[test]

@@ -8,7 +8,7 @@ use crate::sts::ConnectionSecurity;
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
     Capabilities, CloseKind, Config, ConnectPhase, Connection, Event, Handled, Outbox,
-    RegistrationPolicy,
+    RegistrationPolicy, WelcomeState,
     cap::{self, Cap},
     sasl::SaslSession,
 };
@@ -339,6 +339,7 @@ impl Caps {
         if config.sasl.is_some() && !self.advertised.contains_key(&cap::SASL) {
             sasl.unavailable("the server did not advertise sasl", outbox);
         }
+        WelcomeState::send_deferred_registration(config, outbox);
         self.send_requests(&requested, outbox);
     }
 

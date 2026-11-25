@@ -3828,6 +3828,7 @@ struct Outbox {
     connect_phases: VecDeque<ConnectPhase>,
     close_requested: bool,
     secure_credentials_allowed: bool,
+    registration_deferred: bool,
 }
 
 #[derive(Debug)]
@@ -4054,6 +4055,7 @@ impl Outbox {
         self.abort_transmits();
         self.close_requested = false;
         self.secure_credentials_allowed = secure_credentials_allowed;
+        self.registration_deferred = false;
     }
 
     fn abort_transmits(&mut self) {
@@ -4400,7 +4402,7 @@ impl Session {
     /// Behind a bouncer, credentials sent after registration can reach the upstream network.
     fn handle_welcome_read(&mut self) {
         self.sasl.handle_welcome();
-        self.welcome_state.handle_welcome_read(&mut self.outbox);
+        WelcomeState::handle_welcome_read(&mut self.outbox);
         if self.cancel_pending_registration() {
             caps::close_required(
                 &cap::ACCOUNT_REGISTRATION,
@@ -6210,8 +6212,6 @@ impl Session {
             &mut self.sasl,
             &mut self.outbox,
         ) == Handled::Yes;
-        self.welcome_state
-            .handle_cap_decision(message, &self.config, &mut self.outbox);
         let account_notification = was_connected
             && !self.sasl.is_exchanging()
             && matches!(

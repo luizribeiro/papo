@@ -27,7 +27,6 @@ pub(super) struct WelcomeState {
     next_alt_nick: usize,
     registration: Registration,
     webirc_pending: bool,
-    password_settled: bool,
     registration_error: Option<BuildError>,
 }
 
@@ -51,7 +50,6 @@ impl WelcomeState {
             next_alt_nick: 0,
             registration: Registration::Disconnected,
             webirc_pending: false,
-            password_settled: false,
             registration_error: registration_error(config),
         }
     }
@@ -78,7 +76,9 @@ impl WelcomeState {
         self.motd_lines = None;
         self.next_alt_nick = 0;
         self.webirc_pending = config.webirc.is_some();
-        self.password_settled = false;
+        outbox.registration_deferred = security == ConnectionSecurity::Plaintext
+            && outbox.secure_credentials_allowed
+            && config.password.is_some();
         if let Some(webirc) = &config.webirc {
             let Ok(line) = webirc_line(webirc) else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
@@ -89,11 +89,9 @@ impl WelcomeState {
         if let Ok(line) = Line::new("CAP").param("LS").param("302").encode() {
             outbox.transmit_raw(line);
         }
-        if security == ConnectionSecurity::Secure {
-            self.send_password(config, outbox);
+        if !outbox.registration_deferred {
+            Self::send_registration(config, outbox);
         }
-        outbox.transmit("NICK", [&config.nick]);
-        outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);
     }
 
     pub(super) fn handle_message(
@@ -213,10 +211,11 @@ impl WelcomeState {
         connection: &Connection,
         outbox: &mut Outbox,
     ) -> Handled {
-        if config.password.is_none()
-            || crate::secure_credentials_allowed(config, connection)
-            || !cap_is_unavailable(message)
-        {
+        if config.password.is_none() || !cap_is_unavailable(message) {
+            return Handled::No;
+        }
+        if crate::secure_credentials_allowed(config, connection) {
+            Self::send_deferred_registration(config, outbox);
             return Handled::No;
         }
         outbox.close(
@@ -229,35 +228,26 @@ impl WelcomeState {
         Handled::Yes
     }
 
-    pub(super) fn handle_cap_decision(
-        &mut self,
-        message: &LineRef<'_>,
-        config: &Config,
-        outbox: &mut Outbox,
-    ) {
-        if message.command_is("CAP")
-            && message
-                .param(1)
-                .is_some_and(|command| command.eq_ignore_ascii_case("LS"))
-            && message.param(2) != Some("*")
-            && !outbox.close_requested
-        {
-            self.send_password(config, outbox);
+    pub(super) fn send_deferred_registration(config: &Config, outbox: &mut Outbox) {
+        if std::mem::take(&mut outbox.registration_deferred) && !outbox.close_requested {
+            Self::send_registration(config, outbox);
         }
     }
 
-    fn send_password(&mut self, config: &Config, outbox: &mut Outbox) {
-        if self.password_settled {
-            return;
+    fn send_registration(config: &Config, outbox: &mut Outbox) {
+        if outbox.secure_credentials_allowed
+            && let Some(password) = &config.password
+        {
+            match Line::new("PASS").param(password).encode() {
+                Ok(line) => outbox.transmit_raw(line),
+                Err(error) => {
+                    outbox.close(CloseKind::Other, format!("invalid PASS message: {error}"));
+                    return;
+                }
+            }
         }
-        self.password_settled = true;
-        let Some(password) = &config.password else {
-            return;
-        };
-        match Line::new("PASS").param(password).encode() {
-            Ok(line) => outbox.transmit_raw(line),
-            Err(error) => outbox.close(CloseKind::Other, format!("invalid PASS message: {error}")),
-        }
+        outbox.transmit("NICK", [&config.nick]);
+        outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);
     }
 
     pub(super) fn handle_timeout(
@@ -289,8 +279,8 @@ impl WelcomeState {
             .min()
     }
 
-    pub(super) fn handle_welcome_read(&mut self, outbox: &mut Outbox) {
-        self.password_settled = true;
+    pub(super) fn handle_welcome_read(outbox: &mut Outbox) {
+        outbox.registration_deferred = false;
         outbox
             .immediate
             .retain(|queued| !queued.line.starts_with(b"PASS "));
@@ -303,7 +293,6 @@ impl WelcomeState {
         self.motd_lines = None;
         self.registration = Registration::Disconnected;
         self.webirc_pending = false;
-        self.password_settled = false;
     }
 
     pub(super) fn nick(&self) -> &str {

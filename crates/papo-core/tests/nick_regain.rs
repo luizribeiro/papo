@@ -361,9 +361,13 @@ fn reclaims_the_primary_nick_even_when_it_matches_the_server_password() {
         .alt_nicks(["papo_"]);
     config.regain_nick = true;
     Transcript::new(config)
-        .connect_default()
+        .connect()
+        .client("CAP LS 302")
+        .no_client()
         .server(":ergo.test CAP * LS :")
         .client("PASS papo")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
         .client("CAP END")
         .server(":ergo.test 433 * papo :Nickname is already in use")
         .client("NICK papo_")
@@ -374,5 +378,16 @@ fn reclaims_the_primary_nick_even_when_it_matches_the_server_password() {
         .client("MONITOR + papo")
         .server(":ergo.test 731 papo_ :papo")
         .client("NICK papo")
-        .ignore_rest();
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "papo"))
+        .server(":ergo.test 433 papo_ papo :Nickname papo is already in use")
+        .event(|event| {
+            matches!(event, Event::Line(line) if line.as_ref().command_is("433")
+                && line.as_ref().get(1) == Some("<redacted>")
+                && line.as_ref().get(2) == Some("Nickname <redacted> is already in use"))
+        })
+        .server(":ergo.test 731 papo_ :papo")
+        .client("NICK papo")
+        .server(":papo_!~papo@user/papo NICK :papo")
+        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "papo_" && new == "papo"))
+        .client("MONITOR - papo");
 }

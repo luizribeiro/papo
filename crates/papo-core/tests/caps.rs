@@ -542,8 +542,6 @@ fn server_password_waits_for_the_sts_decision() {
     Transcript::new(config.clone())
         .connect()
         .client("CAP LS 302")
-        .client("NICK papo")
-        .client("USER papo 0 * papo")
         .no_client()
         .server("CAP * LS :sts=port=6697,duration=86400")
         .event(|event| matches!(event, Event::StsUpgrade { port: 6697, .. }))
@@ -561,11 +559,11 @@ fn server_password_waits_for_the_sts_decision() {
     Transcript::new(config)
         .connect()
         .client("CAP LS 302")
-        .client("NICK papo")
-        .client("USER papo 0 * papo")
         .no_client()
         .server("CAP * LS :")
         .client("PASS :correct horse battery staple")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
         .client("CAP END");
 }
 

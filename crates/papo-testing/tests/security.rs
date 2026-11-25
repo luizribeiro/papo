@@ -1906,8 +1906,6 @@ async fn server_password_never_follows_a_batched_welcome() {
             .reconnect(Reconnect::never()),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
-    assert_eq!(wire.next_sent().await, "NICK papo-wire");
-    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
     wire.server(":bouncer.papo.test BATCH +welcome metadata")
         .await;
     wire.server("@batch=welcome :bouncer.papo.test 001 papo-wire :Welcome to soju, papo-wire")
@@ -2325,13 +2323,17 @@ async fn login_credential_refusals_are_redacted() {
             );
         } else {
             assert_eq!(wire.next_sent().await, "CAP LS 302");
-            assert_eq!(wire.next_sent().await, "NICK papo-wire");
-            assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+            if command != "PASS" {
+                assert_eq!(wire.next_sent().await, "NICK papo-wire");
+                assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+            }
         }
         let payload = match command {
             "PASS" => {
                 wire.server(":offline.test CAP * LS :").await;
                 assert_eq!(wire.next_sent().await, format!("PASS {key}"));
+                assert_eq!(wire.next_sent().await, "NICK papo-wire");
+                assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
                 key.to_owned()
             }
             "PLAIN" | "OAUTHBEARER" => {
