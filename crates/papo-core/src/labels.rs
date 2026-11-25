@@ -92,6 +92,14 @@ impl Session {
         incoming.addressed(&addresses)
     }
 
+    /// Classifies a standard failure by the command and code the server sent.
+    pub(super) fn standard_refusal(&self, incoming: IncomingLine<'_>) -> Option<crate::Refusal> {
+        let routing = incoming.routing();
+        let reply = routing.standard_reply()?;
+        (reply.kind == papo_proto::StandardReplyKind::Fail)
+            .then(|| reply.refusal(&self.supported_features()))
+    }
+
     pub(super) fn batch_reply_lines(
         &self,
         messages: Vec<crate::StoredLine>,
@@ -147,6 +155,7 @@ impl Session {
                 .and_then(|echo| sent_info(&echo));
             let response = Response {
                 sent,
+                standard_refusal: self.standard_refusal(incoming),
                 ..self.completed_response(id, lines)
             };
             self.outbox.event(Event::Response(response));
@@ -188,6 +197,7 @@ impl Session {
             state_limit: None,
             enabled_features: self.supported_features(),
             subject_tokens: Vec::new(),
+            standard_refusal: None,
         }
     }
 
@@ -342,6 +352,7 @@ impl Session {
             return false;
         };
         let shown = incoming.addressed(&addresses);
+        let standard_refusal = self.standard_refusal(incoming);
         let max_list_entries = self.config.max_list_entries_per_mode;
         let subject = self.state.who_subject_token(message);
         let request = self.unlabelled_requests.get_mut(index).unwrap();
@@ -349,6 +360,7 @@ impl Session {
             request.started = Some(now);
         }
         request.boundary_seen |= reached_boundary;
+        request.standard_refusal = request.standard_refusal.or(standard_refusal);
         if request.push_or_overflow(shown, complete, max_list_entries, subject) {
             let id = request.id;
             self.finish_truncated(id);
@@ -359,6 +371,7 @@ impl Session {
             self.away_messages.remove(&request.id);
             let mut response = Response {
                 subject_tokens: request.subject_tokens,
+                standard_refusal: request.standard_refusal,
                 ..self.completed_response(request.id, request.lines.into_vec())
             };
             if let Some(matcher) = request.boundary.matcher() {
@@ -484,6 +497,7 @@ impl Session {
             lines: crate::bounded::BoundedCollection::new(row_limit),
             boundary_seen: false,
             subject_tokens: Vec::new(),
+            standard_refusal: None,
         });
     }
 

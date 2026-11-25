@@ -1,9 +1,12 @@
-use std::{collections::VecDeque, time::Duration};
+use std::{
+    collections::{BTreeSet, VecDeque},
+    time::Duration,
+};
 
 use papo_proto::{Casemapping, Command, Line, LineRef, Param, Secret, StandardReplyKind, WireLine};
 use web_time::Instant;
 
-use crate::{RequestError, Sasl, sasl::Mechanism};
+use crate::{Feature, Refusal, RequestError, Sasl, sasl::Mechanism};
 
 /// The most secrets a session tracks for the lines the server echoes.
 const MAX_SECRET_ECHOES: usize = 32;
@@ -488,6 +491,10 @@ impl RoutingReply<'_> {
 
     pub(super) fn code_is(&self, code: &str) -> bool {
         self.code.eq_ignore_ascii_case(code)
+    }
+
+    pub(super) fn refusal(&self, enabled: &BTreeSet<Feature>) -> Refusal {
+        Refusal::from_standard_enabled(self.command, self.code, enabled)
     }
 }
 

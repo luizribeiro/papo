@@ -1053,3 +1053,67 @@ fn a_matched_address_is_shown_as_the_request_spelled_it() {
         assert!(!format!("{response:?}").contains(key));
     }
 }
+
+#[test]
+fn a_credential_equal_to_a_failure_code_keeps_the_typed_refusal() {
+    use papo_core::Refusal;
+    use support::Transcript;
+
+    const REGISTER: &str = ":ergo.test FAIL REGISTER ACCOUNT_EXISTS alice :Account already exists";
+    const JOIN: &str =
+        ":ergo.test FAIL JOIN CHANNEL_RENAMED #staff #team :The channel has been renamed";
+    let refused = |expected: Refusal| {
+        move |event: &Event| {
+            let Event::Response(response) = event else {
+                return false;
+            };
+            let Some(papo_core::ServerError::Standard { code, .. }) = response.error() else {
+                return false;
+            };
+            code == "<REDACTED>" && response.refusal() == Some(expected)
+        }
+    };
+    let registering = || {
+        let caps = "draft/account-registration labeled-response";
+        Transcript::new(Config::default().wanted_caps(caps.split(' ')))
+            .connect_default()
+            .server(&format!("CAP * LS :{caps}"))
+            .client(&format!("CAP REQ :{caps}"))
+            .server(&format!("CAP * ACK :{caps}"))
+            .client("CAP END")
+            .welcome(":ergo.test 001 papo :Welcome to Ergo")
+            .server(":ergo.test 422 papo :MOTD File is missing")
+            .event(|event| matches!(event, Event::Connected(_)))
+            .update(|session| {
+                session
+                    .create_account(Instant::now(), None, None, Secret::new("ACCOUNT_EXISTS"))
+                    .unwrap();
+            })
+            .client("@label=0 REGISTER * * ACCOUNT_EXISTS")
+    };
+    registering()
+        .server(&format!("@label=0 {REGISTER}"))
+        .event(refused(Refusal::AccountExists));
+    registering()
+        .server("@label=0 :ergo.test BATCH +7 labeled-response")
+        .server(&format!("@batch=7 {REGISTER}"))
+        .server(":ergo.test BATCH -7")
+        .event(refused(Refusal::AccountExists));
+    Transcript::new(Config::default())
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .update(|session| {
+            let key = Secret::new("CHANNEL_RENAMED");
+            session.join(Instant::now(), "#staff", Some(&key)).unwrap();
+        })
+        .client("JOIN #staff CHANNEL_RENAMED")
+        .server(JOIN)
+        .event(refused(Refusal::ChannelRenamed))
+        .server(JOIN)
+        .event(|event| {
+            matches!(event, Event::StandardReply(reply)
+                if reply.code == "<REDACTED>" && reply.refusal() == Some(Refusal::ChannelRenamed))
+        });
+}

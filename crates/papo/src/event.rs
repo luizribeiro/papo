@@ -6044,7 +6044,6 @@ mod tests {
                 code: "RATE_LIMITED".into(),
                 context: vec!["#papo".into()],
                 description: "Please wait".into(),
-                #[cfg(feature = "unstable")]
                 refusal: papo_core::Refusal::RateLimited,
             };
             let Event::StandardReply(mapped) =

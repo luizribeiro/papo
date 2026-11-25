@@ -105,10 +105,13 @@ fn return_address(message: &LineRef<'_>, conversation: &crate::Conversation) -> 
 }
 
 impl Session {
-    pub(super) fn report_standard_reply(&mut self, message: &LineRef<'_>) -> bool {
-        let Some(reply) = StandardReplyView::parse(message) else {
+    pub(super) fn report_standard_reply(&mut self, incoming: crate::IncomingLine<'_>) -> bool {
+        let Some(reply) = StandardReplyView::parse(&incoming.shown) else {
             return false;
         };
+        let refusal = self
+            .standard_refusal(incoming)
+            .unwrap_or(crate::Refusal::Other);
         self.outbox.event(Event::StandardReply(StandardReply {
             kind: reply.kind,
             command: reply.command.to_ascii_uppercase(),
@@ -119,12 +122,7 @@ impl Session {
                 .map(|context| self.secret_echoes.shown(context))
                 .collect(),
             description: self.secret_echoes.shown(reply.description),
-            #[cfg(feature = "unstable")]
-            refusal: crate::Refusal::from_standard_enabled(
-                reply.command,
-                reply.code,
-                &self.supported_features(),
-            ),
+            refusal,
         }));
         true
     }

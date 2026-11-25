@@ -1801,6 +1801,7 @@ struct UnlabelledRequest {
     lines: bounded::BoundedCollection<Line>,
     boundary_seen: bool,
     subject_tokens: Vec<(usize, ReplyToken)>,
+    standard_refusal: Option<Refusal>,
 }
 
 #[derive(Clone, Debug)]
@@ -1869,6 +1870,9 @@ pub struct Response {
     sent: Option<SentInfo>,
     enabled_features: BTreeSet<Feature>,
     subject_tokens: Vec<(usize, ReplyToken)>,
+    /// How the first standard failure classifies by the command and code the server sent,
+    /// which the reported line may show replaced.
+    standard_refusal: Option<Refusal>,
 }
 
 impl Response {
@@ -1893,9 +1897,16 @@ impl Response {
     /// Returns the first standard failure or error numeric in this response.
     #[must_use]
     pub fn error(&self) -> Option<ServerError> {
-        self.lines
+        let mut error = self
+            .lines
             .iter()
-            .find_map(|message| server_error(&message.as_ref(), &self.enabled_features))
+            .find_map(|message| server_error(&message.as_ref(), &self.enabled_features))?;
+        if let ServerError::Standard { refusal, .. } = &mut error
+            && let Some(sent) = self.standard_refusal
+        {
+            *refusal = sent;
+        }
+        Some(error)
     }
 
     /// Returns the first refusal category in this response.
@@ -1929,8 +1940,7 @@ pub enum ServerError {
         context: Vec<String>,
         /// Human-readable failure description.
         description: String,
-        /// Classification recorded using the negotiated unstable features.
-        #[cfg(feature = "unstable")]
+        /// Classification recorded when the reply arrived.
         #[doc(hidden)]
         refusal: Refusal,
     },
@@ -1953,14 +1963,12 @@ impl ServerError {
         context: Vec<String>,
         description: String,
     ) -> Self {
-        #[cfg(feature = "unstable")]
         let refusal = Refusal::from_standard_enabled(&command, &code, &BTreeSet::new());
         Self::Standard {
             command,
             code,
             context,
             description,
-            #[cfg(feature = "unstable")]
             refusal,
         }
     }
@@ -1976,12 +1984,7 @@ impl ServerError {
     pub fn refusal(&self) -> Refusal {
         match self {
             Self::Numeric { numeric, .. } => Refusal::from_numeric(*numeric),
-            #[cfg(feature = "unstable")]
             Self::Standard { refusal, .. } => *refusal,
-            #[cfg(not(feature = "unstable"))]
-            Self::Standard { command, code, .. } => {
-                Refusal::from_standard_enabled(command, code, &BTreeSet::new())
-            }
         }
     }
 }
@@ -2001,8 +2004,7 @@ pub struct StandardReply {
     pub context: Vec<String>,
     /// Human-readable reply description with repeated credentials shown as `<redacted>`.
     pub description: String,
-    /// Classification recorded using the negotiated unstable features.
-    #[cfg(feature = "unstable")]
+    /// Classification recorded when the reply arrived.
     #[doc(hidden)]
     pub refusal: Refusal,
 }
@@ -2011,12 +2013,7 @@ impl StandardReply {
     /// Returns the refusal category when this is a failure.
     #[must_use]
     pub fn refusal(&self) -> Option<Refusal> {
-        (self.kind == StandardReplyKind::Fail).then(|| {
-            #[cfg(feature = "unstable")]
-            return self.refusal;
-            #[cfg(not(feature = "unstable"))]
-            Refusal::from_standard_enabled(&self.command, &self.code, &BTreeSet::new())
-        })
+        (self.kind == StandardReplyKind::Fail).then_some(self.refusal)
     }
 }
 
@@ -6378,7 +6375,7 @@ impl Session {
             && !redacted
             && !invited
             && emit_unhandled
-            && self.report_standard_reply(message);
+            && self.report_standard_reply(incoming);
         self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
@@ -7099,6 +7096,9 @@ impl Session {
                 history_targets: history_targets
                     .map(|rows| self.history_targets(batch::parse_history_targets(&rows))),
                 subject_tokens,
+                standard_refusal: messages
+                    .iter()
+                    .find_map(|message| self.standard_refusal(message.incoming())),
                 ..self.completed_response(request.id, self.batch_reply_lines(messages, &request))
             };
             self.outbox.event(Event::Response(response));
@@ -7322,10 +7322,6 @@ fn is_failure_numeric(numeric: Numeric) -> bool {
 }
 
 /// The failure `message` reports, when it is a standard `FAIL` or an error numeric.
-#[allow(
-    unused_variables,
-    reason = "only the unstable refusal classification reads the enabled features"
-)]
 fn server_error(
     message: &LineRef<'_>,
     enabled_features: &BTreeSet<Feature>,
@@ -7338,7 +7334,6 @@ fn server_error(
             code: reply.code.to_ascii_uppercase(),
             context: reply.context.into_iter().map(str::to_owned).collect(),
             description: reply.description.to_owned(),
-            #[cfg(feature = "unstable")]
             refusal: Refusal::from_standard_enabled(reply.command, reply.code, enabled_features),
         });
     }
@@ -7619,6 +7614,7 @@ mod tests {
                 boundary_seen: false,
                 lines: crate::bounded::BoundedCollection::new(1_000),
                 subject_tokens: Vec::new(),
+                standard_refusal: None,
             },
             UnlabelledRequest {
                 id: RequestId(42),
@@ -7634,6 +7630,7 @@ mod tests {
                 boundary_seen: false,
                 lines: crate::bounded::BoundedCollection::new(1_000),
                 subject_tokens: Vec::new(),
+                standard_refusal: None,
             },
         ]);
 
