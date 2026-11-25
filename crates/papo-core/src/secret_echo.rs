@@ -360,11 +360,14 @@ impl<'a> IncomingLine<'a> {
         RoutingLine(self.original.unwrap_or(self.shown))
     }
 
-    pub(super) fn addressed(self, addresses: &[usize]) -> Line {
+    /// Returns the reported line with each replaced address spelled as the request named it.
+    ///
+    /// `addresses` holds the positions a request matched and the name it sent for each.
+    pub(super) fn addressed(self, addresses: &[(usize, &str)]) -> Line {
         let mut shown = self.shown.to_owned();
         if let Some(original) = self.original {
-            for &index in addresses {
-                if let Some(name) = original.param(index) {
+            for &(index, name) in addresses {
+                if original.param(index) != self.shown.param(index) {
                     shown.__replace_param(index, name);
                 }
             }

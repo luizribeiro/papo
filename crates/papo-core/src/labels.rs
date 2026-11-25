@@ -341,6 +341,7 @@ impl Session {
         else {
             return false;
         };
+        let shown = incoming.addressed(&addresses);
         let max_list_entries = self.config.max_list_entries_per_mode;
         let subject = self.state.who_subject_token(message);
         let request = self.unlabelled_requests.get_mut(index).unwrap();
@@ -348,7 +349,6 @@ impl Session {
             request.started = Some(now);
         }
         request.boundary_seen |= reached_boundary;
-        let shown = incoming.addressed(&addresses);
         if request.push_or_overflow(shown, complete, max_list_entries, subject) {
             let id = request.id;
             self.finish_truncated(id);

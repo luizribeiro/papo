@@ -1513,13 +1513,13 @@ impl ResponseMatcher {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn matches(
-        &self,
+    fn matches<'m>(
+        &'m self,
         message: &RoutingLine<'_>,
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
-        addresses: &mut Vec<usize>,
+        addresses: &mut Vec<(usize, &'m str)>,
     ) -> Option<bool> {
         let numeric = match message.command() {
             Command::Numeric(numeric) => Some(numeric),
@@ -1527,10 +1527,10 @@ impl ResponseMatcher {
         };
         let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
         let own_echo = |command| own_source && message.command() == command;
-        let mut address = |index, name: &str| {
+        let mut address = |index, name: &'m str| {
             let matches = message.param_names(index, mapping, name);
             if matches && message.is_failure() && index + 1 < message.len() {
-                addresses.push(index);
+                addresses.push((index, name));
             }
             matches
         };
@@ -1753,13 +1753,13 @@ impl ResponseBoundary {
         }
     }
 
-    fn matches(
-        &self,
+    fn matches<'m>(
+        &'m self,
         message: &RoutingLine<'_>,
         mapping: Casemapping,
         own_nick: &str,
         state: &State,
-        addresses: &mut Vec<usize>,
+        addresses: &mut Vec<(usize, &'m str)>,
     ) -> Option<bool> {
         match self {
             Self::Matcher(matcher) => matcher.matches(message, mapping, own_nick, state, addresses),

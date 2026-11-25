@@ -1014,3 +1014,42 @@ fn a_credential_named_by_a_timed_error_is_not_kept_in_state() {
     assert!(!format!("{:?}", session.state()).contains(key));
     assert!(!format!("{session:?}").contains(key));
 }
+
+#[test]
+fn a_matched_address_is_shown_as_the_request_spelled_it() {
+    for (key, reply, reported) in [
+        (
+            "#RUST",
+            ":ergo.test 475 papo #RUST :Cannot join channel (+k)",
+            ["papo", "#rust", "Cannot join channel (+k)"],
+        ),
+        (
+            "Rust",
+            ":ergo.test 475 papo #Rust :Cannot join channel (+k)",
+            ["papo", "#rust", "Cannot join channel (+k)"],
+        ),
+        (
+            "hunter2",
+            ":ergo.test 475 papo #Rust :Cannot join channel (+k): hunter2",
+            ["papo", "#Rust", "Cannot join channel (+k): <redacted>"],
+        ),
+    ] {
+        let now = Instant::now();
+        let mut session = session(now, "ergo.test", "multi-prefix");
+        let id = session.join(now, "#rust", Some(&Secret::new(key))).unwrap();
+        assert_eq!(
+            &*session.poll_transmit().unwrap(),
+            format!("JOIN #rust {key}\r\n").as_bytes()
+        );
+        session.handle_line(now, reply.as_bytes());
+        let Some(Event::Response(response)) = session.poll_event() else {
+            panic!("expected the refused join for key {key}");
+        };
+        assert_eq!(response.id, id);
+        assert_eq!(
+            response.lines[0].as_ref().params().collect::<Vec<_>>(),
+            reported
+        );
+        assert!(!format!("{response:?}").contains(key));
+    }
+}
