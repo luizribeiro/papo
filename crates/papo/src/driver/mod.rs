@@ -324,7 +324,8 @@ enum PendingTransmit {
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
-        lines: Vec<crate::SentLine>,
+        texts: Vec<String>,
+        reason: crate::UnconfirmedReason,
         result: oneshot::Sender<Result<SendOutcome, Error>>,
     },
 }
@@ -338,15 +339,17 @@ impl PendingTransmit {
                 status,
                 receipt,
                 fallbacks,
-                lines,
+                texts,
+                reason,
                 result,
             } => {
-                _ = result.send(Ok(SendOutcome::new(
+                _ = result.send(Ok(SendOutcome::unconfirmed(
                     conversation,
                     status,
                     receipt,
                     fallbacks,
-                    lines,
+                    texts,
+                    reason,
                 )));
             }
         }
@@ -1358,7 +1361,8 @@ where
                                     status,
                                     receipt,
                                     fallbacks,
-                                    lines: crate::SentLine::unconfirmed(sent.texts, reason),
+                                    texts: sent.texts,
+                                    reason,
                                     result,
                                 });
                             }

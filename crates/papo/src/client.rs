@@ -83,18 +83,6 @@ pub struct SentLine {
     pub confirmation: crate::Confirmation,
 }
 
-impl SentLine {
-    pub(crate) fn unconfirmed(texts: Vec<String>, reason: crate::UnconfirmedReason) -> Vec<Self> {
-        texts
-            .into_iter()
-            .map(|text| Self {
-                text,
-                confirmation: crate::Confirmation::unconfirmed(reason),
-            })
-            .collect()
-    }
-}
-
 /// The result of adding or removing a reaction with [`Client::react`] or [`Client::unreact`].
 ///
 /// The labelled echo of the reaction is consumed here and is not also emitted as an event.
@@ -640,8 +628,12 @@ impl SendOutcome {
         audience: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
-        lines: Vec<SentLine>,
+        lines: impl IntoIterator<Item = (String, crate::Confirmation)>,
     ) -> Self {
+        let lines = lines
+            .into_iter()
+            .map(|(text, confirmation)| SentLine { text, confirmation })
+            .collect();
         Self {
             conversation,
             audience,
@@ -649,6 +641,20 @@ impl SendOutcome {
             lines,
             fallbacks,
         }
+    }
+
+    pub(crate) fn unconfirmed(
+        conversation: crate::Conversation,
+        audience: Option<crate::Prefix>,
+        receipt: crate::message_ref::Receipt,
+        fallbacks: Vec<Fallback>,
+        texts: Vec<String>,
+        reason: crate::UnconfirmedReason,
+    ) -> Self {
+        let lines = texts
+            .into_iter()
+            .map(|text| (text, crate::Confirmation::unconfirmed(reason)));
+        Self::new(conversation, audience, receipt, fallbacks, lines)
     }
 
     /// `echoes` holds one entry per logical line: the labelled echo, if its response was one.
@@ -670,21 +676,13 @@ impl SendOutcome {
         }
         debug_assert_eq!(echoes.len(), texts.len(), "one response per logical line");
         // papo labels a send only when echo-message is on as well.
-        let lines = texts
-            .into_iter()
-            .zip(echoes)
-            .map(|(text, echo)| SentLine {
+        let lines = texts.into_iter().zip(echoes).map(|(text, echo)| {
+            (
                 text,
-                confirmation: crate::Confirmation::from_labelled_echo(true, echo.clone()),
-            })
-            .collect();
-        Self {
-            conversation,
-            audience,
-            receipt,
-            lines,
-            fallbacks,
-        }
+                crate::Confirmation::from_labelled_echo(true, echo.clone()),
+            )
+        });
+        Self::new(conversation, audience, receipt, fallbacks, lines)
     }
 }
 
@@ -1085,16 +1083,12 @@ impl Client {
             drop(state);
             let reply = Line::notice(&target.text, &body);
             let confirmation = client.send_one_line(target, reply).await?;
-            let line = SentLine {
-                text: body,
-                confirmation,
-            };
             Ok(SendOutcome::new(
                 conversation,
                 status,
                 receipt,
                 Vec::new(),
-                vec![line],
+                [(body, confirmation)],
             ))
         })
     }
@@ -1737,14 +1731,13 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_chat_message(target, message).await?;
-            let lines =
-                SentLine::unconfirmed(vec![text], crate::UnconfirmedReason::NoLabeledResponse);
-            return Ok(SendOutcome::new(
+            return Ok(SendOutcome::unconfirmed(
                 conversation,
                 status,
                 receipt,
                 fallbacks,
-                lines,
+                vec![text],
+                crate::UnconfirmedReason::NoLabeledResponse,
             ));
         }
         let (result, receiver) = oneshot::channel();

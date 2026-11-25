@@ -682,15 +682,16 @@ mod tests {
                     Some(1_763_228_532_751),
                 ),
             ]
-            .map(|(msgid, text, millis)| crate::SentLine {
-                text: text.into(),
-                confirmation: crate::Confirmation::Confirmed {
-                    msgid: msgid.into(),
-                    server_time: millis
-                        .map(|millis| crate::ServerTime::from_stored_millis(millis).unwrap()),
-                },
-            })
-            .into(),
+            .map(|(msgid, text, millis)| {
+                (
+                    text.into(),
+                    crate::Confirmation::Confirmed {
+                        msgid: msgid.into(),
+                        server_time: millis
+                            .map(|millis| crate::ServerTime::from_stored_millis(millis).unwrap()),
+                    },
+                )
+            }),
         );
         sent.receipt.set_reference(
             ["RfcBTzyxY120005", "RfcBTzyxY120006"].map(MessageId::from),

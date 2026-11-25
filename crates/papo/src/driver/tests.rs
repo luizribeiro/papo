@@ -9037,11 +9037,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
             ("RfcBTzyxY120005", "second deployment line"),
             ("RfcBTzyxY120006", "third deployment line"),
         ]
-        .map(|(id, text)| crate::SentLine {
-            text: text.into(),
-            confirmation: confirmed(id, None),
-        })
-        .into(),
+        .map(|(id, text)| confirmed_line(id, None, text)),
     );
     sent.receipt.set_reference(
         ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"].map(crate::MessageId::from),
