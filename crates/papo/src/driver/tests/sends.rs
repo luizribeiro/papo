@@ -110,6 +110,10 @@ async fn each_line_of_a_send_carries_its_own_confirmation() {
     ];
     for (advertised, enabled, echoes, [deploy, checks]) in cases {
         let sent = send_two_lines(advertised, enabled, echoes).await;
+        if matches!(checks, crate::Confirmation::Unconfirmed { .. }) {
+            assert_eq!(sent.lines[1].return_address(), sent.return_address());
+            assert!(sent.lines[1].return_address().msgid().is_none());
+        }
         assert_eq!(
             sent_line_details(&sent),
             [
@@ -146,5 +150,38 @@ async fn a_send_queued_before_welcome_keeps_its_text_unconfirmed() {
             crate::Confirmation::unconfirmed(crate::UnconfirmedReason::NoLabeledResponse)
         )]
     );
+    let reference = sent.lines[0].return_address();
+    assert_eq!(reference, sent.return_address());
+    assert!(reference.msgid().is_none());
+    for error in [
+        within(client.react(reference.clone(), "👀"))
+            .await
+            .unwrap_err(),
+        within(client.unreact(reference.clone(), "👀"))
+            .await
+            .unwrap_err(),
+        within(client.redact(reference.clone(), "superseded"))
+            .await
+            .unwrap_err(),
+    ] {
+        assert!(matches!(
+            error,
+            Error::InvalidInput(crate::InvalidInput::UnusableMessageReference)
+        ));
+    }
+    assert!(matches!(
+        client.saved_message(&reference.to_saved()),
+        Err(Error::InvalidInput(
+            crate::InvalidInput::InvalidSavedMessage
+        ))
+    ));
+    let reply = tokio::spawn(async move { client.reply(reference, "all checks green").await });
+    client_line(&mut server, b"@label=0 PRIVMSG #papo :all checks green\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0;msgid=6b4b6emqdux5z7beb724swiqhn :papo-driver!~u@7z29yeuh6n8ta.irc PRIVMSG #papo :all checks green\r\n",
+    )
+    .await;
+    within(reply).await.unwrap().unwrap();
     task.abort();
 }

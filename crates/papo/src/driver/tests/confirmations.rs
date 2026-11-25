@@ -301,6 +301,9 @@ async fn a_ctcp_reply_resolves_to_its_labelled_echo() {
             confirmed("hvjgkknruzk58qrw89xh3v4spa", "2026-11-15T20:11:27.686Z"),
         )]
     );
+    let reference = outcome.lines[0].return_address();
+    assert_eq!(reference.as_ref(), "emily");
+    assert_eq!(reference.msgid().unwrap(), "hvjgkknruzk58qrw89xh3v4spa");
     task.abort();
 }
 

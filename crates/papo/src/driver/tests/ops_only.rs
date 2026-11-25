@@ -668,5 +668,32 @@ async fn split_send_references_redact_only_their_own_ops_line() {
         let result = within(redacting).await.unwrap().unwrap();
         assert_eq!(result.lines[0].redacts, id);
     }
+    let reference = sent.lines[1].return_address();
+    assert_eq!(
+        reference.server_time(),
+        crate::ServerTime::from_stored("2026-11-15T17:42:12.749Z").ok()
+    );
+    let restored = ops.client.saved_message(&reference.to_saved()).unwrap();
+    for reference in [reference.clone(), restored] {
+        let client = ops.client.clone();
+        let replying = tokio::spawn(async move { client.reply(reference, "confirmed").await });
+        assert_eq!(
+            without_label(&next_client_line(&mut ops.server).await),
+            "@+reply=6b4b6emqdux5z7beb724swiqhn PRIVMSG @#ops confirmed\r\n"
+        );
+        replying.abort();
+    }
+    server_line(
+        &mut ops.server,
+        b":papo-driver!papo@localhost PART #ops :release complete\r\nPING :part-fence\r\n",
+    )
+    .await;
+    client_line(&mut ops.server, b"PONG part-fence\r\n").await;
+    for reference in [reference, sent.return_address()] {
+        assert!(matches!(
+            within(ops.client.reply(reference, "one more update")).await,
+            Err(Error::TargetGone)
+        ));
+    }
     ops.finish().await;
 }

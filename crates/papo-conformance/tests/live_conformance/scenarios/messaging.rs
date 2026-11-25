@@ -1310,6 +1310,42 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// redacts only the second message of a split send using its line reference
+#[scenario(
+    requires(caps = ["draft/message-redaction", "echo-message", "labeled-response"]),
+    covers = ["draft.message-redaction.redact"]
+)]
+async fn redact_second_split_line(s: Scenario) -> papo_testing::Result<()> {
+    let alice_builder = s.configure("alice")?.disable(papo::Feature::Multiline);
+    let (alice, mut bob, channel) = fixture_pair_with(&s, alice_builder).await?;
+
+    let text = "deployment progress ".repeat(35);
+    let sent = alice.privmsg(&channel, text.as_str()).await?;
+    let [first, second] = sent.lines.as_slice() else {
+        panic!("expected the long message to split in two: {sent:?}");
+    };
+    assert_eq!(format!("{}{}", first.text, second.text), text);
+    let first_received = bob
+        .wait_for(|event| message_text(event, &first.text))
+        .await?;
+    let second_received = bob
+        .wait_for(|event| message_text(event, &second.text))
+        .await?;
+    let id = second_received
+        .msgid()
+        .expect("the second line has a msgid");
+    assert_ne!(first_received.msgid(), Some(id));
+    let reference = second.return_address();
+    assert_eq!(reference.msgid(), Some(id));
+
+    let outcome = alice.redact(reference, "superseded").await?;
+    assert_eq!(confirmed_redaction(&outcome).0, id);
+    let redacted = bob.wait_for(Event::as_redacted).await?;
+    assert_eq!(&redacted.redacts, id);
+    bob.expect_none(Event::as_redacted).await?;
+    Ok(())
+}
+
 /// a redaction from a session without echo-message is confirmed by the echo Ergo still sends it
 #[scenario(
     requires(caps = ["draft/message-redaction", "labeled-response"]),
