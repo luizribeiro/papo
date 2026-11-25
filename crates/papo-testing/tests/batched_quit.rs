@@ -85,11 +85,12 @@ impl Review {
 
     async fn overflow_split(&mut self) {
         self.start_split().await;
-        for index in 0..10_000 {
-            self.wire.server(format!(
-                "@batch=split :guest{index}!~u@leaf-{index}.example QUIT :hub.example leaf.example"
-            )).await;
+        let quit = "@batch=split :guest!~u@leaf.example QUIT :hub.example leaf.example";
+        for _ in 0..9_999 {
+            self.wire.server(quit).await;
         }
+        assert!(!self.sync().await);
+        self.wire.server(quit).await;
         self.wire.server(":offline.test BATCH -split").await;
     }
 
