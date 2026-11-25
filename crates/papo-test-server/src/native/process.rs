@@ -16,6 +16,7 @@ const STDERR_LIMIT: usize = 4096;
 const START_ATTEMPTS: usize = 3;
 pub(crate) struct ServerChild {
     child: Child,
+    group: platform::ProcessGroup,
     stderr: Arc<Mutex<Tail>>,
     reader: Option<thread::JoinHandle<()>>,
 }
@@ -45,6 +46,7 @@ impl ServerChild {
             }
         });
         Ok(Self {
+            group: platform::ProcessGroup::of(&child),
             child,
             stderr,
             reader: Some(reader),
@@ -117,7 +119,7 @@ impl ServerChild {
 
     fn stop_and_wait(&mut self) -> io::Result<ExitStatus> {
         if self.reader.is_some() {
-            platform::kill(&mut self.child)?;
+            self.group.stop(&mut self.child)?;
         }
         let status = self.child.wait()?;
         if let Some(reader) = self.reader.take() {
@@ -267,7 +269,6 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn teardown_stops_helpers_that_keep_stderr_open() {
-        use std::process::Stdio;
         use std::sync::mpsc;
         use std::thread;
         use std::time::{Duration, Instant};
@@ -286,17 +287,11 @@ mod tests {
             ("finish", |child| child.finish("ergo initdb").unwrap()),
         ];
         for (mode, teardown) in cases {
-            let script = "exec 3<&0
-                          sh -c 'echo helper ready >&2; read -r _ <&3' &
+            let script = "sh -c 'echo helper ready >&2; exec sleep 15' &
                           case $mode in stop) wait ;; check) exit 1 ;; esac";
-            let mut child = ServerChild::spawn(
-                Command::new("sh")
-                    .args(["-c", script])
-                    .env("mode", mode)
-                    .stdin(Stdio::piped()),
-            )
-            .unwrap();
-            let release = child.child.stdin.take().unwrap();
+            let child =
+                ServerChild::spawn(Command::new("sh").args(["-c", script]).env("mode", mode))
+                    .unwrap();
             let deadline = Instant::now() + Duration::from_secs(10);
             while !child.stderr.lock().unwrap().text().contains("helper ready") {
                 assert!(Instant::now() < deadline, "helper did not start");
@@ -309,7 +304,6 @@ mod tests {
                     let _ = send.send(());
                 });
                 let result = recv.recv_timeout(Duration::from_secs(10));
-                drop(release);
                 result.expect(mode);
             });
         }
@@ -326,7 +320,7 @@ mod tests {
     fn exited_child_reports_its_final_stderr_line() {
         let mut child = ServerChild::spawn(Command::new("sh").args([
             "-c",
-            "printf 'loading ircd.yaml\\nlisten: address already in use\\n' >&2",
+            "printf 'loading ircd.yaml\\nlisten: address already in use\\n' >&2; exit 78",
         ]))
         .unwrap();
         assert!(platform::exited(&mut child.child, true).unwrap());
@@ -334,10 +328,9 @@ mod tests {
         let error = child.try_wait("Ergo").unwrap_err();
 
         assert!(child.reader.is_none());
-        assert!(
-            error
-                .to_string()
-                .ends_with("listen: address already in use")
+        assert_eq!(
+            error.to_string(),
+            "Ergo exited with exit status: 78: loading ircd.yaml\nlisten: address already in use"
         );
     }
 

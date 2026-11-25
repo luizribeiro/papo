@@ -11,9 +11,17 @@ pub(super) fn exited(child: &mut Child, blocking: bool) -> io::Result<bool> {
     Ok(child.try_wait()?.is_some())
 }
 
-pub(super) fn kill(child: &mut Child) -> io::Result<()> {
-    if child.try_wait()?.is_none() {
-        child.kill()?;
+pub(super) struct ProcessGroup;
+
+impl ProcessGroup {
+    pub(super) fn of(_child: &Child) -> Self {
+        Self
     }
-    Ok(())
+
+    pub(super) fn stop(&self, child: &mut Child) -> io::Result<()> {
+        if child.try_wait()?.is_none() {
+            child.kill()?;
+        }
+        Ok(())
+    }
 }

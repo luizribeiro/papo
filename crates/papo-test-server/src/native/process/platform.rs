@@ -34,25 +34,34 @@ pub(super) fn exited(child: &mut Child, blocking: bool) -> io::Result<bool> {
     }
 }
 
-#[allow(unsafe_code)]
-pub(super) fn kill(child: &mut Child) -> io::Result<()> {
-    let group = child.id().cast_signed();
-    // SAFETY: prepare made the child the leader of its own group. Keeping it unreaped
-    // reserves the group's identifier until after we signal it.
-    if unsafe { libc::killpg(group, libc::SIGKILL) } != 0 {
-        let error = io::Error::last_os_error();
-        if error.raw_os_error() != Some(libc::ESRCH) {
-            return Err(error);
-        }
+pub(super) struct ProcessGroup(libc::pid_t);
+
+impl ProcessGroup {
+    pub(super) fn of(child: &Child) -> Self {
+        Self(child.id().cast_signed())
     }
-    Ok(())
+
+    #[allow(unsafe_code)]
+    pub(super) fn stop(&self, _child: &mut Child) -> io::Result<()> {
+        // SAFETY: prepare made the child the leader of its own group. Keeping it unreaped
+        // reserves the group's identifier until after we signal it.
+        if unsafe { libc::killpg(self.0, libc::SIGKILL) } != 0 {
+            let error = io::Error::last_os_error();
+            if error.raw_os_error() != Some(libc::ESRCH) {
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    mod group;
+
     use std::{process::Command, sync::mpsc, thread, time::Duration};
 
-    use super::{exited, kill};
+    use super::{ProcessGroup, exited};
 
     #[test]
     fn observing_a_reaped_child_reports_the_wait_error() {
@@ -75,7 +84,7 @@ mod tests {
         // The unreaped child reserves its PID and inherits the test's group.
         let mut child = Command::new("true").spawn().unwrap();
 
-        kill(&mut child).unwrap();
+        ProcessGroup::of(&child).stop(&mut child).unwrap();
         assert!(child.wait().unwrap().success());
     }
 }
