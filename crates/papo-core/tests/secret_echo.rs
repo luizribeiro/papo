@@ -602,7 +602,7 @@ fn keyed_staff_join(key: &str) -> Line {
 fn an_unsolicited_failure_keeps_its_addressee_and_unrelated_text() {
     let now = Instant::now();
     let mut session = ergo(now);
-    for key in ["papo", "#staff", "a"] {
+    for key in ["papo", "#staff", "a", "ferris"] {
         session.send(now, keyed_staff_join(key)).unwrap();
         assert!(session.poll_transmit().is_some());
     }
@@ -627,6 +627,13 @@ fn an_unsolicited_failure_keeps_its_addressee_and_unrelated_text() {
     );
     let line = echo_line(&mut session);
     assert_eq!(line.get(0), Some("papo"));
+    assert_eq!(line.get(3), Some("<redacted>"));
+    session.handle_line(
+        now,
+        b":ergo.test 696 ferris #staff k papo :Invalid mode parameter",
+    );
+    let line = echo_line(&mut session);
+    assert_eq!(line.get(0), Some("<redacted>"));
     assert_eq!(line.get(3), Some("<redacted>"));
     session.handle_line(
         now,
@@ -882,8 +889,10 @@ fn refusing_a_credential_discards_only_its_mode_request_and_fence() {
 fn malformed_ordinary_lines_keep_their_bytes() {
     let now = Instant::now();
     let mut session = ergo(now);
-    session.send(now, keyed_staff_join("a")).unwrap();
-    assert!(session.poll_transmit().is_some());
+    for key in ["a", "papo"] {
+        session.send(now, keyed_staff_join(key)).unwrap();
+        assert!(session.poll_transmit().is_some());
+    }
     session.handle_line(
         now,
         b":ergo.test 005 papo UTF8ONLY :are supported by this server",
@@ -917,6 +926,7 @@ fn punctuation_bounds_failure_reply_credentials() {
         ("'staff-key-4821'.", "'<redacted>'."),
         ("key=<staff-key-4821>", "key=<<redacted>>"),
         ("staff-key-4821x", "staff-key-4821x"),
+        ("former-staff-key-4821", "former-staff-key-4821"),
     ] {
         let reply = format!(":ergo.test 696 papo #staff k {token} :Rejected {token}");
         session.handle_line(now, reply.as_bytes());
@@ -944,4 +954,45 @@ fn buffered_failure_bytes_stay_out_of_session_debug() {
         echo_line(&mut session).get(2),
         Some("Invalid key <redacted>")
     );
+}
+
+#[test]
+fn a_standard_join_failure_keeps_the_channel_from_its_context() {
+    let now = Instant::now();
+    let mut session = session(now, "soju.example", "multi-prefix standard-replies");
+    session.send(now, keyed_staff_join("#staff")).unwrap();
+    assert!(session.poll_transmit().is_some());
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("JOIN").param("#staff"),
+            papo_core::ResponseMatcher::Join("#staff".into()),
+        )
+        .unwrap();
+    assert_eq!(&*session.poll_transmit().unwrap(), b"JOIN #staff\r\n");
+
+    session.handle_line(
+        now,
+        b":soju.example FAIL JOIN BAD_CHANNEL_KEY #left :#staff",
+    );
+    let Some(Event::StandardReply(unrelated)) = session.poll_event() else {
+        panic!("expected the unrelated failure");
+    };
+    assert_eq!(unrelated.context, ["#left"]);
+    assert_eq!(unrelated.description, "<redacted>");
+    assert!(session.poll_event().is_none());
+
+    session.handle_line(
+        now,
+        b":soju.example FAIL JOIN BAD_CHANNEL_KEY #staff :Cannot join #staff with this key",
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected the matched JOIN failure");
+    };
+    assert_eq!(response.id, id);
+    assert!(matches!(
+        response.error(),
+        Some(papo_core::ServerError::Standard { context, description, .. })
+            if context == ["#staff"] && description == "Cannot join <redacted> with this key"
+    ));
 }
