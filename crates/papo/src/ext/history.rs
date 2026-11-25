@@ -566,6 +566,7 @@ fn parted(
     Some(Event::Parted(Parted {
         from_history: true,
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -601,6 +602,7 @@ fn quit(
     Some(Event::Quit(Quit {
         from_history: true,
         actor_account: Box::new(envelope.tagged_account()),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -648,6 +650,7 @@ fn kicked(
     Some(Event::Kicked(Kicked {
         from_history: true,
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -692,6 +695,7 @@ fn nick_changed(
     Some(Event::NickChanged(NickChanged {
         from_history: true,
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -725,6 +729,7 @@ fn topic_changed(
     Some(Event::TopicChanged(TopicChanged {
         from_history: true,
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -793,6 +798,7 @@ fn mode_changed(
     Some(Event::ModeChanged(ModeChanged {
         from_history: true,
         actor_account: envelope.tagged_account(),
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,

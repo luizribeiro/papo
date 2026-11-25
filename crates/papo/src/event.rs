@@ -67,7 +67,7 @@ pub use user::{
 };
 
 macro_rules! actor_account_accessor {
-    ($($ty:ty),+ $(,)?) => {$(
+    ($($ty:ty $(=> $bot:ident)?),+ $(,)?) => {$(
         impl $ty {
             /// Returns the actor's account as reported for this line.
             ///
@@ -76,6 +76,14 @@ macro_rules! actor_account_accessor {
             pub const fn actor_account(&self) -> &crate::AccountStatus {
                 &self.actor_account
             }
+
+            $(
+                /// Returns the per-line bot evidence. See [`crate::event::Message::actor_is_bot`].
+                #[must_use]
+                pub const fn actor_is_bot(&self) -> Option<bool> {
+                    self.$bot
+                }
+            )?
         }
     )+};
 }
@@ -1643,6 +1651,7 @@ pub(crate) fn joined_from_line(
     Some(Joined {
         from_history: true,
         actor_account,
+        actor_is_bot: envelope.bot,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -2675,6 +2684,7 @@ pub(crate) fn from_core_with_receipt(
             Event::Joined(Joined {
                 from_history: false,
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2711,6 +2721,7 @@ pub(crate) fn from_core_with_receipt(
             Event::Parted(Parted {
                 from_history: false,
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2748,6 +2759,7 @@ pub(crate) fn from_core_with_receipt(
             Event::Kicked(Kicked {
                 from_history: false,
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2792,6 +2804,7 @@ pub(crate) fn from_core_with_receipt(
             );
             Event::Invited(Invited {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2824,6 +2837,7 @@ pub(crate) fn from_core_with_receipt(
             Event::Quit(Quit {
                 from_history: false,
                 actor_account: Box::new(line_account),
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2851,6 +2865,7 @@ pub(crate) fn from_core_with_receipt(
             Event::NickChanged(NickChanged {
                 from_history: false,
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2879,6 +2894,7 @@ pub(crate) fn from_core_with_receipt(
             let actor = source_at_arrival(actor, actor_token);
             Event::ChannelRenamed(ChannelRenamed {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2903,6 +2919,7 @@ pub(crate) fn from_core_with_receipt(
             let actor = user_at_arrival(nick, account.clone(), token);
             Event::AccountChanged(AccountChanged {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2923,6 +2940,7 @@ pub(crate) fn from_core_with_receipt(
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::AwayChanged(AwayChanged {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2944,6 +2962,7 @@ pub(crate) fn from_core_with_receipt(
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::HostChanged(HostChanged {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2965,6 +2984,7 @@ pub(crate) fn from_core_with_receipt(
             let actor = user_at_arrival(nick, envelope.account.clone(), token);
             Event::RealnameChanged(RealnameChanged {
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
@@ -2997,6 +3017,7 @@ pub(crate) fn from_core_with_receipt(
             Event::ModeChanged(ModeChanged {
                 from_history: false,
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3047,6 +3068,7 @@ pub(crate) fn from_core_with_receipt(
             Event::TopicChanged(TopicChanged {
                 from_history: false,
                 actor_account: line_account,
+                actor_is_bot: envelope.bot,
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -3937,38 +3959,39 @@ mod tests {
 
     #[test]
     fn presence_events_report_the_account_of_the_triggering_line() {
+        type Evidence = fn(&Event) -> Option<(&AccountStatus, Option<bool>)>;
         let now = Instant::now();
-        let cases: [(&str, ActorAccount); 4] = [
+        let cases: [(&str, Evidence); 4] = [
             (
-                "@account=reviewer :emily!~e@cloak.example AWAY :Reviewing the release",
+                "@bot;account=reviewer :emily!~e@cloak.example AWAY :Reviewing the release",
                 |event| {
                     event
                         .as_away_changed()
-                        .map(super::AwayChanged::actor_account)
+                        .map(|event| (event.actor_account(), event.actor_is_bot()))
                 },
             ),
             (
-                "@account=reviewer :emily!~e@cloak.example ACCOUNT reviewer",
+                "@bot;account=reviewer :emily!~e@cloak.example ACCOUNT reviewer",
                 |event| {
                     event
                         .as_account_changed()
-                        .map(super::AccountChanged::actor_account)
+                        .map(|event| (event.actor_account(), event.actor_is_bot()))
                 },
             ),
             (
-                "@account=reviewer :emily!~e@cloak.example CHGHOST ~emily users.example",
+                "@bot;account=reviewer :emily!~e@cloak.example CHGHOST ~emily users.example",
                 |event| {
                     event
                         .as_host_changed()
-                        .map(super::HostChanged::actor_account)
+                        .map(|event| (event.actor_account(), event.actor_is_bot()))
                 },
             ),
             (
-                "@account=reviewer :emily!~e@cloak.example SETNAME :Emily Reviewer",
+                "@bot;account=reviewer :emily!~e@cloak.example SETNAME :Emily Reviewer",
                 |event| {
                     event
                         .as_realname_changed()
-                        .map(super::RealnameChanged::actor_account)
+                        .map(|event| (event.actor_account(), event.actor_is_bot()))
                 },
             ),
         ];
@@ -4005,7 +4028,8 @@ mod tests {
                     } else {
                         &AccountStatus::Unknown
                     };
-                    assert_eq!(accessor(&event), Some(expected), "{line}");
+                    let bot = (line == tagged).then_some(true);
+                    assert_eq!(accessor(&event), Some((expected, bot)), "{line}");
                 }
             }
         }
@@ -4107,12 +4131,10 @@ mod tests {
     }
 
     #[test]
-    fn chat_and_partial_lines_report_the_server_bot_tag() {
+    fn event_lines_report_the_server_bot_tag() {
         let now = Instant::now();
+        let mut checked = 0;
         for (kind, _, line) in MESSAGE_EVENT_METADATA_CASES {
-            if !matches!(kind, "Message" | "Notice" | "ServerNotice") {
-                continue;
-            }
             for (tag, expected) in [
                 ("", None),
                 ("+bot;", None),
@@ -4125,10 +4147,20 @@ mod tests {
                     ("Message", Event::Message(event)) => event.actor_is_bot(),
                     ("Notice", Event::Notice(event)) => event.actor_is_bot(),
                     ("ServerNotice", Event::ServerNotice(event)) => event.actor_is_bot(),
-                    _ => panic!("expected {kind}, got {event:?}"),
+                    ("Joined", Event::Joined(event)) => event.actor_is_bot(),
+                    ("Parted", Event::Parted(event)) => event.actor_is_bot(),
+                    ("Kicked", Event::Kicked(event)) => event.actor_is_bot(),
+                    ("Invited", Event::Invited(event)) => event.actor_is_bot(),
+                    ("Quit", Event::Quit(event)) => event.actor_is_bot(),
+                    ("NickChanged", Event::NickChanged(event)) => event.actor_is_bot(),
+                    ("ChannelRenamed", Event::ChannelRenamed(event)) => event.actor_is_bot(),
+                    ("ModeChanged", Event::ModeChanged(event)) => event.actor_is_bot(),
+                    ("TopicChanged", Event::TopicChanged(event)) => event.actor_is_bot(),
+                    _ => continue,
                 };
                 assert_eq!(actual, expected, "{line}");
-                if kind != "ServerNotice" {
+                checked += 1;
+                if matches!(kind, "Message" | "Notice") {
                     let Some(Event::Incomplete(incomplete)) = super::mark_incomplete(event) else {
                         panic!("expected a partial message or notice");
                     };
@@ -4136,6 +4168,7 @@ mod tests {
                 }
             }
         }
+        assert_eq!(checked, 13 * 4);
     }
 
     #[test]
@@ -6797,6 +6830,7 @@ mod tests {
         super::ModeChanged {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -7474,6 +7508,7 @@ mod tests {
             Event::Joined(super::Joined {
                 from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
+                actor_is_bot: None,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7485,6 +7520,7 @@ mod tests {
             Event::Parted(super::Parted {
                 from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
+                actor_is_bot: None,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7497,6 +7533,7 @@ mod tests {
             Event::Kicked(super::Kicked {
                 from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
+                actor_is_bot: None,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7510,6 +7547,7 @@ mod tests {
             }),
             Event::Invited(super::Invited {
                 actor_account: crate::AccountStatus::Unknown,
+                actor_is_bot: None,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7528,6 +7566,7 @@ mod tests {
             Event::NickChanged(super::NickChanged {
                 from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
+                actor_is_bot: None,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
@@ -7540,6 +7579,7 @@ mod tests {
             Event::Joined(super::Joined {
                 from_history: false,
                 actor_account: crate::AccountStatus::Unknown,
+                actor_is_bot: None,
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,

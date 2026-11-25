@@ -27,6 +27,7 @@ pub struct Joined {
     /// Who the joining user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The netjoin batch that carried this join, when applicable.
     pub netjoin: Option<super::SplitServers>,
 }
@@ -69,6 +70,7 @@ pub struct Parted {
     /// Who the departing user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
 /// A user was removed from a shared channel with `KICK`.
@@ -93,6 +95,7 @@ pub struct Kicked {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// Who the removed user is relative to you.
     pub subject_party: Party,
     /// The optional kick reason.
@@ -118,6 +121,7 @@ pub struct Invited {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// Who the invited user is relative to you.
     pub subject_party: Party,
     pub(crate) receipt: crate::message_ref::Receipt,
@@ -143,9 +147,10 @@ pub struct TopicChanged {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(TopicChanged);
+super::actor_account_accessor!(TopicChanged => actor_is_bot);
 
 /// A user or channel mode changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -165,12 +170,13 @@ pub struct ModeChanged {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// Parsed mode operations in wire order.
     pub changes: Vec<crate::ModeChange>,
     pub(crate) own_nick: Option<Nick>,
 }
 
-super::actor_account_accessor!(ModeChanged);
+super::actor_account_accessor!(ModeChanged => actor_is_bot);
 
 impl ModeChanged {
     /// Returns who the user a mode change is about is relative to you.
@@ -214,10 +220,11 @@ pub struct ChannelRenamed {
     /// Who the actor is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The server-supplied reason, when present and non-empty.
     pub reason: Option<String>,
 }
 
-super::actor_account_accessor!(ChannelRenamed);
+super::actor_account_accessor!(ChannelRenamed => actor_is_bot);
 
-super::actor_account_accessor!(Joined, Parted, Kicked, Invited);
+super::actor_account_accessor!(Joined => actor_is_bot, Parted => actor_is_bot, Kicked => actor_is_bot, Invited => actor_is_bot);

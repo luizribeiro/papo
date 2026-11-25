@@ -1961,6 +1961,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::ChannelRenamed(crate::event::ChannelRenamed {
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
@@ -1980,6 +1981,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -1995,6 +1997,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2012,6 +2015,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Parted(crate::event::Parted {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2028,6 +2032,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Kicked(crate::event::Kicked {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2051,6 +2056,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Parted(crate::event::Parted {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2068,6 +2074,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Kicked(crate::event::Kicked {
             from_history: false,
             actor_account: crate::AccountStatus::Unknown,
+            actor_is_bot: None,
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
@@ -2144,6 +2151,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
     let joined = Event::Joined(crate::event::Joined {
         from_history: false,
         actor_account: crate::AccountStatus::Unknown,
+        actor_is_bot: None,
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,

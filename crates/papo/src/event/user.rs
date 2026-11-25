@@ -26,11 +26,12 @@ pub struct Quit {
     /// Who the disconnected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: Box<AccountStatus>,
+    pub(crate) actor_is_bot: Option<bool>,
     /// The netsplit batch that carried this quit, when applicable.
     pub netsplit: Option<SplitServers>,
 }
 
-super::actor_account_accessor!(Quit);
+super::actor_account_accessor!(Quit => actor_is_bot);
 
 /// A user changed nickname.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -54,9 +55,10 @@ pub struct NickChanged {
     /// Who the renamed user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(NickChanged);
+super::actor_account_accessor!(NickChanged => actor_is_bot);
 
 /// A user's away state was reported.
 ///
@@ -81,9 +83,10 @@ pub struct AwayChanged {
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(AwayChanged);
+super::actor_account_accessor!(AwayChanged => actor_is_bot);
 
 /// A user's account state changed.
 ///
@@ -107,9 +110,10 @@ pub struct AccountChanged {
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(AccountChanged);
+super::actor_account_accessor!(AccountChanged => actor_is_bot);
 
 /// A user's username or hostname changed.
 ///
@@ -131,9 +135,10 @@ pub struct HostChanged {
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(HostChanged);
+super::actor_account_accessor!(HostChanged => actor_is_bot);
 
 /// A user's real name changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -150,9 +155,10 @@ pub struct RealnameChanged {
     /// Who the affected user is relative to you.
     pub actor_party: Party,
     pub(crate) actor_account: crate::AccountStatus,
+    pub(crate) actor_is_bot: Option<bool>,
 }
 
-super::actor_account_accessor!(RealnameChanged);
+super::actor_account_accessor!(RealnameChanged => actor_is_bot);
 
 /// A monitored nickname came online.
 #[derive(Clone, Debug, Eq, PartialEq)]

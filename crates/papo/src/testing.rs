@@ -386,6 +386,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
     Joined {
         from_history: false,
         actor_account: crate::AccountStatus::Unknown,
+        actor_is_bot: None,
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
@@ -401,6 +402,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
 pub fn away_changed(nick: impl Into<Nick>, away: crate::AwayStatus) -> AwayChanged {
     AwayChanged {
         actor_account: crate::AccountStatus::Unknown,
+        actor_is_bot: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
         actor: user_handle(nick),
