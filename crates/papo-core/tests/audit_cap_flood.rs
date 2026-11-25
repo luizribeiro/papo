@@ -40,7 +40,9 @@ fn drain(session: &mut Session) -> usize {
 #[test]
 fn unanswered_capability_requests_stay_bounded() {
     let now = Instant::now();
-    let mut config = Config::default().nick("papo");
+    let mut config = Config::default()
+        .nick("papo")
+        .wanted_caps(["multi-prefix", "away-notify"]);
     config.rate_limit = RateLimit::unlimited();
     let mut session = Session::new(config);
     session.handle_connected(now);
@@ -55,20 +57,25 @@ fn unanswered_capability_requests_stay_bounded() {
     }
     drain(&mut session);
 
-    let mut requests = 0;
-    let mut feed = |session: &mut Session, lines: usize| {
-        for _ in 0..lines {
-            session.handle_line(now, b":ergo.test CAP papo NEW :away-notify");
-            requests += drain(session);
+    let duplicate = b":ergo.test CAP papo NEW :away-notify";
+    session.handle_line(now, duplicate);
+    assert_eq!(drain(&mut session), 1);
+
+    let feed = |session: &mut Session, bursts: usize| {
+        for _ in 0..bursts {
+            for _ in 0..1_000 {
+                session.handle_line(now, duplicate);
+            }
+            assert_eq!(drain(session), 0, "CAP REQ is already pending");
         }
         LIVE_BYTES.load(Ordering::Relaxed)
     };
-    let warmed = feed(&mut session, 2_000);
-    let flooded = feed(&mut session, 20_000);
+    let warmed = feed(&mut session, 2);
+    let flooded = feed(&mut session, 20);
 
     let grown = flooded.saturating_sub(warmed);
     assert!(
         grown < 64 * 1024,
-        "20000 more CAP NEW lines retained {grown} more bytes ({requests} CAP REQ lines sent)"
+        "20000 more CAP NEW lines retained {grown} more bytes"
     );
 }

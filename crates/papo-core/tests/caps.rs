@@ -683,22 +683,24 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
 
 #[test]
 fn pending_capability_names_have_a_fixed_limit() {
-    let config = Config::default()
-        .wanted_caps((0..513).map(|index| format!("example.net/feature{index:03}")));
+    let names: Vec<_> = (0..513)
+        .map(|index| format!("example.net/feature{index:03}"))
+        .collect();
+    let config = Config::default().wanted_caps(names.iter().cloned());
     let mut transcript = Transcript::new(config)
         .connect_default()
         .server(":ergo.test CAP * LS :")
         .client("CAP END");
-    for index in 0..512 {
-        let name = format!("example.net/feature{index:03}");
+    for names in names[..512].chunks(16) {
+        let names = names.join(" ");
         transcript = transcript
-            .server(&format!(":ergo.test CAP * NEW :{name}"))
-            .client(&format!("CAP REQ :{name}"));
+            .server(&format!(":ergo.test CAP * NEW :{names}"))
+            .client(&format!("CAP REQ :{names}"));
     }
     transcript
         .server(":ergo.test CAP * NEW :example.net/feature512")
         .no_client()
-        .server(":ergo.test CAP * NAK :example.net/feature000")
+        .server(&format!(":ergo.test CAP * NAK :{}", names[..16].join(" ")))
         .server(":ergo.test CAP * NEW :example.net/feature512")
         .client("CAP REQ :example.net/feature512");
 }
