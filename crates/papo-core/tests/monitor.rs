@@ -5,7 +5,7 @@ mod support;
 use std::{cell::Cell, time::Instant};
 
 use papo_core::{AccountStatus, AwayStatus, Config, Event, Feature, UnsupportedReason};
-use papo_proto::{Casemapping, Line, Nick, Origin};
+use papo_proto::{Casemapping, Line, Nick, Origin, Secret};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -441,6 +441,18 @@ fn tracks_online_offline_and_list_full_replies() {
         .server(":ergo.test 734 papo 100 carol :Monitor list is full")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks, .. } if nicks == &["carol"] && nicks[0].casemapping() == Casemapping::Ascii))
         .no_event();
+}
+
+#[test]
+fn a_full_list_is_reported_when_a_channel_key_equals_its_limit() {
+    for key in ["staff-key-4821", "100"] {
+        registered()
+            .send(Line::new("JOIN").param("#staff").param(Secret::new(key)))
+            .client(&format!("JOIN #staff {key}"))
+            .server(":ergo.test 734 papo 100 alice,ferris :Monitor list is full")
+            .event(|event| matches!(event, Event::MonitorListFull { limit: 100, nicks, .. } if nicks == &["alice", "ferris"]))
+            .no_event();
+    }
 }
 
 #[test]

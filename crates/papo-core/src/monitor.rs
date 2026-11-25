@@ -459,19 +459,17 @@ impl Monitor {
                 if self.reserved_len() != reserved {
                     self.server_limit = Some(self.server_limit.map_or(limit, |old| old.min(limit)));
                 }
-                if let Some(limit) = incoming.shown.param(1).and_then(|value| value.parse().ok()) {
-                    outbox.event(Event::MonitorListFull {
-                        limit,
-                        nicks: incoming
-                            .shown
-                            .param(2)
-                            .unwrap_or_default()
-                            .split(',')
-                            .filter(|nick| !nick.is_empty())
-                            .map(|nick| mapping.nick(nick))
-                            .collect(),
-                    });
-                }
+                outbox.event(Event::MonitorListFull {
+                    limit,
+                    nicks: incoming
+                        .shown
+                        .param(2)
+                        .unwrap_or_default()
+                        .split(',')
+                        .filter(|nick| !nick.is_empty())
+                        .map(|nick| mapping.nick(nick))
+                        .collect(),
+                });
             }
             _ => return Handled::No,
         }
