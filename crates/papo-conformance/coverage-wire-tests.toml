@@ -337,6 +337,9 @@
 "actor_account::archived_account_evidence_ignores_the_current_account" = [
   "security.actor-account.wire-replay",
 ]
+"replay_batch_history::batch_provenance_agrees_for_single_rows_and_nested_multiline" = [
+  "tag.bot.replay",
+]
 
 "batched_quit::orphan_tagged_quit_refuses_a_reply" = [
   "security.recipient-2.orphan-batch-quit",

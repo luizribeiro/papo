@@ -154,9 +154,11 @@ def render(groups, registry, known_coverage, live_coverage):
             covered = pattern and any(matches(item, pattern) for item in live_coverage)
             coverage_cell = "[Yes](conformance-matrix.md)" if covered else "No"
             wire = spec.get("wire") or ", ".join(spec["caps"])
+            api = spec["api"]
+            api_cell = ", ".join(map(api_link, api)) if isinstance(api, list) else api_link(api)
             lines.append(
                 f"| [{spec['name']}]({spec['url']}) | `{wire}` | {support} | "
-                f"{api_link(spec['api'])} | {coverage_cell} |"
+                f"{api_cell} | {coverage_cell} |"
             )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
