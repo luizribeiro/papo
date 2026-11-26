@@ -134,8 +134,8 @@ impl SecretEchoes {
     }
 }
 
-/// The peer can repeat a credential in a late or unlabelled reply. Keep the credentials for the
-/// connection and refuse to send any beyond the bound.
+/// The peer can repeat a credential in a late or unlabelled reply, so every credential sent stays
+/// for the connection. Only outgoing lines add one, and a value already kept is not added again.
 #[derive(Debug, Default)]
 pub(super) struct ReplySecrets {
     credentials: Vec<Secret>,
@@ -147,7 +147,6 @@ impl ReplySecrets {
     /// `managed` marks a line papo wrote itself, which is how its own SASL exchange is told
     /// apart from an `AUTHENTICATE` the application sent.
     pub(super) fn track(&mut self, line: &WireLine, sasl: Option<&Sasl>, managed: bool) -> bool {
-        const MAX_CREDENTIALS: usize = 256;
         let exchange = managed
             .then(|| line.strip_prefix(b"AUTHENTICATE "))
             .flatten();
@@ -187,17 +186,11 @@ impl ReplySecrets {
             });
         let mut values = papo_proto::__wire_secret_parameters(line);
         let chunk = exchange.and_then(|_| values.next());
-        let mut new = Vec::new();
         for value in values.chain(decoded).filter(|value| !value.is_empty()) {
-            if self.tracked(value) || new.contains(&value) {
-                continue;
+            if !self.tracked(value) {
+                self.credentials.push(Secret::new(value));
             }
-            if !managed && self.credentials.len() + new.len() == MAX_CREDENTIALS {
-                return false;
-            }
-            new.push(value);
         }
-        self.credentials.extend(new.into_iter().map(Secret::new));
         self.sasl_exchange.extend(chunk.map(Secret::new));
         true
     }

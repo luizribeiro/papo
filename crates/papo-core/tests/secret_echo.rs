@@ -464,24 +464,11 @@ fn credentials_stay_redacted_until_the_connection_ends() {
     );
 
     let new = join(Secret::new("staff-key-256"));
-    let token = session.send_tracked(late, new.clone()).unwrap();
-    assert!(
-        session.poll_transmit().is_none(),
-        "an untracked key cannot go on the wire"
-    );
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::TransmitCredentialsRefused {
-            token: refused,
-            error: RequestError::StateLimit(papo_core::StateLimit::Credentials),
-            ..
-        }) if refused == token
-    ));
-    session.send(late, join(Secret::new(key))).unwrap();
-    assert!(session.poll_transmit().is_some());
-    register(&mut session, late, "ergo.test", ERGO_CAPS);
     session.send(late, new).unwrap();
-    assert!(session.poll_transmit().is_some());
+    assert!(
+        session.poll_transmit().is_some(),
+        "a new key goes on the wire"
+    );
 }
 
 #[test]
@@ -655,7 +642,7 @@ fn an_unsolicited_failure_keeps_its_addressee_and_unrelated_text() {
 }
 
 #[test]
-fn refusing_a_line_does_not_reserve_any_of_its_new_credentials() {
+fn a_line_with_two_new_credentials_past_256_is_sent() {
     let now = Instant::now();
     let mut session = ergo(now);
     for index in 0..255 {
@@ -676,29 +663,36 @@ fn refusing_a_line_does_not_reserve_any_of_its_new_credentials() {
             .param(Secret::new(second))
     };
     session
-        .send(now, mode("one-more-4821", "over-the-limit-4821"))
+        .send(now, mode("one-more-4821", "past-256-4821"))
         .unwrap();
-    assert!(session.poll_transmit().is_none());
-    session
-        .send(now, mode("last-key-4821", "last-key-4821"))
-        .unwrap();
-    assert!(session.poll_transmit().is_some());
+    assert_eq!(
+        &*session.poll_transmit().unwrap(),
+        b"MODE #staff +kk one-more-4821 past-256-4821\r\n"
+    );
 }
 
 #[test]
-fn a_tracked_credential_is_sent_again_without_taking_another_slot() {
+fn every_distinct_credential_is_sent_and_masked() {
     let now = Instant::now();
     let mut session = ergo(now);
-    let mut join = |key: &str| {
-        session.send(now, keyed_staff_join(key)).unwrap();
-        session.poll_transmit().is_some()
-    };
-    for index in 0..256 {
-        assert!(join(&format!("staff-key-{index:03}")));
+    for index in 0..1000 {
+        let key = format!("staff-key-{index:04}");
+        session.send(now, keyed_staff_join(&key)).unwrap();
+        assert_eq!(
+            &*session.poll_transmit().unwrap(),
+            format!("JOIN #staff {key}\r\n").as_bytes()
+        );
     }
-    assert!(join("staff-key-000"));
-    assert!(join("staff-key-255"));
-    assert!(!join("staff-key-256"));
+    for key in ["staff-key-0000", "staff-key-0256", "staff-key-0999"] {
+        session.handle_line(
+            now,
+            format!(":ergo.test 475 papo #staff :Cannot join channel (+k): {key}").as_bytes(),
+        );
+        assert!(std::iter::from_fn(|| session.poll_event()).any(|event| matches!(
+            event,
+            Event::Line(line) if line.as_ref().param(2) == Some("Cannot join channel (+k): <redacted>")
+        )));
+    }
 }
 
 #[test]
@@ -869,7 +863,7 @@ fn a_labelled_batch_keeps_the_requested_name_and_hides_the_echoed_key() {
 }
 
 #[test]
-fn refusing_a_credential_discards_only_its_mode_request_and_fence() {
+fn a_mode_request_with_the_257th_credential_is_sent_with_its_fence() {
     let now = Instant::now();
     let mut session = session(now, "ergo.test", "multi-prefix");
     for index in 0..256 {
@@ -892,13 +886,20 @@ fn refusing_a_credential_discards_only_its_mode_request_and_fence() {
 
     assert_eq!(
         session.poll_transmit().unwrap().as_ref(),
+        b"MODE #staff +k new-staff-key\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING papo-mode-0\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
         b"PING connection-probe\r\n"
     );
-    assert!(session.poll_transmit().is_none());
-    assert!(matches!(session.poll_event(),
-        Some(Event::RequestFailed(refused, RequestError::StateLimit(papo_core::StateLimit::Credentials)))
-        if refused == id
-    ));
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::RequestFailed(failed, _) if failed == id))
+    );
 }
 
 #[test]

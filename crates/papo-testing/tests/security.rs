@@ -3210,7 +3210,7 @@ async fn a_refused_non_ascii_key_stays_redacted_in_a_legacy_reply() {
 }
 
 #[tokio::test]
-async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
+async fn the_257th_distinct_channel_key_is_sent() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -3254,29 +3254,11 @@ async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
     }
 
     let key = papo::Secret::new("team-256-x7Kq");
-    let limited = |error: &papo::Error| {
-        matches!(
-            error,
-            papo::Error::StateLimit(papo::StateLimit::Credentials)
-        )
-    };
-    assert!(limited(
-        &client.join("#team-256").key(key.clone()).await.unwrap_err()
-    ));
-    assert!(limited(
-        &client
-            .set_modes("#staff")
-            .key(key.clone())
-            .await
-            .unwrap_err()
-    ));
-    assert!(limited(
-        &client
-            .send_raw(papo::Line::new("JOIN").param("#team-256").param(key))
-            .await
-            .unwrap_err()
-    ));
-
+    client
+        .send_raw(papo::Line::new("JOIN").param("#team-256").param(key))
+        .await
+        .unwrap();
+    let mut written = Vec::new();
     let probe = tokio::spawn(async move {
         client
             .send_raw(papo::Line::new("PING").param("credential-limit-check"))
@@ -3287,12 +3269,10 @@ async fn the_257th_distinct_channel_key_does_not_end_the_connection() {
         if sent == "PING credential-limit-check" {
             break;
         }
-        assert!(
-            matches!(sent.as_str(), "MODE #staff" | "WHO #staff"),
-            "{sent}"
-        );
+        written.push(sent);
     }
     probe.await.unwrap().unwrap();
+    assert!(written.contains(&"JOIN #team-256 team-256-x7Kq".to_owned()));
 }
 
 async fn registered_with_colliding_sasl_password() -> (papo::Client, Events, Wire) {
