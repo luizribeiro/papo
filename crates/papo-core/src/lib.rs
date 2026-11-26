@@ -1990,6 +1990,11 @@ impl ServerError {
 }
 
 /// Owned `IRCv3` standard reply received outside a correlated request.
+///
+/// A secret papo sent on this connection that the server repeats in a failure reply is shown as
+/// `<redacted>`. That masking is best effort: a value the server transforms, splits or quotes in
+/// a form papo does not recognise reaches the application as sent. The guarantee is narrower and
+/// firm: papo's own copies of secrets never reach `Debug`, `Display`, events or errors.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StandardReply {
     /// Reply severity.
