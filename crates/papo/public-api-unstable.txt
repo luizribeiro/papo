@@ -115,6 +115,7 @@ impl core::marker::UnsafeUnpin for papo::event::AccountOutcome
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountOutcome
 #[non_exhaustive] pub enum papo::event::AutoJoinError
+pub papo::event::AutoJoinError::InsecureKey
 pub papo::event::AutoJoinError::Server(papo::ServerError)
 pub papo::event::AutoJoinError::Timeout
 impl core::clone::Clone for papo::event::AutoJoinError

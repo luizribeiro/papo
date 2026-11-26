@@ -4738,6 +4738,29 @@ async fn an_unanswered_autojoin_is_reported_as_timed_out() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn a_keyed_autojoin_over_plaintext_is_reported_unsent() {
+    let channels = vec![
+        super::Autojoin::new("#papo-staff", Some(crate::Secret::new("staff-key-4821"))),
+        super::Autojoin::new("#papo", None),
+    ];
+    let (_client, mut events, mut server, driver) =
+        connected_with_autojoins(config().allow_insecure_auth(false), channels).await;
+    let event = next_event(&mut events).await;
+    let Some(Event::AutoJoinFailed(failed)) = event else {
+        panic!("expected a failed autojoin, got {event:?}")
+    };
+    assert_eq!(failed.channel.name(), "#papo-staff");
+    assert_eq!(failed.error, crate::event::AutoJoinError::InsecureKey);
+    client_line(&mut server, b"JOIN #papo\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn bot_default_without_advertised_mode_sends_no_mode() {
     assert_connect_output(
         super::PostConnect {

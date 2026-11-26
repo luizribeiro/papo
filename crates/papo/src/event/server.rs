@@ -47,6 +47,9 @@ pub enum AutoJoinError {
     /// The server did not answer the join within the
     /// [request timeout](crate::Builder::request_timeout).
     Timeout,
+    /// papo did not send the join, because its key would cross an unencrypted connection
+    /// without [`allow_insecure_auth`](crate::Builder::allow_insecure_auth).
+    InsecureKey,
 }
 
 /// A recoverable protocol or configuration warning.

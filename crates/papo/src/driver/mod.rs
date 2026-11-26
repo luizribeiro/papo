@@ -1880,6 +1880,7 @@ fn end_request(
 fn auto_join_end_error(end: &event::RequestEnd) -> Option<AutoJoinError> {
     match end {
         event::RequestEnd::TimedOut => Some(AutoJoinError::Timeout),
+        event::RequestEnd::CredentialsRefused => Some(AutoJoinError::InsecureKey),
         _ => None,
     }
 }
