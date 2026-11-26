@@ -207,6 +207,10 @@ impl ReplySecrets {
             .map(Secret::expose)
     }
 
+    pub(super) fn len(&self) -> usize {
+        self.credentials.len() + self.sasl_exchange.len()
+    }
+
     pub(super) fn contains(&self, value: &str) -> bool {
         self.values().any(|secret| secret == value)
     }
