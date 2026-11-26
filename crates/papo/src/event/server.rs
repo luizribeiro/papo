@@ -44,6 +44,9 @@ pub struct AutoJoinFailed {
 pub enum AutoJoinError {
     /// The server refused the join.
     Server(crate::ServerError),
+    /// The server did not answer the join within the
+    /// [request timeout](crate::Builder::request_timeout).
+    Timeout,
 }
 
 /// A recoverable protocol or configuration warning.

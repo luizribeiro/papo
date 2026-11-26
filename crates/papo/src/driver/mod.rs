@@ -1806,7 +1806,15 @@ where
                 }
             }
             event::CoreEvent::RequestEnded { id, end } => {
-                end_request(session, requests, join_keys, catchups, id, end);
+                if let Some((channel, error)) =
+                    end_request(session, requests, join_keys, catchups, id, end)
+                {
+                    enqueue_event(
+                        events,
+                        pending_events,
+                        auto_join_failed(events, channel, error),
+                    );
+                }
             }
             event::CoreEvent::TransmitAborted(token) => {
                 if let Some(result) = transmits.remove(&token) {
@@ -1847,7 +1855,7 @@ fn end_request(
     catchups: &mut BTreeMap<RequestId, Catchup>,
     id: RequestId,
     end: event::RequestEnd,
-) {
+) -> Option<(crate::ChannelName, AutoJoinError)> {
     join_keys.remove(&id);
     catchups.remove(&id);
     if matches!(
@@ -1856,10 +1864,23 @@ fn end_request(
     ) {
         session.__cancel_request(id);
     }
-    if let Some(request) = requests.remove(&id)
-        && let Some(error) = request_end_error(end)
-    {
-        request.fail(error);
+    match requests.remove(&id)? {
+        PendingRequest::AutoJoin { channel } => {
+            auto_join_end_error(&end).map(|error| (channel, error))
+        }
+        request => {
+            if let Some(error) = request_end_error(end) {
+                request.fail(error);
+            }
+            None
+        }
+    }
+}
+
+fn auto_join_end_error(end: &event::RequestEnd) -> Option<AutoJoinError> {
+    match end {
+        event::RequestEnd::TimedOut => Some(AutoJoinError::Timeout),
+        _ => None,
     }
 }
 
