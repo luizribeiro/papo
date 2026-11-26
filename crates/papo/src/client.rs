@@ -448,9 +448,6 @@ impl std::fmt::Debug for KickbanRequest {
 
 impl JoinChannel {
     /// Supplies the channel key without exposing it through `Debug` output.
-    ///
-    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
-    /// returns [`Error::StateLimit`].
     pub fn key(mut self, key: crate::Secret) -> Self {
         self.key = Some(key);
         self
@@ -1059,9 +1056,6 @@ impl Client {
     /// the wire, or [`Error::Disconnected`] if the driver stops before writing it.
     /// A send that widens a remembered status-prefixed line's audience returns
     /// [`InvalidInput::WiderThanReferenced`].
-    ///
-    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
-    /// returns [`Error::StateLimit`].
     pub fn send_raw(&self, line: crate::Line) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move { client.send_message(line.0).await })
@@ -1145,9 +1139,6 @@ impl Client {
     /// the response times out, or the driver stops.
     /// A send that widens a remembered status-prefixed line's audience returns
     /// [`InvalidInput::WiderThanReferenced`].
-    ///
-    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
-    /// returns [`Error::StateLimit`].
     pub fn request_raw(&self, line: crate::Line) -> crate::RequestFuture<Vec<crate::Line>> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
@@ -2297,9 +2288,6 @@ impl Client {
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
-    ///
-    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
-    /// returns [`Error::StateLimit`].
     pub fn oper(
         &self,
         name: impl Into<String>,

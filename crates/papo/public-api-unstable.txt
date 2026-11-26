@@ -5274,7 +5274,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ServerTime
 #[non_exhaustive] pub enum papo::StateLimit
 pub papo::StateLimit::BouncerNetworks
 pub papo::StateLimit::Channels
-pub papo::StateLimit::Credentials
 pub papo::StateLimit::IsupportTokens
 pub papo::StateLimit::ListEntries
 pub papo::StateLimit::Members

@@ -279,16 +279,11 @@ impl SetModes {
     }
 
     /// Sets the channel key without exposing it through debug output or errors.
-    ///
-    /// A request that would exceed the [256-credential connection limit](crate::StateLimit::Credentials)
-    /// returns [`Error::StateLimit`].
     pub fn key(self, key: crate::Secret) -> Self {
         self.change(true, Selector::Letter('k'), Some(Argument::Secret(key)))
     }
 
     /// Removes the channel key without exposing it through debug output or errors.
-    ///
-    /// The same credential limit as [`Self::key`] applies.
     pub fn remove_key(self, key: crate::Secret) -> Self {
         self.change(false, Selector::Letter('k'), Some(Argument::Secret(key)))
     }
@@ -506,9 +501,6 @@ impl IntoFuture for SetModes {
 
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
-    ///
-    /// Channel keys supplied with [`SetModes::key`] or [`SetModes::remove_key`] count
-    /// toward the [256-credential connection limit](crate::StateLimit::Credentials).
     pub fn set_modes(&self, target: impl crate::AsConversation) -> SetModes {
         SetModes {
             client: self.clone(),

@@ -251,7 +251,6 @@ impl State {
             | StateLimit::MetadataTargets
             | StateLimit::MetadataKeys
             | StateLimit::MetadataSubscriptions
-            | StateLimit::Credentials
             | StateLimit::IsupportTokens => self.limits_warned.insert(limit),
             #[cfg(feature = "unstable")]
             StateLimit::BouncerNetworks => self.limits_warned.insert(limit),

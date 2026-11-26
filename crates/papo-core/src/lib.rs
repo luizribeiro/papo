@@ -3630,8 +3630,6 @@ pub enum StateLimit {
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]
     BouncerNetworks,
-    /// Up to 256 distinct credentials retained per connection to mask failure replies.
-    Credentials,
     /// ISUPPORT tokens advertised by the server.
     IsupportTokens,
 }
@@ -4581,8 +4579,6 @@ impl Session {
     ///
     /// Returns [`RequestError::Build`] if `message` cannot be represented as a valid IRC wire
     /// line.
-    ///
-    /// Credentials beyond [`StateLimit::Credentials`] are refused before transmission.
     pub fn send(&mut self, now: Instant, message: Line) -> Result<(), RequestError> {
         self.send_tracked(now, message).map(drop)
     }
@@ -5051,8 +5047,6 @@ impl Session {
     /// requested by the message is unavailable,
     /// [`RequestError::PendingLimit`] when 256 labelled requests are already pending, or
     /// [`RequestError::Build`] when the tagged message cannot be represented on the wire.
-    ///
-    /// Credentials beyond [`StateLimit::Credentials`] are refused before transmission.
     pub fn request(&mut self, now: Instant, message: Line) -> Result<RequestId, RequestError> {
         self.request_with_event_policy(now, message, true)
     }
@@ -5175,8 +5169,6 @@ impl Session {
     /// Returns [`RequestError::PendingLimit`] when 256 requests are already pending, or
     /// [`RequestError::Build`] when the message cannot be represented on the wire. A list-mode
     /// change returns [`RequestError::StateLimit`] when it would overflow a cached list.
-    ///
-    /// Credentials beyond [`StateLimit::Credentials`] are refused before transmission.
     pub fn request_with_matcher(
         &mut self,
         now: Instant,

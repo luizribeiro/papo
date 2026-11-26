@@ -554,9 +554,6 @@ impl Builder {
     /// ```
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").autojoin_with_key("#staff", papo::Secret::new("secret"));
     /// ```
-    ///
-    /// The connection can track 256 distinct credentials. Autojoins that would introduce
-    /// another value after that are skipped.
     pub fn autojoin_with_key(mut self, channel: impl crate::AsChannel, key: crate::Secret) -> Self {
         self.push_autojoin(Autojoin::new(
             crate::AsChannel::__parts(&channel).text().to_owned(),
