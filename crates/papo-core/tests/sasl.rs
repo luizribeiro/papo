@@ -2041,7 +2041,7 @@ fn plain_exchange_of(chunks: usize) -> Transcript {
     .server(":ergo.test CAP * ACK :sasl")
     .client("AUTHENTICATE PLAIN")
     .server("AUTHENTICATE +");
-    for chunk in response.as_bytes().chunks(400).take(256) {
+    for chunk in response.as_bytes().chunks(400) {
         transcript = transcript.client(&format!("AUTHENTICATE {}", str::from_utf8(chunk).unwrap()));
     }
     transcript
@@ -2052,48 +2052,20 @@ fn first_plain_line() -> String {
 }
 
 #[test]
-fn a_login_payload_of_256_lines_is_sent_and_stays_masked() {
-    plain_exchange_of(256)
-        .client("AUTHENTICATE +")
-        .server(&format!(
-            ":ergo.test 904 alice :SASL authentication failed: {}",
-            first_plain_line()
-        ))
-        .event_until(|event| {
-            matches!(event, Event::AuthenticationFailed { reason, .. }
-                if reason.contains("SASL authentication failed: <redacted>"))
-        })
-        .client("CAP END");
-}
-
-#[test]
-fn a_login_payload_of_257_lines_is_aborted_at_the_tracking_limit() {
-    plain_exchange_of(257)
-        .client("AUTHENTICATE *")
-        .no_client()
-        .event_until(|event| {
-            matches!(
-                event,
-                Event::StateLimitReached {
-                    limit: papo_core::StateLimit::Credentials,
-                    ..
-                }
-            )
-        })
-        .server(&format!(
-            ":ergo.test NOTE AUTHENTICATE ABORTED :Discarded {}",
-            first_plain_line()
-        ))
-        .event_until(|event| {
-            matches!(event, Event::StandardReply(reply)
-                if reply.description == "Discarded <redacted>")
-        })
-        .server(":ergo.test 906 alice :SASL authentication aborted")
-        .event_until(|event| {
-            matches!(event, Event::AuthenticationFailed { reason, .. }
-                if reason.contains("credential tracking limit reached"))
-        })
-        .client("CAP END");
+fn a_login_payload_of_any_length_is_sent_and_stays_masked() {
+    for lines in [256, 257, 1000] {
+        plain_exchange_of(lines)
+            .client("AUTHENTICATE +")
+            .server(&format!(
+                ":ergo.test 904 alice :SASL authentication failed: {}",
+                first_plain_line()
+            ))
+            .event_until(|event| {
+                matches!(event, Event::AuthenticationFailed { reason, .. }
+                    if reason.contains("SASL authentication failed: <redacted>"))
+            })
+            .client("CAP END");
+    }
 }
 
 #[test]

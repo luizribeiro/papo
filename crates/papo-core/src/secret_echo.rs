@@ -187,9 +187,6 @@ impl ReplySecrets {
             });
         let mut values = papo_proto::__wire_secret_parameters(line);
         let chunk = exchange.and_then(|_| values.next());
-        if chunk.is_some() && self.sasl_exchange.len() == MAX_CREDENTIALS {
-            return false;
-        }
         let mut new = Vec::new();
         for value in values.chain(decoded).filter(|value| !value.is_empty()) {
             if self.tracked(value) || new.contains(&value) {
