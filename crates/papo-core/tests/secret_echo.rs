@@ -1134,3 +1134,33 @@ fn a_credential_equal_to_a_failure_code_keeps_the_typed_refusal() {
                 if reply.code == "<REDACTED>" && reply.refusal() == Some(Refusal::ChannelRenamed))
         });
 }
+
+#[test]
+fn a_mode_reply_masks_only_the_channel_key_this_session_sent() {
+    let now = Instant::now();
+    let mut session = ergo(now);
+    session
+        .send(now, keyed_staff_join("staff-key-4821"))
+        .unwrap();
+    assert!(session.poll_transmit().is_some());
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnpst :are supported by this server",
+    );
+    for (key, shown) in [
+        ("staff-key-4821", "<redacted>"),
+        ("rotated-key-7193", "rotated-key-7193"),
+    ] {
+        session.handle_line(
+            now,
+            format!(":ergo.test 324 papo #staff +nk {key}").as_bytes(),
+        );
+        let line = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Line(line) if line.as_ref().command_is("324") => Some(line),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(line.as_ref().param(3), Some(shown));
+    }
+}
