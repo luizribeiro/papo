@@ -320,6 +320,9 @@ impl PendingRequest {
 
 enum PendingTransmit {
     Empty(oneshot::Sender<Result<(), Error>>),
+    AutoJoin {
+        channel: crate::ChannelName,
+    },
     Text {
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
@@ -335,6 +338,7 @@ impl PendingTransmit {
     fn complete(self) {
         match self {
             Self::Empty(result) => _ = result.send(Ok(())),
+            Self::AutoJoin { .. } => {}
             Self::Text {
                 conversation,
                 status,
@@ -359,6 +363,7 @@ impl PendingTransmit {
     fn fail(self, error: Error) {
         match self {
             Self::Empty(result) => _ = result.send(Err(error)),
+            Self::AutoJoin { .. } => {}
             Self::Text { result, .. } => _ = result.send(Err(error)),
         }
     }
@@ -1708,7 +1713,7 @@ where
                 }
             }
             event::CoreEvent::Connected(welcome) => {
-                after_connect(session, &welcome, defaults, requests)?;
+                after_connect(session, &welcome, defaults, requests, transmits)?;
                 *registered_at = Some(now());
                 let reconnected = *registered;
                 if reconnected {
@@ -1827,8 +1832,17 @@ where
                 }
             }
             event::CoreEvent::TransmitCredentialsRefused(token, error) => {
-                if let Some(result) = transmits.remove(&token) {
-                    result.fail(Error::request(error));
+                match (transmits.remove(&token), error) {
+                    (
+                        Some(PendingTransmit::AutoJoin { channel }),
+                        RequestError::InsecureAuthentication,
+                    ) => enqueue_event(
+                        events,
+                        pending_events,
+                        auto_join_failed(events, channel, AutoJoinError::InsecureKey),
+                    ),
+                    (Some(result), error) => result.fail(Error::request(error)),
+                    (None, _) => {}
                 }
             }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
@@ -2369,6 +2383,7 @@ fn after_connect(
     welcome: &papo_core::Welcome,
     defaults: &mut PostConnect,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
+    transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
 ) -> Result<(), io::Error> {
     dedupe_autojoin(session, defaults);
     if defaults.bot
@@ -2407,7 +2422,15 @@ fn after_connect(
                     );
                 }
                 Err(RequestError::PendingLimit) => {
-                    session.send(now(), line).map_err(io::Error::other)?;
+                    let token = session
+                        .send_tracked(now(), line)
+                        .map_err(io::Error::other)?;
+                    transmits.insert(
+                        token,
+                        PendingTransmit::AutoJoin {
+                            channel: channel_name,
+                        },
+                    );
                 }
                 Err(error) => return Err(io::Error::other(error)),
             }
