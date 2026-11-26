@@ -5616,34 +5616,16 @@ impl Session {
             self.recipient_gone(queued.token, queued.request);
             return None;
         }
-        if !self.reply_secrets.track(
+        self.reply_secrets.track(
             &queued.line,
             self.config.sasl.as_ref(),
             queued.token.is_none() && queued.request.is_none(),
-        ) {
-            self.refuse_credential(&queued);
-            return None;
-        }
+        );
         self.mark_request_started(queued.request);
         Some(Transmit {
             line: queued.line,
             token: queued.token,
         })
-    }
-
-    fn refuse_credential(&mut self, queued: &QueuedLine) {
-        let limit = StateLimit::Credentials;
-        let error = RequestError::StateLimit(limit);
-        if let Some(id) = queued.request {
-            self.__cancel_request(id);
-            self.outbox.transmits.retain(|transmit| {
-                !matches!(transmit, Transmission::Line { queued, .. } if queued.request == Some(id))
-            });
-            self.outbox.event(Event::RequestFailed(id, error));
-        } else if let Some(token) = queued.token {
-            self.outbox
-                .event(Event::TransmitCredentialsRefused { token, error });
-        }
     }
 
     fn recipient_gone(&mut self, token: Option<TransmitToken>, request: Option<RequestId>) {

@@ -146,7 +146,7 @@ pub(super) struct ReplySecrets {
 impl ReplySecrets {
     /// `managed` marks a line papo wrote itself, which is how its own SASL exchange is told
     /// apart from an `AUTHENTICATE` the application sent.
-    pub(super) fn track(&mut self, line: &WireLine, sasl: Option<&Sasl>, managed: bool) -> bool {
+    pub(super) fn track(&mut self, line: &WireLine, sasl: Option<&Sasl>, managed: bool) {
         let exchange = managed
             .then(|| line.strip_prefix(b"AUTHENTICATE "))
             .flatten();
@@ -167,13 +167,13 @@ impl ReplySecrets {
             "AUTHENTICATE",
         ];
         if !line.__has_secret_parameter() {
-            return true;
+            return;
         }
         let Ok(message) = LineRef::parse_bytes(line) else {
-            return true;
+            return;
         };
         if !commands.iter().any(|command| message.command_is(command)) {
-            return true;
+            return;
         }
         let decoded = sasl
             .filter(|_| message.command_is("AUTHENTICATE"))
@@ -192,7 +192,6 @@ impl ReplySecrets {
             }
         }
         self.sasl_exchange.extend(chunk.map(Secret::new));
-        true
     }
 
     fn tracked(&self, value: &str) -> bool {
