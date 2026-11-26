@@ -728,10 +728,9 @@
                   target/browser-size/wasm32-unknown-unknown/browser-size/papo_core_browser_tests.wasm \
                   -o papo-core-probe.wasm
                 size=$(stat --format=%s papo-core-probe.wasm)
-                # This interim ceiling allows pending correctness fixes to land. Once they are in,
-                # measure again and record a fresh baseline with five percent headroom.
-                budget=880000
-                echo "optimized papo-core browser probe: $size bytes (recorded 761950 on 2026-11-09; budget: $budget bytes)"
+                # Five percent headroom over this flake probe's 862,565-byte measurement from 2026-11-26.
+                budget=905693
+                echo "optimized papo-core browser probe: $size bytes (recorded 862565 on 2026-11-26; budget: $budget bytes)"
                 if (( size > budget )); then
                   echo "papo-core browser probe exceeds its size budget" >&2
                   exit 1
@@ -744,10 +743,9 @@
                   target/browser-driver-size/wasm32-unknown-unknown/browser-size/papo_core_browser_tests.wasm \
                   -o papo-driver-probe.wasm
                 size=$(stat --format=%s papo-driver-probe.wasm)
-                # This interim ceiling allows pending correctness fixes to land. Once they are in,
-                # measure again and record a fresh baseline with five percent headroom.
-                budget=1280000
-                echo "optimized papo browser driver: $size bytes (recorded 1157146 on 2026-11-11; budget: $budget bytes)"
+                # Five percent headroom over this flake probe's 1,259,411-byte measurement from 2026-11-26.
+                budget=1322381
+                echo "optimized papo browser driver: $size bytes (recorded 1259411 on 2026-11-26; budget: $budget bytes)"
                 if (( size > budget )); then
                   echo "papo browser driver exceeds its size budget" >&2
                   exit 1
