@@ -1891,8 +1891,10 @@ fn login_refusals_redact_decoded_credentials() {
 }
 
 #[test]
-fn sasl_password_over_the_credential_limit_aborts_the_exchange() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("account-key-4821".repeat(40))).optional()))
+fn a_login_after_256_channel_keys_is_sent_and_masked() {
+    let password = "account-key-4821";
+    let payload = STANDARD.encode(format!("\0alice\0{password}"));
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new(password)).optional()))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -1913,15 +1915,9 @@ fn sasl_password_over_the_credential_limit_aborts_the_exchange() {
         .reauthenticate()
         .client("AUTHENTICATE PLAIN")
         .server("AUTHENTICATE +")
-        .server("PING :before-sasl-abort")
-        .client("PONG before-sasl-abort")
-        .client("AUTHENTICATE *")
-        .no_client()
-        .event_until(|event| matches!(event, Event::StateLimitReached { limit: papo_core::StateLimit::Credentials, .. }))
-        .server(":ergo.test 906 papo :SASL authentication aborted")
-        .event_until(|event| matches!(event, Event::AuthenticationFailed { reason, .. } if reason.contains("credential tracking limit reached")))
-        .server("PING :ergo.test")
-        .client("PONG ergo.test")
+        .client(&format!("AUTHENTICATE {payload}"))
+        .server(&format!(":ergo.test 904 papo :SASL authentication failed: {password}"))
+        .event_until(|event| matches!(event, Event::AuthenticationFailed { reason, .. } if reason.contains("SASL authentication failed: <redacted>")))
         .ignore_rest();
 }
 

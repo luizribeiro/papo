@@ -192,7 +192,7 @@ impl ReplySecrets {
             if self.tracked(value) || new.contains(&value) {
                 continue;
             }
-            if self.credentials.len() + new.len() == MAX_CREDENTIALS {
+            if !managed && self.credentials.len() + new.len() == MAX_CREDENTIALS {
                 return false;
             }
             new.push(value);

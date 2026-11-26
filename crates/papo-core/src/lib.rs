@@ -5643,22 +5643,6 @@ impl Session {
         } else if let Some(token) = queued.token {
             self.outbox
                 .event(Event::TransmitCredentialsRefused { token, error });
-        } else {
-            self.outbox.event(Event::StateLimitReached { limit });
-            if let Some(now) = self.rate_limit.now
-                && self.sasl.is_exchanging()
-                && authenticate_line(&queued.line)
-            {
-                while self
-                    .outbox
-                    .immediate
-                    .front()
-                    .is_some_and(|next| authenticate_line(&next.line))
-                {
-                    self.outbox.immediate.pop_front();
-                }
-                self.sasl.abort_for_credential_limit(now, &mut self.outbox);
-            }
         }
     }
 
@@ -6074,7 +6058,6 @@ impl Session {
     /// Behind a bouncer, a login after registration may reach the upstream network rather than
     /// the bouncer. A failure, including a server that does not offer `sasl`, is reported as
     /// [`Event::AuthenticationFailed`] and never closes the connection, even for required SASL.
-    /// A payload exceeding [`StateLimit::Credentials`] aborts this SASL exchange.
     pub fn reauthenticate(&mut self, now: Instant) {
         let available = self.caps.enabled().contains_key(&cap::SASL);
         self.sasl.reauthenticate(
@@ -7219,10 +7202,6 @@ fn replace_wire_parameter(line: &mut WireLine, parameter: usize, new: &Nick) -> 
             *line = wire;
             true
         })
-}
-
-fn authenticate_line(line: &[u8]) -> bool {
-    LineRef::parse_bytes(line).is_ok_and(|message| message.command_is("AUTHENTICATE"))
 }
 
 fn bypasses_rate_limit(line: &[u8]) -> bool {
