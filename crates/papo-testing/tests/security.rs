@@ -3375,7 +3375,7 @@ async fn welcome_papo(wire: &mut Wire, events: &mut Events) {
 }
 
 #[tokio::test]
-async fn logins_restarted_by_the_server_leave_room_for_channel_keys() {
+async fn a_channel_key_is_sent_and_masked_after_256_server_restarted_logins() {
     const KEY: &str = "staff-key-4821";
     let sasl = Sasl::scram_sha256("papo", papo::Secret::new("services-password-4821")).optional();
     let (client, mut events, mut wire) = wire(

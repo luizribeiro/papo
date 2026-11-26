@@ -1962,7 +1962,7 @@ fn keyed_join_is_written_and_its_refusal_masked(transcript: Transcript) {
 }
 
 #[test]
-fn repeated_application_logins_leave_room_for_channel_keys() {
+fn a_channel_key_is_sent_and_masked_after_300_application_logins() {
     let mut transcript = counted_scram()
         .server(":ergo.test 904 papo :SASL authentication failed")
         .client("CAP END")
@@ -1991,7 +1991,7 @@ fn repeated_application_logins_leave_room_for_channel_keys() {
 }
 
 #[test]
-fn logins_restarted_by_the_server_leave_room_for_channel_keys() {
+fn a_channel_key_is_sent_and_masked_after_256_server_restarted_logins() {
     let mut transcript = counted_scram();
     for exchange in 0..256 {
         let payload = counted_client_first(exchange);
